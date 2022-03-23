@@ -1,0 +1,32 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30517.126
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{BCAE716E-AE84-4169-B5F4-21947564D231}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{B69F6133-0D77-404D-8F23-66C029989C80}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kabomu", "src\Kabomu\Kabomu.csproj", "{21A2F9A5-DBFA-4B00-9540-9593B2892D15}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{21A2F9A5-DBFA-4B00-9540-9593B2892D15}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21A2F9A5-DBFA-4B00-9540-9593B2892D15}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21A2F9A5-DBFA-4B00-9540-9593B2892D15}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21A2F9A5-DBFA-4B00-9540-9593B2892D15}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{21A2F9A5-DBFA-4B00-9540-9593B2892D15} = {BCAE716E-AE84-4169-B5F4-21947564D231}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8A1F9C5B-AAF0-473E-BB59-1979B0F53384}
+	EndGlobalSection
+EndGlobal
