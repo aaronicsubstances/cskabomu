@@ -1,0 +1,13 @@
+In original email to Awudu,
+Modify point 2 so that a message is just a stream of bytes which is usually assumed to be bounded. Kabomu seeks to support frameworks which already support for exchanging bounded messages, by implementing support for exchanging unbounded ones as well.
+Modify point 3 to clarify one-way and request-response to be explicit acked one-way request (for the purpose of data transfer), and implicitly acked request-response.
+Add point 7 that since webmail makes it possible to send email via http, point 6 can still be seen from the alternative perspective of http. This will require use of "dictionary of callbacks" idea.
+
+Thinking of this dictionary to support get/getasync, add/addasync (which takes sliding timeout and eviction notice handler, and opaque extra argument), remove/removeasync, containskey/containskeyasync, foreachkey/foreachkeyasync, foreachentry/foreachentryasync, postponetimeoutasync, isEmpty/isEmptyAsync, size/SizeAsync, clear/ClearAsync.
+
+In qpc services document, also clarify distinction between one-way and request-response just like in email's point 3 above.
+Just before "most important benefit", add that we also leverage windowed transfer to great effect through multiplexing, by using the simplest flow control method which is stop-and-wait.
+
+Remove references to qpc103 and everything below improvements since no one needs it again.
+
+*Somehow mention that we have to admit that it is not useful to have long lived connections or flows which have to tolerate idleness or even restarts of peers. Rather let us settle for bounded message exchanges, and unbounded message exchanges which neither tolerate idleness nor restarts of peers. Thus have to drop all of RINA's concepts, and instead continue to emulate success of HTTP's stateless request-response model.
