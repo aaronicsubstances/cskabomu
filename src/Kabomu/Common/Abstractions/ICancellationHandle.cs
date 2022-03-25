@@ -8,7 +8,7 @@ namespace Kabomu.Common.Abstractions
     {
         bool Cancelled { get; }
         void Cancel();
-        void AddCancellationListener(Action<object> cb, object cbState);
-        void RemoveCancellationListener(Action<object> cb);
+        bool TryAddCancellationListener(Action<object> cb, object cbState);
+        bool TryRemoveCancellationListener(Action<object> cb);
     }
 }

@@ -6,6 +6,6 @@ namespace Kabomu.Common.Abstractions
 {
     public interface IRandomNumberGenerator
     {
-        int NextInt32();
+        long NextId();
     }
 }

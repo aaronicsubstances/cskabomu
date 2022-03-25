@@ -8,11 +8,15 @@ namespace Kabomu.Common.Abstractions
     {/// <summary>
      /// Used to receive data to be written.
      /// </summary>
-     /// <param name="data">source of data write.</param>
+     /// <param name="data">source of data write</param>
+     /// <param name="offset">offset in data array</param>
+     /// <param name="length">length of data to be written</param>
+     /// <param name="alternativeData">alternative source of data write.</param>
      /// <param name="isMoreExpected">whether more writes are expected or this is the last write.</param>
      /// <param name="cb">callback which should be invoked to indicate success or failure of data write</param>
      /// <param name="cbState">Opaque object which must be supplied to callback</param>
-        void OnDataWrite(object data, bool isMoreExpected, MessageSinkCallback cb, object cbState);
+        void OnDataWrite(byte[] data, int offset, int length, object alternativePayload, 
+            bool isMoreExpected, MessageSinkCallback cb, object cbState);
 
         /// <summary>
         /// Used to receive notice of end of entire write.

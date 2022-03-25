@@ -9,7 +9,7 @@ namespace Kabomu.Common.Abstractions
     public delegate void MessageSinkCallback(object cbState, Exception error);
 
     public delegate void MessageSourceCallback(object cbState, Exception error,
-        object data, bool hasMore);
+        byte[] data, int offset, int length, object alternativePayload, bool hasMore);
 
     public delegate void MessageSinkCreationCallback(object cbState, Exception error, IMessageSink sink,
         Action<object, Exception> recvCb, object recvCbState);

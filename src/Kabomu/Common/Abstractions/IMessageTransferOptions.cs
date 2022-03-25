@@ -6,9 +6,8 @@ namespace Kabomu.Common.Abstractions
 {
     public interface IMessageTransferOptions
     {
-        long MessageIdPart1 { get; }
-        long MessageIdPart2 { get; }
-        bool MustExistAtRemotePeer { get; }
+        long MessageId { get; }
+        bool SendToExistingSink { get; }
         int TimeoutMillis { get; }
         ICancellationHandle CancellationHandle { get; }
     }
