@@ -4,9 +4,13 @@ using System.Text;
 
 namespace Kabomu.Common.Abstractions
 {
-    public delegate void ErrorHandler(Exception error, string message);
+    public delegate void UncaughtErrorCallback(Exception error, string message);
 
-    public delegate void QpcSendCallback(object cbState, Exception error, IByteQueue message);
+    public delegate void MessageSinkCallback(object cbState, Exception error);
 
-    public delegate void QpcReceiveCallback(object cbState, Exception error, IByteQueue message);
+    public delegate void MessageSourceCallback(object cbState, Exception error,
+        object data, bool hasMore);
+
+    public delegate void MessageSinkCreationCallback(object cbState, Exception error, IMessageSink sink,
+        Action<object, Exception> recvCb, object recvCbState);
 }

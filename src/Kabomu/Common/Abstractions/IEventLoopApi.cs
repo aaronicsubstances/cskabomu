@@ -10,6 +10,7 @@ namespace Kabomu.Common.Abstractions
         void PostCallback(Action<object> cb, object cbState);
         object ScheduleTimeout(int millis, Action<object> cb, object cbState);
         void CancelTimeout(object id);
-        ErrorHandler ErrorHandler { get; set; }
+        UncaughtErrorCallback ErrorHandler { get; set; }
+        bool IsEventDispatchThread { get; }
     }
 }

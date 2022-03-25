@@ -4,9 +4,8 @@ using System.Text;
 
 namespace Kabomu.Common.Abstractions
 {
-    public interface INetworkAddress
+    public interface IRandomNumberGenerator
     {
-        int Id { get; }
-        string Name { get; }
+        int NextInt32();
     }
 }
