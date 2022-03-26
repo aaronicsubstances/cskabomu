@@ -10,11 +10,12 @@ namespace Kabomu.Common.Internals
         public long MessageId { get; set; }
         public int TimeoutMillis { get; set; }
         public ICancellationHandle CancellationHandle { get; set; }
+        public bool ReceiveAlreadyStarted { get; set; }
         public IMessageSource MessageSource { get; set; }
         public Action<object, Exception> MessageSendCallback { get; set; }
         public object MessageSendCallbackState { get; set; }
         public object ReceiveAckTimeoutId { get; set; }
-        public ICancellationHandle PendingResultCancellationHandle { get; set; }
+        public int NextPendingResultId { get; set; }
         public bool TerminatingChunkSeen { get; set; }
         public bool ContinueTransfer { get; set; }
         public bool AwaitingPendingResult { get; set; }

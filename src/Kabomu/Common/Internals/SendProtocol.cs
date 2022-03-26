@@ -23,7 +23,7 @@ namespace Kabomu.Common.Internals
 
         public IRecyclingFactory RecyclingFactory { get; set; }
 
-        public IRandomNumberGenerator RandomNumberGenerator { get; set; }
+        public IMessageIdGenerator MessageIdGenerator { get; set; }
 
         public void BeginSend(IMessageSource msgSource, IMessageTransferOptions options, Action<object, Exception> cb, object cbState)
         {
@@ -31,18 +31,18 @@ namespace Kabomu.Common.Internals
             {
                 MessageSource = msgSource,
                 MessageSendCallback = cb,
-                MessageSendCallbackState = cbState
+                MessageSendCallbackState = cbState,
+                NextPendingResultId = 0
             };
             if (options != null)
             {
                 transfer.TimeoutMillis = options.TimeoutMillis;
                 transfer.CancellationHandle = options.CancellationHandle;
-                transfer.ContinueTransfer = options.SendToExistingSink;
+                transfer.ReceiveAlreadyStarted = options.ReceiveAlreadyStarted;
             }
             if (transfer.MessageId == 0)
             {
-                var messageId = RandomNumberGenerator.NextId();
-                transfer.MessageId = messageId;
+                transfer.MessageId = MessageIdGenerator.NextId();
             }
             if (transfer.TimeoutMillis <= 0)
             {
@@ -56,24 +56,36 @@ namespace Kabomu.Common.Internals
 
         private void ProcessSend(OutgoingTransfer transfer)
         {
+            if (_outgoingTransfers.ContainsKey(transfer.MessageId))
+            {
+                // Intepret as an attempt to reuse a message id for a new transfer started at sender.
+                // Abort existing transfer and create a new one to replace it.
+                AbortTransfer(_outgoingTransfers[transfer.MessageId], new Exception("message id reuse"));
+            }
             _outgoingTransfers.Add(transfer.MessageId, transfer);
             ResetTimeout(transfer);
+            transfer.CancellationHandle?.TryAddCancellationListener(_ =>
+            {
+                EventLoop.PostCallback(_ =>
+                    AbortTransfer(transfer, new Exception("cancelled")), null);
+            }, null);
             BeginReadMessageSource(transfer);
         }
 
         private void BeginReadMessageSource(OutgoingTransfer transfer)
         {
-            var pendingResultCancellationHandle = new SimpleCancellationHandle();
-            transfer.PendingResultCancellationHandle = pendingResultCancellationHandle;
+            var pendingResultId = transfer.NextPendingResultId;
             MessageSourceCallback cb = (object cbState, Exception error,
                 byte[] data, int offset, int length, object alternativePayload, bool hasMore) =>
             {
-                if (!pendingResultCancellationHandle.Cancelled)
+                EventLoop.PostCallback(_ =>
                 {
-                    pendingResultCancellationHandle.Cancel();
-                    EventLoop.PostCallback(_ => 
-                        ProcessSourceResult(transfer, error, data, offset, length, alternativePayload, hasMore), null);
-                }
+                    if (transfer.NextPendingResultId == pendingResultId)
+                    {
+                        transfer.NextPendingResultId++;
+                        ProcessSourceResult(transfer, error, data, offset, length, alternativePayload, hasMore);
+                    }
+                }, null);
             };
             transfer.AwaitingPendingResult = true;
             transfer.MessageSource.OnDataRead(cb, null);
@@ -93,33 +105,27 @@ namespace Kabomu.Common.Internals
             transfer.PendingDataOffset = offset;
             transfer.PendingDataLength = length;
             transfer.PendingAlternativePayload = alternativePayload;
-            transfer.TerminatingChunkSeen = hasMore;
+            transfer.TerminatingChunkSeen = !hasMore;
 
             SendPendingData(transfer);
         }
 
         private void SendPendingData(OutgoingTransfer transfer)
         {
-            var cancellationHandle = new SimpleCancellationHandle();
-            transfer.PendingResultCancellationHandle = cancellationHandle;
+            var pendingResultId = transfer.NextPendingResultId;
             Action<object, Exception> cb = (s1, ex) =>
             {
-                if (!cancellationHandle.Cancelled)
+                EventLoop.PostCallback(_ =>
                 {
-                    cancellationHandle.Cancel();
-                    EventLoop.PostCallback(s2 => ProcessSendDataOutcome(
-                        transfer, ex), null);
-                }
+                    if (transfer.NextPendingResultId == pendingResultId)
+                    {
+                        transfer.NextPendingResultId++;
+                        ProcessSendDataOutcome(transfer, ex);
+                    }
+                }, null);
             };
-            byte flags = 0;
-            if (transfer.ContinueTransfer)
-            {
-                flags |= 1 << 0;
-            }
-            if (transfer.TerminatingChunkSeen)
-            {
-                flags |= 1 << 1;
-            }
+            byte flags = DefaultProtocolDataUnit.ComputeFlags(transfer.ContinueTransfer,
+                !transfer.TerminatingChunkSeen, transfer.ReceiveAlreadyStarted);
             QpcService.BeginSend(DefaultProtocolDataUnit.Version01, DefaultProtocolDataUnit.PduTypeData,
                 flags, 0, transfer.MessageId, transfer.PendingData, transfer.PendingDataOffset,
                 transfer.PendingDataLength, transfer.PendingAlternativePayload,
@@ -136,7 +142,7 @@ namespace Kabomu.Common.Internals
             }
         }
 
-        public void OnReceiveDataAckPdu(byte flags, byte errorCode, long messageId)
+        public void OnReceiveDataAckPdu(long messageId, byte errorCode)
         {
             if (!_outgoingTransfers.ContainsKey(messageId))
             {
@@ -146,6 +152,7 @@ namespace Kabomu.Common.Internals
             var transfer = _outgoingTransfers[messageId];
             if (transfer.AwaitingPendingResult)
             {
+                AbortTransfer(transfer, new Exception("stop and wait violation"));
                 return;
             }
 
@@ -179,7 +186,14 @@ namespace Kabomu.Common.Internals
 
         private void AbortTransfer(OutgoingTransfer transfer, Exception exception)
         {
-            _outgoingTransfers.Remove(transfer.MessageId);
+            if (!_outgoingTransfers.Remove(transfer.MessageId))
+            {
+                return;
+            }
+            if (exception == null && (transfer.CancellationHandle?.Cancelled ?? false))
+            {
+                exception = new Exception("cancelled");
+            }
             DisableTransfer(transfer, exception);
         }
 
@@ -195,13 +209,10 @@ namespace Kabomu.Common.Internals
         private void DisableTransfer(OutgoingTransfer transfer, Exception exception)
         {
             EventLoop.CancelTimeout(transfer.ReceiveAckTimeoutId);
-            transfer.PendingResultCancellationHandle?.Cancel();
-            transfer.MessageSource.OnEndRead(exception);
+            transfer.NextPendingResultId = -1;
+            transfer.MessageSource?.OnEndRead(exception);
             transfer.MessageSendCallback?.Invoke(transfer.MessageSendCallbackState, exception);
-            transfer.MessageSource = null;
-            transfer.CancellationHandle = null;
-            transfer.PendingData = null;
-            transfer.PendingAlternativePayload = null;
+            transfer.CancellationHandle?.Cancel();
         }
     }
 }

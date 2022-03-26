@@ -16,7 +16,7 @@ namespace Kabomu.Common.Components
         private int _defaultTimeoutMillis;
         private IEventLoopApi _eventLoop;
         private IRecyclingFactory _recyclingFactory;
-        private IRandomNumberGenerator _randomNumberGenerator;
+        private IMessageIdGenerator _messageIdGenerator;
 
         public IQpcFacility QpcService
         {
@@ -28,7 +28,7 @@ namespace Kabomu.Common.Components
             {
                 _qpcService = value;
                 _receiveProtocol.QpcService = value;
-                _receiveProtocol.QpcService = value;
+                _sendProtocol.QpcService = value;
             }
         }
 
@@ -55,7 +55,7 @@ namespace Kabomu.Common.Components
             {
                 _defaultTimeoutMillis = value;
                 _receiveProtocol.DefaultTimeoutMillis = value;
-                _receiveProtocol.DefaultTimeoutMillis = value;
+                _sendProtocol.DefaultTimeoutMillis = value;
             }
         }
 
@@ -69,7 +69,7 @@ namespace Kabomu.Common.Components
             {
                 _eventLoop = value;
                 _receiveProtocol.EventLoop = value;
-                _receiveProtocol.EventLoop = value;
+                _sendProtocol.EventLoop = value;
             }
         }
 
@@ -83,20 +83,20 @@ namespace Kabomu.Common.Components
             {
                 _recyclingFactory = value;
                 _receiveProtocol.RecyclingFactory = value;
-                _receiveProtocol.RecyclingFactory = value;
+                _sendProtocol.RecyclingFactory = value;
             }
         }
 
-        public IRandomNumberGenerator RandomNumberGenerator
+        public IMessageIdGenerator MessageIdGenerator
         {
             get
             {
-                return _randomNumberGenerator;
+                return _messageIdGenerator;
             }
             set
             {
-                _randomNumberGenerator = value;
-                _sendProtocol.RandomNumberGenerator = value;
+                _messageIdGenerator = value;
+                _sendProtocol.MessageIdGenerator = value;
             }
         }
 
@@ -146,7 +146,7 @@ namespace Kabomu.Common.Components
                         _receiveProtocol.OnReceiveDataPdu(flags, messageId, data, offset, length, alternativePayload);
                         break;
                     case DefaultProtocolDataUnit.PduTypeDataAck:
-                        _sendProtocol.OnReceiveDataAckPdu(flags, errorCode, messageId);
+                        _sendProtocol.OnReceiveDataAckPdu(messageId, errorCode);
                         break;
                     default:
                         throw new Exception("unexpected pdu type: " + pduType);

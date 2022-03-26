@@ -27,10 +27,5 @@ namespace Kabomu.Common.Components
         {
             return false;
         }
-
-        public bool TryRemoveCancellationListener(Action<object> cb)
-        {
-            return false;
-        }
     }
 }

@@ -7,7 +7,7 @@ namespace Kabomu.Common.Abstractions
     public interface IMessageTransferOptions
     {
         long MessageId { get; }
-        bool SendToExistingSink { get; }
+        bool ReceiveAlreadyStarted { get; }
         int TimeoutMillis { get; }
         ICancellationHandle CancellationHandle { get; }
     }

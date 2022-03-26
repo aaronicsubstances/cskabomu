@@ -10,7 +10,10 @@ namespace Kabomu.Common.Helpers
 
         public static int GetRandomInt32(int max)
         {
-            return RandNumGen.Next(max);
+            lock (RandNumGen)
+            {
+                return RandNumGen.Next(max);
+            }
         }
 
         public static bool GetRandomBoolean()
