@@ -19,5 +19,38 @@ namespace Kabomu.Common.Components
         public int DataLength { get; set; }
         public byte[] Data { get; set; }
         public object AlternativePayload { get; set; }
+
+        public static bool IsContinueTransferFlagPresent(byte flags)
+        {
+            return (flags & (1 << 0)) != 0;
+        }
+
+        public static bool IsHasMoreFlagPresent(byte flags)
+        {
+            return (flags & (1 << 1)) != 0;
+        }
+
+        public static bool IsReceiveAlreadyStartedFlagPresent(byte flags)
+        {
+            return (flags & (1 << 2)) != 0;
+        }
+
+        public static byte ComputeFlags(bool continueTransfer, bool hasMore, bool receiveAlreadyStarted)
+        {
+            byte flags = 0;
+            if (continueTransfer)
+            {
+                flags |= 1 << 0;
+            }
+            if (hasMore)
+            {
+                flags |= 1 << 1;
+            }
+            if (receiveAlreadyStarted)
+            {
+                flags |= 1 << 2;
+            }
+            return flags;
+        }
     }
 }

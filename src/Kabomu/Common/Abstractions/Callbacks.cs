@@ -12,5 +12,5 @@ namespace Kabomu.Common.Abstractions
         byte[] data, int offset, int length, object alternativePayload, bool hasMore);
 
     public delegate void MessageSinkCreationCallback(object cbState, Exception error, IMessageSink sink,
-        Action<object, Exception> recvCb, object recvCbState);
+        ICancellationHandle cancellationHandle, Action<object, Exception> recvCb, object recvCbState);
 }

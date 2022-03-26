@@ -3,16 +3,18 @@ using Kabomu.Common.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 
 namespace Kabomu.Common.Components
 {
-    public class DefaultRandomNumberGenerator : IRandomNumberGenerator
+    public class SimpleMessageIdGenerator : IMessageIdGenerator
     {
+        private long _lastId = 0;
+
         public long NextId()
         {
-            int lo = MathUtils.GetRandomInt32(int.MaxValue);
-            long hi = MathUtils.GetRandomInt32(int.MaxValue);
-            return (hi << 32) + lo;
+            Interlocked.Increment(ref _lastId);
+            return _lastId;
         }
     }
 }

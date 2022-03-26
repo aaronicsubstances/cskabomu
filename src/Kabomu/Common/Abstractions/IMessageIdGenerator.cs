@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kabomu.Common.Abstractions
 {
-    public interface IRandomNumberGenerator
+    public interface IMessageIdGenerator
     {
         long NextId();
     }

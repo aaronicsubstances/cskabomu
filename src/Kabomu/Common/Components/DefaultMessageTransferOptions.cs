@@ -9,10 +9,10 @@ namespace Kabomu.Common.Components
     {
         public long MessageId { get; set; }
 
-        public bool SendToExistingSink { get; set; }
-
         public int TimeoutMillis { get; set; }
 
         public ICancellationHandle CancellationHandle { get; set; }
+
+        public bool ReceiveAlreadyStarted { get; set; }
     }
 }
