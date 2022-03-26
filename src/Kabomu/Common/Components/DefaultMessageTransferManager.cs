@@ -135,18 +135,26 @@ namespace Kabomu.Common.Components
             }, null);
         }
 
-        public void OnReceivePdu(byte version, byte pduType, byte flags, byte errorCode, long messageId, 
+        public void OnReceivePdu(byte version, byte pduType, byte flags, byte errorCode, long messageId,
             byte[] data, int offset, int length, object alternativePayload)
         {
             EventLoop.PostCallback(_ =>
             {
                 switch (pduType)
                 {
-                    case DefaultProtocolDataUnit.PduTypeData:
-                        _receiveProtocol.OnReceiveDataPdu(flags, messageId, data, offset, length, alternativePayload);
+                    case DefaultProtocolDataUnit.PduTypeFirstChunk:
+                        _receiveProtocol.OnReceiveFirstChunk(flags, messageId,
+                            data, offset, length, alternativePayload);
                         break;
-                    case DefaultProtocolDataUnit.PduTypeDataAck:
-                        _sendProtocol.OnReceiveDataAckPdu(messageId, errorCode);
+                    case DefaultProtocolDataUnit.PduTypeSubsequentChunk:
+                        _receiveProtocol.OnReceiveSubsequentChunk(flags, messageId,
+                            data, offset, length, alternativePayload);
+                        break;
+                    case DefaultProtocolDataUnit.PduTypeFirstChunkAck:
+                        _sendProtocol.OnReceiveFirstChunkAck(flags, messageId, errorCode);
+                        break;
+                    case DefaultProtocolDataUnit.PduTypeSubsequentChunkAck:
+                        _sendProtocol.OnReceiveSubsequentChunkAck(flags, messageId, errorCode);
                         break;
                     default:
                         throw new Exception("unexpected pdu type: " + pduType);

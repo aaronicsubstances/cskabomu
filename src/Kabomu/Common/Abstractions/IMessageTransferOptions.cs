@@ -7,7 +7,7 @@ namespace Kabomu.Common.Abstractions
     public interface IMessageTransferOptions
     {
         long MessageId { get; }
-        bool ReceiveAlreadyStarted { get; }
+        bool StartedAtReceiver { get; }
         int TimeoutMillis { get; }
         ICancellationHandle CancellationHandle { get; }
     }

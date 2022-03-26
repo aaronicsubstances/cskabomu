@@ -8,12 +8,8 @@ namespace Kabomu.Common.Internals
 {
     internal class SendProtocol
     {
-        private readonly Dictionary<long, OutgoingTransfer> _outgoingTransfers;
-
-        public SendProtocol()
-        {
-            _outgoingTransfers = new Dictionary<long, OutgoingTransfer>();
-        }
+        private readonly ITransferCollection<OutgoingTransfer> _outgoingTransfers =
+            new SimpleTransferCollection<OutgoingTransfer>();
 
         public IQpcFacility QpcService { get; set; } // absolutely required.
 
@@ -38,7 +34,7 @@ namespace Kabomu.Common.Internals
             {
                 transfer.TimeoutMillis = options.TimeoutMillis;
                 transfer.CancellationHandle = options.CancellationHandle;
-                transfer.ReceiveAlreadyStarted = options.ReceiveAlreadyStarted;
+                transfer.ReceiveAlreadyStarted = options.StartedAtReceiver;
             }
             if (transfer.MessageId == 0)
             {
@@ -56,13 +52,11 @@ namespace Kabomu.Common.Internals
 
         private void ProcessSend(OutgoingTransfer transfer)
         {
-            if (_outgoingTransfers.ContainsKey(transfer.MessageId))
+            if (!_outgoingTransfers.TryAdd(transfer))
             {
-                // Intepret as an attempt to reuse a message id for a new transfer started at sender.
-                // Abort existing transfer and create a new one to replace it.
-                AbortTransfer(_outgoingTransfers[transfer.MessageId], new Exception("message id reuse"));
+                DisableTransfer(transfer, new Exception("message id in use"));
+                return;
             }
-            _outgoingTransfers.Add(transfer.MessageId, transfer);
             ResetTimeout(transfer);
             transfer.CancellationHandle?.TryAddCancellationListener(_ =>
             {
@@ -132,6 +126,16 @@ namespace Kabomu.Common.Internals
                 transfer.CancellationHandle, cb, null);
         }
 
+        public void OnReceiveFirstChunkAck(byte flags, long messageId, byte errorCode)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnReceiveSubsequentChunkAck(byte flags, long messageId, byte errorCode)
+        {
+            throw new NotImplementedException();
+        }
+
         private void ProcessSendDataOutcome(OutgoingTransfer transfer, Exception ex)
         {
             transfer.AwaitingPendingResult = false;
@@ -186,7 +190,8 @@ namespace Kabomu.Common.Internals
 
         private void AbortTransfer(OutgoingTransfer transfer, Exception exception)
         {
-            if (!_outgoingTransfers.Remove(transfer.MessageId))
+            transfer = _outgoingTransfers.TryRemove(transfer);
+            if (transfer == null)
             {
                 return;
             }
@@ -199,10 +204,7 @@ namespace Kabomu.Common.Internals
 
         public void ProcessReset(Exception causeOfReset)
         {
-            foreach (var transfer in _outgoingTransfers.Values)
-            {
-                DisableTransfer(transfer, causeOfReset);
-            }
+            _outgoingTransfers.ForEach(transfer => DisableTransfer(transfer, causeOfReset));
             _outgoingTransfers.Clear();
         }
 

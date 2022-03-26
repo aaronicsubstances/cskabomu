@@ -8,6 +8,7 @@ namespace Kabomu.Common.Internals
     internal class IncomingTransfer
     {
         public long MessageId { get; set; }
+        public bool StartedAtReceiver { get; set; }
         public bool AwaitingPendingResult { get; set; }
         public int TimeoutMillis { get; set; }
         public ICancellationHandle CancellationHandle { get; set; }
@@ -16,7 +17,7 @@ namespace Kabomu.Common.Internals
         public object MessageReceiveCallbackState { get; set; }
         public object ReceiveDataTimeoutId { get; set; }
         public int NextPendingResultId { get; set; }
-        public bool OpeningChunkSeen { get; set; }
+        public bool FirstAckSent { get; set; }
         public bool TerminatingChunkSeen { get; set; }
         public byte[] PendingData { get; set; }
         public int PendingDataOffset { get; set; }
