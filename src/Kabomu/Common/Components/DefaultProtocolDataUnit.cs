@@ -6,13 +6,15 @@ namespace Kabomu.Common.Components
 {
     public class DefaultProtocolDataUnit
     {
-        public const byte PduTypeData = 0x01;
-        public const byte PduTypeDataAck = 0x02;
+        public const byte PduTypeFirstChunk = 0x01;
+        public const byte PduTypeFirstChunkAck = 0x02;
+        public const byte PduTypeSubsequentChunk = 0x03;
+        public const byte PduTypeSubsequentChunkAck = 0x04;
         public const byte Version01 = 0x01;
 
         public byte Version { get; set; }
         public byte PduType { get; set; }
-        public double MessageId { get; set; }
+        public long MessageId { get; set; }
         public byte Flags { get; set; }
         public byte ErrorCode { get; set; }
         public int DataOffset { get; set; }
@@ -20,7 +22,7 @@ namespace Kabomu.Common.Components
         public byte[] Data { get; set; }
         public object AlternativePayload { get; set; }
 
-        public static bool IsContinueTransferFlagPresent(byte flags)
+        public static bool IsStartedAtReceiverFlagPresent(byte flags)
         {
             return (flags & (1 << 0)) != 0;
         }
@@ -30,25 +32,16 @@ namespace Kabomu.Common.Components
             return (flags & (1 << 1)) != 0;
         }
 
-        public static bool IsReceiveAlreadyStartedFlagPresent(byte flags)
-        {
-            return (flags & (1 << 2)) != 0;
-        }
-
-        public static byte ComputeFlags(bool continueTransfer, bool hasMore, bool receiveAlreadyStarted)
+        public static byte ComputeFlags(bool startedAtReceiver, bool hasMore)
         {
             byte flags = 0;
-            if (continueTransfer)
+            if (startedAtReceiver)
             {
                 flags |= 1 << 0;
             }
             if (hasMore)
             {
                 flags |= 1 << 1;
-            }
-            if (receiveAlreadyStarted)
-            {
-                flags |= 1 << 2;
             }
             return flags;
         }

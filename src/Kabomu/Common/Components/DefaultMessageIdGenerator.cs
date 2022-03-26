@@ -7,7 +7,7 @@ using System.Threading;
 
 namespace Kabomu.Common.Components
 {
-    public class SimpleMessageIdGenerator : IMessageIdGenerator
+    public class DefaultMessageIdGenerator : IMessageIdGenerator
     {
         private long _lastId = 0;
 

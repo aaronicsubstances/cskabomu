@@ -13,6 +13,6 @@ namespace Kabomu.Common.Components
 
         public ICancellationHandle CancellationHandle { get; set; }
 
-        public bool ReceiveAlreadyStarted { get; set; }
+        public bool StartedAtReceiver { get; set; }
     }
 }
