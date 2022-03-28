@@ -5,24 +5,24 @@ using System.Text;
 
 namespace Kabomu.Common.Internals
 {
-    internal class OutgoingTransfer
+    internal class OutgoingTransfer : IRecyclable
     {
         public long MessageId { get; set; }
         public bool StartedAtReceiver { get; set; }
         public int TimeoutMillis { get; set; }
-        public ICancellationHandle CancellationHandle { get; set; }
-        public bool ReceiveAlreadyStarted { get; set; }
+        public ICancellationIndicator CancellationIndicator { get; set; }
         public IMessageSource MessageSource { get; set; }
         public Action<object, Exception> MessageSendCallback { get; set; }
         public object MessageSendCallbackState { get; set; }
         public object ReceiveAckTimeoutId { get; set; }
-        public int NextPendingResultId { get; set; }
-        public bool OpeningChunkSeen { get; set; }
-        public bool TerminatingChunkSeen { get; set; }
+        public STCancellationIndicator PendingResultCancellationIndicator { get; set; }
         public bool AwaitingPendingResult { get; set; }
+        public bool OpeningChunkSent { get; set; }
+        public bool TerminatingChunkSeen { get; set; }
         public byte[] PendingData { get; set; }
         public int PendingDataOffset { get; set; }
         public int PendingDataLength { get; set; }
         public object PendingAlternativePayload { get; set; }
+        public int RecyclingFlags { get; set; }
     }
 }

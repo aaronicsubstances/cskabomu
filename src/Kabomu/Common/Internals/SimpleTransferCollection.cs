@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kabomu.Common.Internals
 {
-    public class SimpleTransferCollection<T> : ITransferCollection<T> where T : class
+    internal class SimpleTransferCollection<T> : ITransferCollection<T> where T : class
     {
         private readonly Dictionary<T, T> _backingStore = new Dictionary<T, T>();
 

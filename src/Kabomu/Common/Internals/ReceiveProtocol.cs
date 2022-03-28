@@ -11,29 +11,28 @@ namespace Kabomu.Common.Internals
         private readonly ITransferCollection<IncomingTransfer> _incomingTransfers = 
             new SimpleTransferCollection<IncomingTransfer>();
 
-        public IQpcFacility QpcService { get; set; } // absolutely required.
+        public IQpcFacility QpcService { get; set; }
+        public IMessageSinkFactory MessageSinkFactory { get; set; }
+        public int DefaultTimeoutMillis { get; set; }
+        public IEventLoopApi EventLoop { get; set; }
+        public IMessageIdGenerator MessageIdGenerator { get; set; }
 
-        public IMessageSinkFactory MessageSinkFactory { get; set; } // absolutely required.
-
-        public int DefaultTimeoutMillis { get; set; } // absolutely required.
-
-        public IEventLoopApi EventLoop { get; set; } // absolutely required
-
-        public IRecyclingFactory RecyclingFactory { get; set; }
-
-        public void BeginReceive(IMessageSink msgSink, IMessageTransferOptions options, Action<object, Exception> cb, object cbState)
+        public long BeginReceive(IMessageSink msgSink, IMessageTransferOptions options, Action<object, Exception> cb, object cbState)
         {
+            long messageId = MessageIdGenerator.NextId();
             var transfer = new IncomingTransfer
             {
-                MessageId = options.MessageId,
+                MessageId = messageId,
                 StartedAtReceiver = true,
-                TimeoutMillis = options.TimeoutMillis,
-                CancellationHandle = options.CancellationHandle,
                 MessageSink = msgSink,
                 MessageReceiveCallback = cb,
-                MessageReceiveCallbackState = cbState,
-                NextPendingResultId = 0
+                MessageReceiveCallbackState = cbState
             };
+            if (options != null)
+            {
+                transfer.TimeoutMillis = options.TimeoutMillis;
+                transfer.CancellationIndicator = options.CancellationIndicator;
+            }
             if (transfer.TimeoutMillis <= 0)
             {
                 transfer.TimeoutMillis = DefaultTimeoutMillis;
@@ -42,6 +41,7 @@ namespace Kabomu.Common.Internals
             {
                 ProcessReceive(transfer);
             }, null);
+            return messageId;
         }
 
         private void ProcessReceive(IncomingTransfer transfer)
@@ -51,11 +51,6 @@ namespace Kabomu.Common.Internals
                 DisableTransfer(transfer, new Exception("message id in use"));
                 return;
             }
-            transfer.CancellationHandle?.TryAddCancellationListener(_ =>
-            {
-                EventLoop.PostCallback(_ =>
-                    AbortTransfer(transfer, new Exception("cancelled")), null);
-            }, null);
             ResetTimeout(transfer);
         }
 
@@ -72,10 +67,16 @@ namespace Kabomu.Common.Internals
             {
                 if (transfer == null)
                 {
-                    SendAck(messageId, 1);
+                    SendAck(messageId, DefaultProtocolDataUnit.PduTypeFirstChunkAck, 1);
                     return;
                 }
-                if (transfer.FirstAckSent)
+                if (transfer.AwaitingPendingResult)
+                {
+                    AbortTransfer(transfer, new Exception("stop and wait violation"));
+                    SendTransferAck(transfer, 1);
+                    return;
+                }
+                if (transfer.OpeningChunkReceived)
                 {
                     // Intepret as an illegal attempt to use a first chunk to continue a transfer.
                     AbortTransfer(transfer, new Exception("protocol violation: first chunk cannot continue a transfer"));
@@ -95,8 +96,7 @@ namespace Kabomu.Common.Internals
                 {
                     MessageId = messageId,
                     StartedAtReceiver = false,
-                    TimeoutMillis = DefaultTimeoutMillis,
-                    NextPendingResultId = 0
+                    TimeoutMillis = DefaultTimeoutMillis
                 };
                 if (!_incomingTransfers.TryAdd(transfer))
                 {
@@ -105,15 +105,8 @@ namespace Kabomu.Common.Internals
                 }
                 ResetTimeout(transfer);
             }
-            if (transfer.AwaitingPendingResult)
-            {
-                AbortTransfer(transfer, new Exception("stop and wait violation"));
-                SendTransferAck(transfer, 1);
-                return;
-            }
 
             bool hasMore = DefaultProtocolDataUnit.IsHasMoreFlagPresent(flags);
-            transfer.FirstAckSent = true;
             transfer.TerminatingChunkSeen = !hasMore;
             transfer.PendingData = data;
             transfer.PendingDataOffset = offset;
@@ -140,19 +133,19 @@ namespace Kabomu.Common.Internals
             });
             if (transfer == null)
             {
-                // silently ignore
-                return;
-            }
-            if (!transfer.FirstAckSent)
-            {
-                // Intepret as an illegal attempt to use a subsequent chunk to start a transfer.
-                AbortTransfer(transfer, new Exception("protocol violation: subsequent chunk cannot start a transfer"));
-                SendTransferAck(transfer, 1);
+                SendAck(messageId, DefaultProtocolDataUnit.PduTypeSubsequentChunkAck, 1);
                 return;
             }
             if (transfer.AwaitingPendingResult)
             {
                 AbortTransfer(transfer, new Exception("stop and wait violation"));
+                SendTransferAck(transfer, 1);
+                return;
+            }
+            if (!transfer.OpeningChunkReceived)
+            {
+                // Intepret as an illegal attempt to use a subsequent chunk to start a transfer.
+                AbortTransfer(transfer, new Exception("protocol violation: subsequent chunk cannot start a transfer"));
                 SendTransferAck(transfer, 1);
                 return;
             }
@@ -169,25 +162,27 @@ namespace Kabomu.Common.Internals
 
         private void BeginCreateMessageSink(IncomingTransfer transfer)
         {
-            var pendingResultId = transfer.NextPendingResultId;
-            MessageSinkCreationCallback cb = (object cbState, Exception error, IMessageSink sink, ICancellationHandle cancellationHandle,
+            var cancellationIndicator = new STCancellationIndicator();
+            transfer.CancellationIndicator = cancellationIndicator;
+            MessageSinkCreationCallback cb = (object cbState, Exception error, IMessageSink sink, 
+                ICancellationIndicator externalCancellationIndicator,
                 Action<object, Exception> recvCb, object recvCbState) =>
             {
                 EventLoop.PostCallback(_ =>
                 {
-                    if (transfer.NextPendingResultId == pendingResultId)
+                    if (transfer.PendingResultCancellationIndicator == cancellationIndicator)
                     {
-                        transfer.NextPendingResultId++;
-                        ProcessSinkCreationResult(transfer, error, sink, cancellationHandle, recvCb, recvCbState);
+                        transfer.PendingResultCancellationIndicator = null;
+                        ProcessSinkCreationResult(transfer, error, sink, externalCancellationIndicator, recvCb, recvCbState);
                     }
                 }, null);
             };
             transfer.AwaitingPendingResult = true;
-            MessageSinkFactory.CreateMessageSink(transfer.MessageId, cb, null);
+            MessageSinkFactory.CreateMessageSink(cb, null);
         }
 
         private void ProcessSinkCreationResult(IncomingTransfer transfer, Exception error, 
-            IMessageSink sink, ICancellationHandle cancellationHandle, Action<object, Exception> recvCb, object recvCbState)
+            IMessageSink sink, ICancellationIndicator cancellationIndicator, Action<object, Exception> recvCb, object recvCbState)
         {
             transfer.AwaitingPendingResult = false;
             if (error != null)
@@ -200,7 +195,7 @@ namespace Kabomu.Common.Internals
             transfer.MessageSink = sink;
             transfer.MessageReceiveCallback = recvCb;
             transfer.MessageReceiveCallbackState = recvCbState;
-            transfer.CancellationHandle = cancellationHandle;
+            transfer.CancellationIndicator = cancellationIndicator;
 
             ResetTimeout(transfer);
             BeginWriteMessageSink(transfer);
@@ -208,14 +203,15 @@ namespace Kabomu.Common.Internals
 
         private void BeginWriteMessageSink(IncomingTransfer transfer)
         {
-            var pendingResultId = transfer.NextPendingResultId;
+            var cancellationIndicator = new STCancellationIndicator();
+            transfer.CancellationIndicator = cancellationIndicator;
             MessageSinkCallback cb = (object cbState, Exception error) =>
             {
                 EventLoop.PostCallback(_ =>
                 {
-                    if (transfer.NextPendingResultId == pendingResultId)
+                    if (transfer.PendingResultCancellationIndicator == cancellationIndicator)
                     {
-                        transfer.NextPendingResultId++;
+                        transfer.PendingResultCancellationIndicator = null;
                         ProcessSinkResult(transfer, error);
                     }
                 }, null);
@@ -235,12 +231,7 @@ namespace Kabomu.Common.Internals
                 return;
             }
 
-            if (transfer.TerminatingChunkSeen)
-            {
-                AbortTransfer(transfer, null);
-            }
-
-            // in any case send back final ack.
+            transfer.OpeningChunkReceived = true;
             SendTransferAck(transfer, 0);
         }
 
@@ -252,17 +243,10 @@ namespace Kabomu.Common.Internals
 
         private void SendTransferAck(IncomingTransfer transfer, byte errorCode)
         {
-            Action<object, Exception> cb = (s, e) =>
-            {
-                EventLoop.PostCallback(_ =>
-                {
-
-                }, null);
-            };
-            byte pduType = transfer.FirstAckSent ? DefaultProtocolDataUnit.PduTypeSubsequentChunkAck :
+            byte pduType = transfer.OpeningChunkReceived ? DefaultProtocolDataUnit.PduTypeSubsequentChunkAck :
                 DefaultProtocolDataUnit.PduTypeFirstChunkAck;
             QpcService.BeginSend(DefaultProtocolDataUnit.Version01, pduType,
-                0, errorCode, transfer.MessageId, null, 0, 0, null, transfer.CancellationHandle, cb, null);
+                0, errorCode, transfer.MessageId, null, 0, 0, null, transfer.CancellationIndicator, null, null);
         }
 
         private void ResetTimeout(IncomingTransfer transfer)
@@ -282,7 +266,7 @@ namespace Kabomu.Common.Internals
             {
                 return;
             }
-            if (exception == null && (transfer.CancellationHandle?.Cancelled ?? false))
+            if (exception == null && (transfer.CancellationIndicator?.Cancelled ?? false))
             {
                 exception = new Exception("cancelled");
             }
@@ -298,10 +282,17 @@ namespace Kabomu.Common.Internals
         private void DisableTransfer(IncomingTransfer transfer, Exception exception)
         {
             EventLoop.CancelTimeout(transfer.ReceiveDataTimeoutId);
-            transfer.NextPendingResultId = -1;
+            transfer.ReceiveDataTimeoutId = null;
+            transfer.PendingResultCancellationIndicator?.Cancel();
+            transfer.PendingResultCancellationIndicator = null;
             transfer.MessageSink?.OnEndWrite(exception);
+            transfer.MessageSink = null;
             transfer.MessageReceiveCallback?.Invoke(transfer.MessageReceiveCallbackState, exception);
-            transfer.CancellationHandle?.Cancel();
+            transfer.MessageReceiveCallback = null;
+            transfer.MessageReceiveCallbackState = null;
+            transfer.CancellationIndicator = null;
+            transfer.PendingData = null;
+            transfer.PendingAlternativePayload = null;
         }
     }
 }

@@ -73,7 +73,7 @@ namespace Kabomu.Common.Components
             }
         }
 
-        public IRecyclingFactory RecyclingFactory
+        /*public IRecyclingFactory RecyclingFactory
         {
             get
             {
@@ -85,9 +85,9 @@ namespace Kabomu.Common.Components
                 _receiveProtocol.RecyclingFactory = value;
                 _sendProtocol.RecyclingFactory = value;
             }
-        }
+        }*/
 
-        public IMessageIdGenerator MessageIdGenerator
+        internal IMessageIdGenerator MessageIdGenerator
         {
             get
             {
@@ -96,6 +96,7 @@ namespace Kabomu.Common.Components
             set
             {
                 _messageIdGenerator = value;
+                _receiveProtocol.MessageIdGenerator = value;
                 _sendProtocol.MessageIdGenerator = value;
             }
         }
@@ -106,16 +107,22 @@ namespace Kabomu.Common.Components
             _sendProtocol = new SendProtocol();
         }
 
-        public void BeginReceive(IMessageSink msgSink, IMessageTransferOptions options,
+        public long BeginReceive(IMessageSink msgSink, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState)
         {
-            _receiveProtocol.BeginReceive(msgSink, options, cb, cbState);
+            return _receiveProtocol.BeginReceive(msgSink, options, cb, cbState);
         }
 
-        public void BeginSend(IMessageSource msgSource, IMessageTransferOptions options,
+        public long BeginSend(IMessageSource msgSource, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState)
         {
-            _sendProtocol.BeginSend(msgSource, options, cb, cbState);
+            return _sendProtocol.BeginSend(msgSource, options, cb, cbState);
+        }
+
+        public void BeginSendStartedAtReceiver(IMessageSource msgSource, long msgIdAtReceiver, IMessageTransferOptions options,
+            Action<object, Exception> cb, object cbState)
+        {
+            _sendProtocol.BeginSendStartedAtReceiver(msgSource, msgIdAtReceiver, options, cb, cbState);
         }
 
         public void BeginReset(Exception causeOfReset, Action<object, Exception> cb, object cbState)
