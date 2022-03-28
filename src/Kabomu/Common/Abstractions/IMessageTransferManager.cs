@@ -8,9 +8,11 @@ namespace Kabomu.Common.Abstractions
     {
         IQpcFacility QpcService { get; }
         IMessageSinkFactory MessageSinkFactory { get; }
-        void BeginReceive(IMessageSink msgSink, IMessageTransferOptions options,
+        long BeginReceive(IMessageSink msgSink, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState);
-        void BeginSend(IMessageSource msgSource, IMessageTransferOptions options, 
+        long BeginSend(IMessageSource msgSource, IMessageTransferOptions options, 
+            Action<object, Exception> cb, object cbState);
+        void BeginSendStartedAtReceiver(IMessageSource msgSource, long msgIdAtReceiver, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState);
         void BeginReset(Exception causeOfReset, Action<object, Exception> cb, object cbState);
         void OnReceivePdu(byte version, byte pduType, byte flags, byte errorCode,

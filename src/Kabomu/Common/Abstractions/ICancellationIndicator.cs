@@ -4,8 +4,8 @@ using System.Text;
 
 namespace Kabomu.Common.Abstractions
 {
-    public interface IMessageIdGenerator
+    public interface ICancellationIndicator
     {
-        long NextId();
+        bool Cancelled { get; }
     }
 }

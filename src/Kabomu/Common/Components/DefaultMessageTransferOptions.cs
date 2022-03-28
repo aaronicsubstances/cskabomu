@@ -7,12 +7,8 @@ namespace Kabomu.Common.Components
 {
     public class DefaultMessageTransferOptions : IMessageTransferOptions
     {
-        public long MessageId { get; set; }
-
         public int TimeoutMillis { get; set; }
 
-        public ICancellationHandle CancellationHandle { get; set; }
-
-        public bool StartedAtReceiver { get; set; }
+        public ICancellationIndicator CancellationIndicator { get; set; }
     }
 }

@@ -5,11 +5,16 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 
-namespace Kabomu.Common.Components
+namespace Kabomu.Common.Internals
 {
-    public class DefaultMessageIdGenerator : IMessageIdGenerator
+    internal class DefaultMessageIdGenerator : IMessageIdGenerator
     {
-        private long _lastId = 0;
+        private long _lastId;
+
+        public DefaultMessageIdGenerator()
+        {
+            _lastId = new Random().Next();
+        }
 
         public long NextId()
         {

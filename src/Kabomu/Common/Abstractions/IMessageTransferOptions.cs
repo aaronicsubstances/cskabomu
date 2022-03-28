@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 
 namespace Kabomu.Common.Abstractions
 {
     public interface IMessageTransferOptions
     {
-        long MessageId { get; }
-        bool StartedAtReceiver { get; }
         int TimeoutMillis { get; }
-        ICancellationHandle CancellationHandle { get; }
+        ICancellationIndicator CancellationIndicator { get; }
     }
 }
