@@ -16,7 +16,6 @@ namespace Kabomu.Common.Internals
         public object MessageReceiveCallbackState { get; set; }
         public object ReceiveDataTimeoutId { get; set; }
         public STCancellationIndicator PendingResultCancellationIndicator { get; set; }
-        public bool AwaitingPendingResult { get; set; }
         public bool OpeningChunkReceived { get; set; }
         public bool TerminatingChunkSeen { get; set; }
         public byte[] PendingData { get; set; }
