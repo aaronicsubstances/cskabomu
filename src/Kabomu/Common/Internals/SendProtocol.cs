@@ -16,7 +16,8 @@ namespace Kabomu.Common.Internals
         public IEventLoopApi EventLoop { get; set; }
         public IMessageIdGenerator MessageIdGenerator { get; set; }
 
-        public long BeginSend(IMessageSource msgSource, IMessageTransferOptions options, Action<object, Exception> cb, object cbState)
+        public long BeginSend(IMessageSource msgSource, IMessageTransferOptions options,
+            Action<object, Exception> cb, object cbState)
         {
             long messageId = MessageIdGenerator.NextId();
             var transfer = new OutgoingTransfer
@@ -70,6 +71,12 @@ namespace Kabomu.Common.Internals
 
         private void ProcessSend(OutgoingTransfer transfer)
         {
+            if (transfer.StartedAtReceiver && _outgoingTransfers.TryGet(transfer) != null)
+            {
+                // Intepret as a valid attempt to reuse a message id for a new transfer started by receiver.
+                // Abort existing transfer and create a new one to replace it.
+                AbortTransfer(transfer, new Exception("aborted by receiver"));
+            }
             if (!_outgoingTransfers.TryAdd(transfer))
             {
                 DisableTransfer(transfer, new Exception("message id in use"));
@@ -95,14 +102,12 @@ namespace Kabomu.Common.Internals
                     }
                 }, null);
             };
-            transfer.AwaitingPendingResult = true;
             transfer.MessageSource.OnDataRead(cb, null);
         }
 
         private void ProcessSourceResult(OutgoingTransfer transfer, Exception error,
             byte[] data, int offset, int length, object alternativePayload, bool hasMore)
         {
-            transfer.AwaitingPendingResult = false;
             if (error != null)
             {
                 AbortTransfer(transfer, error);
@@ -118,15 +123,10 @@ namespace Kabomu.Common.Internals
             SendPendingData(transfer);
         }
 
-        /// <summary>
-        /// Since this method waits for a chunk to be sent before accepting its ack, the few qpc services which
-        /// can send acks before confirming receipt of chunks (e.g. in memory) should take special measures to
-        /// ensure such acks arrive after completion of their corresponding chunk receipt.
-        /// </summary>
-        /// <param name="transfer"></param>
         private void SendPendingData(OutgoingTransfer transfer)
         {
             var cancellationIndicator = new STCancellationIndicator();
+            transfer.PendingResultCancellationIndicator = cancellationIndicator;
             Action<object, Exception> cb = (s1, ex) =>
             {
                 EventLoop.PostCallback(_ =>
@@ -142,7 +142,6 @@ namespace Kabomu.Common.Internals
                 !transfer.TerminatingChunkSeen);
             byte pduType = transfer.OpeningChunkSent ? DefaultProtocolDataUnit.PduTypeSubsequentChunk :
                 DefaultProtocolDataUnit.PduTypeFirstChunk;
-            transfer.AwaitingPendingResult = true;
             QpcService.BeginSend(DefaultProtocolDataUnit.Version01, pduType,
                 flags, 0, transfer.MessageId, transfer.PendingData, transfer.PendingDataOffset,
                 transfer.PendingDataLength, transfer.PendingAlternativePayload,
@@ -151,14 +150,11 @@ namespace Kabomu.Common.Internals
 
         private void ProcessSendDataOutcome(OutgoingTransfer transfer, Exception ex)
         {
-            transfer.AwaitingPendingResult = false;
             if (ex != null)
             {
                 AbortTransfer(transfer, ex);
                 return;
             }
-
-            transfer.OpeningChunkSent = true;
         }
 
         public void OnReceiveFirstChunkAck(byte flags, long messageId, byte errorCode)
@@ -173,7 +169,7 @@ namespace Kabomu.Common.Internals
             {
                 return;
             }
-            if (transfer.AwaitingPendingResult)
+            if (transfer.PendingResultCancellationIndicator != null)
             {
                 AbortTransfer(transfer, new Exception("stop and wait violation"));
                 return;
@@ -189,6 +185,7 @@ namespace Kabomu.Common.Internals
                 return;
             }
 
+            transfer.OpeningChunkSent = true;
             AdvanceTransfer(transfer);
         }
 
@@ -204,7 +201,7 @@ namespace Kabomu.Common.Internals
             {
                 return;
             }
-            if (transfer.AwaitingPendingResult)
+            if (transfer.PendingResultCancellationIndicator != null)
             {
                 AbortTransfer(transfer, new Exception("stop and wait violation"));
                 return;
