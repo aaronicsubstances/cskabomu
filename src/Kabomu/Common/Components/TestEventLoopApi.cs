@@ -9,11 +9,11 @@ namespace Kabomu.Common.Components
     /// Event loop implementation which doesn't use real time.
     /// Useful for testing main components of library.
     /// </summary>
-    public class VirtualEventLoopApi : IEventLoopApi
+    public class TestEventLoopApi : IEventLoopApi
     {
         private class TaskDescriptor
         {
-            public Guid Id { get; set; }
+            public int Id { get; set; }
 
             public Action<object> Callback { get; set; }
 
@@ -26,13 +26,14 @@ namespace Kabomu.Common.Components
 
         private class CancellationHandle
         {
-            public Guid Id { get; set; }
+            public int Id { get; set; }
 
             public long ScheduledAt { get; set; }
         }
 
         private readonly List<TaskDescriptor> _taskQueue = new List<TaskDescriptor>();
         private int _cancelledTaskCount = 0;
+        private int _idSeq = 0;
 
         public void AdvanceTimeBy(long delay)
         {
@@ -119,12 +120,27 @@ namespace Kabomu.Common.Components
 
             var taskDescriptor = new TaskDescriptor
             {
-                Id = Guid.NewGuid(),
+                Id = GenerateNextId(),
                 Callback = cb,
                 CallbackState = cbState,
                 ScheduledAt = CurrentTimestamp + millis
             };
+            InsertIntoSortedTasks(taskDescriptor);
+            var cancellationHndle = new CancellationHandle
+            {
+                Id = taskDescriptor.Id,
+                ScheduledAt = taskDescriptor.ScheduledAt
+            };
+            return cancellationHndle;
+        }
 
+        private int GenerateNextId()
+        {
+            return _idSeq++;
+        }
+
+        private void InsertIntoSortedTasks(TaskDescriptor taskDescriptor)
+        {
             // stable sort in reverse order since we will be retrieving from end of list.
             // for speed, leverage already sorted nature of queue, and use inner loop
             // of insertion sort.
@@ -137,14 +153,7 @@ namespace Kabomu.Common.Components
                     break;
                 }
             }
-
             _taskQueue.Insert(insertIdx, taskDescriptor);
-            var cancellationHndle = new CancellationHandle
-            {
-                Id = taskDescriptor.Id,
-                ScheduledAt = taskDescriptor.ScheduledAt
-            };
-            return cancellationHndle;
         }
 
         public void CancelTimeout(object id)

@@ -10,13 +10,13 @@ using System.Threading.Tasks;
 namespace Kabomu.Common.Components
 {
     /// <summary>
-    /// Provides simple implementation of event loop that uses the system thread pool.
+    /// Provides default implementation of event loop that uses the system thread pool.
     /// </summary>
-    public class SimpleEventLoopApi : IEventLoopApi
+    public class DefaultEventLoopApi : IEventLoopApi
     {
         private readonly LimitedConcurrencyLevelTaskScheduler _throttledTaskScheduler;
 
-        public SimpleEventLoopApi()
+        public DefaultEventLoopApi()
         {
             _throttledTaskScheduler = new LimitedConcurrencyLevelTaskScheduler(1);
         }
