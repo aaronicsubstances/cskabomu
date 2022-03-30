@@ -2,7 +2,10 @@
 using Kabomu.Common.Internals;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
+
+[assembly: InternalsVisibleTo("Kabomu.Tests")]
 
 namespace Kabomu.Common.Components
 {
@@ -143,7 +146,7 @@ namespace Kabomu.Common.Components
         }
 
         public void OnReceivePdu(byte version, byte pduType, byte flags, byte errorCode, long messageId,
-            byte[] data, int offset, int length, object alternativePayload)
+            byte[] data, int offset, int length, object additionalPayload)
         {
             EventLoop.PostCallback(_ =>
             {
@@ -151,11 +154,11 @@ namespace Kabomu.Common.Components
                 {
                     case DefaultProtocolDataUnit.PduTypeFirstChunk:
                         _receiveProtocol.OnReceiveFirstChunk(flags, messageId,
-                            data, offset, length, alternativePayload);
+                            data, offset, length, additionalPayload);
                         break;
                     case DefaultProtocolDataUnit.PduTypeSubsequentChunk:
                         _receiveProtocol.OnReceiveSubsequentChunk(flags, messageId,
-                            data, offset, length, alternativePayload);
+                            data, offset, length, additionalPayload);
                         break;
                     case DefaultProtocolDataUnit.PduTypeFirstChunkAck:
                         _sendProtocol.OnReceiveFirstChunkAck(flags, messageId, errorCode);

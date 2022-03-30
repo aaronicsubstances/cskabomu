@@ -21,7 +21,25 @@ namespace Kabomu.Common.Internals
         public byte[] PendingData { get; set; }
         public int PendingDataOffset { get; set; }
         public int PendingDataLength { get; set; }
-        public object PendingAlternativePayload { get; set; }
+        public object PendingAdditionalPayload { get; set; }
         public int RecyclingFlags { get; set; }
+
+        public override bool Equals(object obj)
+        {
+            return obj is OutgoingTransfer transfer &&
+                   MessageId == transfer.MessageId &&
+                   StartedAtReceiver == transfer.StartedAtReceiver;
+        }
+
+        public override int GetHashCode()
+        {
+            int hashCode = 273286397;
+            // Avoid method call to long.GetHashCode() by
+            // using java's example of computing hash code of a long value as
+            // = (int)(longValue ^ (longValue >>> 32))
+            hashCode = hashCode * -1521134295 + (int)(MessageId ^ (MessageId >> 32));
+            hashCode = hashCode * -1521134295 + (StartedAtReceiver ? 1 : 0);
+            return hashCode;
+        }
     }
 }
