@@ -142,7 +142,7 @@ namespace Kabomu.Common.Internals
                 !transfer.TerminatingChunkSeen);
             byte pduType = transfer.OpeningChunkSent ? DefaultProtocolDataUnit.PduTypeSubsequentChunk :
                 DefaultProtocolDataUnit.PduTypeFirstChunk;
-            QpcService.BeginSend(DefaultProtocolDataUnit.Version01, pduType,
+            QpcService.BeginSendPdu(DefaultProtocolDataUnit.Version01, pduType,
                 flags, 0, transfer.MessageId, transfer.PendingData, transfer.PendingDataOffset,
                 transfer.PendingDataLength, transfer.PendingAdditionalPayload,
                 transfer.CancellationIndicator, cb, null);

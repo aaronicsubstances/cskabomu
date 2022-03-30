@@ -18,8 +18,15 @@ namespace Kabomu.Common.Components
         private IMessageSinkFactory _messageSinkFactory;
         private int _defaultTimeoutMillis;
         private IEventLoopApi _eventLoop;
-        private IRecyclingFactory _recyclingFactory;
+        //private IRecyclingFactory _recyclingFactory;
         private IMessageIdGenerator _messageIdGenerator;
+
+        public DefaultMessageTransferManager()
+        {
+            _receiveProtocol = new ReceiveProtocol();
+            _sendProtocol = new SendProtocol();
+            _messageIdGenerator = new DefaultMessageIdGenerator();
+        }
 
         public IQpcFacility QpcService
         {
@@ -102,12 +109,6 @@ namespace Kabomu.Common.Components
                 _receiveProtocol.MessageIdGenerator = value;
                 _sendProtocol.MessageIdGenerator = value;
             }
-        }
-
-        public DefaultMessageTransferManager()
-        {
-            _receiveProtocol = new ReceiveProtocol();
-            _sendProtocol = new SendProtocol();
         }
 
         public long BeginReceive(IMessageSink msgSink, IMessageTransferOptions options,

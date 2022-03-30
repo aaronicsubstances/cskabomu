@@ -233,7 +233,7 @@ namespace Kabomu.Common.Internals
 
         private void SendAck(long messageId, byte pduType, byte errorCode)
         {
-            QpcService.BeginSend(DefaultProtocolDataUnit.Version01, pduType,
+            QpcService.BeginSendPdu(DefaultProtocolDataUnit.Version01, pduType,
                 0, errorCode, messageId, null, 0, 0, null, null, null, null);
         }
 
@@ -258,7 +258,7 @@ namespace Kabomu.Common.Internals
             }
             byte pduType = transfer.OpeningChunkReceived ? DefaultProtocolDataUnit.PduTypeSubsequentChunkAck :
                 DefaultProtocolDataUnit.PduTypeFirstChunkAck;
-            QpcService.BeginSend(DefaultProtocolDataUnit.Version01, pduType,
+            QpcService.BeginSendPdu(DefaultProtocolDataUnit.Version01, pduType,
                 0, errorCode, transfer.MessageId, null, 0, 0, null, transfer.CancellationIndicator, null, null);
         }
 
