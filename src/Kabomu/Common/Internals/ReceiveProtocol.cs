@@ -9,7 +9,7 @@ namespace Kabomu.Common.Internals
     internal class ReceiveProtocol
     {
         private readonly ITransferCollection<IncomingTransfer> _incomingTransfers = 
-            new SimpleTransferCollection<IncomingTransfer>();
+            new DefaultTransferCollection<IncomingTransfer>();
 
         public IQpcFacility QpcService { get; set; }
         public IMessageSinkFactory MessageSinkFactory { get; set; }
@@ -55,7 +55,7 @@ namespace Kabomu.Common.Internals
         }
 
         public void OnReceiveFirstChunk(byte flags, long messageId,
-            byte[] data, int offset, int length, object alternativePayload)
+            byte[] data, int offset, int length, object additionalPayload)
         {
             bool startedAtReceiver = DefaultProtocolDataUnit.IsStartedAtReceiverFlagPresent(flags);
             IncomingTransfer transfer = _incomingTransfers.TryGet(new IncomingTransfer
@@ -111,7 +111,7 @@ namespace Kabomu.Common.Internals
             transfer.PendingData = data;
             transfer.PendingDataOffset = offset;
             transfer.PendingDataLength = length;
-            transfer.PendingAlternativePayload = alternativePayload;
+            transfer.PendingAdditionalPayload = additionalPayload;
             if (startedAtReceiver)
             {
                 BeginWriteMessageSink(transfer);
@@ -123,7 +123,7 @@ namespace Kabomu.Common.Internals
         }
 
         public void OnReceiveSubsequentChunk(byte flags, long messageId,
-            byte[] data, int offset, int length, object alternativePayload)
+            byte[] data, int offset, int length, object additionalPayload)
         {
             bool startedAtReceiver = DefaultProtocolDataUnit.IsStartedAtReceiverFlagPresent(flags);
             IncomingTransfer transfer = _incomingTransfers.TryGet(new IncomingTransfer
@@ -155,7 +155,7 @@ namespace Kabomu.Common.Internals
             transfer.PendingData = data;
             transfer.PendingDataOffset = offset;
             transfer.PendingDataLength = length;
-            transfer.PendingAlternativePayload = alternativePayload;
+            transfer.PendingAdditionalPayload = additionalPayload;
 
             BeginWriteMessageSink(transfer);
         }
@@ -215,7 +215,7 @@ namespace Kabomu.Common.Internals
                 }, null);
             };
             transfer.MessageSink.OnDataWrite(transfer.PendingData, transfer.PendingDataOffset,
-                transfer.PendingDataLength, transfer.PendingAlternativePayload, !transfer.TerminatingChunkSeen, cb, null);
+                transfer.PendingDataLength, transfer.PendingAdditionalPayload, !transfer.TerminatingChunkSeen, cb, null);
         }
 
         private void ProcessSinkResult(IncomingTransfer transfer, Exception error)
@@ -314,7 +314,7 @@ namespace Kabomu.Common.Internals
             transfer.MessageReceiveCallbackState = null;
             transfer.CancellationIndicator = null;
             transfer.PendingData = null;
-            transfer.PendingAlternativePayload = null;
+            transfer.PendingAdditionalPayload = null;
         }
     }
 }

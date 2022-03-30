@@ -9,7 +9,7 @@ namespace Kabomu.Common.Internals
     internal class SendProtocol
     {
         private readonly ITransferCollection<OutgoingTransfer> _outgoingTransfers =
-            new SimpleTransferCollection<OutgoingTransfer>();
+            new DefaultTransferCollection<OutgoingTransfer>();
 
         public IQpcFacility QpcService { get; set; }
         public int DefaultTimeoutMillis { get; set; }
@@ -91,14 +91,14 @@ namespace Kabomu.Common.Internals
             var cancellationIndicator = new STCancellationIndicator();
             transfer.PendingResultCancellationIndicator = cancellationIndicator;
             MessageSourceCallback cb = (object cbState, Exception error,
-                byte[] data, int offset, int length, object alternativePayload, bool hasMore) =>
+                byte[] data, int offset, int length, object additionalPayload, bool hasMore) =>
             {
                 EventLoop.PostCallback(_ =>
                 {
                     if (transfer.PendingResultCancellationIndicator == cancellationIndicator)
                     {
                         transfer.PendingResultCancellationIndicator = null;
-                        ProcessSourceResult(transfer, error, data, offset, length, alternativePayload, hasMore);
+                        ProcessSourceResult(transfer, error, data, offset, length, additionalPayload, hasMore);
                     }
                 }, null);
             };
@@ -106,7 +106,7 @@ namespace Kabomu.Common.Internals
         }
 
         private void ProcessSourceResult(OutgoingTransfer transfer, Exception error,
-            byte[] data, int offset, int length, object alternativePayload, bool hasMore)
+            byte[] data, int offset, int length, object additionalPayload, bool hasMore)
         {
             if (error != null)
             {
@@ -117,7 +117,7 @@ namespace Kabomu.Common.Internals
             transfer.PendingData = data;
             transfer.PendingDataOffset = offset;
             transfer.PendingDataLength = length;
-            transfer.PendingAlternativePayload = alternativePayload;
+            transfer.PendingAdditionalPayload = additionalPayload;
             transfer.TerminatingChunkSeen = !hasMore;
 
             SendPendingData(transfer);
@@ -144,7 +144,7 @@ namespace Kabomu.Common.Internals
                 DefaultProtocolDataUnit.PduTypeFirstChunk;
             QpcService.BeginSend(DefaultProtocolDataUnit.Version01, pduType,
                 flags, 0, transfer.MessageId, transfer.PendingData, transfer.PendingDataOffset,
-                transfer.PendingDataLength, transfer.PendingAlternativePayload,
+                transfer.PendingDataLength, transfer.PendingAdditionalPayload,
                 transfer.CancellationIndicator, cb, null);
         }
 
@@ -276,7 +276,7 @@ namespace Kabomu.Common.Internals
             transfer.MessageSendCallbackState = null;
             transfer.CancellationIndicator = null;
             transfer.PendingData = null;
-            transfer.PendingAlternativePayload = null;
+            transfer.PendingAdditionalPayload = null;
         }
     }
 }

@@ -8,13 +8,13 @@ namespace Kabomu.Common.Components
 {
     public class DefaultCancellationIndicator : ICancellationIndicator
     {
-        public DefaultCancellationIndicator(CancellationToken ct)
+        private int _cancelled = 0;
+
+        public void Cancel()
         {
-            Ct = ct;
+            Interlocked.CompareExchange(ref _cancelled, 1, 0);
         }
 
-        private CancellationToken Ct { get; }
-
-        public bool Cancelled => Ct.IsCancellationRequested;
+        public bool Cancelled => _cancelled == 1;
     }
 }

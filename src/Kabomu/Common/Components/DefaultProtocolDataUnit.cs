@@ -20,16 +20,16 @@ namespace Kabomu.Common.Components
         public int DataOffset { get; set; }
         public int DataLength { get; set; }
         public byte[] Data { get; set; }
-        public object AlternativePayload { get; set; }
+        public object AdditionalPayload { get; set; }
 
         public static bool IsStartedAtReceiverFlagPresent(byte flags)
         {
-            return (flags & (1 << 0)) != 0;
+            return (flags & (1 << 7)) != 0;
         }
 
         public static bool IsHasMoreFlagPresent(byte flags)
         {
-            return (flags & (1 << 1)) != 0;
+            return (flags & (1 << 6)) != 0;
         }
 
         public static byte ComputeFlags(bool startedAtReceiver, bool hasMore)
@@ -37,11 +37,11 @@ namespace Kabomu.Common.Components
             byte flags = 0;
             if (startedAtReceiver)
             {
-                flags |= 1 << 0;
+                flags |= 1 << 7;
             }
             if (hasMore)
             {
-                flags |= 1 << 1;
+                flags |= 1 << 6;
             }
             return flags;
         }

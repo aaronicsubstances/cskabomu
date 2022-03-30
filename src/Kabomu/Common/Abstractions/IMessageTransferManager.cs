@@ -16,6 +16,6 @@ namespace Kabomu.Common.Abstractions
             Action<object, Exception> cb, object cbState);
         void BeginReset(Exception causeOfReset, Action<object, Exception> cb, object cbState);
         void OnReceivePdu(byte version, byte pduType, byte flags, byte errorCode,
-            long messageId, byte[] data, int offset, int length, object alternativePayload);
+            long messageId, byte[] data, int offset, int length, object additionalPayload);
     }
 }

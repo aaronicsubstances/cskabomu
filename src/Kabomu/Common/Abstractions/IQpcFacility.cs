@@ -7,7 +7,7 @@ namespace Kabomu.Common.Abstractions
     public interface IQpcFacility
     {
         void BeginSend(byte version, byte pduType, byte flags, byte errorCode,
-            long messageId, byte[] data, int offset, int length, object alternativePayload,
+            long messageId, byte[] data, int offset, int length, object additionalPayload,
             ICancellationIndicator cancellationIndicator, Action<object, Exception> cb, object cbState);
     }
 }
