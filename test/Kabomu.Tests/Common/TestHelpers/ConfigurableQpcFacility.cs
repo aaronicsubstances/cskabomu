@@ -6,11 +6,10 @@ using System.Threading;
 
 namespace Kabomu.Tests.Common.TestHelpers
 {
-
     public class ConfigurableQpcFacility : IQpcFacility
     {
-        public delegate ConfigurableSendPduResult SendPduCallback(ITransferEndpoint remoteEndpoint, byte version,
-            byte pduType, byte flags, 
+        public delegate ConfigurableSendPduResult SendPduCallback(object connectionHandle,
+            byte version, byte pduType, byte flags, 
             byte errorCode, long messageId,
             byte[] data, int offset, int length, object fallbackPayload,
             ICancellationIndicator cancellationIndicator);
@@ -18,13 +17,13 @@ namespace Kabomu.Tests.Common.TestHelpers
         public IEventLoopApi EventLoop { get; set; }
         public OutputEventLogger Logger { get; set; }
 
-        public void BeginSendPdu(ITransferEndpoint remoteEndpoint, byte version, byte pduType, byte flags, byte errorCode, long messageId, 
+        public void BeginSendPdu(object connectionHandle, byte version, byte pduType, byte flags, byte errorCode, long messageId, 
             byte[] data, int offset, int length, object fallbackPayload, ICancellationIndicator cancellationIndicator, 
             Action<object, Exception> cb, object cbState)
         {
-            Logger?.AppendOnReceivePduLog(remoteEndpoint, version, pduType, flags, errorCode, messageId,
+            Logger?.AppendOnReceivePduLog(connectionHandle, version, pduType, flags, errorCode, messageId,
                 data, offset, length, fallbackPayload, cancellationIndicator);
-            var res = SendPduCallbackInstance?.Invoke(remoteEndpoint, version, pduType, flags, errorCode, messageId,
+            var res = SendPduCallbackInstance?.Invoke(connectionHandle, version, pduType, flags, errorCode, messageId,
                 data, offset, length, fallbackPayload, cancellationIndicator);
             if (res?.Delays != null)
             {

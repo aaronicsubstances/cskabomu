@@ -111,23 +111,23 @@ namespace Kabomu.Common.Components
             }
         }
 
-        public long BeginReceive(ITransferEndpoint remoteEndpoint, IMessageSink msgSink, IMessageTransferOptions options,
+        public long BeginReceive(IMessageSink msgSink, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState)
         {
-            return _receiveProtocol.BeginReceive(remoteEndpoint, msgSink, options, cb, cbState);
+            return _receiveProtocol.BeginReceive(msgSink, options, cb, cbState);
         }
 
-        public long BeginSend(ITransferEndpoint remoteEndpoint, IMessageSource msgSource, IMessageTransferOptions options,
+        public long BeginSend(object connectionHandle, IMessageSource msgSource, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState)
         {
-            return _sendProtocol.BeginSend(remoteEndpoint, msgSource, options, cb, cbState);
+            return _sendProtocol.BeginSend(connectionHandle, msgSource, options, cb, cbState);
         }
 
-        public void BeginSendStartedAtReceiver(ITransferEndpoint remoteEndpoint, IMessageSource msgSource,
+        public void BeginSendStartedAtReceiver(object connectionHandle, IMessageSource msgSource,
             long msgIdAtReceiver, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState)
         {
-            _sendProtocol.BeginSendStartedAtReceiver(remoteEndpoint, msgSource, msgIdAtReceiver, options, cb, cbState);
+            _sendProtocol.BeginSendStartedAtReceiver(connectionHandle, msgSource, msgIdAtReceiver, options, cb, cbState);
         }
 
         public void BeginReset(Exception causeOfReset, Action<object, Exception> cb, object cbState)
@@ -147,7 +147,7 @@ namespace Kabomu.Common.Components
             }, null);
         }
 
-        public void OnReceivePdu(ITransferEndpoint remoteEndpoint, byte version, byte pduType, byte flags, byte errorCode,
+        public void OnReceivePdu(object connectionHandle, byte version, byte pduType, byte flags, byte errorCode,
             long messageId, byte[] data, int offset, int length, object fallbackPayload)
         {
             EventLoop.PostCallback(_ =>
@@ -155,18 +155,18 @@ namespace Kabomu.Common.Components
                 switch (pduType)
                 {
                     case DefaultProtocolDataUnit.PduTypeFirstChunk:
-                        _receiveProtocol.OnReceiveFirstChunk(remoteEndpoint, flags, messageId,
+                        _receiveProtocol.OnReceiveFirstChunk(connectionHandle, flags, messageId,
                             data, offset, length, fallbackPayload);
                         break;
                     case DefaultProtocolDataUnit.PduTypeSubsequentChunk:
-                        _receiveProtocol.OnReceiveSubsequentChunk(remoteEndpoint, flags, messageId,
+                        _receiveProtocol.OnReceiveSubsequentChunk(connectionHandle, flags, messageId,
                             data, offset, length, fallbackPayload);
                         break;
                     case DefaultProtocolDataUnit.PduTypeFirstChunkAck:
-                        _sendProtocol.OnReceiveFirstChunkAck(remoteEndpoint, flags, messageId, errorCode);
+                        _sendProtocol.OnReceiveFirstChunkAck(connectionHandle, flags, messageId, errorCode);
                         break;
                     case DefaultProtocolDataUnit.PduTypeSubsequentChunkAck:
-                        _sendProtocol.OnReceiveSubsequentChunkAck(remoteEndpoint, flags, messageId, errorCode);
+                        _sendProtocol.OnReceiveSubsequentChunkAck(connectionHandle, flags, messageId, errorCode);
                         break;
                     default:
                         throw new Exception("unexpected pdu type: " + pduType);
