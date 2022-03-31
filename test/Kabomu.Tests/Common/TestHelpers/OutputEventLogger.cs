@@ -53,11 +53,11 @@ namespace Kabomu.Tests.Common.TestHelpers
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
-        public void AppendOnReceivePduLog(ITransferEndpoint remoteEndpoint, byte version, byte pduType, byte flags, byte errorCode,
+        public void AppendOnReceivePduLog(object connectionHandle, byte version, byte pduType, byte flags, byte errorCode,
             long messageId, byte[] data, int offset, int length, object fallbackPayload,
             ICancellationIndicator cancellationIndicator)
         {
-            var log = CreateOnReceivePduLog(remoteEndpoint, version, pduType, flags, errorCode, messageId, data, 
+            var log = CreateOnReceivePduLog(connectionHandle, version, pduType, flags, errorCode, messageId, data, 
                 offset, length, fallbackPayload, cancellationIndicator?.Cancelled);
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
@@ -87,16 +87,16 @@ namespace Kabomu.Tests.Common.TestHelpers
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
-        public void AppendSinkCreationLog(ITransferEndpoint remoteEndpoint)
+        public void AppendSinkCreationLog()
         {
-            var log = CreateSinkCreationLog(remoteEndpoint);
+            var log = CreateSinkCreationLog();
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
         public static string CreateOnErrorLog(string errorMessage)
         {
             errorMessage = ReduceErrorMessageToErrorCode(errorMessage);
-            return "Error" +
+            return "TransferError" +
                 $"(" +
                 $"{errorMessage}" +
                 $")";
@@ -130,14 +130,14 @@ namespace Kabomu.Tests.Common.TestHelpers
             return errorMessage;
         }
 
-        public static string CreateOnReceivePduLog(ITransferEndpoint remoteEndpoint, byte version, byte pduType, byte flags, byte errorCode,
+        public static string CreateOnReceivePduLog(object connectionHandle, byte version, byte pduType, byte flags, byte errorCode,
             long messageId, byte[] data, int offset, int length, object fallbackPayload,
             bool? cancelled)
         {
             var message = ByteUtils.BytesToString(data, offset, length);
             return "QpcReceive" +
                 $"(" +
-                $"{remoteEndpoint}," +
+                $"{connectionHandle}," +
                 $"{version}," +
                 $"{pduType}," +
                 $"{flags}," +
@@ -184,9 +184,9 @@ namespace Kabomu.Tests.Common.TestHelpers
                 $")";
         }
 
-        public static string CreateSinkCreationLog(ITransferEndpoint remoteEndpoint)
+        public static string CreateSinkCreationLog()
         {
-            return $"AcSnkCreate({remoteEndpoint})";
+            return "SnkCreate()";
         }
     }
 }

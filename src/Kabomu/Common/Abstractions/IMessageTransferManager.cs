@@ -8,15 +8,16 @@ namespace Kabomu.Common.Abstractions
     {
         IQpcFacility QpcService { get; }
         IMessageSinkFactory MessageSinkFactory { get; }
-        long BeginReceive(ITransferEndpoint remoteEndpoint, IMessageSink msgSink, IMessageTransferOptions options,
+        long BeginReceive(IMessageSink msgSink, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState);
-        long BeginSend(ITransferEndpoint remoteEndpoint, IMessageSource msgSource, IMessageTransferOptions options, 
+        long BeginSend(object connectionHandle, IMessageSource msgSource, 
+            IMessageTransferOptions options, 
             Action<object, Exception> cb, object cbState);
-        void BeginSendStartedAtReceiver(ITransferEndpoint remoteEndpoint, IMessageSource msgSource, 
+        void BeginSendStartedAtReceiver(object connectionHandle, IMessageSource msgSource, 
             long msgIdAtReceiver, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState);
         void BeginReset(Exception causeOfReset, Action<object, Exception> cb, object cbState);
-        void OnReceivePdu(ITransferEndpoint remoteEndpoint, byte version, byte pduType, byte flags, byte errorCode,
+        void OnReceivePdu(object connectionHandle, byte version, byte pduType, byte flags, byte errorCode,
             long messageId, byte[] data, int offset, int length, object fallbackPayload);
     }
 }

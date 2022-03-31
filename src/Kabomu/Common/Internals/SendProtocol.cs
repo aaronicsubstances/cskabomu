@@ -16,17 +16,17 @@ namespace Kabomu.Common.Internals
         public IEventLoopApi EventLoop { get; set; }
         public IMessageIdGenerator MessageIdGenerator { get; set; }
 
-        public long BeginSend(ITransferEndpoint remoteEndpoint, IMessageSource msgSource, IMessageTransferOptions options,
+        public long BeginSend(object connectionHandle, IMessageSource msgSource, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState)
         {
             long messageId = MessageIdGenerator.NextId();
             var transfer = new OutgoingTransfer
             {
-                RemoteEndpoint = remoteEndpoint,
                 MessageId = messageId,
                 MessageSource = msgSource,
                 MessageSendCallback = cb,
-                MessageSendCallbackState = cbState
+                MessageSendCallbackState = cbState,
+                RequestConnectionHandle = connectionHandle
             };
             if (options != null)
             {
@@ -44,17 +44,17 @@ namespace Kabomu.Common.Internals
             return messageId;
         }
 
-        public void BeginSendStartedAtReceiver(ITransferEndpoint remoteEndpoint, IMessageSource msgSource, long msgIdAtReceiver,
+        public void BeginSendStartedAtReceiver(object connectionHandle, IMessageSource msgSource, long msgIdAtReceiver,
             IMessageTransferOptions options, Action<object, Exception> cb, object cbState)
         {
             var transfer = new OutgoingTransfer
             {
-                RemoteEndpoint = remoteEndpoint,
                 MessageId = msgIdAtReceiver,
                 StartedAtReceiver = true,
                 MessageSource = msgSource,
                 MessageSendCallback = cb,
                 MessageSendCallbackState = cbState,
+                RequestConnectionHandle = connectionHandle
             };
             if (options != null)
             {
@@ -144,7 +144,9 @@ namespace Kabomu.Common.Internals
                 !transfer.TerminatingChunkSeen);
             byte pduType = transfer.OpeningChunkSent ? DefaultProtocolDataUnit.PduTypeSubsequentChunk :
                 DefaultProtocolDataUnit.PduTypeFirstChunk;
-            QpcService.BeginSendPdu(transfer.RemoteEndpoint, DefaultProtocolDataUnit.Version01, pduType,
+            object connectionHandle = transfer.RequestConnectionHandle;
+            transfer.RequestConnectionHandle = null;
+            QpcService.BeginSendPdu(connectionHandle, DefaultProtocolDataUnit.Version01, pduType,
                 flags, 0, transfer.MessageId, transfer.PendingData, transfer.PendingDataOffset,
                 transfer.PendingDataLength, transfer.PendingFallbackPayload,
                 transfer.CancellationIndicator, cb, null);
@@ -159,12 +161,11 @@ namespace Kabomu.Common.Internals
             }
         }
 
-        public void OnReceiveFirstChunkAck(ITransferEndpoint remoteEndpoint, byte flags, long messageId, byte errorCode)
+        public void OnReceiveFirstChunkAck(object connectionHandle, byte flags, long messageId, byte errorCode)
         {
             bool startedAtReceiver = DefaultProtocolDataUnit.IsStartedAtReceiverFlagPresent(flags);
             var transfer = _outgoingTransfers.TryGet(new OutgoingTransfer
             {
-                RemoteEndpoint = remoteEndpoint,
                 MessageId = messageId,
                 StartedAtReceiver = startedAtReceiver
             });
@@ -172,6 +173,7 @@ namespace Kabomu.Common.Internals
             {
                 return;
             }
+            transfer.RequestConnectionHandle = connectionHandle;
             if (transfer.PendingResultCancellationIndicator != null)
             {
                 AbortTransfer(transfer, new Exception("stop and wait violation"));
@@ -192,12 +194,11 @@ namespace Kabomu.Common.Internals
             AdvanceTransfer(transfer);
         }
 
-        public void OnReceiveSubsequentChunkAck(ITransferEndpoint remoteEndpoint, byte flags, long messageId, byte errorCode)
+        public void OnReceiveSubsequentChunkAck(object connectionHandle, byte flags, long messageId, byte errorCode)
         {
             bool startedAtReceiver = DefaultProtocolDataUnit.IsStartedAtReceiverFlagPresent(flags);
             var transfer = _outgoingTransfers.TryGet(new OutgoingTransfer
             {
-                RemoteEndpoint = remoteEndpoint,
                 MessageId = messageId,
                 StartedAtReceiver = startedAtReceiver
             });
@@ -205,6 +206,7 @@ namespace Kabomu.Common.Internals
             {
                 return;
             }
+            transfer.RequestConnectionHandle = connectionHandle;
             if (transfer.PendingResultCancellationIndicator != null)
             {
                 AbortTransfer(transfer, new Exception("stop and wait violation"));
@@ -281,7 +283,7 @@ namespace Kabomu.Common.Internals
             transfer.CancellationIndicator = null;
             transfer.PendingData = null;
             transfer.PendingFallbackPayload = null;
-            transfer.RemoteEndpoint = null;
+            transfer.RequestConnectionHandle = null;
         }
     }
 }
