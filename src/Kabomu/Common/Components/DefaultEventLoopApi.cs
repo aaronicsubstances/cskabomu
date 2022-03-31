@@ -69,6 +69,18 @@ namespace Kabomu.Common.Components
             }
         }
 
+        public object SchedulePeriodicTimeout(int millis, Action<object> cb, object cbState)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void CancelPeriodicTimeout(object id)
+        {
+            throw new NotImplementedException();
+        }
+
         public UncaughtErrorCallback ErrorHandler { get; set; }
+
+        public bool IsSuperiorPeriodicTimeoutAvailable => false;
     }
 }

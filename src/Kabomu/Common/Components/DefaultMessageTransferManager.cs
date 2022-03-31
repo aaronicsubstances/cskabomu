@@ -58,15 +58,15 @@ namespace Kabomu.Common.Components
             return errorMessage ?? fallback ?? $"{errorCode}:N/A";
         }
 
-        private readonly ReceiveProtocol _receiveProtocol;
-        private readonly SendProtocol _sendProtocol;
         private IQpcFacility _qpcService;
         private IMessageSinkFactory _messageSinkFactory;
         private int _defaultTimeoutMillis;
         private IEventLoopApi _eventLoop;
         private UncaughtErrorCallback _errorHandler;
-        //private IRecyclingFactory _recyclingFactory;
         private IMessageIdGenerator _messageIdGenerator;
+
+        private readonly ReceiveProtocol _receiveProtocol;
+        private readonly SendProtocol _sendProtocol;
 
         public DefaultMessageTransferManager()
         {
@@ -143,20 +143,6 @@ namespace Kabomu.Common.Components
                 _sendProtocol.ErrorHandler = value;
             }
         }
-
-        /*public IRecyclingFactory RecyclingFactory
-        {
-            get
-            {
-                return _recyclingFactory;
-            }
-            set
-            {
-                _recyclingFactory = value;
-                _receiveProtocol.RecyclingFactory = value;
-                _sendProtocol.RecyclingFactory = value;
-            }
-        }*/
 
         internal IMessageIdGenerator MessageIdGenerator
         {
