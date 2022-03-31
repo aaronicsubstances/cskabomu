@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common.Abstractions;
+using Kabomu.Common.Components;
 using Kabomu.Common.Helpers;
 using System;
 using System.Collections.Generic;
@@ -35,15 +36,15 @@ namespace Kabomu.Tests.Common.TestHelpers
             }
         }
 
-        public void AppendOnError(Exception error)
+        public void AppendTransferError(Exception error, string extra)
         {
-            var log = CreateOnErrorLog(error?.Message);
+            var log = CreateOnErrorLog(error?.Message, extra);
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
-        public void AppendEventLoopError(Exception error)
+        public void AppendEventLoopError(Exception error, string extra)
         {
-            var log = CreateEventLoopErrorLog(error?.Message);
+            var log = CreateEventLoopErrorLog(error?.Message, extra);
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
@@ -93,21 +94,23 @@ namespace Kabomu.Tests.Common.TestHelpers
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
-        public static string CreateOnErrorLog(string errorMessage)
+        public static string CreateOnErrorLog(string errorMessage, string extra)
         {
             errorMessage = ReduceErrorMessageToErrorCode(errorMessage);
             return "TransferError" +
                 $"(" +
-                $"{errorMessage}" +
+                $"{errorMessage}," +
+                $"{extra}" +
                 $")";
         }
 
-        public static string CreateEventLoopErrorLog(string errorMessage)
+        public static string CreateEventLoopErrorLog(string errorMessage, string extra)
         {
             errorMessage = ReduceErrorMessageToErrorCode(errorMessage);
             return "EvError" +
                 $"(" +
-                $"{errorMessage}" +
+                $"{errorMessage}," +
+                $"{extra}" +
                 $")";
         }
 
@@ -122,10 +125,13 @@ namespace Kabomu.Tests.Common.TestHelpers
 
         private static string ReduceErrorMessageToErrorCode(string errorMessage)
         {
-            int errorCodeDelimIdx = errorMessage.IndexOf(":");
-            if (errorCodeDelimIdx != -1)
+            if (errorMessage != null)
             {
-                errorMessage = errorMessage.Substring(0, errorCodeDelimIdx);
+                int errorCodeDelimIdx = errorMessage.IndexOf(":");
+                if (errorCodeDelimIdx != -1)
+                {
+                    errorMessage = errorMessage.Substring(0, errorCodeDelimIdx);
+                }
             }
             return errorMessage;
         }
@@ -134,8 +140,12 @@ namespace Kabomu.Tests.Common.TestHelpers
             long messageId, byte[] data, int offset, int length, object fallbackPayload,
             bool? cancelled)
         {
-            var message = ByteUtils.BytesToString(data, offset, length);
-            return "QpcReceive" +
+            string message = null;
+            if (data != null)
+            {
+                message = ByteUtils.BytesToString(data, offset, length);
+            }
+            return "TransferChunk" +
                 $"(" +
                 $"{connectionHandle}," +
                 $"{version}," +
@@ -157,7 +167,7 @@ namespace Kabomu.Tests.Common.TestHelpers
                 $"(" +
                 $"{message}," +
                 $"{fallbackPayload}," +
-                $"{isMoreExpected}" +
+                $"{isMoreExpected.ToString().ToLower()}" +
                 $")";
         }
 
@@ -187,6 +197,13 @@ namespace Kabomu.Tests.Common.TestHelpers
         public static string CreateSinkCreationLog()
         {
             return "SnkCreate()";
+        }
+
+        public static ICancellationIndicator CreateAlreadyCancelledIndicator()
+        {
+            var instance = new DefaultCancellationIndicator();
+            instance.Cancel();
+            return instance;
         }
     }
 }
