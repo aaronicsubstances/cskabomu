@@ -11,7 +11,7 @@ For now support only those who provide at most once delivery, ie provide duplica
 3. No retry - to leverage duplicate protection, and sidestep decisions on when to retry and for how long.
 4. Optional addressing.
 5. Stream id itself is 8 byte int of two types: those uniquely generated at sender and those uniquely generated at receiver. It can be random or sequential and can even be reused at any time, once it is determined that all prior usages are completed or should be cancelled.
-6. So fields are: stream id, version, payload (can be empty), pdu type, flags (has more, started at receiver), error code.
+6. So fields are: remote endpoint, stream id, version, payload (can be empty), pdu type, flags (has more, started at receiver), error code.
 7. We must provide beginreceive API for create a stream which returns the stream id. This ensures the receiver of a stream id can immediately retrieve the corresponding stream contents.
 8. Send API must indicate whether stream has already being started by receiver or not.
 9. Add send and receive timeout options to clear out abandoned transfers - default and custom.
@@ -25,6 +25,8 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 1. extending powers of local procedure call via shared memory, to quasi procedure calls (potentially involving a network) via message passing
 2. support for input and output stream parameters, to prepare for all kinds of message passing
-3. serializable input and output parameters, to prepare for transportation of messages across a network (in-memory qpc facility will only serialize with a small probability, and rather use fallback payloads to improve performance).
+3. serializable input and output parameters, to prepare for transportation of messages across a network. Note:
+    1. in-memory qpc facility will only serialize with a small but non-zero probability, and rather use fallback payloads to improve performance.
+    2. Deserialization must always be prepared for absence of fallback payloads.
 4. quasi web requests, to provide alternative request-response protocols like http, and also to ease transition to http usage
 5. quasi web mail, for deferred processing
