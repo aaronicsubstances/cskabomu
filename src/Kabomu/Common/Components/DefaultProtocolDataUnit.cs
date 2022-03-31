@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.Common.Abstractions;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -20,6 +21,22 @@ namespace Kabomu.Common.Components
         public int DataOffset { get; set; }
         public int DataLength { get; set; }
         public byte[] Data { get; set; }
+        public ITransferEndpoint RemoteEndpoint { get; set; }
+
+        /// <summary>
+        /// implement this to improve performance of deserializing remote endpoints and also to
+        /// enable creation of endpoints belonging to classes other than DefaultTransferEndpoint class.
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="offset"></param>
+        /// <param name="length"></param>
+        /// <param name="knownRemoteEndpoints"></param>
+        /// <returns></returns>
+        public static ITransferEndpoint DeserializeRemoteEndpoint(byte[] data, int offset, int length,
+            List<ITransferEndpoint> knownRemoteEndpoints)
+        {
+            throw new NotImplementedException();
+        }
 
         public static bool IsStartedAtReceiverFlagPresent(byte flags)
         {
