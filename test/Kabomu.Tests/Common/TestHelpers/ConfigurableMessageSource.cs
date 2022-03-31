@@ -24,7 +24,7 @@ namespace Kabomu.Tests.Common.TestHelpers
                 foreach (int delay in res.Delays)
                 {
                     EventLoop.ScheduleTimeout(delay, _ => cb.Invoke(cbState, res.DelayedError, res.Data,
-                        res.Offset, res.Length, res.AdditionalPayload, res.HasMore), null);
+                        res.Offset, res.Length, res.FallbackPayload, res.HasMore), null);
                 }
             }
         }

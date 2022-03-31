@@ -8,7 +8,7 @@ namespace Kabomu.Tests.Common.TestHelpers
     public class ConfigurableMessageSink : IMessageSink
     {
         public delegate ConfigurableMessageSinkResult WriteDataChunkCallback(byte[] data, int offset, int length,
-            object additionalPayload, bool isMoreExpected);
+            object fallbackPayload, bool isMoreExpected);
         public delegate void WriteEndCallback(Exception error);
 
         public WriteDataChunkCallback WriteDataChunkCallbackInstance { get; set; }
@@ -16,11 +16,11 @@ namespace Kabomu.Tests.Common.TestHelpers
         public IEventLoopApi EventLoop { get; set; }
         public OutputEventLogger Logger { get; set; }
 
-        public void OnDataWrite(byte[] data, int offset, int length, object additionalPayload,
+        public void OnDataWrite(byte[] data, int offset, int length, object fallbackPayload,
             bool isMoreExpected, MessageSinkCallback cb, object cbState)
         {
-            Logger?.AppendSinkWriteDataLog(data, offset, length, additionalPayload, isMoreExpected);
-            var res = WriteDataChunkCallbackInstance?.Invoke(data, offset, length, additionalPayload, isMoreExpected);
+            Logger?.AppendSinkWriteDataLog(data, offset, length, fallbackPayload, isMoreExpected);
+            var res = WriteDataChunkCallbackInstance?.Invoke(data, offset, length, fallbackPayload, isMoreExpected);
             if (res?.Delays != null)
             {
                 foreach (int delay in res.Delays)

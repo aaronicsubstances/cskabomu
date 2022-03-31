@@ -17,11 +17,13 @@ namespace Kabomu.Common.Internals
         public IEventLoopApi EventLoop { get; set; }
         public IMessageIdGenerator MessageIdGenerator { get; set; }
 
-        public long BeginReceive(IMessageSink msgSink, IMessageTransferOptions options, Action<object, Exception> cb, object cbState)
+        public long BeginReceive(ITransferEndpoint remoteEndpoint, IMessageSink msgSink,
+            IMessageTransferOptions options, Action<object, Exception> cb, object cbState)
         {
             long messageId = MessageIdGenerator.NextId();
             var transfer = new IncomingTransfer
             {
+                RemoteEndpoint = remoteEndpoint,
                 MessageId = messageId,
                 StartedAtReceiver = true,
                 MessageSink = msgSink,
@@ -54,12 +56,13 @@ namespace Kabomu.Common.Internals
             ResetTimeout(transfer);
         }
 
-        public void OnReceiveFirstChunk(byte flags, long messageId,
-            byte[] data, int offset, int length, object additionalPayload)
+        public void OnReceiveFirstChunk(ITransferEndpoint remoteEndpoint, byte flags, long messageId,
+            byte[] data, int offset, int length, object fallbackPayload)
         {
             bool startedAtReceiver = DefaultProtocolDataUnit.IsStartedAtReceiverFlagPresent(flags);
             IncomingTransfer transfer = _incomingTransfers.TryGet(new IncomingTransfer
             {
+                RemoteEndpoint = remoteEndpoint,
                 MessageId = messageId,
                 StartedAtReceiver = startedAtReceiver
             });
@@ -67,7 +70,7 @@ namespace Kabomu.Common.Internals
             {
                 if (transfer == null)
                 {
-                    SendAck(messageId, DefaultProtocolDataUnit.PduTypeFirstChunkAck, 1);
+                    SendAck(remoteEndpoint, messageId, DefaultProtocolDataUnit.PduTypeFirstChunkAck, 1);
                     return;
                 }
                 if (transfer.PendingResultCancellationIndicator != null)
@@ -94,6 +97,7 @@ namespace Kabomu.Common.Internals
                 }
                 transfer = new IncomingTransfer
                 {
+                    RemoteEndpoint = remoteEndpoint,
                     MessageId = messageId,
                     StartedAtReceiver = false,
                     TimeoutMillis = DefaultTimeoutMillis
@@ -111,7 +115,7 @@ namespace Kabomu.Common.Internals
             transfer.PendingData = data;
             transfer.PendingDataOffset = offset;
             transfer.PendingDataLength = length;
-            transfer.PendingAdditionalPayload = additionalPayload;
+            transfer.PendingFallbackPayload = fallbackPayload;
             if (startedAtReceiver)
             {
                 BeginWriteMessageSink(transfer);
@@ -122,18 +126,19 @@ namespace Kabomu.Common.Internals
             }
         }
 
-        public void OnReceiveSubsequentChunk(byte flags, long messageId,
-            byte[] data, int offset, int length, object additionalPayload)
+        public void OnReceiveSubsequentChunk(ITransferEndpoint remoteEndpoint, byte flags, long messageId,
+            byte[] data, int offset, int length, object fallbackPayload)
         {
             bool startedAtReceiver = DefaultProtocolDataUnit.IsStartedAtReceiverFlagPresent(flags);
             IncomingTransfer transfer = _incomingTransfers.TryGet(new IncomingTransfer
             {
+                RemoteEndpoint = remoteEndpoint,
                 MessageId = messageId,
                 StartedAtReceiver = startedAtReceiver
             });
             if (transfer == null)
             {
-                SendAck(messageId, DefaultProtocolDataUnit.PduTypeSubsequentChunkAck, 1);
+                SendAck(remoteEndpoint, messageId, DefaultProtocolDataUnit.PduTypeSubsequentChunkAck, 1);
                 return;
             }
             if (transfer.PendingResultCancellationIndicator != null)
@@ -155,7 +160,7 @@ namespace Kabomu.Common.Internals
             transfer.PendingData = data;
             transfer.PendingDataOffset = offset;
             transfer.PendingDataLength = length;
-            transfer.PendingAdditionalPayload = additionalPayload;
+            transfer.PendingFallbackPayload = fallbackPayload;
 
             BeginWriteMessageSink(transfer);
         }
@@ -177,7 +182,7 @@ namespace Kabomu.Common.Internals
                     }
                 }, null);
             };
-            MessageSinkFactory.CreateMessageSink(cb, null);
+            MessageSinkFactory.CreateMessageSink(transfer.RemoteEndpoint, cb, null);
         }
 
         private void ProcessSinkCreationResult(IncomingTransfer transfer, Exception error, 
@@ -215,7 +220,7 @@ namespace Kabomu.Common.Internals
                 }, null);
             };
             transfer.MessageSink.OnDataWrite(transfer.PendingData, transfer.PendingDataOffset,
-                transfer.PendingDataLength, transfer.PendingAdditionalPayload, !transfer.TerminatingChunkSeen, cb, null);
+                transfer.PendingDataLength, transfer.PendingFallbackPayload, !transfer.TerminatingChunkSeen, cb, null);
         }
 
         private void ProcessSinkResult(IncomingTransfer transfer, Exception error)
@@ -231,9 +236,9 @@ namespace Kabomu.Common.Internals
             SendTransferAck(transfer, 0, !transfer.TerminatingChunkSeen);
         }
 
-        private void SendAck(long messageId, byte pduType, byte errorCode)
+        private void SendAck(ITransferEndpoint remoteEndpoint, long messageId, byte pduType, byte errorCode)
         {
-            QpcService.BeginSendPdu(DefaultProtocolDataUnit.Version01, pduType,
+            QpcService.BeginSendPdu(remoteEndpoint, DefaultProtocolDataUnit.Version01, pduType,
                 0, errorCode, messageId, null, 0, 0, null, null, null, null);
         }
 
@@ -258,7 +263,7 @@ namespace Kabomu.Common.Internals
             }
             byte pduType = transfer.OpeningChunkReceived ? DefaultProtocolDataUnit.PduTypeSubsequentChunkAck :
                 DefaultProtocolDataUnit.PduTypeFirstChunkAck;
-            QpcService.BeginSendPdu(DefaultProtocolDataUnit.Version01, pduType,
+            QpcService.BeginSendPdu(transfer.RemoteEndpoint, DefaultProtocolDataUnit.Version01, pduType,
                 0, errorCode, transfer.MessageId, null, 0, 0, null, transfer.CancellationIndicator, null, null);
         }
 
@@ -314,7 +319,8 @@ namespace Kabomu.Common.Internals
             transfer.MessageReceiveCallbackState = null;
             transfer.CancellationIndicator = null;
             transfer.PendingData = null;
-            transfer.PendingAdditionalPayload = null;
+            transfer.PendingFallbackPayload = null;
+            transfer.RemoteEndpoint = null;
         }
     }
 }

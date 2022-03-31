@@ -27,16 +27,16 @@ namespace Kabomu.Common.Components
 
         public MemoryStream Buffer { get; }
 
-        public void OnDataWrite(byte[] data, int offset, int length, object additionalPayload,
+        public void OnDataWrite(byte[] data, int offset, int length, object fallbackPayload,
             bool isMoreExpected, MessageSinkCallback cb, object cbState)
         {
             if (!ByteUtils.IsValidMessagePayload(data, offset, length))
             {
                 throw new ArgumentException("invalid chunk");
             }
-            if (additionalPayload != null)
+            if (fallbackPayload != null)
             {
-                throw new ArgumentException("additional payload not supported");
+                throw new ArgumentException("fallback payload not supported");
             }
             if (cb == null)
             {

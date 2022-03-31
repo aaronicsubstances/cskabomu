@@ -6,6 +6,6 @@ namespace Kabomu.Common.Abstractions
 {
     public interface IMessageSinkFactory
     {
-        void CreateMessageSink(MessageSinkCreationCallback cb, object cbState);
+        void CreateMessageSink(ITransferEndpoint remoteEndpoint, MessageSinkCreationCallback cb, object cbState);
     }
 }
