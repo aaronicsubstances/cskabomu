@@ -12,5 +12,8 @@ namespace Kabomu.Common.Abstractions
         void CancelTimeout(object id);
         UncaughtErrorCallback ErrorHandler { get; set; }
         bool IsEventDispatchThread { get; }
+        bool IsSuperiorPeriodicTimeoutAvailable { get; }
+        object SchedulePeriodicTimeout(int millis, Action<object> cb, object cbState);
+        void CancelPeriodicTimeout(object id);
     }
 }

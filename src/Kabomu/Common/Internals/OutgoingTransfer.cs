@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Kabomu.Common.Internals
 {
-    internal class OutgoingTransfer : IRecyclable
+    internal class OutgoingTransfer
     {
         public long MessageId { get; set; }
         public bool StartedAtReceiver { get; set; }
@@ -22,7 +22,6 @@ namespace Kabomu.Common.Internals
         public int PendingDataOffset { get; set; }
         public int PendingDataLength { get; set; }
         public object PendingFallbackPayload { get; set; }
-        public int RecyclingFlags { get; set; }
         public object RequestConnectionHandle { get; set; }
 
         public override bool Equals(object obj)
