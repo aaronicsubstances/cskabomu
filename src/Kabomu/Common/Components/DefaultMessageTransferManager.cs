@@ -11,13 +11,60 @@ namespace Kabomu.Common.Components
 {
     public class DefaultMessageTransferManager : IMessageTransferManager
     {
+        public static readonly byte ErrorCodeGeneral = 1;
+        public static readonly byte ErrorCodeProtocolViolation = 2;
+        public static readonly byte ErrorCodeCancelled = 3;
+        public static readonly byte ErrorCodeReset = 4;
+        public static readonly byte ErrorCodeSendTimeout = 5;
+        public static readonly byte ErrorCodeReceiveTimeout = 6;
+        public static readonly byte ErrorCodeAbortedBySender = 7;
+        public static readonly byte ErrorCodeAbortedByReceiver = 8;
+        public static readonly byte ErrorCodeMessageIdNotFound = 9;
+
+        private static readonly string[] ErrorMessages;
+
+        static DefaultMessageTransferManager()
+        {
+            ErrorMessages = new string[20];
+            SetErrorMessage(ErrorCodeGeneral, "General Error");
+            SetErrorMessage(ErrorCodeProtocolViolation, "Protocol Violation");
+            SetErrorMessage(ErrorCodeCancelled, "Cancelled");
+            SetErrorMessage(ErrorCodeReset, "Reset");
+            SetErrorMessage(ErrorCodeSendTimeout, "Send Timeout");
+            SetErrorMessage(ErrorCodeReceiveTimeout, "Receive Timeout");
+            SetErrorMessage(ErrorCodeAbortedBySender, "Aborted by Sender");
+            SetErrorMessage(ErrorCodeAbortedByReceiver, "Aborted by Receiver");
+            SetErrorMessage(ErrorCodeMessageIdNotFound, "Message Id Not Found");
+        }
+
+        private static void SetErrorMessage(byte errorCode, string message)
+        {
+            var prev = ErrorMessages[errorCode];
+            if (prev != null)
+            {
+                throw new Exception("duplicate error message for error code " + errorCode + ": " +
+                    $"{prev} vrs {message}");
+            }
+            ErrorMessages[errorCode] = message;
+        }
+
+        public static string GenerateErrorMessage(int errorCode, string fallback)
+        {
+            string errorMessage = null;
+            if (errorCode >= 0 && errorCode < ErrorMessages.Length)
+            {
+                errorMessage = errorCode + ":" + (ErrorMessages[errorCode] ?? "Reserved");
+            }
+            return errorMessage ?? fallback ?? $"{errorCode}:N/A";
+        }
+
         private readonly ReceiveProtocol _receiveProtocol;
         private readonly SendProtocol _sendProtocol;
-
         private IQpcFacility _qpcService;
         private IMessageSinkFactory _messageSinkFactory;
         private int _defaultTimeoutMillis;
         private IEventLoopApi _eventLoop;
+        private UncaughtErrorCallback _errorHandler;
         //private IRecyclingFactory _recyclingFactory;
         private IMessageIdGenerator _messageIdGenerator;
 
@@ -83,6 +130,20 @@ namespace Kabomu.Common.Components
             }
         }
 
+        public UncaughtErrorCallback ErrorHandler
+        {
+            get
+            {
+                return _errorHandler;
+            }
+            set
+            {
+                _errorHandler = value;
+                _receiveProtocol.ErrorHandler = value;
+                _sendProtocol.ErrorHandler = value;
+            }
+        }
+
         /*public IRecyclingFactory RecyclingFactory
         {
             get
@@ -132,6 +193,10 @@ namespace Kabomu.Common.Components
 
         public void BeginReset(Exception causeOfReset, Action<object, Exception> cb, object cbState)
         {
+            if (causeOfReset == null)
+            {
+                causeOfReset = new Exception(GenerateErrorMessage(ErrorCodeReset, null));
+            }
             EventLoop.PostCallback(_ =>
             {
                 try
