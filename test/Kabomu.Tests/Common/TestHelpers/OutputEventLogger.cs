@@ -53,19 +53,19 @@ namespace Kabomu.Tests.Common.TestHelpers
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
-        public void AppendOnReceivePduLog(byte version, byte pduType, byte flags, byte errorCode,
-            long messageId, byte[] data, int offset, int length, object additionalPayload,
+        public void AppendOnReceivePduLog(ITransferEndpoint remoteEndpoint, byte version, byte pduType, byte flags, byte errorCode,
+            long messageId, byte[] data, int offset, int length, object fallbackPayload,
             ICancellationIndicator cancellationIndicator)
         {
-            var log = CreateOnReceivePduLog(version, pduType, flags, errorCode, messageId, data, 
-                offset, length, additionalPayload, cancellationIndicator?.Cancelled);
+            var log = CreateOnReceivePduLog(remoteEndpoint, version, pduType, flags, errorCode, messageId, data, 
+                offset, length, fallbackPayload, cancellationIndicator?.Cancelled);
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
         public void AppendSinkWriteDataLog(byte[] data, int offset, int length, 
-            object additionalPayload, bool isMoreExpected)
+            object fallbackPayload, bool isMoreExpected)
         {
-            var log = CreateSinkWriteDataLog(data, offset, length, additionalPayload, isMoreExpected);
+            var log = CreateSinkWriteDataLog(data, offset, length, fallbackPayload, isMoreExpected);
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
@@ -87,9 +87,9 @@ namespace Kabomu.Tests.Common.TestHelpers
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
-        public void AppendSinkCreationLog()
+        public void AppendSinkCreationLog(ITransferEndpoint remoteEndpoint)
         {
-            var log = CreateSinkCreationLog();
+            var log = CreateSinkCreationLog(remoteEndpoint);
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
@@ -130,32 +130,33 @@ namespace Kabomu.Tests.Common.TestHelpers
             return errorMessage;
         }
 
-        public static string CreateOnReceivePduLog(byte version, byte pduType, byte flags, byte errorCode,
-            long messageId, byte[] data, int offset, int length, object additionalPayload,
+        public static string CreateOnReceivePduLog(ITransferEndpoint remoteEndpoint, byte version, byte pduType, byte flags, byte errorCode,
+            long messageId, byte[] data, int offset, int length, object fallbackPayload,
             bool? cancelled)
         {
             var message = ByteUtils.BytesToString(data, offset, length);
             return "QpcReceive" +
                 $"(" +
+                $"{remoteEndpoint}," +
                 $"{version}," +
                 $"{pduType}," +
                 $"{flags}," +
                 $"{errorCode}," +
                 $"{messageId}," +
                 $"{message}," +
-                $"{additionalPayload}," +
+                $"{fallbackPayload}," +
                 $"{cancelled?.ToString()?.ToLower()}" +
                 $")";
         }
 
         public static string CreateSinkWriteDataLog(byte[] data, int offset, int length,
-            object additionalPayload, bool isMoreExpected)
+            object fallbackPayload, bool isMoreExpected)
         {
             var message = ByteUtils.BytesToString(data, offset, length);
             return "SnkData" +
                 $"(" +
                 $"{message}," +
-                $"{additionalPayload}," +
+                $"{fallbackPayload}," +
                 $"{isMoreExpected}" +
                 $")";
         }
@@ -183,9 +184,9 @@ namespace Kabomu.Tests.Common.TestHelpers
                 $")";
         }
 
-        public static string CreateSinkCreationLog()
+        public static string CreateSinkCreationLog(ITransferEndpoint remoteEndpoint)
         {
-            return "AcSnkCreate()";
+            return $"AcSnkCreate({remoteEndpoint})";
         }
     }
 }

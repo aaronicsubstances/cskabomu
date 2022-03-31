@@ -16,12 +16,13 @@ namespace Kabomu.Common.Internals
         public IEventLoopApi EventLoop { get; set; }
         public IMessageIdGenerator MessageIdGenerator { get; set; }
 
-        public long BeginSend(IMessageSource msgSource, IMessageTransferOptions options,
+        public long BeginSend(ITransferEndpoint remoteEndpoint, IMessageSource msgSource, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState)
         {
             long messageId = MessageIdGenerator.NextId();
             var transfer = new OutgoingTransfer
             {
+                RemoteEndpoint = remoteEndpoint,
                 MessageId = messageId,
                 MessageSource = msgSource,
                 MessageSendCallback = cb,
@@ -43,11 +44,12 @@ namespace Kabomu.Common.Internals
             return messageId;
         }
 
-        public void BeginSendStartedAtReceiver(IMessageSource msgSource, long msgIdAtReceiver,
+        public void BeginSendStartedAtReceiver(ITransferEndpoint remoteEndpoint, IMessageSource msgSource, long msgIdAtReceiver,
             IMessageTransferOptions options, Action<object, Exception> cb, object cbState)
         {
             var transfer = new OutgoingTransfer
             {
+                RemoteEndpoint = remoteEndpoint,
                 MessageId = msgIdAtReceiver,
                 StartedAtReceiver = true,
                 MessageSource = msgSource,
@@ -91,14 +93,14 @@ namespace Kabomu.Common.Internals
             var cancellationIndicator = new STCancellationIndicator();
             transfer.PendingResultCancellationIndicator = cancellationIndicator;
             MessageSourceCallback cb = (object cbState, Exception error,
-                byte[] data, int offset, int length, object additionalPayload, bool hasMore) =>
+                byte[] data, int offset, int length, object fallbackPayload, bool hasMore) =>
             {
                 EventLoop.PostCallback(_ =>
                 {
                     if (transfer.PendingResultCancellationIndicator == cancellationIndicator)
                     {
                         transfer.PendingResultCancellationIndicator = null;
-                        ProcessSourceResult(transfer, error, data, offset, length, additionalPayload, hasMore);
+                        ProcessSourceResult(transfer, error, data, offset, length, fallbackPayload, hasMore);
                     }
                 }, null);
             };
@@ -106,7 +108,7 @@ namespace Kabomu.Common.Internals
         }
 
         private void ProcessSourceResult(OutgoingTransfer transfer, Exception error,
-            byte[] data, int offset, int length, object additionalPayload, bool hasMore)
+            byte[] data, int offset, int length, object fallbackPayload, bool hasMore)
         {
             if (error != null)
             {
@@ -117,7 +119,7 @@ namespace Kabomu.Common.Internals
             transfer.PendingData = data;
             transfer.PendingDataOffset = offset;
             transfer.PendingDataLength = length;
-            transfer.PendingAdditionalPayload = additionalPayload;
+            transfer.PendingFallbackPayload = fallbackPayload;
             transfer.TerminatingChunkSeen = !hasMore;
 
             SendPendingData(transfer);
@@ -142,9 +144,9 @@ namespace Kabomu.Common.Internals
                 !transfer.TerminatingChunkSeen);
             byte pduType = transfer.OpeningChunkSent ? DefaultProtocolDataUnit.PduTypeSubsequentChunk :
                 DefaultProtocolDataUnit.PduTypeFirstChunk;
-            QpcService.BeginSendPdu(DefaultProtocolDataUnit.Version01, pduType,
+            QpcService.BeginSendPdu(transfer.RemoteEndpoint, DefaultProtocolDataUnit.Version01, pduType,
                 flags, 0, transfer.MessageId, transfer.PendingData, transfer.PendingDataOffset,
-                transfer.PendingDataLength, transfer.PendingAdditionalPayload,
+                transfer.PendingDataLength, transfer.PendingFallbackPayload,
                 transfer.CancellationIndicator, cb, null);
         }
 
@@ -157,11 +159,12 @@ namespace Kabomu.Common.Internals
             }
         }
 
-        public void OnReceiveFirstChunkAck(byte flags, long messageId, byte errorCode)
+        public void OnReceiveFirstChunkAck(ITransferEndpoint remoteEndpoint, byte flags, long messageId, byte errorCode)
         {
             bool startedAtReceiver = DefaultProtocolDataUnit.IsStartedAtReceiverFlagPresent(flags);
             var transfer = _outgoingTransfers.TryGet(new OutgoingTransfer
             {
+                RemoteEndpoint = remoteEndpoint,
                 MessageId = messageId,
                 StartedAtReceiver = startedAtReceiver
             });
@@ -189,11 +192,12 @@ namespace Kabomu.Common.Internals
             AdvanceTransfer(transfer);
         }
 
-        public void OnReceiveSubsequentChunkAck(byte flags, long messageId, byte errorCode)
+        public void OnReceiveSubsequentChunkAck(ITransferEndpoint remoteEndpoint, byte flags, long messageId, byte errorCode)
         {
             bool startedAtReceiver = DefaultProtocolDataUnit.IsStartedAtReceiverFlagPresent(flags);
             var transfer = _outgoingTransfers.TryGet(new OutgoingTransfer
             {
+                RemoteEndpoint = remoteEndpoint,
                 MessageId = messageId,
                 StartedAtReceiver = startedAtReceiver
             });
@@ -276,7 +280,8 @@ namespace Kabomu.Common.Internals
             transfer.MessageSendCallbackState = null;
             transfer.CancellationIndicator = null;
             transfer.PendingData = null;
-            transfer.PendingAdditionalPayload = null;
+            transfer.PendingFallbackPayload = null;
+            transfer.RemoteEndpoint = null;
         }
     }
 }

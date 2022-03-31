@@ -20,7 +20,6 @@ namespace Kabomu.Common.Components
         public int DataOffset { get; set; }
         public int DataLength { get; set; }
         public byte[] Data { get; set; }
-        public object AdditionalPayload { get; set; }
 
         public static bool IsStartedAtReceiverFlagPresent(byte flags)
         {

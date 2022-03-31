@@ -9,7 +9,7 @@ namespace Kabomu.Tests.Common.TestHelpers
         public byte [] Data { get; set; }
         public int Offset { get; set; }
         public int Length { get; set; }
-        public object AdditionalPayload { get; set; }
+        public object FallbackPayload { get; set; }
         public bool HasMore { get; set; }
     }
 }
