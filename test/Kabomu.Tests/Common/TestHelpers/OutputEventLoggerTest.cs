@@ -55,8 +55,8 @@ namespace Kabomu.Tests.Common.TestHelpers
 
             testEventLoop.AdvanceTimeTo(50);
 
-            instance.AppendCallbackLog(null);
-            instance.AppendCallbackLog(new Exception("14:"));
+            instance.AppendCallbackLog("s", null);
+            instance.AppendCallbackLog(null, new Exception("14:"));
 
             testEventLoop.AdvanceTimeTo(60);
 
@@ -83,8 +83,8 @@ namespace Kabomu.Tests.Common.TestHelpers
                 "40:SrcEnd()",
                 $"40:SrcEnd(8)",
 
-                "50:Cb()",
-                $"50:Cb(14)"
+                "50:Cb(s,)",
+                $"50:Cb(,14)"
             };
             instance.AssertEqual(expectedLogs, outputHelper);
         }

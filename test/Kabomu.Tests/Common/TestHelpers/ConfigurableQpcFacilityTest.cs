@@ -222,10 +222,9 @@ namespace Kabomu.Tests.Common.TestHelpers
 
             // assert
             expectedLogs.Add(startTime + ":" +
-                OutputEventLogger.CreateOnReceivePduLog(null, 1, 2, 3, 4, 5, null, 0, 0, 9, null));
+                OutputEventLogger.CreateOnReceivePduLog(null, 1, 2, 3, 4, 5, null, 9, null));
             expectedLogs.Add(startTime + ":" +
-                OutputEventLogger.CreateOnReceivePduLog("d", 10, 21, 23, 24, 85, new byte[] { (byte)'a', (byte)'f' },
-                    0, 2, null, false));
+                OutputEventLogger.CreateOnReceivePduLog("d", 10, 21, 23, 24, 85, "af", null, false));
         }
     }
 }

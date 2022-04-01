@@ -48,9 +48,9 @@ namespace Kabomu.Tests.Common.TestHelpers
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
-        public void AppendCallbackLog(Exception ex)
+        public void AppendCallbackLog(object state, Exception ex)
         {
-            var log = CreateCallbackLog(ex?.Message);
+            var log = CreateCallbackLog(state, ex?.Message);
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
@@ -58,8 +58,13 @@ namespace Kabomu.Tests.Common.TestHelpers
             long messageId, byte[] data, int offset, int length, object fallbackPayload,
             ICancellationIndicator cancellationIndicator)
         {
-            var log = CreateOnReceivePduLog(connectionHandle, version, pduType, flags, errorCode, messageId, data, 
-                offset, length, fallbackPayload, cancellationIndicator?.Cancelled);
+            string payload = null;
+            if (data != null)
+            {
+                payload = ByteUtils.BytesToString(data, offset, length);
+            }
+            var log = CreateOnReceivePduLog(connectionHandle, version, pduType, flags, errorCode, messageId,
+                payload, fallbackPayload, cancellationIndicator?.Cancelled);
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
@@ -114,11 +119,12 @@ namespace Kabomu.Tests.Common.TestHelpers
                 $")";
         }
 
-        public static string CreateCallbackLog(string errorMessage)
+        public static string CreateCallbackLog(object state, string errorMessage)
         {
             errorMessage = ReduceErrorMessageToErrorCode(errorMessage);
             return "Cb" +
                 $"(" +
+                $"{state}," +
                 $"{errorMessage}" +
                 $")";
         }
@@ -137,14 +143,9 @@ namespace Kabomu.Tests.Common.TestHelpers
         }
 
         public static string CreateOnReceivePduLog(object connectionHandle, byte version, byte pduType, byte flags, byte errorCode,
-            long messageId, byte[] data, int offset, int length, object fallbackPayload,
+            long messageId, string payload, object fallbackPayload,
             bool? cancelled)
         {
-            string message = null;
-            if (data != null)
-            {
-                message = ByteUtils.BytesToString(data, offset, length);
-            }
             return "TransferChunk" +
                 $"(" +
                 $"{connectionHandle}," +
@@ -153,7 +154,7 @@ namespace Kabomu.Tests.Common.TestHelpers
                 $"{flags}," +
                 $"{errorCode}," +
                 $"{messageId}," +
-                $"{message}," +
+                $"{payload}," +
                 $"{fallbackPayload}," +
                 $"{cancelled?.ToString()?.ToLower()}" +
                 $")";
