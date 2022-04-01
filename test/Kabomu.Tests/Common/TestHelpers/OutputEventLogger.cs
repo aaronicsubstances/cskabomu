@@ -198,12 +198,5 @@ namespace Kabomu.Tests.Common.TestHelpers
         {
             return "SnkCreate()";
         }
-
-        public static ICancellationIndicator CreateAlreadyCancelledIndicator()
-        {
-            var instance = new DefaultCancellationIndicator();
-            instance.Cancel();
-            return instance;
-        }
     }
 }

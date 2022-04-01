@@ -39,7 +39,7 @@ namespace Kabomu.Tests.Common.TestHelpers
                         DelayedError = new ArgumentException("error0"),
                         Delays = new int[] { 7, 8, 9, 8, 9 },
                         Sink = new SimpleMessageSink(null),
-                        CancellationIndicator = OutputEventLogger.CreateAlreadyCancelledIndicator(),
+                        CancellationIndicator = new DefaultCancellationIndicator(),
                         RecvCb = (o, e) => { },
                         RecvCbState = "sf"
                     };
@@ -52,18 +52,18 @@ namespace Kabomu.Tests.Common.TestHelpers
             PerformTestAction(instance, testEventLoop, logger, 0, expectedLogs);
 
             // assert
-            expectedLogs.Add("7:3,error0,true,true,true,sf");
-            expectedLogs.Add("7:,error0,true,true,true,sf");
+            expectedLogs.Add("7:3,error0,true,false,true,sf");
+            expectedLogs.Add("7:,error0,true,false,true,sf");
 
-            expectedLogs.Add("8:3,error0,true,true,true,sf");
-            expectedLogs.Add("8:3,error0,true,true,true,sf");
-            expectedLogs.Add("8:,error0,true,true,true,sf");
-            expectedLogs.Add("8:,error0,true,true,true,sf");
+            expectedLogs.Add("8:3,error0,true,false,true,sf");
+            expectedLogs.Add("8:3,error0,true,false,true,sf");
+            expectedLogs.Add("8:,error0,true,false,true,sf");
+            expectedLogs.Add("8:,error0,true,false,true,sf");
 
-            expectedLogs.Add("9:3,error0,true,true,true,sf");
-            expectedLogs.Add("9:3,error0,true,true,true,sf");
-            expectedLogs.Add("9:,error0,true,true,true,sf");
-            expectedLogs.Add("9:,error0,true,true,true,sf");
+            expectedLogs.Add("9:3,error0,true,false,true,sf");
+            expectedLogs.Add("9:3,error0,true,false,true,sf");
+            expectedLogs.Add("9:,error0,true,false,true,sf");
+            expectedLogs.Add("9:,error0,true,false,true,sf");
 
             logger.AssertEqual(expectedLogs, outputHelper);
         }

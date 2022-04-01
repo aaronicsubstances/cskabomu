@@ -3,6 +3,7 @@ using Kabomu.Common.Components;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using static Kabomu.Common.Components.DefaultMessageTransferManager;
 
 namespace Kabomu.Common.Internals
 {
@@ -78,13 +79,11 @@ namespace Kabomu.Common.Internals
             {
                 // Intepret as a valid attempt to reuse a message id for a new transfer started by receiver.
                 // Abort existing transfer and create a new one to replace it.
-                AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                    DefaultMessageTransferManager.ErrorCodeAbortedByReceiver, null)));
+                AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeAbortedByReceiver, null)));
             }
             if (!_outgoingTransfers.TryAdd(transfer))
             {
-                DisableTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                    DefaultMessageTransferManager.ErrorCodeGeneral, null) +
+                DisableTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeGeneral, null) +
                     " (internal message id generator malfunction)"));
                 return;
             }
@@ -181,21 +180,19 @@ namespace Kabomu.Common.Internals
             transfer.RequestConnectionHandle = connectionHandle;
             if (transfer.PendingResultCancellationIndicator != null)
             {
-                AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                    DefaultMessageTransferManager.ErrorCodeProtocolViolation, null) +
+                AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                     " (stop and wait violation)"));
                 return;
             }
             if (transfer.OpeningChunkSent)
             {
-                AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                    DefaultMessageTransferManager.ErrorCodeProtocolViolation, null) +
+                AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                     " (expected subsequent ack instead)"));
                 return;
             }
             if (errorCode != 0)
             {
-                AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
+                AbortTransfer(transfer, new Exception(GenerateErrorMessage(
                     errorCode, $"{errorCode}:remote peer error")));
                 return;
             }
@@ -220,21 +217,19 @@ namespace Kabomu.Common.Internals
             transfer.RequestConnectionHandle = connectionHandle;
             if (transfer.PendingResultCancellationIndicator != null)
             {
-                AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                    DefaultMessageTransferManager.ErrorCodeProtocolViolation, null) +
+                AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                     " (stop and wait violation)"));
                 return;
             }
             if (!transfer.OpeningChunkSent)
             {
-                AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                    DefaultMessageTransferManager.ErrorCodeProtocolViolation, null) +
+                AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                     " (expected first ack instead)"));
                 return;
             }
             if (errorCode != 0)
             {
-                AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
+                AbortTransfer(transfer, new Exception(GenerateErrorMessage(
                     errorCode, $"{errorCode}:remote peer error")));
                 return;
             }
@@ -261,8 +256,7 @@ namespace Kabomu.Common.Internals
             transfer.ReceiveAckTimeoutId = EventLoop.ScheduleTimeout(transfer.TimeoutMillis,
                 _ =>
                 {
-                    AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                        DefaultMessageTransferManager.ErrorCodeSendTimeout, null)));
+                    AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeSendTimeout, null)));
                 }, null);
         }
 
@@ -275,8 +269,7 @@ namespace Kabomu.Common.Internals
             }
             if (exception == null && (transfer.CancellationIndicator?.Cancelled ?? false))
             {
-                exception = new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                    DefaultMessageTransferManager.ErrorCodeCancelled, null));
+                exception = new Exception(GenerateErrorMessage(ErrorCodeCancelled, null));
             }
             DisableTransfer(transfer, exception);
         }

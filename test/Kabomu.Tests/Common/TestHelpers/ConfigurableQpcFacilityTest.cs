@@ -214,7 +214,7 @@ namespace Kabomu.Tests.Common.TestHelpers
             {
                 instance.BeginSendPdu(null, 1, 2, 3, 4, 5, null, 0, 0, 9, null, sendChunkCb, 7);
                 instance.BeginSendPdu("d", 10, 21, 23, 24, 85, new byte[] { (byte)'a', (byte)'f' },
-                    0, 2, null, OutputEventLogger.CreateAlreadyCancelledIndicator(), sendChunkCb, null);
+                    0, 2, null, new DefaultCancellationIndicator(), sendChunkCb, null);
 
             }, null);
 
@@ -225,7 +225,7 @@ namespace Kabomu.Tests.Common.TestHelpers
                 OutputEventLogger.CreateOnReceivePduLog(null, 1, 2, 3, 4, 5, null, 0, 0, 9, null));
             expectedLogs.Add(startTime + ":" +
                 OutputEventLogger.CreateOnReceivePduLog("d", 10, 21, 23, 24, 85, new byte[] { (byte)'a', (byte)'f' },
-                    0, 2, null, true));
+                    0, 2, null, false));
         }
     }
 }
