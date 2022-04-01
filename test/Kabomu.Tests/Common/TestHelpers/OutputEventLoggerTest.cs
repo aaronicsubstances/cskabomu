@@ -36,7 +36,7 @@ namespace Kabomu.Tests.Common.TestHelpers
             instance.AppendOnReceivePduLog(null, 1, 2, 3, 4, 5, null, 0, 0, 9, null);
             instance.AppendOnReceivePduLog("c", 1, 2, 3, 4, 5, new byte[0], 0, 0, null, new DefaultCancellationIndicator());
             instance.AppendOnReceivePduLog("d", 10, 21, 23, 24, 85, new byte[] { (byte)'a', (byte)'f' }, 
-                0, 2, null, OutputEventLogger.CreateAlreadyCancelledIndicator());
+                0, 2, null, new DefaultCancellationIndicator());
 
             testEventLoop.AdvanceTimeTo(23);
 
@@ -70,7 +70,7 @@ namespace Kabomu.Tests.Common.TestHelpers
 
                 "0:TransferChunk(,1,2,3,4,5,,9,)",
                 "0:TransferChunk(c,1,2,3,4,5,,,false)",
-                "0:TransferChunk(d,10,21,23,24,85,af,,true)",
+                "0:TransferChunk(d,10,21,23,24,85,af,,false)",
 
                 "23:SnkCreate()",
                 "23:SnkData(z,,true)",

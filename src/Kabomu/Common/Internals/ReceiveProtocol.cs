@@ -3,6 +3,7 @@ using Kabomu.Common.Components;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using static Kabomu.Common.Components.DefaultMessageTransferManager;
 
 namespace Kabomu.Common.Internals
 {
@@ -50,8 +51,7 @@ namespace Kabomu.Common.Internals
         {
             if (!_incomingTransfers.TryAdd(transfer))
             {
-                DisableTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                    DefaultMessageTransferManager.ErrorCodeGeneral, null) +
+                DisableTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeGeneral, null) +
                     " (internal message id generator malfunction)"));
                 return;
             }
@@ -72,25 +72,23 @@ namespace Kabomu.Common.Internals
                 if (transfer == null)
                 {
                     SendAck(connectionHandle, messageId, DefaultProtocolDataUnit.PduTypeFirstChunkAck,
-                        DefaultMessageTransferManager.ErrorCodeMessageIdNotFound);
+                        ErrorCodeMessageIdNotFound);
                     return;
                 }
                 transfer.ReplyConnectionHandle = connectionHandle;
                 if (transfer.PendingResultCancellationIndicator != null)
                 {
-                    AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                        DefaultMessageTransferManager.ErrorCodeProtocolViolation, null) +
+                    AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                         " (stop and wait violation)"));
-                    SendTransferAck(transfer, DefaultMessageTransferManager.ErrorCodeProtocolViolation, false);
+                    SendTransferAck(transfer, ErrorCodeProtocolViolation, false);
                     return;
                 }
                 if (transfer.OpeningChunkReceived)
                 {
                     // Intepret as an illegal attempt to use a first chunk to continue a transfer.
-                    AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                        DefaultMessageTransferManager.ErrorCodeProtocolViolation, null) +
+                    AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                         " (first chunk cannot continue a transfer)"));
-                    SendTransferAck(transfer, DefaultMessageTransferManager.ErrorCodeProtocolViolation, false);
+                    SendTransferAck(transfer, ErrorCodeProtocolViolation, false);
                     return;
                 }
             }
@@ -100,8 +98,7 @@ namespace Kabomu.Common.Internals
                 {
                     // Intepret as a valid attempt to reuse a message id for a new transfer started by sender.
                     // Abort existing transfer and create a new one to replace it.
-                    AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                        DefaultMessageTransferManager.ErrorCodeAbortedBySender, null)));
+                    AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeAbortedBySender, null)));
                 }
                 transfer = new IncomingTransfer
                 {
@@ -112,8 +109,7 @@ namespace Kabomu.Common.Internals
                 };
                 if (!_incomingTransfers.TryAdd(transfer))
                 {
-                    DisableTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                        DefaultMessageTransferManager.ErrorCodeGeneral, null) +
+                    DisableTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeGeneral, null) +
                         " (internal failure in adding to transfer collection)"));
                     return;
                 }
@@ -148,25 +144,23 @@ namespace Kabomu.Common.Internals
             if (transfer == null)
             {
                 SendAck(connectionHandle, messageId, DefaultProtocolDataUnit.PduTypeSubsequentChunkAck,
-                    DefaultMessageTransferManager.ErrorCodeMessageIdNotFound);
+                    ErrorCodeMessageIdNotFound);
                 return;
             }
             transfer.ReplyConnectionHandle = connectionHandle;
             if (transfer.PendingResultCancellationIndicator != null)
             {
-                AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                    DefaultMessageTransferManager.ErrorCodeProtocolViolation, null) +
+                AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                     " (stop and wait violation)"));
-                SendTransferAck(transfer, DefaultMessageTransferManager.ErrorCodeProtocolViolation, false);
+                SendTransferAck(transfer, ErrorCodeProtocolViolation, false);
                 return;
             }
             if (!transfer.OpeningChunkReceived)
             {
                 // Intepret as an illegal attempt to use a subsequent chunk to start a transfer.
-                AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                    DefaultMessageTransferManager.ErrorCodeProtocolViolation, null) +
+                AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                     " (subsequent chunk cannot start a transfer)"));
-                SendTransferAck(transfer, DefaultMessageTransferManager.ErrorCodeProtocolViolation, false);
+                SendTransferAck(transfer, ErrorCodeProtocolViolation, false);
                 return;
             }
 
@@ -299,8 +293,7 @@ namespace Kabomu.Common.Internals
             transfer.ReceiveDataTimeoutId = EventLoop.ScheduleTimeout(transfer.TimeoutMillis,
                 _ =>
                 {
-                    AbortTransfer(transfer, new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                        DefaultMessageTransferManager.ErrorCodeReceiveTimeout, null)));
+                    AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeReceiveTimeout, null)));
                 }, null);
         }
 
@@ -313,8 +306,7 @@ namespace Kabomu.Common.Internals
             }
             if (exception == null && (transfer.CancellationIndicator?.Cancelled ?? false))
             {
-                exception = new Exception(DefaultMessageTransferManager.GenerateErrorMessage(
-                    DefaultMessageTransferManager.ErrorCodeCancelled, null));
+                exception = new Exception(GenerateErrorMessage(ErrorCodeCancelled, null));
             }
             DisableTransfer(transfer, exception);
         }
