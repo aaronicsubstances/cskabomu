@@ -137,3 +137,38 @@ Remove references to qpc103 and everything below improvements since no one needs
 *Somehow mention that we have to admit that it is not useful to have long lived connections or flows which have to tolerate idleness or even restarts of peers. Rather let us settle for bounded message exchanges, and unbounded message exchanges which neither tolerate idleness nor restarts of peers. Thus have to drop all of RINA's concepts, and instead continue to emulate success of HTTP's stateless request-response model.
 
 ------------
+remaining
+---------
+let beginsend return void, and processsend be the one generating ids without CAS instruction
+let beginreceive return void? take param like beginsendstartedAtReceiver? 
+ and require user to call nextid() manually (based on CAS instructions)? yes.
+let begin send and begin receive use different message id generators.
+
+default source and sinks
+------------------------
+-add a sink which embeds a source, and a soure which embeds a sink
+-leave it to another library to provide sources and sinks backed by async streams, which will likely need 3rd party libs like Netty, Vert.x, Twisted and ReactPHP.
+
+quasi http
+----------
+keep csv utils for quasi http? so we don't have a dependency on some library.
+
+deferred processing
+-------------------
+default cache
+-major advantage over existing caches is ttl, postpone timeout operation, and eviction handler notification for ttl et al
+-use async methods throughout? complicates operations like containsKey (delegate to get), size, isEmpty (delegate to size).
+-could support sync operations by leaving keys whose ttl have expired intact, 
+ and only clear them when max is reached.
+-can add min sweep time option for cleaning expired ttls
+-only allow ttl in addasync case
+-call eviction if ttl elapses or user himself clears or max is reached.
+-could use atomic increment and decrement for size and isEmpty.
+-containsKey and get are not read only and so can be async.
+-assume eventloop and single threaded
+-set insert time
+-update last acess time, and frequency of get usage.
+-on max count reached, perform linear search to evict "least" item based on current policy
+-policies are MRU, LRU, FIFO, LFU (setmru,ismru, etc)
+-setting of policy can also use atomic compare and swap
+-alternatively ignore compare and swap, and have an interface that client can lock with throughout synchronized subclass. like java's collection.synchronizedlist(list)
