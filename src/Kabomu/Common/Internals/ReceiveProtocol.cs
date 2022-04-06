@@ -48,8 +48,7 @@ namespace Kabomu.Common.Internals
         {
             if (!_incomingTransfers.TryAdd(transfer))
             {
-                DisableTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeGeneral, null) +
-                    " (internal message id generator malfunction)"));
+                DisableTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeMessageIdInUse, null)));
                 return;
             }
             ResetTimeout(transfer);

@@ -20,6 +20,7 @@ namespace Kabomu.Common.Components
         public static readonly byte ErrorCodeAbortedBySender = 7;
         public static readonly byte ErrorCodeAbortedByReceiver = 8;
         public static readonly byte ErrorCodeMessageIdNotFound = 9;
+        public static readonly byte ErrorCodeMessageIdInUse = 10;
 
         private static readonly string[] ErrorMessages;
 
@@ -35,6 +36,7 @@ namespace Kabomu.Common.Components
             SetErrorMessage(ErrorCodeAbortedBySender, "Aborted by Sender");
             SetErrorMessage(ErrorCodeAbortedByReceiver, "Aborted by Receiver");
             SetErrorMessage(ErrorCodeMessageIdNotFound, "Message Id Not Found");
+            SetErrorMessage(ErrorCodeMessageIdInUse, "Message Id In Use");
         }
 
         private static void SetErrorMessage(byte errorCode, string message)
