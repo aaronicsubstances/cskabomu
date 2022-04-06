@@ -94,7 +94,7 @@ namespace Kabomu.Common.Internals
             if (!_outgoingTransfers.TryAdd(transfer))
             {
                 DisableTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeGeneral, null) +
-                    " (internal message id generator malfunction)"));
+                    " (internal failure in adding to transfer collection)"));
                 return;
             }
             ResetTimeout(transfer);

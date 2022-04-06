@@ -33,6 +33,7 @@ namespace Kabomu.Tests.Common.Components
                 new object[]{ DefaultMessageTransferManager.ErrorCodeAbortedBySender, null, "7:Aborted by Sender" },
                 new object[]{ DefaultMessageTransferManager.ErrorCodeAbortedByReceiver, null, "8:Aborted by Receiver" },
                 new object[]{ DefaultMessageTransferManager.ErrorCodeMessageIdNotFound, null, "9:Message Id Not Found" },
+                new object[]{ DefaultMessageTransferManager.ErrorCodeMessageIdInUse, null, "10:Message Id In Use" },
                 new object[]{ 15, null, "15:Reserved" },
                 new object[]{ 30, "30:power outage", "30:power outage" },
                 new object[]{ 30, null, "30:N/A" }
