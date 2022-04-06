@@ -1,4 +1,4 @@
-﻿using Kabomu.Common.Internals;
+﻿using Kabomu.Common.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.Text;

@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Common.Internals
+namespace Kabomu.Common.Abstractions
 {
-    internal interface IMessageIdGenerator
+    public interface IMessageIdGenerator
     {
         long NextId();
     }

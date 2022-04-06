@@ -1,10 +1,10 @@
-﻿using Kabomu.Common.Internals;
+﻿using Kabomu.Common.Components;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.Common.Internals
+namespace Kabomu.Tests.Common.Components
 {
     public class DefaultMessageIdGeneratorTest
     {

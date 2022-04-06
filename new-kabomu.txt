@@ -139,10 +139,7 @@ Remove references to qpc103 and everything below improvements since no one needs
 ------------
 remaining
 ---------
-let beginsend return void, and processsend be the one generating ids without CAS instruction
-let beginreceive return void? take param like beginsendstartedAtReceiver? 
- and require user to call nextid() manually (based on CAS instructions)? yes.
-let begin send and begin receive use different message id generators.
+
 
 default source and sinks
 ------------------------

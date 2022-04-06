@@ -16,16 +16,14 @@ namespace Kabomu.Common.Internals
         public IMessageSinkFactory MessageSinkFactory { get; set; }
         public int DefaultTimeoutMillis { get; set; }
         public IEventLoopApi EventLoop { get; set; }
-        public IMessageIdGenerator MessageIdGenerator { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
-        public long BeginReceive(IMessageSink msgSink,
+        public void BeginReceive(IMessageSink msgSink, long msgIdAtReceiver, 
             IMessageTransferOptions options, Action<object, Exception> cb, object cbState)
         {
-            long messageId = MessageIdGenerator.NextId();
             var transfer = new IncomingTransfer
             {
-                MessageId = messageId,
+                MessageId = msgIdAtReceiver,
                 StartedAtReceiver = true,
                 MessageSink = msgSink,
                 MessageReceiveCallback = cb,
@@ -44,7 +42,6 @@ namespace Kabomu.Common.Internals
             {
                 ProcessReceive(transfer);
             }, null);
-            return messageId;
         }
 
         private void ProcessReceive(IncomingTransfer transfer)
