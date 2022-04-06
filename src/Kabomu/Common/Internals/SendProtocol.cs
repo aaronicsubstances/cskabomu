@@ -1,5 +1,6 @@
 ﻿using Kabomu.Common.Abstractions;
 using Kabomu.Common.Components;
+using Kabomu.Common.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -12,19 +13,22 @@ namespace Kabomu.Common.Internals
         private readonly ITransferCollection<OutgoingTransfer> _outgoingTransfers =
             new DefaultTransferCollection<OutgoingTransfer>();
 
+        public SendProtocol()
+        {
+            MessageIdGenerator = new STMessageIdGenerator(DateTimeUtils.UnixTimeMillis);
+        }
+
         public IQpcFacility QpcService { get; set; }
         public int DefaultTimeoutMillis { get; set; }
         public IEventLoopApi EventLoop { get; set; }
-        public IMessageIdGenerator MessageIdGenerator { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
+        internal IMessageIdGenerator MessageIdGenerator { get; set; }
 
-        public long BeginSend(object connectionHandle, IMessageSource msgSource, IMessageTransferOptions options,
+        public void BeginSend(object connectionHandle, IMessageSource msgSource, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState)
         {
-            long messageId = MessageIdGenerator.NextId();
             var transfer = new OutgoingTransfer
             {
-                MessageId = messageId,
                 MessageSource = msgSource,
                 MessageSendCallback = cb,
                 MessageSendCallbackState = cbState,
@@ -43,7 +47,6 @@ namespace Kabomu.Common.Internals
             {
                 ProcessSend(transfer);
             }, null);
-            return messageId;
         }
 
         public void BeginSendStartedAtReceiver(object connectionHandle, IMessageSource msgSource, long msgIdAtReceiver,
@@ -75,11 +78,18 @@ namespace Kabomu.Common.Internals
 
         private void ProcessSend(OutgoingTransfer transfer)
         {
-            if (transfer.StartedAtReceiver && _outgoingTransfers.TryGet(transfer) != null)
+            if (transfer.StartedAtReceiver)
             {
-                // Intepret as a valid attempt to reuse a message id for a new transfer started by receiver.
-                // Abort existing transfer and create a new one to replace it.
-                AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeAbortedByReceiver, null)));
+                if (_outgoingTransfers.TryGet(transfer) == null)
+                {
+                    // Intepret as a valid attempt to reuse a message id for a new transfer started by receiver.
+                    // Abort existing transfer and create a new one to replace it.
+                    AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeAbortedByReceiver, null)));
+                }
+            }
+            else
+            {
+                transfer.MessageId = MessageIdGenerator.NextId();
             }
             if (!_outgoingTransfers.TryAdd(transfer))
             {

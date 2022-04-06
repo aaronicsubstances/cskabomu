@@ -63,7 +63,6 @@ namespace Kabomu.Common.Components
         private int _defaultTimeoutMillis;
         private IEventLoopApi _eventLoop;
         private UncaughtErrorCallback _errorHandler;
-        private IMessageIdGenerator _messageIdGenerator;
 
         private readonly ReceiveProtocol _receiveProtocol;
         private readonly SendProtocol _sendProtocol;
@@ -72,7 +71,6 @@ namespace Kabomu.Common.Components
         {
             _receiveProtocol = new ReceiveProtocol();
             _sendProtocol = new SendProtocol();
-            _messageIdGenerator = new DefaultMessageIdGenerator();
         }
 
         public IQpcFacility QpcService
@@ -144,30 +142,17 @@ namespace Kabomu.Common.Components
             }
         }
 
-        internal IMessageIdGenerator MessageIdGenerator
-        {
-            get
-            {
-                return _messageIdGenerator;
-            }
-            set
-            {
-                _messageIdGenerator = value;
-                _receiveProtocol.MessageIdGenerator = value;
-                _sendProtocol.MessageIdGenerator = value;
-            }
-        }
-
-        public long BeginReceive(IMessageSink msgSink, IMessageTransferOptions options,
+        public void BeginReceive(IMessageSink msgSink, long msgIdAtReceiver, 
+            IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState)
         {
-            return _receiveProtocol.BeginReceive(msgSink, options, cb, cbState);
+            _receiveProtocol.BeginReceive(msgSink, msgIdAtReceiver, options, cb, cbState);
         }
 
-        public long BeginSend(object connectionHandle, IMessageSource msgSource, IMessageTransferOptions options,
+        public void BeginSend(object connectionHandle, IMessageSource msgSource, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState)
         {
-            return _sendProtocol.BeginSend(connectionHandle, msgSource, options, cb, cbState);
+            _sendProtocol.BeginSend(connectionHandle, msgSource, options, cb, cbState);
         }
 
         public void BeginSendStartedAtReceiver(object connectionHandle, IMessageSource msgSource,

@@ -123,13 +123,11 @@ namespace Kabomu.Tests.Common.Internals
             // act
             testEventLoop.ScheduleTimeout(2, _ =>
             {
-                long msgId = instance.BeginSend("kumasi", msgSource1, options1, commonCb, "tree");
-                Assert.Equal(1, msgId);
+                instance.BeginSend("kumasi", msgSource1, options1, commonCb, "tree");
             }, null);
             testEventLoop.ScheduleTimeout(2, _ =>
             {
-                long msgId = instance.BeginSend(null, msgSource2, options2, commonCb, null);
-                Assert.Equal(2, msgId);
+                instance.BeginSend(null, msgSource2, options2, commonCb, null);
             }, null);
             testEventLoop.ScheduleTimeout(7, _ =>
             {

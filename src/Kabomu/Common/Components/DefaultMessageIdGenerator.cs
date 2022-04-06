@@ -5,9 +5,9 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 
-namespace Kabomu.Common.Internals
+namespace Kabomu.Common.Components
 {
-    internal class DefaultMessageIdGenerator : IMessageIdGenerator
+    public class DefaultMessageIdGenerator : IMessageIdGenerator
     {
         private long _lastId;
 

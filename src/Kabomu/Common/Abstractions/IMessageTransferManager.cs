@@ -9,9 +9,9 @@ namespace Kabomu.Common.Abstractions
         IQpcFacility QpcService { get; }
         IMessageSinkFactory MessageSinkFactory { get; }
         UncaughtErrorCallback ErrorHandler { get; set; }
-        long BeginReceive(IMessageSink msgSink, IMessageTransferOptions options,
+        void BeginReceive(IMessageSink msgSink, long msgIdAtReceiver, IMessageTransferOptions options,
             Action<object, Exception> cb, object cbState);
-        long BeginSend(object connectionHandle, IMessageSource msgSource, 
+        void BeginSend(object connectionHandle, IMessageSource msgSource, 
             IMessageTransferOptions options, 
             Action<object, Exception> cb, object cbState);
         void BeginSendStartedAtReceiver(object connectionHandle, IMessageSource msgSource, 
