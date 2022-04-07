@@ -20,7 +20,7 @@ namespace Kabomu.Tests.Common.Internals
         }
 
         [Fact]
-        public void TestBeginSend()
+        public void TestSendSuccessCases()
         {
             // arrange
             var testEventLoop = new TestEventLoopApi();
@@ -120,6 +120,67 @@ namespace Kabomu.Tests.Common.Internals
                 TimeoutMillis = 60
             };
 
+            var msgSource3 = new ConfigurableMessageSource
+            {
+                EventLoop = testEventLoop,
+                Logger = logger,
+                ReadDataChunkCallbackInstance = () =>
+                {
+                    return new ConfigurableMessageSourceResult
+                    {
+                        Delays = new int[] { 2, 3 },
+                        FallbackPayload = "morning",
+                        HasMore = false,
+                    };
+                }
+            };
+            DefaultMessageTransferOptions options3 = null;
+            
+            var msgSource4Field = 0;
+            var msgSource4 = new ConfigurableMessageSource
+            {
+                EventLoop = testEventLoop,
+                Logger = logger,
+                ReadDataChunkCallbackInstance = () =>
+                {
+                    msgSource4Field++;
+                    if (msgSource4Field == 1)
+                    {
+                        return new ConfigurableMessageSourceResult
+                        {
+                            Delays = new int[] { 2, 3 },
+                            Data = new byte[] { (byte)'1', (byte)'0', (byte)'1' },
+                            Length = 3,
+                            HasMore = true,
+                        };
+                    }
+                    else if (msgSource4Field == 2)
+                    {
+                        return new ConfigurableMessageSourceResult
+                        {
+                            Delays = new int[] { 1 },
+                            Data = new byte[] { 0, (byte)'2', (byte)'0', (byte)'0', (byte)'2', 0 },
+                            Offset = 1,
+                            Length = 4,
+                            HasMore = true,
+                        };
+                    }
+                    else
+                    {
+                        return new ConfigurableMessageSourceResult
+                        {
+                            Delays = new int[] { 0, 2, 3 },
+                            FallbackPayload = "3",
+                            HasMore = false,
+                        };
+                    }
+                }
+            };
+            var options4 = new DefaultMessageTransferOptions
+            {
+                TimeoutMillis = 60
+            };
+
             // act
             testEventLoop.ScheduleTimeout(2, _ =>
             {
@@ -141,10 +202,56 @@ namespace Kabomu.Tests.Common.Internals
             {
                 instance.OnReceiveSubsequentChunkAck("tema", 0, 2, 0);
             }, null);
+            testEventLoop.ScheduleTimeout(14, _ =>
+            {
+                instance.BeginSendStartedAtReceiver("6", msgSource3, 7, options3, commonCb, null);
+            }, null);
+            testEventLoop.ScheduleTimeout(15, _ =>
+            {
+                instance.BeginSendStartedAtReceiver("1256", msgSource3, 7, options3, commonCb, "y");
+            }, null);
             testEventLoop.ScheduleTimeout(16, _ =>
             {
                 instance.OnReceiveSubsequentChunkAck(null, 0, 2, 0);
             }, null);
+            testEventLoop.ScheduleTimeout(17, _ =>
+            {
+                instance.BeginSendStartedAtReceiver(null, msgSource4, 8, options4, commonCb, null);
+            }, null);
+            testEventLoop.ScheduleTimeout(20, _ =>
+            {
+                instance.OnReceiveFirstChunkAck(null, 128, 7, 0);
+            }, null);
+            testEventLoop.ScheduleTimeout(21, _ =>
+            {
+                instance.OnReceiveFirstChunkAck(null, 128, 8, 0);
+            }, null);
+            testEventLoop.ScheduleTimeout(26, _ =>
+            {
+                instance.OnReceiveSubsequentChunkAck(null, 128, 8, 0);
+            }, null);
+            testEventLoop.ScheduleTimeout(30, _ =>
+            {
+                instance.OnReceiveSubsequentChunkAck(null, 128, 8, 0);
+            }, null);
+            testEventLoop.ScheduleTimeout(31, _ =>
+            {
+                instance.OnReceiveSubsequentChunkAck(null, 128, 1, 0);
+            }, null);
+            testEventLoop.ScheduleTimeout(32, _ =>
+            {
+                instance.OnReceiveSubsequentChunkAck(null, 128, 2, 0);
+            }, null);
+            testEventLoop.ScheduleTimeout(33, _ =>
+            {
+                instance.OnReceiveSubsequentChunkAck(null, 128, 7, 0);
+            }, null);
+            testEventLoop.ScheduleTimeout(34, _ =>
+            {
+                instance.OnReceiveSubsequentChunkAck(null, 128, 8, 0);
+            }, null);
+
+
             testEventLoop.AdvanceTimeBy(100);
 
             // assert
@@ -179,10 +286,48 @@ namespace Kabomu.Tests.Common.Internals
                 OutputEventLogger.CreateOnReceivePduLog("tema", DefaultProtocolDataUnit.Version01,
                     DefaultProtocolDataUnit.PduTypeSubsequentChunk, 0, 0, 2,
                     null, "s", null));
+            expectedLogs.Add("14:" +
+                OutputEventLogger.CreateSourceReadDataLog()); // msg3a
+            expectedLogs.Add("15:" +
+                OutputEventLogger.CreateSourceOnEndReadLog("" + DefaultMessageTransferManager.ErrorCodeAbortedByReceiver)); // msg3a
+            expectedLogs.Add("15:" +
+                OutputEventLogger.CreateCallbackLog(null, "" + DefaultMessageTransferManager.ErrorCodeAbortedByReceiver)); // msg3a
+            expectedLogs.Add("15:" +
+                OutputEventLogger.CreateSourceReadDataLog()); // msg3b
             expectedLogs.Add("16:" +
                 OutputEventLogger.CreateSourceOnEndReadLog(null)); // msg2
             expectedLogs.Add("16:" +
                 OutputEventLogger.CreateCallbackLog(null, null)); // msg2
+            expectedLogs.Add("17:" +
+                OutputEventLogger.CreateSourceReadDataLog()); // msg4
+            expectedLogs.Add("17:" +
+                OutputEventLogger.CreateOnReceivePduLog("1256", DefaultProtocolDataUnit.Version01,
+                    DefaultProtocolDataUnit.PduTypeFirstChunk, 128, 0, 7,
+                    null, "morning", null)); // msg3b
+            expectedLogs.Add("19:" +
+                OutputEventLogger.CreateOnReceivePduLog(null, DefaultProtocolDataUnit.Version01,
+                    DefaultProtocolDataUnit.PduTypeFirstChunk, 192, 0, 8,
+                    "101", null, null)); // msg3b
+            expectedLogs.Add("20:" +
+                 OutputEventLogger.CreateSourceOnEndReadLog(null)); // msg3b
+            expectedLogs.Add("20:" +
+                OutputEventLogger.CreateCallbackLog("y", null)); // msg3b
+            expectedLogs.Add("21:" +
+                OutputEventLogger.CreateSourceReadDataLog()); // msg4
+            expectedLogs.Add("22:" +
+                OutputEventLogger.CreateOnReceivePduLog(null, DefaultProtocolDataUnit.Version01,
+                    DefaultProtocolDataUnit.PduTypeSubsequentChunk, 192, 0, 8,
+                    "2002", null, null));
+            expectedLogs.Add("26:" +
+                OutputEventLogger.CreateSourceReadDataLog()); // msg4
+            expectedLogs.Add("26:" +
+                OutputEventLogger.CreateOnReceivePduLog(null, DefaultProtocolDataUnit.Version01,
+                    DefaultProtocolDataUnit.PduTypeSubsequentChunk, 128, 0, 8,
+                    null, "3", null));
+            expectedLogs.Add("30:" +
+                OutputEventLogger.CreateSourceOnEndReadLog(null)); // msg4
+            expectedLogs.Add("30:" +
+                OutputEventLogger.CreateCallbackLog(null, null)); // msg4
 
             logger.AssertEqual(expectedLogs, outputHelper);
         }

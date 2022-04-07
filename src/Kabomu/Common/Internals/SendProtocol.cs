@@ -80,7 +80,7 @@ namespace Kabomu.Common.Internals
         {
             if (transfer.StartedAtReceiver)
             {
-                if (_outgoingTransfers.TryGet(transfer) == null)
+                if (_outgoingTransfers.TryGet(transfer) != null)
                 {
                     // Intepret as a valid attempt to reuse a message id for a new transfer started by receiver.
                     // Abort existing transfer and create a new one to replace it.
