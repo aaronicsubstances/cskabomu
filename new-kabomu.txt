@@ -61,10 +61,7 @@ The QPC services for Kabomu leverage this benefit of large payloads, to employ 3
 
 ## QPC101 (SunRPC Strategy)
 
-1. Create class Qpc101Facility inside new qpc101 package inside rina, with the following behaviour.
-
-    1. Anytime begin_send(byte_queue, cb): None is called, save the callback in some private field, and pass the byte queue to the abstract forward_send_request(byte_queue): None method.
-    2. When begin_receive(byte_queue): None is called, use the argument as the response to the previous begin_send call, by passing the response to the saved callback, and deleting the saved callback private field (or set to None).
+1. Assume qpc101 will be used for requests for which duplication isn't a problem for clients (of qpc101). In other words, qpc101 doesn't provide duplication protection on its own at all.
 
 2. reset and exception handling.
 
@@ -82,8 +79,6 @@ The QPC services for Kabomu leverage this benefit of large payloads, to employ 3
 6. Deal with challenge of message size limit, by adding "max pdu size" option and rejecting oversized messages. Not so straightforward as overhead of pdu fields required for communication must be accounted for.
 
 7. Deal with challenge of no connectivity, by adding "send timeout" option, and introduce event loop. Apply timeout at sending end, and introduce dictionary state keyed by request id and remote address.
-
-8. Assume qpc101 will be used for requests for which duplication isn't a problem for clients (of qpc101). In other words, qpc101 doesn't provide duplication protection on its own at all.
 
 9. Deal with challenge of intermittent delays by implementing auto retries using "min/max backoff" options.
 
@@ -113,7 +108,7 @@ The QPC services for Kabomu leverage this benefit of large payloads, to employ 3
 
 2. Add option for receiver slow start period, which should be less than MPL (or even 0). If for some reason, one is fine with permanently using handshake mode, then can set this option to infinity.
 
-2. To enable parallel processing of qpc requests, interpret the last 10 bits of a sequence number as its group number.
+2. To enable parallel processing of qpc requests, interpret the first 2 bytes of a sequence number as its group number.
 
 3. To avoid need for sequence numbering lockstep between sender and receiver, let receiver accept any sequence number from sender after exiting handshake required mode, and then from that time onwards, as long as it is larger than what was last received within its group.
 
