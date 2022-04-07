@@ -1,11 +1,12 @@
 Email to Awudu
 1. Kabomu Library is a message passing framework for building networking protocols for distributed systems
-2. A message is transferred across a network as part of an unbounded stream of uninterpreted bounded byte chunks
-3. All protocols based on the framework support both one-way and request-response message exchange patterns
+2. A message is just a stream of bytes which is usually assumed to be bounded. Kabomu seeks to support frameworks which already support for exchanging bounded messages, by implementing support for exchanging unbounded messages as well.
+3. All protocols based on the framework support both explicitly acked one-way request (for the purpose of data transfer), and implicitly acked request-response message exchange patterns.
 4. Some protocols work with immediate processing while others work with deferred processing
 5. Protocols which employ immediate processing are "semantically compatible" with HTTP/1.0, so that terminology of request methods, response status codes, headers and bodies apply. They differ only in their underlying transports, which are not limited to TCP.
-6. Protocols which employ deferred processing are "semantically compatible" with a subset of JMAP Mail. They differ only in their underlying transports, which are limited to HTTP. Deferred processing will be done by automated email thread processors.
-
+6. Protocols which employ deferred processing are "semantically compatible" with a subset of JMAP Mail. They differ only in their underlying transports, which are limited to HTTP. Deferred processing will be done by automated email thread processors. 
+7. Since webmail makes it possible to send email via http, point 6 can still be seen from the alternative perspective of http. This will require use of "dictionary of callbacks" idea for simulating deferred processing as immediate processing (callbacks are invoked with error of "not done yet" after some timeout to signal that request is really being processed in a deferred manner).
+8. From playing around with RINA research, my opinion is that it is not useful to have long lived connections or flows which have to tolerate idleness or even restarts of peers. Rather I propose we settle for bounded message exchanges, and unbounded message exchanges which neither tolerate idleness nor restarts of peers. Thus I had to drop a lot of RINA's concepts, and instead continue to emulate success of HTTP's stateless request-response model.
 -----------------------------
 
 # Quasi Procedure Call (QPC) Services for Kabomu
@@ -18,9 +19,7 @@ These are the challenges which all QPC services of Kabomu must address in order 
 1. A request or response may be lost or destroyed in the network (e.g. due to a network disconnection), and hence will never reach its intended destination.
 2. A request or response may experience significant delays during its transmission, so that the usual style of blocking for responses during local procedure call may be too costly. This suggests that QPC services 
     1. use non-blocking style (e.g. through callbacks) to lower cost of such delays on computing resources of the sender.
-    2. support cancellation.
-    2. support "reliable" data transfers, which can be acknowledged *before* processing, unlike normal procedure call behaviour of returning responses *after* processing.
-    3. support one-way sending of requests without waiting for responses. Synonymous with "unreliable" (ie not acknowledged) data transfers.
+    2. optionally support cancellation.
 3. Networks can hold on to requests for significantly long times, even after sender has given up on it. This suggests that even if a sender is no longer interested in a transmission, a QPC service may have to hold on to it for some time before abandoning it as well.
 4. The network can outlive restarts of senders and receivers. This means that transmissions before restarts can interfere with those created afterwards, and suggests that a QPC service may have to slow down after restart,  before processing requests at full capacity.
 3. A request or response may be duplicated in the network, so that the intended destination sees it more than once. This combined with the previous two points (delays and outliving restarts) is the challenge of **duplication protection**, which is the greatest challenge of all. *Providing duplication protection solves almost all of the challenges of quasi procedure calls.* In fact, QPC services of Kabomu differ mostly in their solution to this problem.
@@ -37,6 +36,8 @@ The deployment environments of Kabomu are the on Internet via TCP/TLS and within
 
 Actually TCP/TLS and almost all the IPC mechanisms address all of the QPC challenges directly. Kabomu's design goal is to leverage their convenient features for simplicity in its protocols. For example Kabomu doesn't handle security and congestion control because TCP/TLS and IPC mechanisms already cater for that.
 
+Kabomu also leverages TCP's windowed transfer to great effect through multiplexing, by using the simplest flow control method which is stop-and-wait.
+
 The most important benefit of TCP and IPC mechanisms for Kabomu is their ability to transmit large payloads (ie far larger than 512 of DNS via UDP or 1500 of Ethernet).
 
 To prevent clients from having to deal with uncertainty about the safest minimum payload size to use, Kabomu offers clients a minimum value of **30KB**. Thus all underlying QPC services which may be used by Kabomu QPC services, *can send messages of up to 30KB in size*. 30KB is enough to carry typical requests and responses of quasi procedure calls. Beyond this limit, clients may have to fragment and reassemble payloads on their own.
@@ -52,7 +53,9 @@ The QPC services for Kabomu leverage this benefit of large payloads, to employ 3
        3. On the other hand if the current time is 6:00 PM (21600), then comparing 10:00 PM (36000) to 2:00 PM (7200) boils down to comparing -28800 with -14400. Since -14400 is bigger, that shows 2:00 PM is "more recent" than 10:00 PM, and hence 10:00 PM was interpreted as belonging to the previous 12-hour cycle, ie as 10:00 AM.
        1. This takes advantage of the fact that the maximum packet lifetimes of physical computer networks in the real world is far less than 1 hour, and hence far far less than 12 hours. 
        2. Thus the ambiguity of AM or PM is definitely not a problem, and was done so that 43,200 can fit into a unsigned 16-bit integer. 86,400 would have required more bits. Similarly, seconds was chosen over milliseconds since 43,200,000 would have required even more bits.
-   3. variable length integer is a sequence of bytes of length >= 1 representing some big-endian unsigned integer, where the first byte indicates the total number of bytes.
+   3. variable length integer is a sequence of bytes of length >= 1 representing some big-endian unsigned integer, where the first few bytes indicates the variable length in bytes.
+       1. the bytes indicating the variable length form a sequence of zero or more 7-bit integer parts with leading bit of 1, followed by a terminating 7-bit integer part with leading bit of 0.
+       2. The concatenation of the 7-bit integer parts in big endian, excluding the leading bits, gives the unsigned variable length value.
    4. timestampped variable length integer is a combination of timestamp and variable length integer for use as a replacement for sequence numbers which do not wrap around.
 
 
@@ -88,10 +91,6 @@ The QPC services for Kabomu leverage this benefit of large payloads, to employ 3
 
 11. Implement cancellation of retries, by letting begin_send and forward_send_request take cancellation handles.
 
-12. Implement acknowledged (aka "reliable") data transfer. Such calls do not need a response from upper layer, but instead can immediately be "acked" by receiver. To do add 2 pdu types "data" and "ack". Also add param "respond_immediately" to begin_send() et al. Add new pdu field "error_code" and have a special error code: receive_buffer_full.
-
-12. Implement one-way sending of requests with null callback and zero max retry count, by use of new pdu field "flags", with one flag "one_way" (boolean, external). Accept flag to work with either "req" or "data".
-
 ## QPC102A (TCP+LargeISN Strategy)
 
 1. Create package qpc102 with same API as those above. It is designed to solve the challenge of duplication, by employing TCP's connection phase and doing away with the slow start and time-wait state through use of guids as ISNs. This solution comes at the cost of two round trips instead of one, and hence qpc102A is the slowest of all.
@@ -112,34 +111,25 @@ The QPC services for Kabomu leverage this benefit of large payloads, to employ 3
 
 1. Add "time_precision" and MPL options, and use them to reject pdus which are too old.
 
-3. To avoid need for sequence numbering lockstep between sender and receiver, let receiver accept any sequence number from sender after exiting slow phase mode, and then from that time onwards, as long as it is larger than what was last received.
+2. Add option for receiver slow start period, which should be less than MPL (or even 0). If for some reason, one is fine with permanently using handshake mode, then can set this option to infinity.
 
-4. Add flag for "slow phase mode", and special error code "in slow phase mode". Sender must detect when receiver is in slow phase mode, and use qpc102A instead.
+2. To enable parallel processing of qpc requests, interpret the last 10 bits of a sequence number as its group number.
 
-6. qpc102A can be used in any mode. Receiver should always indicate in its responses which state it is in, so sender can know when to switch. Add option for receiver slow phase period, which should be less than MPL (or even 0).
+3. To avoid need for sequence numbering lockstep between sender and receiver, let receiver accept any sequence number from sender after exiting handshake required mode, and then from that time onwards, as long as it is larger than what was last received within its group.
 
-5. Even in qpc102b we will still need dally states and fins, which work just like in qpc102a.
+4. Add special error code "handshake required". Senders must always in start in handshake mode by using qpc102a. Sender must also detect when receiver is in handshake required mode, and use qpc102a instead.
 
-----------------------------
+5. Add ack flag for "handshake required", which receiver must use in its qpc102a responses to inform sender of when the latter can switch to qpc102b.
 
-In original email to Awudu,
-Modify point 2 so that a message is just a stream of bytes which is usually assumed to be bounded. Kabomu seeks to support frameworks which already support for exchanging bounded messages, by implementing support for exchanging unbounded ones as well.
-Modify point 3 to clarify one-way and request-response to be explicit acked one-way request (for the purpose of data transfer), and implicitly acked request-response.
-Add point 7 that since webmail makes it possible to send email via http, point 6 can still be seen from the alternative perspective of http. This will require use of "dictionary of callbacks" idea.
+6.  Max variable length supported by receivers should be at least 8. And so a sender should be prepared to switch to qpc102a if variable length is about to exceed 8 and its receiver doesn't support variable lengths beyond 8.
 
-Thinking of this dictionary to support get/getasync, add/addasync (which takes sliding timeout and eviction notice handler, and opaque extra argument), remove/removeasync, containskey/containskeyasync, foreachkey/foreachkeyasync, foreachentry/foreachentryasync, postponetimeoutasync, isEmpty/isEmptyAsync, size/SizeAsync, clear/ClearAsync.
+7. qpc102a can be used even if handshake is not required. In fact senders can choose in the case of 8 byte exhaustion of varible length sequence numbers, to switch permanently to qpc102a since that will mean that network is so fast that qpc102a will not be considered to be slow anymore.
 
-In qpc services document, also clarify distinction between one-way and request-response just like in email's point 3 above.
-Just before "most important benefit", add that we also leverage windowed transfer to great effect through multiplexing, by using the simplest flow control method which is stop-and-wait.
-
-Remove references to qpc103 and everything below improvements since no one needs it again.
-
-*Somehow mention that we have to admit that it is not useful to have long lived connections or flows which have to tolerate idleness or even restarts of peers. Rather let us settle for bounded message exchanges, and unbounded message exchanges which neither tolerate idleness nor restarts of peers. Thus have to drop all of RINA's concepts, and instead continue to emulate success of HTTP's stateless request-response model.
+7. Even in qpc102b we will still need dally states and fins, which work just like in qpc102a.
 
 ------------
 remaining
 ---------
-
 
 default source and sinks
 ------------------------
