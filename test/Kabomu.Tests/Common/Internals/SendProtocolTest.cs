@@ -158,7 +158,7 @@ namespace Kabomu.Tests.Common.Internals
                     {
                         return new ConfigurableMessageSourceResult
                         {
-                            Delays = new int[] { 1 },
+                            Delays = new int[] { 1, 1 },
                             Data = new byte[] { 0, (byte)'2', (byte)'0', (byte)'0', (byte)'2', 0 },
                             Offset = 1,
                             Length = 4,
@@ -210,6 +210,10 @@ namespace Kabomu.Tests.Common.Internals
             {
                 instance.BeginSendStartedAtReceiver("1256", msgSource3, 7, options3, commonCb, "y");
             }, null);
+            testEventLoop.ScheduleTimeout(15, _ =>
+            {
+                instance.OnReceiveSubsequentChunkAck(null, 128, 2, 0);
+            }, null);
             testEventLoop.ScheduleTimeout(16, _ =>
             {
                 instance.OnReceiveSubsequentChunkAck(null, 0, 2, 0);
@@ -229,6 +233,10 @@ namespace Kabomu.Tests.Common.Internals
             testEventLoop.ScheduleTimeout(26, _ =>
             {
                 instance.OnReceiveSubsequentChunkAck(null, 128, 8, 0);
+            }, null);
+            testEventLoop.ScheduleTimeout(28, _ =>
+            {
+                instance.OnReceiveSubsequentChunkAck(null, 0, 8, 0);
             }, null);
             testEventLoop.ScheduleTimeout(30, _ =>
             {

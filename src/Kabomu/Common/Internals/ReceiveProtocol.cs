@@ -11,6 +11,7 @@ namespace Kabomu.Common.Internals
     {
         private readonly ITransferCollection<IncomingTransfer> _incomingTransfers = 
             new DefaultTransferCollection<IncomingTransfer>();
+        private readonly Action<object, Exception> NullCb = (s, e) => { };
 
         public IQpcFacility QpcService { get; set; }
         public IMessageSinkFactory MessageSinkFactory { get; set; }
@@ -76,7 +77,7 @@ namespace Kabomu.Common.Internals
                 {
                     AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                         " (stop and wait violation)"));
-                    SendTransferAck(transfer, ErrorCodeProtocolViolation, false);
+                    SendTransferAck(transfer, ErrorCodeProtocolViolation);
                     return;
                 }
                 if (transfer.OpeningChunkReceived)
@@ -84,7 +85,7 @@ namespace Kabomu.Common.Internals
                     // Intepret as an illegal attempt to use a first chunk to continue a transfer.
                     AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                         " (first chunk cannot continue a transfer)"));
-                    SendTransferAck(transfer, ErrorCodeProtocolViolation, false);
+                    SendTransferAck(transfer, ErrorCodeProtocolViolation);
                     return;
                 }
             }
@@ -148,7 +149,7 @@ namespace Kabomu.Common.Internals
             {
                 AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                     " (stop and wait violation)"));
-                SendTransferAck(transfer, ErrorCodeProtocolViolation, false);
+                SendTransferAck(transfer, ErrorCodeProtocolViolation);
                 return;
             }
             if (!transfer.OpeningChunkReceived)
@@ -156,7 +157,7 @@ namespace Kabomu.Common.Internals
                 // Intepret as an illegal attempt to use a subsequent chunk to start a transfer.
                 AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                     " (subsequent chunk cannot start a transfer)"));
-                SendTransferAck(transfer, ErrorCodeProtocolViolation, false);
+                SendTransferAck(transfer, ErrorCodeProtocolViolation);
                 return;
             }
 
@@ -196,7 +197,7 @@ namespace Kabomu.Common.Internals
             if (error != null)
             {
                 AbortTransfer(transfer, error);
-                SendTransferAck(transfer, 1, false);
+                SendTransferAck(transfer, 1);
                 return;
             }
 
@@ -233,45 +234,46 @@ namespace Kabomu.Common.Internals
             if (error != null)
             {
                 AbortTransfer(transfer, error);
-                SendTransferAck(transfer, 1, false);
+                SendTransferAck(transfer, ErrorCodeGeneral);
                 return;
             }
 
+            if (transfer.TerminatingChunkSeen)
+            {
+                AbortTransfer(transfer, null);
+            }
+
+            SendTransferAck(transfer, 0);
             transfer.OpeningChunkReceived = true;
-            SendTransferAck(transfer, 0, !transfer.TerminatingChunkSeen);
         }
 
         private void SendAck(object connectionHandle, long messageId, byte pduType, byte errorCode)
         {
             QpcService.BeginSendPdu(connectionHandle, DefaultProtocolDataUnit.Version01, pduType,
-                0, errorCode, messageId, null, 0, 0, null, null, null, null);
+                0, errorCode, messageId, null, 0, 0, null, null, NullCb, null);
         }
 
-        private void SendTransferAck(IncomingTransfer transfer, byte errorCode, bool waitForOutcome)
+        private void SendTransferAck(IncomingTransfer transfer, byte errorCode)
         {
-            Action<object, Exception> cb = null;
-            if (waitForOutcome)
+            var cancellationIndicator = new STCancellationIndicator();
+            transfer.PendingResultCancellationIndicator = cancellationIndicator;
+            Action<object, Exception> cb = (object cbState, Exception error) =>
             {
-                var cancellationIndicator = new STCancellationIndicator();
-                transfer.PendingResultCancellationIndicator = cancellationIndicator;
-                cb = (object cbState, Exception error) =>
+                EventLoop.PostCallback(_ =>
                 {
-                    EventLoop.PostCallback(_ =>
+                    if (transfer.PendingResultCancellationIndicator == cancellationIndicator)
                     {
-                        if (transfer.PendingResultCancellationIndicator == cancellationIndicator)
-                        {
-                            transfer.PendingResultCancellationIndicator = null;
-                            ProcessSendAckOutcome(transfer, error);
-                        }
-                    }, null);
-                };
-            }
+                        transfer.PendingResultCancellationIndicator = null;
+                        ProcessSendAckOutcome(transfer, error);
+                    }
+                }, null);
+            };
             byte pduType = transfer.OpeningChunkReceived ? DefaultProtocolDataUnit.PduTypeSubsequentChunkAck :
                 DefaultProtocolDataUnit.PduTypeFirstChunkAck;
             object replyConnectionHandle = transfer.ReplyConnectionHandle;
             transfer.ReplyConnectionHandle = null;
             QpcService.BeginSendPdu(replyConnectionHandle, DefaultProtocolDataUnit.Version01, pduType,
-                0, errorCode, transfer.MessageId, null, 0, 0, null, transfer.CancellationIndicator, null, null);
+                0, errorCode, transfer.MessageId, null, 0, 0, null, transfer.CancellationIndicator, cb, null);
         }
 
         private void ProcessSendAckOutcome(IncomingTransfer transfer, Exception ex)

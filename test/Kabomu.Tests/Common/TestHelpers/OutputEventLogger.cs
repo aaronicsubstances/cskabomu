@@ -71,7 +71,12 @@ namespace Kabomu.Tests.Common.TestHelpers
         public void AppendSinkWriteDataLog(byte[] data, int offset, int length, 
             object fallbackPayload, bool isMoreExpected)
         {
-            var log = CreateSinkWriteDataLog(data, offset, length, fallbackPayload, isMoreExpected);
+            string payload = null;
+            if (data != null)
+            {
+                payload = ByteUtils.BytesToString(data, offset, length);
+            }
+            var log = CreateSinkWriteDataLog(payload, fallbackPayload, isMoreExpected);
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
@@ -160,13 +165,12 @@ namespace Kabomu.Tests.Common.TestHelpers
                 $")";
         }
 
-        public static string CreateSinkWriteDataLog(byte[] data, int offset, int length,
+        public static string CreateSinkWriteDataLog(string payload,
             object fallbackPayload, bool isMoreExpected)
         {
-            var message = ByteUtils.BytesToString(data, offset, length);
             return "SnkData" +
                 $"(" +
-                $"{message}," +
+                $"{payload}," +
                 $"{fallbackPayload}," +
                 $"{isMoreExpected.ToString().ToLower()}" +
                 $")";
