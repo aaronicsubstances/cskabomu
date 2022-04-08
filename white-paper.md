@@ -7,7 +7,6 @@
 5. Protocols which employ immediate processing are "semantically compatible" with HTTP/1.1, so that terminology of request methods, response status codes, headers, and chunked request and response bodies apply. They differ only in their underlying transports, which are not limited to TCP.
    1. As such such protocols are said to belong to "Quasi-HTTP" family.
    2. They require all headers from clients to start with "X-", and reserves all headers without "X-" prefix.
-   3. Known reserved headers are: "Method", "Path", "Status", and "Content-Length".
 6. Protocols which employ deferred processing are "semantically compatible" with a subset of JMAP Mail. They differ only in their underlying transports, which are limited to HTTP. Deferred processing will be done by automated email thread processors. 
 7. Since webmail makes it possible to send email via HTTP, point 6 can still be seen from the alternative perspective of HTTP. This will require use of "dictionary of callbacks" idea for simulating deferred processing as immediate processing (callbacks are invoked with error of "not done yet" after some timeout to signal that request is really being processed in a deferred manner).
 8. From playing around with RINA research, my opinion is that it is not useful to have long lived connections or flows which have to tolerate idleness or even restarts of peers. Rather I propose that it is enough to have unbounded message exchanges which neither tolerate idleness nor restarts of peers, and scale better horizontally. Thus I had to drop RINA's concepts, and instead continue to emulate success of HTTP's stateless request-response model.
@@ -39,23 +38,23 @@ The deployment environments of Kabomu are the Internet via TCP/TLS and within th
    1. leveraging the greater efficiency made possible by intrahost communications. In other words, use of TCP on localhost is not necessary when faster and more memory efficient alternatives exist (e.g. by dispensing with slow starts and time wait states).
    2. providing extra reliability layers over TCP.
 
-Actually TCP/TLS and almost all the IPC mechanisms address all of the QPC challenges directly. Kabomu's design goal is to leverage their convenient features for simplicity in its protocols. For example Kabomu doesn't handle security and congestion control because TCP/TLS and IPC mechanisms already cater for that.
+Actually TCP/TLS and almost all the IPC mechanisms address most of the dificult QPC challenges directly. Kabomu's design goal is to leverage their convenient features for simplicity in its protocols. For example Kabomu doesn't handle security and congestion control because TCP/TLS and IPC mechanisms already cater for that.
 
 The most important benefit of TCP and IPC mechanisms for Kabomu is their ability to transmit payloads far larger than the physical limit of 1500 imposed by Ethernet (or worse still 512 imposed by UDP).
 
-To prevent clients from having to deal with uncertainty about the safest minimum payload size to use, Kabomu offers clients a minimum value of **30KB**. Thus all underlying QPC mechanisms which may be used by Kabomu QPC services, *can send messages of up to 30KB in size*. 30KB is enough to carry typical requests and responses of quasi procedure calls. Beyond this limit, clients must be prepared to fragment and reassemble payloads on their own.
+An essential complexity of TCP's design is its windowing flow control which is used to efficiently utilize the physical networks. Due to the end result of this hard work by TCP, which is the ability to send large payloads, Kabomu QPC services choose not to worry about the sending of small payloads inefficiently utilizing physical networks, and hence settle for stop-and-wait flow control.
 
-The QPC services for Kabomu leverage this benefit of large payloads, to employ 25 bytes worth of transmission overhead, since such overhead will be a small fraction of payloads.
+To prevent clients from having to deal with uncertainty about the safest minimum payload size to use, Kabomu offers clients a minimum value of **30KB**. Thus all underlying data transfer and QPC mechanisms which may be used by Kabomu QPC services, *can send messages of up to 30KB in size*. 30KB is enough to carry typical requests and responses of quasi procedure calls. Beyond this limit, clients must be prepared to fragment and reassemble payloads on their own.
 
-A major complexity of TCP's design comes from usage of 4-byte connection identifiers consisting of source and destination ports; and sequence numbers which do not have a definite initial value, and which can wrap around. Several features of TCP such as time wait state, quiet time state, ISN selection and PAWS exist because of this.
+A major complexity of TCP's design comes from usage of 4-byte connection identifiers consisting of source and destination ports; and sequence numbers which do not have a definite initial value. Several features of TCP such as time wait state, quiet time state, ISN selection and PAWS exist because of this.
 
-Kabomu uses 16-byte connection identifiers; and sequence number with a definite initial value, and which do not wrap around. This simplifies Kabomu's design tremendously, but at the cost of slightly greater transmission overhead.
-
-Another essential complexity of TCP's design is its windowing flow control which is used to efficiently utilize the physical networks. Due to the end result of this hard work by TCP, which is the ability to send large payloads, Kabomu QPC services choose not to worry about the sending of small payloads inefficiently utilizing physical networks, and hence settle for stop-and-wait flow control.
+Kabomu uses 16-byte connection identifiers; and sequence number with a definite initial value. This simplifies Kabomu's design tremendously.
 
 ## QPC-Connection
 
-This QPC service emulates TCP but uses uuids to identify connections for duplicate protection.
+This QPC service emulates TCP but uses uuids to identify connections for duplicate protection. It provides QPC services by layering on top of all kinds of data transfer protocols, including TCP and IPC mechanisms, and also including those which do not offer duplicate protection or acknowledged delivery.
+
+1. It can also wrap a QPC service for the benefit of being able to indicate during a failure whether a request was processed or not. This benefit helps when using QPC-ConnectionPool described afterwards.
 
 1. A connection is identified by a uuid known both at a sending end of a network, and a corresponding receiving end.
 
@@ -63,29 +62,30 @@ This QPC service emulates TCP but uses uuids to identify connections for duplica
 
 2. After this, requests can be processed in sequence.
 
-3. Anytime a request has to be made, a new sequence id is generated, and then pdu types "req" and "resp" are used to process the request.
+3. Anytime a request has to be made, a last received expected sequence id (or 0) is used, and then pdu types "req" and "resp" are used to process the request.
 
-3. A "resp" must always indicate the next acceptable sequence number.
+3. A "resp" pdu must always indicate the next expected sequence number.
 
-4. After a response is generated, the receiver enters a "dally" state, waiting for the sender to retry in cases the response is lost. Anytime the receiver gets a sequence number which is higher than the last one it has processed, it exits the "dally" state and discards processing of all previous sequence numbers.
+4. After a response is generated, the receiver enters a "dally" state, waiting for the sender to retry in case the response is lost. Anytime the receiver gets a sequence number which is expected, it exits the "dally" state and discards processing of all previous sequence numbers.
 
-4. Use pdu type "fin" to dispose off an instance at the remote receiving end. It is not required for the "fin" pdu to arrive successfully; the receiver will always dispose itself upon an idle timeout.
+4. Use pdu type "fin" to dispose off a connection at the remote receiving end. It is not required for the "fin" pdu to arrive successfully; the receiver will always dispose itself upon an idle timeout.
 
-4. Instances cannot be used again upon any kind of failure. All failures are fatal. *In particular, instances cannot survive failures due to idleness in request processing or restarts of communicating peers.*
+4. Connections cannot be used again upon any kind of failure. All failures are fatal. *In particular, connections cannot survive failures due to idleness in request processing or restarts of communicating peers.*
 
-4. Sequence numbers start from 1 up to their maximum 4-byte signed value, and are not allowed to wrap around. This implies a maximum request limit, and hence the possibility of failure due to reaching this limit.
+4. Sequence numbers start from 0 up to their maximum 4-byte unsigned value, and can wrap around. Internal duplication is prevented by the imposition of a minimum wrap around time (which equals the maximum packet lifetime of the network). This strategy works because this protocol starts at a definite value unlike TCP, and so it can be assumed that by the time of wrap around all sequence numbers have been used up.
+
+6. Since a minimum wrap around time imposes a maximum transmission rate, then *there is the possibility of failure on a connection because the network is too fast.*
 
 
 ## QPC-ConnectionPool
 
-This QPC service utilises connection-oriented protocols (such as TCP and QPC-Connection) to eliminate constraint of sequential request processing and maximum request limit, while maintaining duplicate protection.
+This QPC service utilises QPC-Connection to eliminate constraint of sequential request processing and maximum transmisson rate, while maintaining duplicate protection.
 
 1. This it does by maintaining a "pool" of connections, through which requests can be sent over for processing. This "pool" is just a list with possibly a limit on its size.
 
 2. So basically if a request is handed to a sender, the sender determines whether to utilize an existing connection or create a new one. Either way, request can be sent in parallel with other ongoing ones.
 
-3. To prevent edge case of duplicate processing, when a request is sent *once*, and the connnection being used returns a failure indicating that request was not processed, the request can be retried with a new connection (unless it is already known that a new connection was created to start with, in which case failure is fatal).
+3. Retry is done once to simplify protocol, by leveraging a fact in [Amazon docs](https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/) that usually a one-time retry resolves almost all transient connection errors.
+    1. So when a request is first sent and the connnection being used returns a failure indicating that request was not processed, the request can be retried with a new connection.
+    2. Else if it is unknown whether the request was processed or not, then the failure will be taken as fatal, and no retry will be performed.
 
-4. But if a request has to be retried and the outcome of at least one previous send is unknown, then no new connection must be created; any failure must be fatal.
-
-5. For protocols which cannot indicate whether a request was not processed in the event of a failure (e.g. TCP), then practically all transmission failures will be fatal. That means that the longer a connection stays alive, the more likely an idleness or a reset can go undetected and cause a lot of unnecessary transmission failures. To reduce the impact of not knowing whether a connection is dead, connections can have absolute lifetimes. After this lifetime, connection has to be disposed.
