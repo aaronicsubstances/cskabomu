@@ -1,0 +1,13 @@
+remaining
+---------
+tests
+
+default source and sinks
+------------------------
+-add a sink which embeds a source, and a soure which embeds a sink
+-leave it to another library to provide sources and sinks backed by async streams, which will likely need 3rd party libs like Netty, Vert.x, Twisted and ReactPHP.
+
+quasi http
+----------
+keep csv utils for quasi http? so we don't have a dependency on some library.
+

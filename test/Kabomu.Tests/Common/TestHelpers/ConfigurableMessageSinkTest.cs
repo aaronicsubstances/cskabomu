@@ -263,11 +263,9 @@ namespace Kabomu.Tests.Common.TestHelpers
 
             // assert
             expectedLogs.Add(startTime + ":" +
-                OutputEventLogger.CreateSinkWriteDataLog(new byte[] { (byte)'c', (byte)'a', (byte)'b' },
-                    0, 3, null, true));
+                OutputEventLogger.CreateSinkWriteDataLog("cab", null, true));
             expectedLogs.Add(startTime + ":" +
-                OutputEventLogger.CreateSinkWriteDataLog(new byte[] { (byte)'d' },
-                    0, 0, "t", false));
+                OutputEventLogger.CreateSinkWriteDataLog("", "t", false));
             expectedLogs.Add(startTime + ":" +
                 OutputEventLogger.CreateSinkOnEndWriteLog("90"));
             expectedLogs.Add(startTime + ":" +
