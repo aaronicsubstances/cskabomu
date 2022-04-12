@@ -30,7 +30,7 @@ namespace Kabomu.Tests.Common.Internals
                 Logs = new List<string>()
             };
 
-            var qpcService = new ConfigurableQpcFacility
+            var transport = new ConfigurableQuasiHttpTransport
             {
                 EventLoop = testEventLoop,
                 Logger = logger,
@@ -51,7 +51,7 @@ namespace Kabomu.Tests.Common.Internals
             {
                 DefaultTimeoutMillis = 10,
                 EventLoop = testEventLoop,
-                QpcService = qpcService,
+                QuasiHttpTransport = transport,
                 MessageIdGenerator = new PredictableMessageIdGenerator()
             };
             Action<object, Exception> commonCb = (s, e) =>

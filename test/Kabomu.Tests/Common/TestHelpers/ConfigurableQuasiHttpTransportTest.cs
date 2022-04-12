@@ -8,11 +8,11 @@ using Xunit.Abstractions;
 
 namespace Kabomu.Tests.Common.TestHelpers
 {
-    public class ConfigurableQpcFacilityTest
+    public class ConfigurableQuasiHttpTransportTest
     {
         private readonly ITestOutputHelper outputHelper;
 
-        public ConfigurableQpcFacilityTest(ITestOutputHelper outputHelper)
+        public ConfigurableQuasiHttpTransportTest(ITestOutputHelper outputHelper)
         {
             this.outputHelper = outputHelper;
         }
@@ -27,7 +27,7 @@ namespace Kabomu.Tests.Common.TestHelpers
                 EventLoop = testEventLoop,
                 Logs = new List<string>()
             };
-            var instance = new ConfigurableQpcFacility
+            var instance = new ConfigurableQuasiHttpTransport
             {
                 EventLoop = testEventLoop,
                 Logger = logger,
@@ -71,7 +71,7 @@ namespace Kabomu.Tests.Common.TestHelpers
                 EventLoop = testEventLoop,
                 Logs = new List<string>()
             };
-            var instance = new ConfigurableQpcFacility
+            var instance = new ConfigurableQuasiHttpTransport
             {
                 EventLoop = testEventLoop,
                 Logger = logger,
@@ -110,7 +110,7 @@ namespace Kabomu.Tests.Common.TestHelpers
                 EventLoop = testEventLoop,
                 Logs = new List<string>()
             };
-            var instance = new ConfigurableQpcFacility
+            var instance = new ConfigurableQuasiHttpTransport
             {
                 EventLoop = testEventLoop,
                 Logger = logger,
@@ -147,7 +147,7 @@ namespace Kabomu.Tests.Common.TestHelpers
                 EventLoop = testEventLoop,
                 Logs = new List<string>()
             };
-            var instance = new ConfigurableQpcFacility
+            var instance = new ConfigurableQuasiHttpTransport
             {
                 EventLoop = testEventLoop,
                 Logger = logger,
@@ -183,7 +183,7 @@ namespace Kabomu.Tests.Common.TestHelpers
                 EventLoop = testEventLoop,
                 Logs = new List<string>()
             };
-            var instance = new ConfigurableQpcFacility
+            var instance = new ConfigurableQuasiHttpTransport
             {
                 EventLoop = testEventLoop,
                 Logger = logger
@@ -197,7 +197,7 @@ namespace Kabomu.Tests.Common.TestHelpers
             logger.AssertEqual(expectedLogs, outputHelper);
         }
 
-        private void PerformTestAction(ConfigurableQpcFacility instance,
+        private void PerformTestAction(ConfigurableQuasiHttpTransport instance,
             TestEventLoopApi testEventLoop, OutputEventLogger logger,
             int startTime, List<string> expectedLogs)
         {

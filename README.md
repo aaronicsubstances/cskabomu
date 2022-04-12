@@ -1,24 +1,5 @@
 # C#.NET Core Support for Kabomu Library
 
-Retain minimal ideas needed to support sending streams.
-
-For now support only those who provide at most once delivery, ie provide duplicate protection.
-
-## Features
-
-1. Byte streams which preserve message chunk boundaries
-2. Stop and wait for ack. Multiplexing at apache thrift and zeromq levels will make use of windows for multiple sequential delivery unnecessary. This greatly simplifies flow control.
-3. No retry - to leverage duplicate protection, and sidestep decisions on when to retry and for how long.
-4. No addressing - use for internal networks with preallocated "connections" (udp or tcp). Can help underlying qpc services however, by passing around opaque connection handles.
-5. Stream id itself is 8 byte int of two types: those uniquely generated at sender and those uniquely generated at receiver. It can be random or sequential and can even be reused at any time, once it is determined that all prior usages are completed or should be cancelled.
-6. So fields are: stream id, version, payload (can be empty), pdu type, flags (has more, started at receiver), error code.
-7. We must provide beginreceive API for create a stream which returns the stream id. This ensures the receiver of a stream id can immediately retrieve the corresponding stream contents.
-8. Send API must indicate whether stream has already being started by receiver or not.
-9. Add send and receive timeout options to clear out abandoned transfers - default and custom.
-10. Will still need async msg sources and msg sinks, and msg sink factory.
-11. Accept cancellation handle or api for beginreceive and beginsend
-12. Add beginreset api.
-
 ## Mission
 
 Overall mission is toward monolithic applications for enforcement of architecture and better preparation for evolution to distributed systems, through

@@ -18,7 +18,7 @@ namespace Kabomu.Common.Internals
             MessageIdGenerator = new STMessageIdGenerator(DateTimeUtils.UnixTimeMillis);
         }
 
-        public IQpcFacility QpcService { get; set; }
+        public IQuasiHttpTransport QuasiHttpTransport { get; set; }
         public int DefaultTimeoutMillis { get; set; }
         public IEventLoopApi EventLoop { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
@@ -159,7 +159,7 @@ namespace Kabomu.Common.Internals
                 DefaultProtocolDataUnit.PduTypeFirstChunk;
             object connectionHandle = transfer.RequestConnectionHandle;
             transfer.RequestConnectionHandle = null;
-            QpcService.BeginSendPdu(connectionHandle, DefaultProtocolDataUnit.Version01, pduType,
+            QuasiHttpTransport.BeginSendPdu(connectionHandle, DefaultProtocolDataUnit.Version01, pduType,
                 flags, 0, transfer.MessageId, transfer.PendingData, transfer.PendingDataOffset,
                 transfer.PendingDataLength, transfer.PendingFallbackPayload,
                 transfer.CancellationIndicator, cb, null);

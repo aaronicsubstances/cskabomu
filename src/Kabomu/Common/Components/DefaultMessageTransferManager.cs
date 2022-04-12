@@ -60,7 +60,7 @@ namespace Kabomu.Common.Components
             return errorMessage ?? fallback ?? $"{errorCode}:N/A";
         }
 
-        private IQpcFacility _qpcService;
+        private IQuasiHttpTransport _transport;
         private IMessageSinkFactory _messageSinkFactory;
         private int _defaultTimeoutMillis;
         private IEventLoopApi _eventLoop;
@@ -75,17 +75,17 @@ namespace Kabomu.Common.Components
             _sendProtocol = new SendProtocol();
         }
 
-        public IQpcFacility QpcService
+        public IQuasiHttpTransport QuasiHttpTransport
         {
             get
             {
-                return _qpcService;
+                return _transport;
             }
             set
             {
-                _qpcService = value;
-                _receiveProtocol.QpcService = value;
-                _sendProtocol.QpcService = value;
+                _transport = value;
+                _receiveProtocol.QuasiHttpTransport = value;
+                _sendProtocol.QuasiHttpTransport = value;
             }
         }
 

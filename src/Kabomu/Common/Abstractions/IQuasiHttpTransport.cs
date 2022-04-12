@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kabomu.Common.Abstractions
 {
-    public interface IQpcFacility
+    public interface IQuasiHttpTransport
     {
         void BeginSendPdu(object connectionHandle, byte version, byte pduType, byte flags, byte errorCode,
             long messageId, byte[] data, int offset, int length, object fallbackPayload,
