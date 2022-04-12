@@ -98,9 +98,9 @@ namespace Kabomu.Tests.Common.TestHelpers
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
-        public void AppendSinkCreationLog()
+        public void AppendSinkCreationLog(object connectionHandle)
         {
-            var log = CreateSinkCreationLog();
+            var log = CreateSinkCreationLog(connectionHandle);
             Logs.Add($"{EventLoop.CurrentTimestamp}:{log}");
         }
 
@@ -199,9 +199,9 @@ namespace Kabomu.Tests.Common.TestHelpers
                 $")";
         }
 
-        public static string CreateSinkCreationLog()
+        public static string CreateSinkCreationLog(object connectionHandle)
         {
-            return "SnkCreate()";
+            return $"SnkCreate({connectionHandle})";
         }
     }
 }

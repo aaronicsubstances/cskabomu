@@ -32,7 +32,7 @@ namespace Kabomu.Tests.Common.TestHelpers
             {
                 EventLoop = testEventLoop,
                 Logger = logger,
-                CreateMessageSinkCallbackInstance = () =>
+                CreateMessageSinkCallbackInstance = (c) =>
                 {
                     var res = new ConfigurableSinkCreationResult
                     {
@@ -82,7 +82,7 @@ namespace Kabomu.Tests.Common.TestHelpers
             {
                 EventLoop = testEventLoop,
                 Logger = logger,
-                CreateMessageSinkCallbackInstance = () =>
+                CreateMessageSinkCallbackInstance = (c) =>
                 {
                     var res = new ConfigurableSinkCreationResult
                     {
@@ -118,7 +118,7 @@ namespace Kabomu.Tests.Common.TestHelpers
             {
                 EventLoop = testEventLoop,
                 Logger = logger,
-                CreateMessageSinkCallbackInstance = () =>
+                CreateMessageSinkCallbackInstance = (c) =>
                 {
                     var res = new ConfigurableSinkCreationResult
                     {
@@ -152,7 +152,7 @@ namespace Kabomu.Tests.Common.TestHelpers
             {
                 EventLoop = testEventLoop,
                 Logger = logger,
-                CreateMessageSinkCallbackInstance = () =>
+                CreateMessageSinkCallbackInstance = (c) =>
                 {
                     var res = new ConfigurableSinkCreationResult
                     {
@@ -212,8 +212,8 @@ namespace Kabomu.Tests.Common.TestHelpers
             // act
             testEventLoop.ScheduleTimeout(startTime, _ =>
             {
-                instance.CreateMessageSink(sinkCb, 3);
-                instance.CreateMessageSink(sinkCb, null);
+                instance.CreateMessageSink(null, sinkCb, 3);
+                instance.CreateMessageSink("localhost", sinkCb, null);
 
             }, null);
 
@@ -221,9 +221,9 @@ namespace Kabomu.Tests.Common.TestHelpers
 
             // assert
             expectedLogs.Add(startTime + ":" +
-                OutputEventLogger.CreateSinkCreationLog());
+                OutputEventLogger.CreateSinkCreationLog(null));
             expectedLogs.Add(startTime + ":" +
-                OutputEventLogger.CreateSinkCreationLog());
+                OutputEventLogger.CreateSinkCreationLog("localhost"));
         }
     }
 }

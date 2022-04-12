@@ -7,15 +7,15 @@ namespace Kabomu.Tests.Common.TestHelpers
 {
     public class ConfigurableMessageSinkFactory : IMessageSinkFactory
     {
-        public delegate ConfigurableSinkCreationResult CreateMessageSinkCallback();
+        public delegate ConfigurableSinkCreationResult CreateMessageSinkCallback(object connectionHandle);
         public CreateMessageSinkCallback CreateMessageSinkCallbackInstance { get; set; }
         public IEventLoopApi EventLoop { get; set; }
         public OutputEventLogger Logger { get; set; }
 
-        public void CreateMessageSink(MessageSinkCreationCallback cb, object cbState)
+        public void CreateMessageSink(object connectionHandle, MessageSinkCreationCallback cb, object cbState)
         {
-            Logger?.AppendSinkCreationLog();
-            var res = CreateMessageSinkCallbackInstance?.Invoke();
+            Logger?.AppendSinkCreationLog(connectionHandle);
+            var res = CreateMessageSinkCallbackInstance?.Invoke(connectionHandle);
             if (res?.Delays != null)
             {
                 foreach (int delay in res.Delays)

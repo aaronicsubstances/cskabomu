@@ -23,6 +23,7 @@ namespace Kabomu.Common.Internals
         public int PendingDataLength { get; set; }
         public object PendingFallbackPayload { get; set; }
         public object RequestConnectionHandle { get; set; }
+        public bool AwaitingSourceResult { get; internal set; }
 
         public override bool Equals(object obj)
         {
