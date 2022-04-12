@@ -13,7 +13,7 @@ namespace Kabomu.Common.Internals
             new DefaultTransferCollection<IncomingTransfer>();
         private readonly Action<object, Exception> NullCb = (s, e) => { };
 
-        public IQpcFacility QpcService { get; set; }
+        public IQuasiHttpTransport QuasiHttpTransport { get; set; }
         public IMessageSinkFactory MessageSinkFactory { get; set; }
         public int DefaultTimeoutMillis { get; set; }
         public IEventLoopApi EventLoop { get; set; }
@@ -249,7 +249,7 @@ namespace Kabomu.Common.Internals
 
         private void SendAck(object connectionHandle, long messageId, byte pduType, byte errorCode)
         {
-            QpcService.BeginSendPdu(connectionHandle, DefaultProtocolDataUnit.Version01, pduType,
+            QuasiHttpTransport.BeginSendPdu(connectionHandle, DefaultProtocolDataUnit.Version01, pduType,
                 0, errorCode, messageId, null, 0, 0, null, null, NullCb, null);
         }
 
@@ -272,7 +272,7 @@ namespace Kabomu.Common.Internals
                 DefaultProtocolDataUnit.PduTypeFirstChunkAck;
             object replyConnectionHandle = transfer.ReplyConnectionHandle;
             transfer.ReplyConnectionHandle = null;
-            QpcService.BeginSendPdu(replyConnectionHandle, DefaultProtocolDataUnit.Version01, pduType,
+            QuasiHttpTransport.BeginSendPdu(replyConnectionHandle, DefaultProtocolDataUnit.Version01, pduType,
                 0, errorCode, transfer.MessageId, null, 0, 0, null, transfer.CancellationIndicator, cb, null);
         }
 

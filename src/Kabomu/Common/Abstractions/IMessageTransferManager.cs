@@ -6,7 +6,7 @@ namespace Kabomu.Common.Abstractions
 {
     public interface IMessageTransferManager
     {
-        IQpcFacility QpcService { get; }
+        IQuasiHttpTransport QuasiHttpTransport { get; }
         IMessageSinkFactory MessageSinkFactory { get; }
         UncaughtErrorCallback ErrorHandler { get; set; }
         void BeginReceive(IMessageSink msgSink, long msgIdAtReceiver, IMessageTransferOptions options,

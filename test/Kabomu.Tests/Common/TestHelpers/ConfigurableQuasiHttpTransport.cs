@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace Kabomu.Tests.Common.TestHelpers
 {
-    public class ConfigurableQpcFacility : IQpcFacility
+    public class ConfigurableQuasiHttpTransport : IQuasiHttpTransport
     {
         public delegate ConfigurableSendPduResult SendPduCallback(object connectionHandle,
             byte version, byte pduType, byte flags, 
