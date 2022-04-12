@@ -110,19 +110,23 @@ namespace Kabomu.Common.Internals
             {
                 EventLoop.PostCallback(_ =>
                 {
-                    if (transfer.PendingResultCancellationIndicator == cancellationIndicator)
-                    {
-                        transfer.PendingResultCancellationIndicator = null;
-                        ProcessSourceResult(transfer, error, data, offset, length, fallbackPayload, hasMore);
-                    }
+                    ProcessSourceResult(transfer, error, data, offset, length, fallbackPayload, hasMore,
+                        cancellationIndicator);
                 }, null);
             };
             transfer.MessageSource.OnDataRead(cb, null);
         }
 
         private void ProcessSourceResult(OutgoingTransfer transfer, Exception error,
-            byte[] data, int offset, int length, object fallbackPayload, bool hasMore)
+            byte[] data, int offset, int length, object fallbackPayload, bool hasMore,
+            STCancellationIndicator cancellationIndicator)
         {
+            if (cancellationIndicator.Cancelled)
+            {
+                return;
+            }
+            cancellationIndicator.Cancel();
+            transfer.AwaitingSourceResult = false;
             if (error != null)
             {
                 AbortTransfer(transfer, error);
@@ -146,11 +150,7 @@ namespace Kabomu.Common.Internals
             {
                 EventLoop.PostCallback(_ =>
                 {
-                    if (transfer.PendingResultCancellationIndicator == cancellationIndicator)
-                    {
-                        transfer.PendingResultCancellationIndicator = null;
-                        ProcessSendDataOutcome(transfer, ex);
-                    }
+                    ProcessSendDataOutcome(transfer, ex, cancellationIndicator);
                 }, null);
             };
             byte flags = DefaultProtocolDataUnit.ComputeFlags(transfer.StartedAtReceiver,
@@ -165,8 +165,14 @@ namespace Kabomu.Common.Internals
                 transfer.CancellationIndicator, cb, null);
         }
 
-        private void ProcessSendDataOutcome(OutgoingTransfer transfer, Exception ex)
+        private void ProcessSendDataOutcome(OutgoingTransfer transfer, Exception ex, 
+            STCancellationIndicator cancellationIndicator)
         {
+            if (cancellationIndicator.Cancelled)
+            {
+                return;
+            }
+            cancellationIndicator.Cancel();
             if (ex != null)
             {
                 AbortTransfer(transfer, ex);
@@ -188,7 +194,7 @@ namespace Kabomu.Common.Internals
                 return;
             }
             transfer.RequestConnectionHandle = connectionHandle;
-            if (transfer.PendingResultCancellationIndicator != null)
+            if (transfer.AwaitingSourceResult)
             {
                 AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                     " (stop and wait violation)"));
@@ -225,7 +231,7 @@ namespace Kabomu.Common.Internals
                 return;
             }
             transfer.RequestConnectionHandle = connectionHandle;
-            if (transfer.PendingResultCancellationIndicator != null)
+            if (transfer.AwaitingSourceResult)
             {
                 AbortTransfer(transfer, new Exception(GenerateErrorMessage(ErrorCodeProtocolViolation, null) +
                     " (stop and wait violation)"));
@@ -256,6 +262,8 @@ namespace Kabomu.Common.Internals
                 return;
             }
 
+            transfer.PendingResultCancellationIndicator?.Cancel();
+            transfer.PendingResultCancellationIndicator = null;
             ResetTimeout(transfer);
             BeginReadMessageSource(transfer);
         }

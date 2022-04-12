@@ -125,7 +125,7 @@ namespace Kabomu.Common.Internals
             }
             else
             {
-                BeginCreateMessageSink(transfer);
+                BeginCreateMessageSink(connectionHandle, transfer);
             }
         }
 
@@ -171,7 +171,7 @@ namespace Kabomu.Common.Internals
             BeginWriteMessageSink(transfer);
         }
 
-        private void BeginCreateMessageSink(IncomingTransfer transfer)
+        private void BeginCreateMessageSink(object connectionHandle, IncomingTransfer transfer)
         {
             var cancellationIndicator = new STCancellationIndicator();
             transfer.PendingResultCancellationIndicator = cancellationIndicator;
@@ -188,7 +188,7 @@ namespace Kabomu.Common.Internals
                     }
                 }, null);
             };
-            MessageSinkFactory.CreateMessageSink(cb, null);
+            MessageSinkFactory.CreateMessageSink(connectionHandle, cb, null);
         }
 
         private void ProcessSinkCreationResult(IncomingTransfer transfer, Exception error, 

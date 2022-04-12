@@ -19,7 +19,7 @@ namespace Kabomu.Tests.Common.Internals
             this.outputHelper = outputHelper;
         }
 
-        [Fact]
+        /*[Fact]
         public void TestReceiveSuccessCases()
         {
             // arrange
@@ -209,7 +209,7 @@ namespace Kabomu.Tests.Common.Internals
             {
                 instance.OnReceiveSubsequentChunk(null, 0, 2, null, 1, 4, "s");
             }, null);
-            /*testEventLoop.ScheduleTimeout(14, _ =>
+            testEventLoop.ScheduleTimeout(14, _ =>
             {
                 instance.BeginReceive(msgSink3, 7, options3, commonCb, null);
             }, null);
@@ -264,7 +264,7 @@ namespace Kabomu.Tests.Common.Internals
             testEventLoop.ScheduleTimeout(34, _ =>
             {
                 instance.OnReceiveSubsequentChunkAck(null, 128, 8, 0);
-            }, null);*/
+            }, null);
 
 
             testEventLoop.AdvanceTimeBy(100);
@@ -303,6 +303,6 @@ namespace Kabomu.Tests.Common.Internals
                 DefaultProtocolDataUnit.PduTypeSubsequentChunkAck, 0, 0, 2, null, null, null));
 
             logger.AssertEqual(expectedLogs, outputHelper);
-        }
+        }*/
     }
 }

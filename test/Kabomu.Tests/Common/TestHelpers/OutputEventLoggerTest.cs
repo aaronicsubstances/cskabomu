@@ -40,7 +40,8 @@ namespace Kabomu.Tests.Common.TestHelpers
 
             testEventLoop.AdvanceTimeTo(23);
 
-            instance.AppendSinkCreationLog();
+            instance.AppendSinkCreationLog(null);
+            instance.AppendSinkCreationLog("localhost");
             instance.AppendSinkWriteDataLog(new byte[] { 0x7, (byte)'z', (byte)'y' }, 1, 1, null, true);
             instance.AppendSinkWriteDataLog(new byte[] { (byte)'b', (byte)'o', (byte)'y' }, 0, 3, "f", false);
             instance.AppendSinkWriteDataLog(new byte[] { (byte)'b', (byte)'o', (byte)'y' }, 0, 0, "yes", true);
@@ -73,6 +74,7 @@ namespace Kabomu.Tests.Common.TestHelpers
                 "0:TransferChunk(d,10,21,23,24,85,af,,false)",
 
                 "23:SnkCreate()",
+                "23:SnkCreate(localhost)",
                 "23:SnkData(z,,true)",
                 "23:SnkData(boy,f,false)",
                 "23:SnkData(,yes,true)",
