@@ -28,12 +28,12 @@ Overall mission is toward monolithic applications for enforcement of architectur
     1. qpcHeader is concatenation of version, pduType, requestId, flags, embeddedHttpBodyLen.
     2. http headers are in CSV format, which each row consisting of one key and multiple values.
     3. user specified headers must be capitalized or contain an upper case letter (ie cannot contain only lower case letters).
-    
+ 
 5. QpcTransport API
     1. BeginSendPdu(data, offset, length, Action<Exception> cb): void
     1. (the rest are optional and can be used for optimization, e.g. for memory-based transports)
     1. ShouldSerialize(): bool. Sometimes true or false depending on probability setting of transport.
-    2. BeginSendPost(QuasiHttpRequestMessage, Action<Exception, QuasiHttpResponseMessage> cb): void
+    2. BeginProcessPost(QuasiHttpRequestMessage, Action<Exception, QuasiHttpResponseMessage> cb): void
 
 6. QuasiHttpRequestMessage structure
     1. host: destination.
@@ -46,7 +46,7 @@ Overall mission is toward monolithic applications for enforcement of architectur
         1. Body type for HTML Forms is added so as to completely discard need for query string handling in Path, by requiring such query strings to be sent through POST body.
         2. This also means GET with query string has an alternative representation in QuasiHttp.
     3. User Headers: map of strings to list of strings, but with additional map of strings to strings interface.
-    4. Embedded Body: object. However QPC Client API requires it to be IMessageSource (internally based on async FileStream or byte buffer wrapper)
+    4. Body: object. However QPC Client API requires it to be IMessageSource (internally based on async FileStream or byte buffer wrapper)
         1. If using with memory-based transports, object doesn't have to be IMessageSource, but must be serializable.
         2. It is intended that this prop be replaceable by custom request processors.
 
@@ -60,49 +60,48 @@ Overall mission is toward monolithic applications for enforcement of architectur
     4. content-location (Internal).
     4. content-type
     2. User Headers
-    5. Embedded Body: object
+    5. Body
 
 9. QpcClient API (works for server too, similar to how UdpClient works both ways).
     1. BeginPost(QuasiHttpRequestMessage, Action<Exception, QuasiHttpResponseMessage> cb): void
     1. (can later add helper methods or helper class which only upload and download bodies, and automatically serializes bodies given enough serialization info)
-    1. BeginReceivePost(QuasiHttpRequestMessage, Action<Exception, QuasiHttpResponseMessage> cb): void
+    1. BeginProcessPost(QuasiHttpRequestMessage, Action<Exception, QuasiHttpResponseMessage> cb): void
     2. BeginReceivePdu(data, offset, length): void
     2. BeginReset(Action<Exception> cb)
     3. Timeout prop
     4. EventLoop prop
     6. IQpcTransport prop
     5. IApplicationCallback: interface with method 
-        1. BeginPost(QuasiHttpRequestMessage, Action<Exception, object>) 
+        1. BeginProcessPost(QuasiHttpRequestMessage, Action<Exception, object>) 
         where object is either HttpResponseMessage or a candidate for ResponseBody. Can be any serializable object if memory-based transport is in use.
         2. Serialize(object): byte[]
+        3. Deserialize(byte buffer | object, contentType, serializationInfo): object
     6. prop for temp file system - for creating and destroying files.
     7. prop for random id generator - used in names of files together with a timestamp.
 
 2. It is assumed that IApplicationCallback will need a supporting module or static class which statically declares a dictionary. The dictionary will be filled with pairings of path to IPathCallback object. IPathCallback has similar method with first 2 args identical to that of IApplicationCallback.
-    1. The main job of IPathCallback is to take care of deserialization concerns. It is assumed that mostly serialization can be done generically (and so IApplicationCallback can handle that), but deserialization usually require more context-specific information to succeed (and so IPathCallback is needed). 
+    1. The main job of IPathCallback is to help take care of deserialization concerns. It is assumed that mostly serialization can be done generically (and so IApplicationCallback can handle that), but deserialization usually require more context-specific information to succeed (and so IPathCallback is needed). 
     1. Ordered serializers for supported response body types will be stored in IApplicationCallback default implementation, and made available to IPathCallback via IApplicationCallback field reference or method argument
     1. It is assumed that IPathCallback will itself delegate its actual work to a statically declared method, through a closure which is passed to default implementations of IPathCallback.
     2. The main job of the closure is to take care of how to call the statically declared method (or even create instances via dependency injection and call an instance method), by casting props of QuasiHttpRequestMessage to specific types, and spreading arguments from ParsedPathParameters for actual work to be done.
-    2. Looks like IPathCallback will have to recreate instances with request path params, request and response bodies changed before and after calling closure, to cater for multithreading concerns of immutability of function arguments.
+    2. Looks like IPathCallback will have to recreate instances with request body changed before calling closure, to cater for multithreading concerns of immutability of function arguments.
     3. It's up to more complex IApplicationCallbacks to parse path for embeded  pieces of information, like how REST URLS are structured.
 
 2. Default Path Callback structure.
     1. request body serialization info
-    3. request path parameters serialization info,
-    4. response body serialization info
     3. request body type override: string
     4. closure: Action(QuasiHttpRequestMessage, Action<Exception, object> cb)
-    4. BeginPost(QuasiHttpRequestMessage, Action<Exception, object> cb, IApplicationCallbacks)
+    4. BeginProcessPost(QuasiHttpRequestMessage, Action<Exception, object> cb, IApplicationCallbacks)
 
 10. Supporting types:
     1. QuasiHttpException. thrown if IsSuccess is false.
     if this error occurs, it will have a reference to the quasi http response message.
-    
+
 11. URL Path format (https://datatracker.ietf.org/doc/html/rfc1630). 
     1. Valid path characters aside forward slash and percent encoding %xx (ISO-8859-1): A–Z a–z 0–9 . - _ ~ ! $ & ' ( ) * + , ; = : @
 
 12. application/x-www-form-urlencoded format (https://url.spec.whatwg.org/#application/x-www-form-urlencoded).
-    1. Special characters which must be encoded (percent encoding in utf-8): = & + % ('+' means space)
+    1. Special characters which must be encoded (percent encoding in utf-8): = & + % ('+' means space).
 
 13. Header format (US-ASCII)
     1. key or value cannot contain newlines
