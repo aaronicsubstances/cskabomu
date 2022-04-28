@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp
 {
-    public class QuasiHttpHeaderCollection
+    public class QuasiHttpKeyValueCollection
     {
     }
 }

@@ -14,6 +14,6 @@ namespace Kabomu.QuasiHttp
         /// </summary>
         IQuasiHttpApplication Application { get; }
 
-        void SendPdu(byte[] data, int offset, int length, string remoteEndpoint, Action<Exception> cb);
+        void SendPdu(byte[] data, int offset, int length, object connectionHandleOrRemoteEndpoint, Action<Exception> cb);
     }
 }

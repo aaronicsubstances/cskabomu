@@ -13,8 +13,6 @@ namespace Kabomu.QuasiHttp
         public int EmbeddedQuasiHttpBodyLength { get; set; }
         public QuasiHttpRequestMessage WrappedRequest { get; set; }
         public QuasiHttpResponseMessage WrappedResponse { get; set; }
-        public string Origin { get; set; }
-        public string Host { get; set; }
         public string Verb { get; set; }
         public string BodyLocation { get; set; }
         public byte[] EmbeddedBody { get; set; }
