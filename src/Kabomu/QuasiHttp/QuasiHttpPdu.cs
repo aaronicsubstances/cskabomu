@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp
 {
-    public class QpcPdu
+    public class QuasiHttpPdu
     {
         public byte Version { get; set; }
         public byte PduType { get; set; }
@@ -19,6 +19,5 @@ namespace Kabomu.QuasiHttp
         public string BodyLocation { get; set; }
         public byte[] EmbeddedBody { get; set; }
         public int EmbeddedBodyOffset { get; set; }
-        public int EmbeddedBodyLength { get; set; }
     }
 }

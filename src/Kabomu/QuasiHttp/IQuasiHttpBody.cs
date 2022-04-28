@@ -6,5 +6,7 @@ namespace Kabomu.QuasiHttp
 {
     public interface IQuasiHttpBody
     {
+        void OnDataRead(QuasiHttpBodyCallback cb);
+        void OnEndRead(Exception error);
     }
 }

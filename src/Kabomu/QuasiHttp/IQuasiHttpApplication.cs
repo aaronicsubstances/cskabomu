@@ -6,8 +6,6 @@ namespace Kabomu.QuasiHttp
 {
     public interface IQuasiHttpApplication
     {
-        void ProcessPostRequest(QuasiHttpRequestMessage request, Action<Exception, object> cb);
-        byte[] Serialize(object o);
-        object Deserialize(IQuasiHttpBody body, string contentType, object serializationInfo);
+        void ProcessPostRequest(QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> cb);
     }
 }
