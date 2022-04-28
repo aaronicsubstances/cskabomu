@@ -1,5 +1,7 @@
 # C#.NET Core Support for Kabomu
 
+Quasi Web Application Framework modelled after ExpressJS, which runs entirely on localhost.
+
 ## Mission
 
 Overall mission is toward monolithic applications for enforcement of architecture and better preparation for evolution to distributed systems, through
@@ -10,7 +12,7 @@ Overall mission is toward monolithic applications for enforcement of architectur
 4. quasi web requests, to provide alternative request-response protocols resembling http, and also to ease transition to http usage
 5. quasi web mail, for deferred processing thanks to automated email thread processors, and "dictionary of callbacks with ttl" idea for simulating deferred processing as immediate processing.
 
-## Quasi Web Application Framework
+## Design
 
 1. Deployment enviroment: localhost
 
