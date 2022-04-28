@@ -66,7 +66,7 @@ namespace Kabomu.QuasiHttp
                     }
                     f.Invoke(req, reqAtts, resCb, next);
                 };
-                Middlewares.Add(f);
+                Middlewares.Add(wrapper);
             }
         }
 

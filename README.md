@@ -10,25 +10,25 @@ Overall mission is toward monolithic applications for enforcement of architectur
 4. quasi web requests, to provide alternative request-response protocols resembling http, and also to ease transition to http usage
 5. quasi web mail, for deferred processing thanks to automated email thread processors, and "dictionary of callbacks with ttl" idea for simulating deferred processing as immediate processing.
 
-## Quasi Procedure Call (QPC) Framework
+## Quasi Web Application Framework
 
 1. Deployment enviroment: localhost
 
-1. QPC transport wrapper: connectionless, datagram.
+1. Quasi Web transport wrapper: connectionless, datagram.
 
-1. QPC transports: memory, UDP, unix domain socket.
+1. Quasi Web transports: memory, UDP, unix domain socket.
 
 2. Streaming strategy: use temporary regular files.
 
 3. Multithreading strategy: event loop
 
-3. HTTP processing strategy: ExpressJS
+3. Web request processing strategy: ExpressJS
 
 3. Protocol: Mimicks Sun RPC and HTTP. Also mimicks HTTP/2 in using headers in place of request line, response line and even scheme (https).
 
-3. Protocol syntax: CSV headers and binary body
-    1. qpcHeader is concatenation of version, pduType, requestId, flags, embeddedHttpBodyLen.
-    2. http headers are in CSV format, which each row consisting of one key and multiple values.
+3. Protocol syntax: binary preamble, CSV headers, and binary trailer
+    1. preamble is concatenation of version, pduType, requestId, flags, embeddedHttpBodyLen.
+    2. CSV is used for http headers and HTML forms. Each CSV row is a key followed by multiple values.
     3. user specified headers must be capitalized or contain an upper case letter (ie cannot contain only lower case letters).
 
 5. IApplicationCallback interface
@@ -40,9 +40,8 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 6. QuasiHttpRequestMessage structure
     1. host: destination.
-    2. origin (Internal): source.
     2. verb (Internal): must always be POST.
-    1. path: Cannot have query string.
+    1. path
     4. content-length: int. can be negative to indicate unknown size.
     4. content-location (Internal): Used when body was streamed to a temp file path.
     4. content-type: one of application/octet-stream, application/json (always UTF-8), text/plain (always UTF-8), application/x-www-form-urlencoded (always UTF-8).
@@ -54,8 +53,6 @@ Overall mission is toward monolithic applications for enforcement of architectur
         2. It is intended that this prop be replaceable by custom request processors.
 
 7. QuasiHttpResponseMessage structure
-    1. host (Internal): destination.
-    2. origin (Internal): source.
     1. status-indicates-success: bool.
     1. status-indicates-client-error: bool. false means error is from server if status-indicates-success is false too (should be false if status-indicates-success is true).
     2. status-message
@@ -82,13 +79,13 @@ Overall mission is toward monolithic applications for enforcement of architectur
     1. QuasiHttpException. thrown if IsSuccess is false.
     if this error occurs, it will have a reference to the quasi http response message.
 
-11. URL Path format (https://datatracker.ietf.org/doc/html/rfc1630). 
+11. URL Path validation middleware (based on https://datatracker.ietf.org/doc/html/rfc1630). 
     1. Valid path characters aside forward slash and percent encoding %xx (ISO-8859-1): A–Z a–z 0–9 . - _ ~ ! $ & ' ( ) * + , ; = : @
 
-12. application/x-www-form-urlencoded format (https://url.spec.whatwg.org/#application/x-www-form-urlencoded).
+12. Html Form validation middleware (based on https://url.spec.whatwg.org/#application/x-www-form-urlencoded).
     1. Special characters which must be encoded (percent encoding in utf-8): = & + % ('+' means space).
 
-13. Header format (US-ASCII)
+13. Header validation middleware
     1. key or value cannot contain newlines
     2. case sensitive keys only
     3. keys starts with English alphabet, and can contain other English alphabets, hyphens or decimal digits.
