@@ -17,9 +17,32 @@ default bodies
 *filebody - making it async may require use of third party library
 *streambody - making it async may require use of third pary library
 
-quasi http
-----------
-keep csv utils for quasi http? so we don't have a dependency on some library.
-
 tests
 -----
+
+Optimization
+------------
+1. Let receive/send make use of event loop always on same thread
+2. For large timeouts (as determined by a config setting), introduce a single bulk polling timer
+   in receive/send to skip timer creation until time remaining becomes small.
+   a. still create timers for case of small timeouts.
+3. Reduce byte copying towards zero as much as possible
+
+Examples
+--------
+-add 2 demos each for udp, unix domain socket and memory
+--based on single discard peer configurable with different ports, for bouncing headers back n forth 
+  to mimick ping-pong benchmarking
+--based on file server/client
+--copy over command line parsing
+
+Release
+-------
+copyright
+author
+readme
+minimal newtsonsoft json reqiurement?
+xml documentation
+.net standard targets
+debug or release
+https://docs.microsoft.com/en-us/nuget/create-packages/creating-a-package#the-role-and-structure-of-the-nuspec-file
