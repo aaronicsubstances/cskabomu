@@ -22,18 +22,21 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 3. Multithreading strategy: event loop
 
+3. HTTP processing strategy: ExpressJS
+
 3. Protocol: Mimicks Sun RPC and HTTP. Also mimicks HTTP/2 in using headers in place of request line, response line and even scheme (https).
 
 3. Protocol syntax: CSV headers and binary body
     1. qpcHeader is concatenation of version, pduType, requestId, flags, embeddedHttpBodyLen.
     2. http headers are in CSV format, which each row consisting of one key and multiple values.
     3. user specified headers must be capitalized or contain an upper case letter (ie cannot contain only lower case letters).
- 
+
+5. IApplicationCallback interface
+    1. BeginProcessPost(QuasiHttpRequestMessage, Action<Exception, HttpResponseMessage>)
+
 5. QpcTransport API
     1. BeginSendPdu(data, offset, length, Action<Exception> cb): void
-    1. (the rest are optional and can be used for optimization, e.g. for memory-based transports)
-    1. ShouldSerialize(): bool. Sometimes true or false depending on probability setting of transport.
-    2. BeginProcessPost(QuasiHttpRequestMessage, Action<Exception, QuasiHttpResponseMessage> cb): void
+    1. IApplicationCallback property - for processing outgoing requests in transports capable of doing so
 
 6. QuasiHttpRequestMessage structure
     1. host: destination.
@@ -71,27 +74,9 @@ Overall mission is toward monolithic applications for enforcement of architectur
     3. Timeout prop
     4. EventLoop prop
     6. IQpcTransport prop
-    5. IApplicationCallback: interface with method 
-        1. BeginProcessPost(QuasiHttpRequestMessage, Action<Exception, object>) 
-        where object is either HttpResponseMessage or a candidate for ResponseBody. Can be any serializable object if memory-based transport is in use.
-        2. Serialize(object): byte[]
-        3. Deserialize(byte buffer | object, contentType, serializationInfo): object
+    5. IApplicationCallback prop for processing incoming requests.
     6. prop for temp file system - for creating and destroying files.
     7. prop for random id generator - used in names of files together with a timestamp.
-
-2. It is assumed that IApplicationCallback will need a supporting module or static class which statically declares a dictionary. The dictionary will be filled with pairings of path to IPathCallback object. IPathCallback has similar method with first 2 args identical to that of IApplicationCallback.
-    1. The main job of IPathCallback is to help take care of deserialization concerns. It is assumed that mostly serialization can be done generically (and so IApplicationCallback can handle that), but deserialization usually require more context-specific information to succeed (and so IPathCallback is needed). 
-    1. Ordered serializers for supported response body types will be stored in IApplicationCallback default implementation, and made available to IPathCallback via IApplicationCallback field reference or method argument
-    1. It is assumed that IPathCallback will itself delegate its actual work to a statically declared method, through a closure which is passed to default implementations of IPathCallback.
-    2. The main job of the closure is to take care of how to call the statically declared method (or even create instances via dependency injection and call an instance method), by casting props of QuasiHttpRequestMessage to specific types, and spreading arguments from ParsedPathParameters for actual work to be done.
-    2. Looks like IPathCallback will have to recreate instances with request body changed before calling closure, to cater for multithreading concerns of immutability of function arguments.
-    3. It's up to more complex IApplicationCallbacks to parse path for embeded  pieces of information, like how REST URLS are structured.
-
-2. Default Path Callback structure.
-    1. request body serialization info
-    3. request body type override: string
-    4. closure: Action(QuasiHttpRequestMessage, Action<Exception, object> cb)
-    4. BeginProcessPost(QuasiHttpRequestMessage, Action<Exception, object> cb, IApplicationCallbacks)
 
 10. Supporting types:
     1. QuasiHttpException. thrown if IsSuccess is false.
