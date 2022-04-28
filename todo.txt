@@ -1,6 +1,20 @@
 remaining
 ==========
 
+tests
+-----
+DefaultEventLoopApi
+QuasiHttpKeyValueCollection
+QuasiHttpPdu (serialization)
+DefaultQuasiHttpClient
+DefaultQuasiHttpApplication
+
+default transports
+------------------
+MemoryBasedTransport
+UdpBasedTransport - making it async may require use of third party library
+UnixSocketBasedTransport - availability and making it async may require use of third party library
+
 default middleware
 ------------------
 -json
@@ -17,9 +31,6 @@ default bodies
 *filebody - making it async may require use of third party library
 *streambody - making it async may require use of third pary library
 
-tests
------
-
 Optimization
 ------------
 1. Let receive/send make use of event loop always on same thread
@@ -30,7 +41,7 @@ Optimization
 
 Examples
 --------
--add 2 demos each for udp, unix domain socket and memory
+-add demos each for udp, unix domain socket and memory
 --based on single discard peer configurable with different ports, for bouncing headers back n forth 
   to mimick ping-pong benchmarking
 --based on file server/client
