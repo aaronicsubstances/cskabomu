@@ -26,7 +26,7 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 3. Web request processing strategy: ExpressJS
 
-3. Protocol: Mimicks Sun RPC and HTTP. Also mimicks HTTP/2 in using headers in place of request line, response line and even scheme (https).
+3. Protocol: mimicks Sun RPC and HTTP. Also mimicks HTTP/2 in using headers in place of request line, response line and even scheme (https).
 
 3. Protocol syntax: binary preamble, CSV headers, and binary trailer
     1. preamble is concatenation of version, pduType, requestId, flags, embeddedHttpBodyLen.
@@ -38,7 +38,8 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 5. QpcTransport API
     1. BeginSendPdu(data, offset, length, Action<Exception> cb): void
-    1. IApplicationCallback property - for processing outgoing requests in transports capable of doing so
+    1. ShouldProcessPost property - for processing outgoing requests in transports capable of doing so
+    2. ProcessPost(QuasiHttpRequestMessage, Action<HttpResponseMessage>)
 
 6. QuasiHttpRequestMessage structure
     1. host: destination.
@@ -65,17 +66,16 @@ Overall mission is toward monolithic applications for enforcement of architectur
     5. Body
 
 9. QpcClient API (works for server too, similar to how UdpClient works both ways).
-    1. BeginPost(QuasiHttpRequestMessage, Action<Exception, QuasiHttpResponseMessage> cb): void
+    1. BeginPost(QuasiHttpRequestMessage, timeoutOptions, Action<Exception, QuasiHttpResponseMessage> cb): void
     1. (can later add helper methods or helper class which only upload and download bodies, and automatically serializes bodies given enough serialization info)
     1. BeginProcessPost(QuasiHttpRequestMessage, Action<Exception, QuasiHttpResponseMessage> cb): void
     2. BeginReceivePdu(data, offset, length): void
     2. BeginReset(Action<Exception> cb)
-    3. Timeout prop
+    3. Default Timeout prop
     4. EventLoop prop
     6. IQpcTransport prop
     5. IApplicationCallback prop for processing incoming requests.
     6. prop for temp file system - for creating and destroying files.
-    7. prop for random id generator - used in names of files together with a timestamp.
 
 10. Supporting types:
     1. QuasiHttpException. thrown if IsSuccess is false.
@@ -83,9 +83,6 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 11. URL Path validation middleware (based on https://datatracker.ietf.org/doc/html/rfc1630). 
     1. Valid path characters aside forward slash and percent encoding %xx (ISO-8859-1): A–Z a–z 0–9 . - _ ~ ! $ & ' ( ) * + , ; = : @
-
-12. Html Form validation middleware (based on https://url.spec.whatwg.org/#application/x-www-form-urlencoded).
-    1. Special characters which must be encoded (percent encoding in utf-8): = & + % ('+' means space).
 
 13. Header validation middleware
     1. key or value cannot contain newlines
