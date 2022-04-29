@@ -41,7 +41,6 @@ Overall mission is toward monolithic applications for enforcement of architectur
     2. ProcessPost(QuasiHttpRequestMessage, Action<HttpResponseMessage>)
 
 6. QuasiHttpRequestMessage structure
-    1. host: destination.
     2. verb (Internal): must always be POST.
     1. path
     4. content-length: int. can be negative to indicate unknown size.

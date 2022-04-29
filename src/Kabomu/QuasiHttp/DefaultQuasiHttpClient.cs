@@ -101,10 +101,10 @@ namespace Kabomu.QuasiHttp
                 switch (pdu.PduType)
                 {
                     case QuasiHttpPdu.PduTypeRequest:
-                        _receiveProtocol.ProcessIncomingRequest(pdu, connectionHandle);
+                        _receiveProtocol.ProcessRequestPdu(pdu, connectionHandle);
                         break;
                     case QuasiHttpPdu.PduTypeResponse:
-                        _sendProtocol.ProcessIncomingResponse(pdu, connectionHandle);
+                        _sendProtocol.ProcessResponsePdu(pdu, connectionHandle);
                         break;
                 }
             }, null);

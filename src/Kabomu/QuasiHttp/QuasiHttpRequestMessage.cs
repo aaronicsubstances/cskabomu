@@ -6,7 +6,6 @@ namespace Kabomu.QuasiHttp
 {
     public class QuasiHttpRequestMessage
     {
-        public string Host { get; set; }
         public string Path { get; set; }
         public QuasiHttpKeyValueCollection Headers { get; set; }
         public IQuasiHttpBody Body { get; set; }

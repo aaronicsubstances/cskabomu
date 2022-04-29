@@ -6,6 +6,6 @@ namespace Kabomu.QuasiHttp
 {
     public interface IQuasiHttpApplication
     {
-        void ProcessPostRequest(QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> cb);
+        void ProcessRequest(QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> cb);
     }
 }

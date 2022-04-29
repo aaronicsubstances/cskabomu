@@ -9,6 +9,6 @@ namespace Kabomu.QuasiHttp
         string ContentType { get; }
         int ContentLength { get; }
         void OnDataRead(QuasiHttpBodyCallback cb);
-        void OnEndRead(Exception error);
+        void Close();
     }
 }

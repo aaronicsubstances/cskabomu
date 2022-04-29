@@ -8,13 +8,12 @@ namespace Kabomu.QuasiHttp.Bodies
     public class ByteBufferBody : IQuasiHttpBody
     {
         private Exception _srcEndError;
-        private int _nextOffset;
 
         public ByteBufferBody(byte[] data)
-            : this(data, 0, data?.Length ?? 0)
+            : this(data, 0, data?.Length ?? 0, "application/octet-stream")
         { }
 
-        public ByteBufferBody(byte[] data, int offset, int length)
+        public ByteBufferBody(byte[] data, int offset, int length, string contentType)
         {
             if (!ByteUtils.IsValidMessagePayload(data, offset, length))
             {
@@ -23,14 +22,14 @@ namespace Kabomu.QuasiHttp.Bodies
             Buffer = data;
             Offset = offset;
             ContentLength = length;
-            _nextOffset = offset;
+            ContentType = contentType;
         }
 
         public byte[] Buffer { get; }
 
         public int Offset { get; }
 
-        public string ContentType => "application/octet-stream";
+        public string ContentType { get; }
 
         public int ContentLength { get; }
 
@@ -42,22 +41,19 @@ namespace Kabomu.QuasiHttp.Bodies
             }
             if (_srcEndError != null)
             {
-                throw _srcEndError;
+                cb.Invoke(_srcEndError, null, 0, 0, false);
+                return;
             }
-            // simply send all of data without sending in bits or chunks.
-            var offsetToUse = _nextOffset;
-            var lengthToUse = Offset + ContentLength - offsetToUse;
-            _nextOffset += lengthToUse;
-            cb.Invoke(null, Buffer, offsetToUse, lengthToUse);
+            cb.Invoke(null, Buffer, Offset, ContentLength, false);
         }
 
-        public void OnEndRead(Exception error)
+        public void Close()
         {
             if (_srcEndError != null)
             {
                 return;
             }
-            _srcEndError = error ?? new Exception("end of read");
+            _srcEndError = new Exception("closed");
         }
     }
 }

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Internals
+namespace Kabomu.QuasiHttp
 {
     public class QuasiHttpPdu
     {
@@ -14,12 +14,15 @@ namespace Kabomu.QuasiHttp.Internals
         public byte PduType { get; set; }
         public byte Flags { get; set; }
         public int RequestId { get; set; }
-        public QuasiHttpRequestMessage Request { get; set; }
-        public QuasiHttpResponseMessage Response { get; set; }
-        public string Verb { get; set; }
+        public string Path { get; set; }
+        public bool StatusIndicatesSuccess { get; set; }
+        public bool StatusIndicatesClientError { get; set; }
+        public string StatusMessage { get; set; }
+        public int ContentLength { get; set; }
+        public string ContentType { get; set; }
+        public QuasiHttpKeyValueCollection Headers { get; set; }
         public byte[] EmbeddedBody { get; set; }
         public int EmbeddedBodyOffset { get; set; }
-        public int EmbeddedBodyLength { get; set; }
 
         public static QuasiHttpPdu Deserialize(byte[] data, int offset, int length)
         {
