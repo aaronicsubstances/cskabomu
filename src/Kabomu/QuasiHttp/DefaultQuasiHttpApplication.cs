@@ -12,101 +12,145 @@ namespace Kabomu.QuasiHttp
         public DefaultQuasiHttpApplication()
         {
             Middlewares = new List<QuasiHttpMiddleware>();
+            ErrorMiddlewares = new List<QuasiHttpMiddleware>();
         }
 
         public List<QuasiHttpMiddleware> Middlewares { get; }
+        public List<QuasiHttpMiddleware> ErrorMiddlewares { get; }
 
-        public void Use(params QuasiHttpSimpleMiddleware[] functions)
+        public void Use(string path, params object[] functions)
         {
             foreach (var f in functions)
             {
-                QuasiHttpMiddleware wrapper = (req, reqAtts, resCb, next) =>
+                if (f is QuasiHttpSimpleMiddleware || f is QuasiHttpMiddleware)
                 {
-                    f.Invoke(req, reqAtts, resCb);
-                    next.Invoke(null, null, null);
-                };
-                Middlewares.Add(wrapper);
-            }
-        }
-
-        public void Use(string path, params QuasiHttpSimpleMiddleware[] functions)
-        {
-            foreach (var f in functions)
-            {
-                QuasiHttpMiddleware wrapper = (req, reqAtts, resCb, next) =>
+                }
+                else
                 {
-                    if (req.Path == path)
+                    throw new ArgumentException("unknown middleware delegate type: " + f);
+                }
+                QuasiHttpMiddleware wrapper = (context, reqAtts, resCb, next) =>
+                {
+                    if (path == null || context.Request.Path == path)
                     {
-                        f.Invoke(req, reqAtts, resCb);
+                        if (f is QuasiHttpSimpleMiddleware simple)
+                        {
+                            if (!context.ResponseSent)
+                            {
+                                simple.Invoke(context.Request, reqAtts, resCb);
+                            }
+                            else
+                            {
+                                next.Invoke(null, null, null);
+                            }
+                        }
+                        else
+                        {
+                            ((QuasiHttpMiddleware)f).Invoke(context, reqAtts, resCb, next);
+                        }
                     }
-                    next.Invoke(null, null, null);
-                };
-                Middlewares.Add(wrapper);
-            }
-        }
-
-        public void UseWithNext(params QuasiHttpMiddleware[] functions)
-        {
-            foreach (var f in functions)
-            {
-                Middlewares.Add(f);
-            }
-        }
-
-        public void UseWithNext(string path, params QuasiHttpMiddleware[] functions)
-        {
-            foreach (var f in functions)
-            {
-                QuasiHttpMiddleware wrapper = (req, reqAtts, resCb, next) =>
-                {
-                    if (req.Path != path)
+                    else
                     {
                         next.Invoke(null, null, null);
-                        return;
                     }
-                    f.Invoke(req, reqAtts, resCb, next);
                 };
                 Middlewares.Add(wrapper);
             }
         }
 
+        public void UseForError(params QuasiHttpMiddleware[] functions)
+        {
+            foreach (var f in functions)
+            {
+                ErrorMiddlewares.Add(f);
+            }
+        }
+        
         public void ProcessPostRequest(QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> responseCb)
         {
-            if (Middlewares.Count == 0)
-            {
-                return;
-            }
-
-            // apply all application level middlewares and path-specific router level middlewares in order.
-            // use middlewares to handle serialization with probability, and deserialization.
+            // apply all application level middlewares, path-specific router level middlewares,
+            // and error middlewares in order.
+            // also use middlewares to handle serialization and deserialization.
+            var context = new QuasiHttpContext(request, null, false);
             var requestAttributes = new Dictionary<string, object>();
             Action<Exception, object> responseCbWrapper = (e, o) =>
             {
                 var res = (QuasiHttpResponseMessage)o;
                 responseCb.Invoke(e, res);
+                context.MarkResponseAsSent();
             };
-            RunNextMiddleware(request, requestAttributes, responseCbWrapper, 0);
+            RunNextMiddleware(context, requestAttributes, responseCbWrapper, 0);
         }
 
-        private void RunNextMiddleware(QuasiHttpRequestMessage request,
+        private void RunNextMiddleware(QuasiHttpContext context,
             Dictionary<string, object> requestAttributes,
             Action<Exception, object> responseCb,
-            int nextIndex)
+            int index)
         {
-            QuasiHttpMiddlewareContinuationCallback next = (newRequest, newRequestAttributes, newResponseCb) =>
+            QuasiHttpMiddleware nextMiddleware;
+            if (context.Error == null)
             {
-                if (nextIndex + 1 < Middlewares.Count)
+                if (index >= Middlewares.Count)
                 {
-                    RunNextMiddleware(newRequest ?? request,
-                        newRequestAttributes ?? requestAttributes,
-                        newResponseCb ?? responseCb,
-                        nextIndex + 1);
+                    return;
                 }
+                nextMiddleware = Middlewares[index];
+            }
+            else
+            {
+                if (index >= ErrorMiddlewares.Count)
+                {
+                    return;
+                }
+                nextMiddleware = ErrorMiddlewares[index];
+            }
+            QuasiHttpMiddlewareContinuationCallback next = (newRequestAttributes, newResponseCb, error) =>
+            {
+                int nextIndex = index + 1;
+                if (context.Error == null && error != null)
+                {
+                    nextIndex = 0;
+                }
+                QuasiHttpContext newContext = context;
+                if (error != context.Error)
+                {
+                    newContext = new QuasiHttpContext(
+                        context.Request,
+                        error ?? context.Error,
+                        context.ResponseSent);
+                }
+                Action<Exception, object> newResponseCbWrapper = null;
+                if (newResponseCb != null)
+                {
+                    newResponseCbWrapper = (e, o) =>
+                    {
+                        newResponseCb.Invoke(e, o);
+                        context.MarkResponseAsSent();
+                    };
+                }
+                RunNextMiddleware(
+                    newContext,
+                    newRequestAttributes ?? requestAttributes,
+                    newResponseCbWrapper ?? responseCb,
+                    nextIndex);
             };
-            var nextMiddleware = Middlewares[nextIndex];
             if (nextMiddleware != null)
             {
-                nextMiddleware.Invoke(request, requestAttributes, responseCb, next);
+                try
+                {
+                    nextMiddleware.Invoke(context, requestAttributes, responseCb, next);
+                }
+                catch (Exception ex)
+                {
+                    if (context.Error == null)
+                    {
+                        next.Invoke(null, null, ex);
+                    }
+                    else
+                    {
+                        // swallow error somehow since error middleware is responsible for this error.
+                    }
+                }
             }
             else
             {
