@@ -20,8 +20,6 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 1. Quasi Web transports: memory, UDP, unix domain socket.
 
-2. Streaming strategy: use temporary regular files.
-
 3. Multithreading strategy: event loop
 
 3. Web request processing strategy: ExpressJS
@@ -46,13 +44,12 @@ Overall mission is toward monolithic applications for enforcement of architectur
     2. verb (Internal): must always be POST.
     1. path
     4. content-length: int. can be negative to indicate unknown size.
-    4. content-location (Internal): Used when body was streamed to a temp file path.
     4. content-type: one of application/octet-stream, application/json (always UTF-8), text/plain (always UTF-8), application/x-www-form-urlencoded (always UTF-8).
         1. Body type for HTML Forms is added so as to completely discard need for query string handling in Path, by requiring such query strings to be sent through POST body.
         2. This also means GET with query string has an alternative representation in QuasiHttp.
-    3. User Headers: map of strings to list of strings, but with additional map of strings to strings interface.
+    3. User Headers: map of strings to list of strings
     4. Body: object. However QPC Client API requires it to be IMessageSource (internally based on async FileStream or byte buffer wrapper)
-        1. If using with memory-based transports, object doesn't have to be IMessageSource, but must be serializable.
+        1. If using with memory-based transports, IMessageSource can have any implementation, but must be serializable.
         2. It is intended that this prop be replaceable by custom request processors.
 
 7. QuasiHttpResponseMessage structure
@@ -60,7 +57,6 @@ Overall mission is toward monolithic applications for enforcement of architectur
     1. status-indicates-client-error: bool. false means error is from server if status-indicates-success is false too (should be false if status-indicates-success is true).
     2. status-message
     3. content-length
-    4. content-location (Internal).
     4. content-type
     2. User Headers
     5. Body
