@@ -84,7 +84,7 @@ namespace Kabomu.QuasiHttp
             }
         }
 
-        public void Post(QuasiHttpRequestMessage request, QuasiHttpPostOptions options, 
+        public void Send(QuasiHttpRequestMessage request, QuasiHttpPostOptions options, 
             Action<Exception, QuasiHttpResponseMessage> cb)
         {
             EventLoop.PostCallback(_ =>
