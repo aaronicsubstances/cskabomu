@@ -9,17 +9,12 @@ namespace Kabomu.QuasiHttp.Internals
     {
         private readonly Dictionary<int, QuasiHttpMessageTransfer> _outgoingTransfers =
             new Dictionary<int, QuasiHttpMessageTransfer>();
-
-        public SendProtocol()
-        {
-            RequestIdGenerator = new STRequestIdGenerator(DateTimeUtils.UnixTimeMillis);
-        }
+        private int _requestIdGenerator;
 
         public IQuasiHttpTransport Transport { get; set; }
         public int DefaultTimeoutMillis { get; set; }
         public IEventLoopApi EventLoop { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
-        internal IRequestIdGenerator RequestIdGenerator { get; set; }
 
         public void ProcessOutgoingRequest(QuasiHttpRequestMessage request, QuasiHttpPostOptions options,
             Action<Exception, QuasiHttpResponseMessage> cb)
@@ -27,7 +22,7 @@ namespace Kabomu.QuasiHttp.Internals
             var pdu = new QuasiHttpPdu
             {
                 Request = request,
-                RequestId = RequestIdGenerator.NextId()
+                RequestId = ++_requestIdGenerator
             };
             var transfer = new QuasiHttpMessageTransfer
             {
