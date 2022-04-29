@@ -66,7 +66,7 @@ namespace Kabomu.QuasiHttp
             }
         }
         
-        public void ProcessPostRequest(QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> responseCb)
+        public void ProcessRequest(QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> responseCb)
         {
             // apply all application level middlewares, path-specific router level middlewares,
             // and error middlewares in order.
