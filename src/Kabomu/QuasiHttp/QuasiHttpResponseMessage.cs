@@ -10,6 +10,6 @@ namespace Kabomu.QuasiHttp
         public bool StatusIndicatesClientError { get; set; }
         public string StatusMessage { get; set; }
         public QuasiHttpKeyValueCollection Headers { get; set; }
-        public object Body { get; set; }
+        public IQuasiHttpBody Body { get; set; }
     }
 }

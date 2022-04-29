@@ -17,12 +17,16 @@ namespace Kabomu.QuasiHttp.Internals
         public QuasiHttpRequestMessage Request { get; set; }
         public QuasiHttpResponseMessage Response { get; set; }
         public string Verb { get; set; }
-        public string BodyLocation { get; set; }
         public byte[] EmbeddedBody { get; set; }
         public int EmbeddedBodyOffset { get; set; }
         public int EmbeddedBodyLength { get; set; }
 
-        internal static QuasiHttpPdu Deserialize(byte[] data, int offset, int length)
+        public static QuasiHttpPdu Deserialize(byte[] data, int offset, int length)
+        {
+            throw new NotImplementedException();
+        }
+
+        public byte[] Serialize()
         {
             throw new NotImplementedException();
         }

@@ -43,7 +43,7 @@ namespace Kabomu.QuasiHttp.Internals
             BeginReadMessageSource(transfer);
         }
 
-        public void ProcessIncomingResponse(QuasiHttpPdu pdu)
+        public void ProcessIncomingResponse(QuasiHttpPdu pdu, object connectionHandle)
         {
             throw new NotImplementedException();
         }

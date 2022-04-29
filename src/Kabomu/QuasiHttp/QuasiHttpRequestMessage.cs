@@ -9,6 +9,6 @@ namespace Kabomu.QuasiHttp
         public string Host { get; set; }
         public string Path { get; set; }
         public QuasiHttpKeyValueCollection Headers { get; set; }
-        public object Body { get; set; }
+        public IQuasiHttpBody Body { get; set; }
     }
 }
