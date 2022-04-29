@@ -104,7 +104,7 @@ namespace Kabomu.QuasiHttp
                         _receiveProtocol.ProcessIncomingRequest(pdu, connectionHandle);
                         break;
                     case QuasiHttpPdu.PduTypeResponse:
-                        _sendProtocol.ProcessIncomingResponse(pdu);
+                        _sendProtocol.ProcessIncomingResponse(pdu, connectionHandle);
                         break;
                 }
             }, null);

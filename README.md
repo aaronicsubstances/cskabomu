@@ -24,12 +24,13 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 3. Web request processing strategy: ExpressJS
 
-3. Protocol: mimicks Sun RPC and HTTP. Also mimicks HTTP/2 in using headers in place of request line, response line and even scheme (https).
+3. Protocol: mimicks Sun RPC, HTTP/1.1 and HTTP/2.
 
 3. Protocol syntax: binary preamble, CSV headers, and binary trailer
     1. preamble is concatenation of version, pduType, requestId, flags, embeddedHttpBodyLen.
-    2. CSV is used for http headers and HTML forms. Each CSV row is a key followed by multiple values.
-    3. user specified headers must be capitalized or contain an upper case letter (ie cannot contain only lower case letters).
+    2. CSV is used for http headers and HTML forms. Each CSV row is a key followed by multiple values. NB: keys are case-sensitive.
+    3. the following headers are reserved for use by the protocol, and hence will be ignored or lead to errors if set by clients: content-length, transfer-encoding (fixed to "chunked"), trailer, te, upgrade, connection, keep-alive, proxy-authenticate, proxy-authorization, accept-encoding (fixed to "identity"), content-encoding.
+    4. See also https://datatracker.ietf.org/doc/html/rfc7230#section-3.3.3
 
 5. IApplicationCallback interface
     1. BeginProcessPost(QuasiHttpRequestMessage, Action<Exception, HttpResponseMessage>)
@@ -47,10 +48,9 @@ Overall mission is toward monolithic applications for enforcement of architectur
     4. content-type: one of application/octet-stream, application/json (always UTF-8), text/plain (always UTF-8), application/x-www-form-urlencoded (always UTF-8).
         1. Body type for HTML Forms is added so as to completely discard need for query string handling in Path, by requiring such query strings to be sent through POST body.
         2. This also means GET with query string has an alternative representation in QuasiHttp.
-    3. User Headers: map of strings to list of strings
-    4. Body: object. However QPC Client API requires it to be IMessageSource (internally based on async FileStream or byte buffer wrapper)
-        1. If using with memory-based transports, IMessageSource can have any implementation, but must be serializable.
-        2. It is intended that this prop be replaceable by custom request processors.
+    3. headers: map of strings to list of strings
+    4. body: IMessageSource.
+        1. If using with memory-based transports, IMessageSource implementations can cleverly skip serializable to maintain speed of call-by-reference communications.
 
 7. QuasiHttpResponseMessage structure
     1. status-indicates-success: bool.
@@ -58,8 +58,8 @@ Overall mission is toward monolithic applications for enforcement of architectur
     2. status-message
     3. content-length
     4. content-type
-    2. User Headers
-    5. Body
+    2. headers
+    5. body
 
 9. QpcClient API (works for server too, similar to how UdpClient works both ways).
     1. BeginPost(QuasiHttpRequestMessage, timeoutOptions, Action<Exception, QuasiHttpResponseMessage> cb): void
@@ -71,7 +71,15 @@ Overall mission is toward monolithic applications for enforcement of architectur
     4. EventLoop prop
     6. IQpcTransport prop
     5. IApplicationCallback prop for processing incoming requests.
-    6. prop for temp file system - for creating and destroying files.
+
+
+10. Streaming Design
+    1. On demand/Pull strategy. ie when client calls on read() of http body, it should lead to sending pdu of type "ChunkRequest", and then a "ChunkResponse" can be sent in return. Read() calls can only be done one at a time, but multiple outstanding writes are allowed, in order to serve future multiple read() calls.
+    2. Any valid "ChunkRequest" or "ChunkResponse" pdu should postpone timeout.
+    2. Also when a client calls close() on http request body it received from application processing pipeline, it should lead to sending pdu of type "RequestFin", which should postpone the timeout. "RequestFin" can be used to indicate errors as well for logging purposes.
+    3. However if a client calls close() on http response body it received from underlying transport, it should lead to sending pdu of type "ResponseFin", which should clear any records tracking the request at the server. "ResponseFin" can be used to indicate errors as well.
+    4. When protocol receives a response from application processing pipeline, it should immediately clear any records tracking the request if response doesn't have a body. Else it should reset timeout in anticipation of chunk transfer.
+    5. Similarly when protocol receives a response from underlying transport, it should immediately clear any records tracking the request if response doesn't have a body.
 
 10. Supporting types:
     1. QuasiHttpException. thrown if IsSuccess is false.

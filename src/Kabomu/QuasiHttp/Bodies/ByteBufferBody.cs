@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.Common;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -33,8 +34,6 @@ namespace Kabomu.QuasiHttp.Bodies
 
         public int ContentLength { get; }
 
-        public string FilePath => null;
-
         public void OnDataRead(QuasiHttpBodyCallback cb)
         {
             if (cb == null)
@@ -47,9 +46,9 @@ namespace Kabomu.QuasiHttp.Bodies
             }
             // simply send all of data without sending in bits or chunks.
             var offsetToUse = _nextOffset;
-            var lengthToUse = Offset + Length - offsetToUse;
+            var lengthToUse = Offset + ContentLength - offsetToUse;
             _nextOffset += lengthToUse;
-            cb.Invoke(cbState, null, Buffer, offsetToUse, lengthToUse, null, false);
+            cb.Invoke(null, Buffer, offsetToUse, lengthToUse);
         }
 
         public void OnEndRead(Exception error)
