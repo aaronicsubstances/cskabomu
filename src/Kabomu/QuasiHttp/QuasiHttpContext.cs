@@ -1,27 +1,44 @@
 ﻿using System;
-using System.Threading;
+using System.Collections.Generic;
 
 namespace Kabomu.QuasiHttp
 {
     public class QuasiHttpContext
     {
-        private int _responseSent;
+        private object _response;
+        private Exception _error;
 
-        public QuasiHttpContext(QuasiHttpRequestMessage request, Exception error, bool responseSent)
+        public QuasiHttpContext(QuasiHttpRequestMessage request)
         {
             Request = request;
-            Error = error;
-            _responseSent = responseSent ? 1 : 0;
+            RequestAttributes = new Dictionary<string, object>();
         }
 
         public QuasiHttpRequestMessage Request { get; }
-        public Exception Error { get; }
+        public Dictionary<string, object> RequestAttributes { get; }
 
-        public bool ResponseSent => _responseSent == 1;
-
-        public void MarkResponseAsSent()
+        public object Response
         {
-            Interlocked.CompareExchange(ref _responseSent, 1, 0);
+            get
+            {
+                return _response;
+            }
+            internal set
+            {
+                _response = value ?? throw new ArgumentNullException(nameof(Response));
+            }
+        }
+
+        public Exception Error
+        {
+            get
+            {
+                return _error;
+            }
+            internal set
+            {
+                _error = value ?? throw new ArgumentNullException(nameof(Error));
+            }
         }
     }
 }

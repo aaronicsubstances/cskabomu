@@ -29,29 +29,29 @@ namespace Kabomu.QuasiHttp
                 {
                     throw new ArgumentException("unknown middleware delegate type: " + f);
                 }
-                QuasiHttpMiddleware wrapper = (context, reqAtts, resCb, next) =>
+                QuasiHttpMiddleware wrapper = (context, resCb, next) =>
                 {
                     if (path == null || context.Request.Path == path)
                     {
                         if (f is QuasiHttpSimpleMiddleware simple)
                         {
-                            if (!context.ResponseSent)
+                            if (context.Response == null)
                             {
-                                simple.Invoke(context.Request, reqAtts, resCb);
+                                simple.Invoke(context, resCb);
                             }
                             else
                             {
-                                next.Invoke(null, null, null);
+                                next.Invoke(null, null);
                             }
                         }
                         else
                         {
-                            ((QuasiHttpMiddleware)f).Invoke(context, reqAtts, resCb, next);
+                            ((QuasiHttpMiddleware)f).Invoke(context, resCb, next);
                         }
                     }
                     else
                     {
-                        next.Invoke(null, null, null);
+                        next.Invoke(null, null);
                     }
                 };
                 Middlewares.Add(wrapper);
@@ -71,19 +71,16 @@ namespace Kabomu.QuasiHttp
             // apply all application level middlewares, path-specific router level middlewares,
             // and error middlewares in order.
             // also use middlewares to handle serialization and deserialization.
-            var context = new QuasiHttpContext(request, null, false);
-            var requestAttributes = new Dictionary<string, object>();
-            Action<Exception, object> responseCbWrapper = (e, o) =>
+            var context = new QuasiHttpContext(request);
+            Action<Exception, object> responseCbWrapper = (e, res) =>
             {
-                var res = (QuasiHttpResponseMessage)o;
-                responseCb.Invoke(e, res);
-                context.MarkResponseAsSent();
+                context.Response = res ?? new QuasiHttpResponseMessage { StatusIndicatesSuccess = true };
+                responseCb.Invoke(e, (QuasiHttpResponseMessage)context.Response);
             };
-            RunNextMiddleware(context, requestAttributes, responseCbWrapper, 0);
+            RunNextMiddleware(context, responseCbWrapper, 0);
         }
 
         private void RunNextMiddleware(QuasiHttpContext context,
-            Dictionary<string, object> requestAttributes,
             Action<Exception, object> responseCb,
             int index)
         {
@@ -104,33 +101,28 @@ namespace Kabomu.QuasiHttp
                 }
                 nextMiddleware = ErrorMiddlewares[index];
             }
-            QuasiHttpMiddlewareContinuationCallback next = (newRequestAttributes, newResponseCb, error) =>
+            QuasiHttpMiddlewareContinuationCallback next = (newResponseCb, error) =>
             {
                 int nextIndex = index + 1;
-                if (context.Error == null && error != null)
+                if (error != null)
                 {
-                    nextIndex = 0;
-                }
-                QuasiHttpContext newContext = context;
-                if (error != context.Error)
-                {
-                    newContext = new QuasiHttpContext(
-                        context.Request,
-                        error ?? context.Error,
-                        context.ResponseSent);
+                    if (context.Error == null)
+                    {
+                        nextIndex = 0;
+                    }
+                    context.Error = error;
                 }
                 Action<Exception, object> newResponseCbWrapper = null;
                 if (newResponseCb != null)
                 {
-                    newResponseCbWrapper = (e, o) =>
+                    newResponseCbWrapper = (e, res) =>
                     {
-                        newResponseCb.Invoke(e, o);
-                        context.MarkResponseAsSent();
+                        context.Response = res ?? new QuasiHttpResponseMessage { StatusIndicatesSuccess = true };
+                        newResponseCb.Invoke(e, context.Response);
                     };
                 }
                 RunNextMiddleware(
-                    newContext,
-                    newRequestAttributes ?? requestAttributes,
+                    context,
                     newResponseCbWrapper ?? responseCb,
                     nextIndex);
             };
@@ -138,13 +130,13 @@ namespace Kabomu.QuasiHttp
             {
                 try
                 {
-                    nextMiddleware.Invoke(context, requestAttributes, responseCb, next);
+                    nextMiddleware.Invoke(context, responseCb, next);
                 }
                 catch (Exception ex)
                 {
                     if (context.Error == null)
                     {
-                        next.Invoke(null, null, ex);
+                        next.Invoke(null, ex);
                     }
                     else
                     {
@@ -154,7 +146,7 @@ namespace Kabomu.QuasiHttp
             }
             else
             {
-                next.Invoke(null, null, null);
+                next.Invoke(null, null);
             }
         }
     }

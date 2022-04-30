@@ -36,7 +36,7 @@ namespace Kabomu.QuasiHttp.Internals
                 if (pdu.EmbeddedBody != null)
                 {
                     request.Body = new ByteBufferBody(pdu.EmbeddedBody, pdu.EmbeddedBodyOffset,
-                        pdu.ContentLength, pdu.ContentType);
+                        pdu.ContentLength, pdu.ContentType, EventLoop);
                 }
                 else
                 {

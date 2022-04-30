@@ -22,6 +22,8 @@ namespace Kabomu.Common
 
         public long CurrentTimestamp => DateTimeUtils.UnixTimeMillis;
 
+        public UncaughtErrorCallback ErrorHandler { get; set; }
+
         public void PostCallback(Action<object> cb, object cbState)
         {
             PostCallback(cb, cbState, CancellationToken.None);
@@ -65,19 +67,5 @@ namespace Kabomu.Common
                 source.Cancel();
             }
         }
-
-        public object SchedulePeriodicTimeout(int millis, Action<object> cb, object cbState)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void CancelPeriodicTimeout(object id)
-        {
-            throw new NotImplementedException();
-        }
-
-        public UncaughtErrorCallback ErrorHandler { get; set; }
-
-        public bool IsSuperiorPeriodicTimeoutAvailable => false;
     }
 }
