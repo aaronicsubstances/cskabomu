@@ -5,28 +5,23 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp.Bodies
 {
-    public class ByteBufferBody : IQuasiHttpBody
+    public class StringBody : IQuasiHttpBody
     {
         private Exception _srcEndError;
 
-        public ByteBufferBody(byte[] data, int offset, int length, string contentType, IMutexApi mutexApi)
+        public StringBody(string content, string contentType, IMutexApi mutexApi)
         {
-            if (!ByteUtils.IsValidMessagePayload(data, offset, length))
-            {
-                throw new ArgumentException("invalid buffer");
-            }
-
-            Buffer = data;
-            Offset = offset;
-            ContentLength = length;
-            ContentType = contentType ?? "application/octet-stream";
+            Content = content ?? throw new ArgumentNullException(nameof(content));
+            ContentType = contentType ?? "text/plain";
+            ContentLength = Encoding.UTF8.GetByteCount(content);
             MutexApi = mutexApi ?? new BlockingMutexApi(this);
         }
 
-        public byte[] Buffer { get; }
-        public int Offset { get; }
-        public int ContentLength { get; }
+        public string Content { get; }
+
         public string ContentType { get; }
+
+        public int ContentLength { get; }
         public IMutexApi MutexApi { get; }
 
         public void OnDataRead(QuasiHttpBodyCallback cb)
@@ -42,7 +37,8 @@ namespace Kabomu.QuasiHttp.Bodies
                     cb.Invoke(_srcEndError, null, 0, 0, false);
                     return;
                 }
-                cb.Invoke(null, Buffer, Offset, ContentLength, false);
+                var buffer = Encoding.UTF8.GetBytes(Content);
+                cb.Invoke(null, buffer, 0, buffer.Length, false);
                 OnEndRead(null);
             }, null);
         }

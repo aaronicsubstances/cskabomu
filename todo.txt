@@ -18,8 +18,8 @@ UnixSocketBasedTransport - availability and making it async may require use of t
 default middleware
 ------------------
 -json
+-csv
 -string
--form
 -byte buffer
 
 default bodies
