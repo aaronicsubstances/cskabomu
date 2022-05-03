@@ -74,8 +74,9 @@ namespace Kabomu.QuasiHttp
             var context = new QuasiHttpContext(request);
             Action<Exception, object> responseCbWrapper = (e, res) =>
             {
-                context.Response = res ?? new QuasiHttpResponseMessage { StatusIndicatesSuccess = true };
-                responseCb.Invoke(e, (QuasiHttpResponseMessage)context.Response);
+                context.Response = ((QuasiHttpResponseMessage)res) ?? new QuasiHttpResponseMessage { StatusIndicatesSuccess = true };
+                responseCb.Invoke(e, context.Response);
+                context.ResponseMarkedAsSent = true;
             };
             RunNextMiddleware(context, responseCbWrapper, 0);
         }
@@ -112,18 +113,9 @@ namespace Kabomu.QuasiHttp
                     }
                     context.Error = error;
                 }
-                Action<Exception, object> newResponseCbWrapper = null;
-                if (newResponseCb != null)
-                {
-                    newResponseCbWrapper = (e, res) =>
-                    {
-                        context.Response = res ?? new QuasiHttpResponseMessage { StatusIndicatesSuccess = true };
-                        newResponseCb.Invoke(e, context.Response);
-                    };
-                }
                 RunNextMiddleware(
                     context,
-                    newResponseCbWrapper ?? responseCb,
+                    newResponseCb ?? responseCb,
                     nextIndex);
             };
             if (nextMiddleware != null)

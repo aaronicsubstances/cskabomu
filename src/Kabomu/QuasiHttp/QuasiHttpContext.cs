@@ -5,8 +5,9 @@ namespace Kabomu.QuasiHttp
 {
     public class QuasiHttpContext
     {
-        private object _response;
+        private QuasiHttpResponseMessage _response;
         private Exception _error;
+        private bool _responseMarkedAsSent;
 
         public QuasiHttpContext(QuasiHttpRequestMessage request)
         {
@@ -17,7 +18,7 @@ namespace Kabomu.QuasiHttp
         public QuasiHttpRequestMessage Request { get; }
         public Dictionary<string, object> RequestAttributes { get; }
 
-        public object Response
+        public QuasiHttpResponseMessage Response
         {
             get
             {
@@ -38,6 +39,23 @@ namespace Kabomu.QuasiHttp
             internal set
             {
                 _error = value ?? throw new ArgumentNullException(nameof(Error));
+            }
+        }
+
+        public bool ResponseMarkedAsSent
+        {
+
+            get
+            {
+                return _responseMarkedAsSent;
+            }
+            internal set
+            {
+                if (!value)
+                {
+                    throw new ArgumentException("can only mark response as sent", nameof(ResponseMarkedAsSent));
+                }
+                _responseMarkedAsSent = value;
             }
         }
     }
