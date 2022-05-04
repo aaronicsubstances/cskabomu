@@ -106,6 +106,24 @@ namespace Kabomu.QuasiHttp
                     case QuasiHttpPdu.PduTypeResponse:
                         _sendProtocol.ProcessResponsePdu(pdu, connectionHandle);
                         break;
+                    case QuasiHttpPdu.PduTypeRequestChunkGet:
+                        _sendProtocol.ProcessRequestChunkGetPdu(pdu, connectionHandle);
+                        break;
+                    case QuasiHttpPdu.PduTypeRequestChunkRet:
+                        _receiveProtocol.ProcessRequestChunkRetPdu(pdu, connectionHandle);
+                        break;
+                    case QuasiHttpPdu.PduTypeResponseChunkGet:
+                        _receiveProtocol.ProcessResponseChunkGetPdu(pdu, connectionHandle);
+                        break;
+                    case QuasiHttpPdu.PduTypeResponseChunkRet:
+                        _sendProtocol.ProcessResponseChunkRetPdu(pdu, connectionHandle);
+                        break;
+                    case QuasiHttpPdu.PduTypeRequestFin:
+                        _sendProtocol.ProcessRequestFinPdu(pdu);
+                        break;
+                    case QuasiHttpPdu.PduTypeResponseFin:
+                        _receiveProtocol.ProcessResponseFinPdu(pdu);
+                        break;
                 }
             }, null);
         }

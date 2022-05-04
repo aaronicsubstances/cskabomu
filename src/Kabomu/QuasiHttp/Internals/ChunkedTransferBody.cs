@@ -12,25 +12,20 @@ namespace Kabomu.QuasiHttp.Internals
         private Exception _srcEndError;
 
         public ChunkedTransferBody(int contentLength, string contentType, 
-            Action<object> readCallback, object readCallbackState,
-            Action<object> closeCallback, object closeCallbackState,
+            Action<object, bool> readCallback, object readCallbackState,
             IMutexApi mutexApi)
         {
             ContentLength = contentLength;
             ContentType = contentType;
             ReadCallback = readCallback;
             ReadCallbackState = readCallbackState;
-            CloseCallback = closeCallback;
-            CloseCallbackState = closeCallbackState;
             MutexApi = mutexApi ?? new BlockingMutexApi(this);
         }
 
         public int ContentLength { get; }
         public string ContentType { get; }
-        public Action<object> ReadCallback { get; }
+        public Action<object, bool> ReadCallback { get; }
         public object ReadCallbackState { get; }
-        public Action<object> CloseCallback { get; }
-        public object CloseCallbackState { get; }
         public IMutexApi MutexApi { get; }
 
         public void OnDataRead(QuasiHttpBodyCallback cb)
@@ -43,14 +38,14 @@ namespace Kabomu.QuasiHttp.Internals
             {
                 if (_srcEndError != null)
                 {
-                    cb.Invoke(_srcEndError, null, 0, 0, false);
+                    cb.Invoke(_srcEndError, null, 0, 0);
                 }
                 if (_pendingCb != null)
                 {
-                    cb.Invoke(new Exception("pending read unresolved"), null, 0, 0, false);
+                    cb.Invoke(new Exception("pending read unresolved"), null, 0, 0);
                 }
                 _pendingCb = cb;
-                ReadCallback.Invoke(ReadCallbackState);
+                ReadCallback.Invoke(ReadCallbackState, true);
             }, null);
         }
 
@@ -96,6 +91,9 @@ namespace Kabomu.QuasiHttp.Internals
 
                 _readContentLength += length;
 
+                _pendingCb.Invoke(null, data, offset, length);
+                _pendingCb = null;
+
                 bool hasMore = true;
                 if (ContentLength >= 0)
                 {
@@ -108,9 +106,6 @@ namespace Kabomu.QuasiHttp.Internals
                 {
                     hasMore = false;
                 }
-
-                _pendingCb.Invoke(null, data, offset, length, hasMore);
-                _pendingCb = null;
 
                 if (!hasMore)
                 {
@@ -126,7 +121,7 @@ namespace Kabomu.QuasiHttp.Internals
                 return;
             }
             _srcEndError = error ?? new Exception("end of read");
-            _pendingCb?.Invoke(_srcEndError, null, 0, 0, false);
+            _pendingCb?.Invoke(_srcEndError, null, 0, 0);
             _pendingCb = null;
         }
 
@@ -139,9 +134,9 @@ namespace Kabomu.QuasiHttp.Internals
                     return;
                 }
                 _srcEndError = new Exception("closed");
-                _pendingCb?.Invoke(_srcEndError, null, 0, 0, false);
+                _pendingCb?.Invoke(_srcEndError, null, 0, 0);
                 _pendingCb = null;
-                CloseCallback.Invoke(CloseCallbackState);
+                ReadCallback.Invoke(ReadCallbackState, false);
             }, null);
         }
     }

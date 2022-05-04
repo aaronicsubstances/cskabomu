@@ -39,10 +39,10 @@ namespace Kabomu.QuasiHttp.Bodies
             {
                 if (_srcEndError != null)
                 {
-                    cb.Invoke(_srcEndError, null, 0, 0, false);
+                    cb.Invoke(_srcEndError, null, 0, 0);
                     return;
                 }
-                cb.Invoke(null, Buffer, Offset, ContentLength, false);
+                cb.Invoke(null, Buffer, Offset, ContentLength);
                 OnEndRead(null);
             }, null);
         }

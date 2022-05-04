@@ -6,7 +6,7 @@ namespace Kabomu.Common
 {
     public class NullMutexApi : IMutexApi
     {
-        public void PostCallback(Action<object> cb, object cbState)
+        public void RunCallback(Action<object> cb, object cbState)
         {
             cb.Invoke(cbState);
         }
