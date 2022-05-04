@@ -34,11 +34,11 @@ namespace Kabomu.QuasiHttp.Bodies
             {
                 if (_srcEndError != null)
                 {
-                    cb.Invoke(_srcEndError, null, 0, 0, false);
+                    cb.Invoke(_srcEndError, null, 0, 0);
                     return;
                 }
                 var buffer = Encoding.UTF8.GetBytes(Content);
-                cb.Invoke(null, buffer, 0, buffer.Length, false);
+                cb.Invoke(null, buffer, 0, buffer.Length);
                 OnEndRead(null);
             }, null);
         }

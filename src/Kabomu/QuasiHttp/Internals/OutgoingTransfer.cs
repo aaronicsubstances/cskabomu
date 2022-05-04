@@ -13,9 +13,12 @@ namespace Kabomu.QuasiHttp.Internals
         public Action<Exception, QuasiHttpResponseMessage> RequestCallback { get; set; }
         public object RequestTimeoutId { get; set; }
         public object ReplyConnectionHandle { get; set; }
-        public STCancellationIndicator SendPduCancellationIndicator { get; set; }
+        public bool RequestBodyTransferCompleted { get; set; }
+        public bool ResponseBodyTransferCompleted { get; set; }
         public STCancellationIndicator DirectRequestProcessingCancellationIndicator { get; set; }
-        public bool RequestBodyTransferRequired { get; set; }
-        public bool ResponseBodyTransferRequired { get; set; }
+        public STCancellationIndicator SendRequestHeaderPduCancellationIndicator { get; set; }
+        public STCancellationIndicator SendRequestBodyPduCancellationIndicator { get; set; }
+        public STCancellationIndicator SendResponseBodyPduCancellationIndicator { get; set; }
+        public STCancellationIndicator RequestBodyCallbackCancellationIndicator { get; set; }
     }
 }
