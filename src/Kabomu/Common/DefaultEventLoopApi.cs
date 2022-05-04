@@ -24,6 +24,11 @@ namespace Kabomu.Common
 
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
+        public void RunCallback(Action<object> cb, object cbState)
+        {
+            PostCallback(cb, cbState);
+        }
+
         public void PostCallback(Action<object> cb, object cbState)
         {
             PostCallback(cb, cbState, CancellationToken.None);

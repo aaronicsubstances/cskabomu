@@ -30,7 +30,7 @@ namespace Kabomu.QuasiHttp.Bodies
             {
                 throw new ArgumentException("null callback");
             }
-            MutexApi.PostCallback(_ =>
+            MutexApi.RunCallback(_ =>
             {
                 if (_srcEndError != null)
                 {
@@ -54,7 +54,7 @@ namespace Kabomu.QuasiHttp.Bodies
 
         public void Close()
         {
-            MutexApi.PostCallback(_ =>
+            MutexApi.RunCallback(_ =>
             {
                 if (_srcEndError != null)
                 {

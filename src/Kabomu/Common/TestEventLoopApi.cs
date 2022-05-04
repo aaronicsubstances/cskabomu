@@ -109,6 +109,10 @@ namespace Kabomu.Common
                 }
             }
         }
+        public void RunCallback(Action<object> cb, object cbState)
+        {
+            PostCallback(cb, cbState);
+        }
 
         public void PostCallback(Action<object> cb, object cbState)
         {

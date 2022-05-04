@@ -6,6 +6,6 @@ namespace Kabomu.Common
 {
     public interface IMutexApi
     {
-        void PostCallback(Action<object> cb, object cbState);
+        void RunCallback(Action<object> cb, object cbState);
     }
 }
