@@ -13,7 +13,7 @@ namespace Kabomu.Common
             _monitor = monitor ?? throw new ArgumentNullException(nameof(monitor));
         }
 
-        public void PostCallback(Action<object> cb, object cbState)
+        public void RunCallback(Action<object> cb, object cbState)
         {
             lock (_monitor)
             {

@@ -39,7 +39,7 @@ namespace Kabomu.QuasiHttp.Internals
             {
                 throw new ArgumentException("null callback");
             }
-            MutexApi.PostCallback(_ =>
+            MutexApi.RunCallback(_ =>
             {
                 if (_srcEndError != null)
                 {
@@ -61,7 +61,7 @@ namespace Kabomu.QuasiHttp.Internals
                 throw new ArgumentException("invalid buffer");
             }
 
-            MutexApi.PostCallback(_ =>
+            MutexApi.RunCallback(_ =>
             {
                 if (_srcEndError != null)
                 {
@@ -132,7 +132,7 @@ namespace Kabomu.QuasiHttp.Internals
 
         public void Close()
         {
-            MutexApi.PostCallback(_ =>
+            MutexApi.RunCallback(_ =>
             {
                 if (_srcEndError != null)
                 {
