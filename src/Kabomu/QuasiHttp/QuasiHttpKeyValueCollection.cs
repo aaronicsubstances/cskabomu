@@ -6,5 +6,6 @@ namespace Kabomu.QuasiHttp
 {
     public class QuasiHttpKeyValueCollection
     {
+        public Dictionary<string, List<string>> Content { get; } = new Dictionary<string, List<string>>();
     }
 }

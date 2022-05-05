@@ -28,8 +28,9 @@ namespace Kabomu.QuasiHttp
         public int ContentLength { get; set; }
         public string ContentType { get; set; }
         public QuasiHttpKeyValueCollection Headers { get; set; }
-        public byte[] EmbeddedBody { get; set; }
-        public int EmbeddedBodyOffset { get; set; }
+        public byte[] Data { get; set; }
+        public int DataOffset { get; set; }
+        public int DataLength{ get; set; }
 
         public static QuasiHttpPdu Deserialize(byte[] data, int offset, int length)
         {

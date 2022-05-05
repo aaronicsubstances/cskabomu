@@ -12,6 +12,7 @@ namespace Kabomu.QuasiHttp
         void Send(QuasiHttpRequestMessage request, object connectionHandleOrRemoteEndpoint, 
             QuasiHttpPostOptions options, Action<Exception, QuasiHttpResponseMessage> cb);
         void ReceivePdu(byte[] data, int offset, int length, object connectionHandle);
+        void ReceiveDeserializedPdu(QuasiHttpPdu pdu, object connectionHandle);
         void Reset(Exception cause, Action<Exception> cb);
     }
 }

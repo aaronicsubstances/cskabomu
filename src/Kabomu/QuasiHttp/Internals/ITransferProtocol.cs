@@ -5,7 +5,7 @@ namespace Kabomu.QuasiHttp.Internals
 {
     internal interface ITransferProtocol
     {
-        IQuasiHttpTransport Transport { get; }
         IEventLoopApi EventLoop { get; }
+        void SendPdu(QuasiHttpPdu pdu, object connectionHandle, Action<Exception> cb);
     }
 }

@@ -7,6 +7,10 @@ DefaultEventLoopApi
 QuasiHttpKeyValueCollection
 QuasiHttpPdu (serialization)
 DefaultQuasiHttpClient
+-ReceiveProtocol
+-SendProtocol
+-OutgoingBodyTransferProtocol
+-IncomingBodyTransferProtocol
 DefaultQuasiHttpApplication
 
 default transports
