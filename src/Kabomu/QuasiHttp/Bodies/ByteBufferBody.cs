@@ -7,6 +7,7 @@ namespace Kabomu.QuasiHttp.Bodies
 {
     public class ByteBufferBody : IQuasiHttpBody
     {
+        private bool _dataRead;
         private Exception _srcEndError;
 
         public ByteBufferBody(byte[] data, int offset, int length, string contentType, IMutexApi mutexApi)
@@ -42,21 +43,13 @@ namespace Kabomu.QuasiHttp.Bodies
                     cb.Invoke(_srcEndError, null, 0, 0);
                     return;
                 }
+                var lengthRemaining = _dataRead ? 0 : ContentLength;
+                _dataRead = true;
                 cb.Invoke(null, Buffer, Offset, ContentLength);
-                OnEndRead(null);
             }, null);
         }
 
-        private void OnEndRead(Exception error)
-        {
-            if (_srcEndError != null)
-            {
-                return;
-            }
-            _srcEndError = error ?? new Exception("end of read");
-        }
-
-        public void Close()
+        public void OnEndRead(Exception e)
         {
             MutexApi.RunCallback(_ =>
             {
@@ -64,7 +57,7 @@ namespace Kabomu.QuasiHttp.Bodies
                 {
                     return;
                 }
-                _srcEndError = new Exception("closed");
+                _srcEndError = e ?? new Exception("end of read");
             }, null);
         }
     }

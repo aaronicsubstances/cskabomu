@@ -84,12 +84,13 @@ namespace Kabomu.QuasiHttp
             }
         }
 
-        public void Send(QuasiHttpRequestMessage request, QuasiHttpPostOptions options, 
-            Action<Exception, QuasiHttpResponseMessage> cb)
+        public void Send(QuasiHttpRequestMessage request, object connectionHandleOrRemoteEndpoint,
+            QuasiHttpPostOptions options, Action<Exception, QuasiHttpResponseMessage> cb)
         {
             EventLoop.PostCallback(_ =>
             {
-                _sendProtocol.ProcessOutgoingRequest(request, options, cb);
+                _sendProtocol.ProcessOutgoingRequest(request, connectionHandleOrRemoteEndpoint,
+                    options, cb);
             }, null);
         }
 
@@ -124,6 +125,8 @@ namespace Kabomu.QuasiHttp
                     case QuasiHttpPdu.PduTypeResponseFin:
                         _receiveProtocol.ProcessResponseFinPdu(pdu);
                         break;
+                    default:
+                        throw new Exception("Unknown pdu type: " + pdu.PduType);
                 }
             }, null);
         }

@@ -4,21 +4,25 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp.Internals
 {
-    internal class OutgoingTransfer
+    internal class OutgoingTransfer : ITransfer
     {
+        public SendProtocol TransferProtocol { get; set; }
         public int RequestId { get; set; }
-        public QuasiHttpRequestMessage Request { get; set; }
-        public QuasiHttpResponseMessage Response { get; set; }
+        public OutgoingChunkTransferProtocol RequestBodyProtocol { get; set; }
+        public IncomingChunkTransferProtocol ResponseBodyProtocol { get; set; }
         public int TimeoutMillis { get; set; }
         public Action<Exception, QuasiHttpResponseMessage> RequestCallback { get; set; }
         public object RequestTimeoutId { get; set; }
-        public object ReplyConnectionHandle { get; set; }
-        public bool RequestBodyTransferCompleted { get; set; }
-        public bool ResponseBodyTransferCompleted { get; set; }
-        public STCancellationIndicator DirectRequestProcessingCancellationIndicator { get; set; }
         public STCancellationIndicator SendRequestHeaderPduCancellationIndicator { get; set; }
-        public STCancellationIndicator SendRequestBodyPduCancellationIndicator { get; set; }
-        public STCancellationIndicator SendResponseBodyPduCancellationIndicator { get; set; }
-        public STCancellationIndicator RequestBodyCallbackCancellationIndicator { get; set; }
+
+        public void Abort(Exception exception)
+        {
+            TransferProtocol.AbortTransfer(this, exception);
+        }
+
+        public void ResetTimeout()
+        {
+            TransferProtocol.ResetTimeout(this);
+        }
     }
 }

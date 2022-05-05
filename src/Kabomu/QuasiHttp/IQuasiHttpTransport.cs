@@ -14,8 +14,9 @@ namespace Kabomu.QuasiHttp
         /// </summary>
         bool DirectSendRequestProcessingEnabled { get; }
         int MaxPduPayloadSize { get; }
-
-        void ProcessSendRequest(QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> cb);
-        void SendPdu(byte[] data, int offset, int length, object connectionHandleOrRemoteEndpoint, Action<Exception> cb);
+        void ProcessSendRequest(QuasiHttpRequestMessage request, object connectionHandleOrRemoteEndpoint,
+            Action<Exception, QuasiHttpResponseMessage> cb);
+        void SendPdu(byte[] data, int offset, int length, object connectionHandleOrRemoteEndpoint,
+            Action<Exception> cb);
     }
 }
