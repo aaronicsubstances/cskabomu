@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Tests.QuasiHttp.Internals
+namespace Kabomu.Tests.QuasiHttp
 {
     public class QuasiHttpPduTest
     {

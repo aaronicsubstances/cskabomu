@@ -21,6 +21,7 @@ namespace Kabomu.QuasiHttp.Internals
         {
             var transfer = new IncomingTransfer
             {
+                TransferProtocol = this,
                 RequestId = pdu.RequestId,
                 TimeoutMillis = DefaultTimeoutMillis
             };
@@ -32,16 +33,17 @@ namespace Kabomu.QuasiHttp.Internals
                 Path = pdu.Path,
                 Headers = pdu.Headers
             };
-            if (pdu.ContentLength > 0 && pdu.EmbeddedBody != null)
+            if (pdu.DataLength > 0)
             {
-                request.Body = new ByteBufferBody(pdu.EmbeddedBody, pdu.EmbeddedBodyOffset,
-                    pdu.ContentLength, pdu.ContentType, EventLoop);
+                request.Body = new ByteBufferBody(pdu.Data, pdu.DataOffset,
+                    pdu.DataLength, pdu.ContentType, EventLoop);
             }
             if (pdu.ContentLength != 0 && request.Body == null)
             {
                 transfer.RequestBodyProtocol = new IncomingChunkTransferProtocol(this, transfer,
                     QuasiHttpPdu.PduTypeRequestChunkGet, pdu.ContentLength, pdu.ContentType,
                     connectionHandle);
+                request.Body = transfer.RequestBodyProtocol.Body;
             }
             BeginApplicationPipelineProcessing(transfer, request, connectionHandle);
         }
@@ -79,8 +81,8 @@ namespace Kabomu.QuasiHttp.Internals
                 return;
             }
             var transfer = _incomingTransfers[pdu.RequestId];
-            transfer.RequestBodyProtocol.ProcessChunkRetPdu(pdu.EmbeddedBody,
-                pdu.EmbeddedBodyOffset, pdu.ContentLength, connectionHandle);
+            transfer.RequestBodyProtocol.ProcessChunkRetPdu(pdu.Data,
+                pdu.DataOffset, pdu.DataLength, connectionHandle);
         }
 
         private void HandleApplicationProcessingOutcome(IncomingTransfer transfer, Exception e,
@@ -130,8 +132,9 @@ namespace Kabomu.QuasiHttp.Internals
                 pdu.ContentType = response.Body.ContentType;
                 if (response.Body is ByteBufferBody byteBufferBody && pdu.ContentLength <= Transport.MaxPduPayloadSize)
                 {
-                    pdu.EmbeddedBody = byteBufferBody.Buffer;
-                    pdu.EmbeddedBodyOffset = byteBufferBody.Offset;
+                    pdu.Data = byteBufferBody.Buffer;
+                    pdu.DataOffset = byteBufferBody.Offset;
+                    pdu.DataLength = byteBufferBody.ContentLength;
                 }
                 else
                 {
@@ -139,7 +142,6 @@ namespace Kabomu.QuasiHttp.Internals
                         QuasiHttpPdu.PduTypeResponseChunkRet, response.Body);
                 }
             }
-            var pduBytes = pdu.Serialize();
             var cancellationIndicator = new STCancellationIndicator();
             transfer.SendResponseHeaderPduCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
@@ -153,7 +155,20 @@ namespace Kabomu.QuasiHttp.Internals
                     }
                 }, null);
             };
-            Transport.SendPdu(pduBytes, 0, pduBytes.Length, connectionHandle, cb);
+            SendPdu(pdu, connectionHandle, cb);
+        }
+
+        public void SendPdu(QuasiHttpPdu pdu, object connectionHandle, Action<Exception> cb)
+        {
+            if (Transport.SerializingEnabled)
+            {
+                Transport.SendPdu(pdu, connectionHandle, cb);
+            }
+            else
+            {
+                var pduBytes = pdu.Serialize();
+                Transport.SendSerializedPdu(pduBytes, 0, pduBytes.Length, connectionHandle, cb);
+            }
         }
 
         private void HandleSendPduOutcome(IncomingTransfer transfer, Exception e)

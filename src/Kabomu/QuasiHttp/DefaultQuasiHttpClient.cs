@@ -18,6 +18,7 @@ namespace Kabomu.QuasiHttp
         {
             _sendProtocol = new SendProtocol();
             _receiveProtocol = new ReceiveProtocol();
+            EventLoop = new DefaultEventLoopApi();
         }
 
         public IEventLoopApi EventLoop
@@ -97,6 +98,11 @@ namespace Kabomu.QuasiHttp
         public void ReceivePdu(byte[] data, int offset, int length, object connectionHandle)
         {
             var pdu = QuasiHttpPdu.Deserialize(data, offset, length);
+            ReceiveDeserializedPdu(pdu, connectionHandle);
+        }
+
+        public void ReceiveDeserializedPdu(QuasiHttpPdu pdu, object connectionHandle)
+        {
             EventLoop.PostCallback(_ =>
             {
                 switch (pdu.PduType)

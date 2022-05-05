@@ -83,11 +83,10 @@ namespace Kabomu.QuasiHttp.Internals
                 Version = QuasiHttpPdu.Version01,
                 PduType = ChunkRetPduType,
                 RequestId = Transfer.RequestId,
-                EmbeddedBody = data,
-                EmbeddedBodyOffset = offset,
-                ContentLength = length
+                Data = data,
+                DataOffset = offset,
+                DataLength = length
             };
-            var pduBytes = pdu.Serialize();
             var cancellationIndicator = new STCancellationIndicator();
             _sendBodyPduCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
@@ -101,7 +100,7 @@ namespace Kabomu.QuasiHttp.Internals
                     }
                 }, null);
             };
-            TransferProtocol.Transport.SendPdu(pduBytes, 0, pduBytes.Length, replyConnectionHandle, cb);
+            TransferProtocol.SendPdu(pdu, replyConnectionHandle, cb);
         }
 
         private void HandleSendPduOutcome(Exception e)

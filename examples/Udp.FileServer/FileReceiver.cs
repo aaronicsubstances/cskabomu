@@ -1,0 +1,95 @@
+﻿using Kabomu.QuasiHttp;
+using NLog;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace Udp.FileServer
+{
+    public class FileReceiver : IQuasiHttpApplication
+    {
+        private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
+
+        private readonly int _port;
+        private readonly string _uploadDirPath;
+
+        public FileReceiver(int port, string uploadDirPath)
+        {
+            _port = port;
+            _uploadDirPath = uploadDirPath;
+        }
+
+        public async void ProcessRequest(QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> cb)
+        {
+            var fileName = request.Headers.Content["f"][0];
+            LOG.Debug("Starting receipt of file {0} from {1}...", fileName, _port);
+
+            Exception transferError = null;
+            try
+            {
+                // ensure directory exists.
+                var directory = new DirectoryInfo(Path.Combine(_uploadDirPath, _port.ToString()));
+                directory.Create();
+                string p = Path.Combine(directory.Name, fileName);
+                using (var fileStream = new FileStream(p, FileMode.Create))
+                {
+                    var wrapper = new AsyncBody(request.Body);
+                    while (true)
+                    {
+                        var res = await wrapper.DataReadAsync();
+                        var data = (byte[])res[0];
+                        var offset = (int)res[1];
+                        var length = (int)res[2];
+                        if (length == 0)
+                        {
+                            break;
+                        }
+                        await fileStream.WriteAsync(data, offset, length);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                transferError = e;
+            }
+
+            LOG.Info(transferError, "File {0} received {1}", fileName, transferError == null ? "successfully" : "with error");
+
+            var response = new QuasiHttpResponseMessage
+            {
+                StatusIndicatesSuccess = transferError == null,
+                StatusMessage = transferError?.Message ?? "OK"
+            };
+            cb.Invoke(null, response);
+        }
+
+        class AsyncBody
+        {
+            private readonly IQuasiHttpBody _body;
+
+            public AsyncBody(IQuasiHttpBody body)
+            {
+                _body = body;
+            }
+
+            public Task<object[]> DataReadAsync()
+            {
+                var tcs = new TaskCompletionSource<object[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _body.OnDataRead((e, d, o, l) =>
+                {
+                    if (e != null)
+                    {
+                        tcs.SetException(e);
+                    }
+                    else
+                    {
+                        tcs.SetResult(new object[] { d, o, l });
+                    }
+                });
+                return tcs.Task;
+            }
+        }
+    }
+}

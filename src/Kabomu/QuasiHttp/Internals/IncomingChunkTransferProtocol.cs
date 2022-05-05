@@ -6,10 +6,6 @@ namespace Kabomu.QuasiHttp.Internals
 {
     internal class IncomingChunkTransferProtocol
     {
-        private static readonly Action<Exception> NullCallback = _ => { };
-
-        private readonly Action<bool> ChunkReadCallback;
-
         private STCancellationIndicator _sendBodyPduCancellationIndicator;
         private object _replyConnectionHandle;
 
@@ -19,11 +15,10 @@ namespace Kabomu.QuasiHttp.Internals
             TransferProtocol = transferProtocol;
             Transfer = transfer;
             ChunkGetPduType = chunkGetPduType;
-            Body = new ChunkedTransferBody(contentLength, contentType, ChunkReadCallback,
-                TransferProtocol.EventLoop);
             _replyConnectionHandle = initialReplyConnectionHandle;
 
-            ChunkReadCallback = OnBodyChunkReadCallback;
+            Body = new ChunkedTransferBody(contentLength, contentType, OnBodyChunkReadCallback,
+                TransferProtocol.EventLoop);
         }
 
         public ITransferProtocol TransferProtocol { get; }
@@ -41,7 +36,7 @@ namespace Kabomu.QuasiHttp.Internals
         {
             try
             {
-                Body.OnDataWrite(data, offset, length);
+                Body.OnDataWrite(data ?? new byte[0], offset, length);
                 Transfer.ResetTimeout();
                 _replyConnectionHandle = connectionHandle;
             }
@@ -82,7 +77,6 @@ namespace Kabomu.QuasiHttp.Internals
                 PduType = ChunkGetPduType,
                 RequestId = Transfer.RequestId
             };
-            var pduBytes = pdu.Serialize();
             var cancellationIndicator = new STCancellationIndicator();
             _sendBodyPduCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
@@ -96,7 +90,7 @@ namespace Kabomu.QuasiHttp.Internals
                     }
                 }, null);
             };
-            TransferProtocol.Transport.SendPdu(pduBytes, 0, pduBytes.Length, _replyConnectionHandle, cb);
+            TransferProtocol.SendPdu(pdu, _replyConnectionHandle, cb);
         }
 
         private void HandleSendPduOutcome(Exception e)
@@ -118,8 +112,7 @@ namespace Kabomu.QuasiHttp.Internals
                 PduType = finPduType,
                 RequestId = Transfer.RequestId
             };
-            var pduBytes = pdu.Serialize();
-            TransferProtocol.Transport.SendPdu(pduBytes, 0, pduBytes.Length, _replyConnectionHandle, NullCallback);
+            TransferProtocol.SendPdu(pdu, _replyConnectionHandle, _ => { });
         }
     }
 }
