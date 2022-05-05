@@ -12,20 +12,17 @@ namespace Kabomu.QuasiHttp.Internals
         private Exception _srcEndError;
 
         public ChunkedTransferBody(int contentLength, string contentType, 
-            Action<object, bool> readCallback, object readCallbackState,
-            IMutexApi mutexApi)
+            Action<bool> readCallback, IMutexApi mutexApi)
         {
             ContentLength = contentLength;
             ContentType = contentType;
             ReadCallback = readCallback;
-            ReadCallbackState = readCallbackState;
             MutexApi = mutexApi ?? new BlockingMutexApi(this);
         }
 
         public int ContentLength { get; }
         public string ContentType { get; }
-        public Action<object, bool> ReadCallback { get; }
-        public object ReadCallbackState { get; }
+        public Action<bool> ReadCallback { get; }
         public IMutexApi MutexApi { get; }
 
         public void OnDataRead(QuasiHttpBodyCallback cb)
@@ -45,7 +42,7 @@ namespace Kabomu.QuasiHttp.Internals
                     cb.Invoke(new Exception("pending read unresolved"), null, 0, 0);
                 }
                 _pendingCb = cb;
-                ReadCallback.Invoke(ReadCallbackState, true);
+                ReadCallback.Invoke(true);
             }, null);
         }
 
@@ -67,21 +64,8 @@ namespace Kabomu.QuasiHttp.Internals
                     OnEndRead(new Exception("received chunk response for no pending chunk request"));
                     return;
                 }
-                if (ContentLength == 0)
+                if (ContentLength >= 0)
                 {
-                    if (length > 0)
-                    {
-                        OnEndRead(new Exception("content length exceeded"));
-                        return;
-                    }
-                }
-                else if (ContentLength > 0)
-                {
-                    if (length == 0)
-                    {
-                        OnEndRead(new Exception("unacceptable zero length chunk if content length is specified"));
-                        return;
-                    }
                     if (_readContentLength + length > ContentLength)
                     {
                         OnEndRead(new Exception("content length exceeded"));
@@ -93,39 +77,10 @@ namespace Kabomu.QuasiHttp.Internals
 
                 _pendingCb.Invoke(null, data, offset, length);
                 _pendingCb = null;
-
-                bool hasMore = true;
-                if (ContentLength >= 0)
-                {
-                    if (_readContentLength == ContentLength)
-                    {
-                        hasMore = false;
-                    }
-                }
-                else if (length == 0)
-                {
-                    hasMore = false;
-                }
-
-                if (!hasMore)
-                {
-                    OnEndRead(null);
-                }
             }, null);
         }
 
-        private void OnEndRead(Exception error)
-        {
-            if (_srcEndError != null)
-            {
-                return;
-            }
-            _srcEndError = error ?? new Exception("end of read");
-            _pendingCb?.Invoke(_srcEndError, null, 0, 0);
-            _pendingCb = null;
-        }
-
-        public void Close()
+        public void OnEndRead(Exception e)
         {
             MutexApi.RunCallback(_ =>
             {
@@ -133,10 +88,10 @@ namespace Kabomu.QuasiHttp.Internals
                 {
                     return;
                 }
-                _srcEndError = new Exception("closed");
+                _srcEndError = e ?? new Exception("end of read");
                 _pendingCb?.Invoke(_srcEndError, null, 0, 0);
                 _pendingCb = null;
-                ReadCallback.Invoke(ReadCallbackState, false);
+                ReadCallback.Invoke(false);
             }, null);
         }
     }
