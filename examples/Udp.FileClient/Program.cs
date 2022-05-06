@@ -25,7 +25,10 @@ namespace Udp.FileClient
             public int? Port { get; set; }
             [Option('d', "upload-dir", Required = false,
                 HelpText = "Path to directory of files to upload. Defaults to current directory")]
-            public string UploadDirPath { get; set; }
+            public string UploadDirPath { get; set; }           
+            [Option('a', "alt", Required = false,
+                HelpText = "Run alternative (currently means serving content lengths)")]
+            public bool? ServeContentLength { get; set; }
         }
 
         static void Main(string[] args)
@@ -33,11 +36,12 @@ namespace Udp.FileClient
             Parser.Default.ParseArguments<Options>(args)
                    .WithParsed<Options>(o =>
                    {
-                       RunMain(o.Port ?? 5002, o.ServerPort ?? 5001, o.UploadDirPath ?? ".").Wait();
+                       RunMain(o.Port ?? 5002, o.ServerPort ?? 5001, o.UploadDirPath ?? ".",
+                           o.ServeContentLength ?? false).Wait();
                    });
         }
 
-        static async Task RunMain(int port, int serverPort, string uploadDirPath)
+        static async Task RunMain(int port, int serverPort, string uploadDirPath, bool serveContentLength)
         {
             var eventLoop = new DefaultEventLoopApi
             {
@@ -71,7 +75,7 @@ namespace Udp.FileClient
                 udpTransport.Start();
                 LOG.Info("Started Udp.FileClient at {0}", port);
 
-                await StartTransferringFiles(instance, serverPort, uploadDirPath);
+                await StartTransferringFiles(instance, serverPort, uploadDirPath, serveContentLength);
             }
             catch (Exception e)
             {
@@ -84,7 +88,8 @@ namespace Udp.FileClient
             }
         }
 
-        private static async Task StartTransferringFiles(IQuasiHttpClient instance, int serverPort, string uploadDirPath)
+        private static async Task StartTransferringFiles(IQuasiHttpClient instance, int serverPort, string uploadDirPath,
+            bool serveContentLength)
         {
             var directory = new DirectoryInfo(uploadDirPath);
             int count = 0;
@@ -95,7 +100,7 @@ namespace Udp.FileClient
             {
                 LOG.Debug("Transferring {0}", f.Name);
                 //tasks.Add(TransferFile(instance, serverPort, f));
-                await TransferFile(instance, serverPort, f);
+                await TransferFile(instance, serverPort, f, serveContentLength);
                 LOG.Info("Successfully transferred {0}", f.Name);
                 bytesTransferred += f.Length;
                 count++;
@@ -106,12 +111,12 @@ namespace Udp.FileClient
             LOG.Info("Successfully transferred {0} bytes ({1} MB) worth of data in {2} files in {3} seconds",
                 bytesTransferred, megaBytesTransferred, count, timeTaken);
         }
-        private static Task TransferFile(IQuasiHttpClient instance, int serverPort, FileInfo f)
+        private static Task TransferFile(IQuasiHttpClient instance, int serverPort, FileInfo f, bool serveContentLength)
         {
             var request = new QuasiHttpRequestMessage
             {
                 Headers = new QuasiHttpKeyValueCollection(),
-                Body = new FileBody(f.DirectoryName, f.Name)
+                Body = new FileBody(f.DirectoryName, f.Name, serveContentLength)
             };
             request.Headers.Content.Add("f", new List<string> { f.Name });
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

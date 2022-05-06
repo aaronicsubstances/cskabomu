@@ -269,7 +269,10 @@ namespace Kabomu.Common
         {
             if (!LocateNextToken(raw, 0, true, false, null))
             {
-                return raw;
+                // escape empty strings with double quotes to resolve ambiguity
+                // of empty rows and singleton containing row serializing to the same
+                // CSV output.
+                return raw == "" ? "\"\"" : raw;
             }
             return '"' + raw.Replace("\"", "\"\"") + '"';
         }
@@ -278,6 +281,10 @@ namespace Kabomu.Common
         {
             if (!LocateNextToken(escaped, 0, true, false, null))
             {
+                if (escaped == "")
+                {
+                    throw new ArgumentException("missing quotes for empty string");
+                }
                 return escaped;
             }
             if (escaped.Length < 2 || !escaped.StartsWith("\"") || !escaped.EndsWith("\""))

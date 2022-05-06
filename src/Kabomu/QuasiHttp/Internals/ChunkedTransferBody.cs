@@ -8,11 +8,12 @@ namespace Kabomu.QuasiHttp.Internals
     internal class ChunkedTransferBody : IQuasiHttpBody
     {
         private QuasiHttpBodyCallback _pendingCb;
+        private int _pendingBytesToRead;
         private int _readContentLength;
         private Exception _srcEndError;
 
         public ChunkedTransferBody(int contentLength, string contentType, 
-            Action<bool> readCallback, IMutexApi mutexApi)
+            Action<int> readCallback, IMutexApi mutexApi)
         {
             ContentLength = contentLength;
             ContentType = contentType;
@@ -22,14 +23,18 @@ namespace Kabomu.QuasiHttp.Internals
 
         public int ContentLength { get; }
         public string ContentType { get; }
-        public Action<bool> ReadCallback { get; }
+        public Action<int> ReadCallback { get; }
         public IMutexApi MutexApi { get; }
 
-        public void OnDataRead(QuasiHttpBodyCallback cb)
+        public void OnDataRead(int bytesToRead, QuasiHttpBodyCallback cb)
         {
             if (cb == null)
             {
                 throw new ArgumentException("null callback");
+            }
+            if (bytesToRead < 0)
+            {
+                throw new ArgumentException("received negative bytes to read");
             }
             MutexApi.RunCallback(_ =>
             {
@@ -42,7 +47,8 @@ namespace Kabomu.QuasiHttp.Internals
                     cb.Invoke(new Exception("pending read unresolved"), null, 0, 0);
                 }
                 _pendingCb = cb;
-                ReadCallback.Invoke(true);
+                _pendingBytesToRead = bytesToRead;
+                ReadCallback.Invoke(bytesToRead);
             }, null);
         }
 
@@ -62,6 +68,11 @@ namespace Kabomu.QuasiHttp.Internals
                 if (_pendingCb == null)
                 {
                     OnEndRead(new Exception("received chunk response for no pending chunk request"));
+                    return;
+                }
+                if (length > _pendingBytesToRead)
+                {
+                    OnEndRead(new Exception("received chunk response larger than pending chunk request size"));
                     return;
                 }
                 if (ContentLength >= 0)
@@ -91,7 +102,7 @@ namespace Kabomu.QuasiHttp.Internals
                 _srcEndError = e ?? new Exception("end of read");
                 _pendingCb?.Invoke(_srcEndError, null, 0, 0);
                 _pendingCb = null;
-                ReadCallback.Invoke(false);
+                ReadCallback.Invoke(-1);
             }, null);
         }
     }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.Common;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -34,12 +35,57 @@ namespace Kabomu.QuasiHttp
 
         public static QuasiHttpPdu Deserialize(byte[] data, int offset, int length)
         {
-            throw new NotImplementedException();
+            var pdu = new QuasiHttpPdu();
+
+            var csv = ByteUtils.BytesToString(data, offset, length);
+            var csvData = CsvUtils.Deserialize(csv);
+            pdu.Version = byte.Parse(csvData[0][0]);
+            pdu.PduType = byte.Parse(csvData[1][0]);
+            pdu.Flags = byte.Parse(csvData[2][0]);
+            pdu.RequestId = int.Parse(csvData[3][0]);
+            pdu.Path = csvData[4][0];
+            pdu.StatusIndicatesSuccess = bool.Parse(csvData[5][0]);
+            pdu.StatusIndicatesClientError = bool.Parse(csvData[6][0]);
+            pdu.StatusMessage = csvData[7][0];
+            pdu.ContentLength = int.Parse(csvData[8][0]);
+            pdu.ContentType = csvData[9][0];
+            pdu.Data = Convert.FromBase64String(csvData[10][0]);
+            pdu.DataLength = pdu.Data.Length;
+            for (int i = 11; i < csvData.Count; i++)
+            {
+                var headerRow = csvData[i];
+                var headerValue = new List<string>(headerRow.GetRange(1, headerRow.Count - 1));
+                if (pdu.Headers == null)
+                {
+                    pdu.Headers = new QuasiHttpKeyValueCollection();
+                }
+                pdu.Headers.Content.Add(headerRow[0], headerValue);
+            }
+            return pdu;
         }
 
         public byte[] Serialize()
         {
-            throw new NotImplementedException();
+            var csvData = new List<List<string>>();
+            csvData.Add(new List<string> { Version.ToString() });
+            csvData.Add(new List<string> { PduType.ToString() });
+            csvData.Add(new List<string> { Flags.ToString() });
+            csvData.Add(new List<string> { RequestId.ToString() });
+            csvData.Add(new List<string> { Path ?? "" });
+            csvData.Add(new List<string> { StatusIndicatesSuccess.ToString() });
+            csvData.Add(new List<string> { StatusIndicatesClientError.ToString() });
+            csvData.Add(new List<string> { StatusMessage ?? "" });
+            csvData.Add(new List<string> { ContentLength.ToString() });
+            csvData.Add(new List<string> { ContentType ?? "" });
+            csvData.Add(new List<string> { Convert.ToBase64String(Data ?? new byte[0], DataOffset, DataLength) });
+            foreach (var header in (Headers ?? new QuasiHttpKeyValueCollection()).Content)
+            {
+                var headerRow = new List<string> { header.Key };
+                headerRow.AddRange(header.Value);
+                csvData.Add(headerRow);
+            }
+            var csv = CsvUtils.Serialize(csvData);
+            return ByteUtils.StringToBytes(csv);
         }
     }
 }

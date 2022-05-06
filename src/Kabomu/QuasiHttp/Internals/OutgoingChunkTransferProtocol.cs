@@ -31,12 +31,22 @@ namespace Kabomu.QuasiHttp.Internals
             Body.OnEndRead(e);
         }
 
-        public void ProcessChunkGetPdu(object connectionHandle)
+        public void ProcessChunkGetPdu(int bytesToRead, object connectionHandle)
         {
-            if (ProtocolUtils.IsOperationPending(_bodyCallbackCancellationIndicator) ||
+            /*if (ProtocolUtils.IsOperationPending(_bodyCallbackCancellationIndicator) ||
                 ProtocolUtils.IsOperationPending(_sendBodyPduCancellationIndicator))
             {
                 Transfer.Abort(new Exception("outgoing chunk transfer protocol violation"));
+                return;
+            }*/
+            if (ProtocolUtils.IsOperationPending(_bodyCallbackCancellationIndicator))
+            {
+                Transfer.Abort(new Exception("outgoing chunk transfer protocol violation (1)"));
+                return;
+            }
+            if (ProtocolUtils.IsOperationPending(_sendBodyPduCancellationIndicator))
+            {
+                Transfer.Abort(new Exception("outgoing chunk transfer protocol violation (2)"));
                 return;
             }
             var cancellationIndicator = new STCancellationIndicator();
@@ -51,7 +61,7 @@ namespace Kabomu.QuasiHttp.Internals
             };
             try
             {
-                Body.OnDataRead(cb);
+                Body.OnDataRead(bytesToRead, cb);
                 Transfer.ResetTimeout();
             }
             catch (Exception e)
@@ -100,7 +110,15 @@ namespace Kabomu.QuasiHttp.Internals
                     }
                 }, null);
             };
-            TransferProtocol.SendPdu(pdu, replyConnectionHandle, cb);
+            try
+            {
+                TransferProtocol.Transport.SendPdu(pdu, replyConnectionHandle, cb);
+            }
+            catch (Exception e)
+            {
+                cancellationIndicator.Cancel();
+                HandleSendPduOutcome(e);
+            }
         }
 
         private void HandleSendPduOutcome(Exception e)

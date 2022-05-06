@@ -86,7 +86,7 @@ namespace Kabomu.QuasiHttp
         }
 
         public void Send(QuasiHttpRequestMessage request, object connectionHandleOrRemoteEndpoint,
-            QuasiHttpPostOptions options, Action<Exception, QuasiHttpResponseMessage> cb)
+            QuasiHttpSendOptions options, Action<Exception, QuasiHttpResponseMessage> cb)
         {
             EventLoop.PostCallback(_ =>
             {
@@ -95,13 +95,7 @@ namespace Kabomu.QuasiHttp
             }, null);
         }
 
-        public void ReceivePdu(byte[] data, int offset, int length, object connectionHandle)
-        {
-            var pdu = QuasiHttpPdu.Deserialize(data, offset, length);
-            ReceiveDeserializedPdu(pdu, connectionHandle);
-        }
-
-        public void ReceiveDeserializedPdu(QuasiHttpPdu pdu, object connectionHandle)
+        public void ReceivePdu(QuasiHttpPdu pdu, object connectionHandle)
         {
             EventLoop.PostCallback(_ =>
             {

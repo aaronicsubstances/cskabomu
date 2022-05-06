@@ -46,19 +46,9 @@ namespace Kabomu.QuasiHttp.Internals
             }
         }
 
-        private void OnBodyChunkReadCallback(bool read)
+        private void OnBodyChunkReadCallback(int bytesToRead)
         {
-            if (read)
-            {
-                if (ProtocolUtils.IsOperationPending(_sendBodyPduCancellationIndicator))
-                {
-                    Transfer.Abort(new Exception("incoming chunk transfer protocol violation"));
-                    return;
-                }
-
-                SendChunkGetPdu();
-            }
-            else
+            if (bytesToRead < 0)
             {
                 SendFinPdu();
 
@@ -67,15 +57,26 @@ namespace Kabomu.QuasiHttp.Internals
                     Transfer.Abort(null);
                 }
             }
+            else 
+            {
+                if (ProtocolUtils.IsOperationPending(_sendBodyPduCancellationIndicator))
+                {
+                    Transfer.Abort(new Exception("incoming chunk transfer protocol violation"));
+                    return;
+                }
+
+                SendChunkGetPdu(bytesToRead);
+            }
         }
 
-        private void SendChunkGetPdu()
+        private void SendChunkGetPdu(int bytesToRead)
         {
             var pdu = new QuasiHttpPdu
             {
                 Version = QuasiHttpPdu.Version01,
                 PduType = ChunkGetPduType,
-                RequestId = Transfer.RequestId
+                RequestId = Transfer.RequestId,
+                ContentLength = bytesToRead
             };
             var cancellationIndicator = new STCancellationIndicator();
             _sendBodyPduCancellationIndicator = cancellationIndicator;
@@ -90,7 +91,15 @@ namespace Kabomu.QuasiHttp.Internals
                     }
                 }, null);
             };
-            TransferProtocol.SendPdu(pdu, _replyConnectionHandle, cb);
+            try
+            {
+                TransferProtocol.Transport.SendPdu(pdu, _replyConnectionHandle, cb);
+            }
+            catch (Exception e)
+            {
+                cancellationIndicator.Cancel();
+                HandleSendPduOutcome(e);
+            }
         }
 
         private void HandleSendPduOutcome(Exception e)
@@ -112,7 +121,7 @@ namespace Kabomu.QuasiHttp.Internals
                 PduType = finPduType,
                 RequestId = Transfer.RequestId
             };
-            TransferProtocol.SendPdu(pdu, _replyConnectionHandle, _ => { });
+            TransferProtocol.Transport.SendPdu(pdu, _replyConnectionHandle, _ => { });
         }
     }
 }

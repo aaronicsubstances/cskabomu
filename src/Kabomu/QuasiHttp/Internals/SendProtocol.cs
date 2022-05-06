@@ -19,7 +19,7 @@ namespace Kabomu.QuasiHttp.Internals
 
         public void ProcessOutgoingRequest(QuasiHttpRequestMessage request,
             object connectionHandleOrRemoteEndpoint,
-            QuasiHttpPostOptions options,
+            QuasiHttpSendOptions options,
             Action<Exception, QuasiHttpResponseMessage> cb)
         {
             if (Transport.DirectSendRequestProcessingEnabled)
@@ -89,19 +89,14 @@ namespace Kabomu.QuasiHttp.Internals
                     }
                 }, null);
             };
-            SendPdu(pdu, connectionHandle, cb);
-        }
-
-        public void SendPdu(QuasiHttpPdu pdu, object connectionHandle, Action<Exception> cb)
-        {
-            if (Transport.SerializingEnabled)
+            try
             {
                 Transport.SendPdu(pdu, connectionHandle, cb);
             }
-            else
+            catch (Exception e)
             {
-                var pduBytes = pdu.Serialize();
-                Transport.SendSerializedPdu(pduBytes, 0, pduBytes.Length, connectionHandle, cb);
+                cancellationIndicator.Cancel();
+                HandleSendPduOutcome(transfer, e);
             }
         }
 
@@ -112,7 +107,7 @@ namespace Kabomu.QuasiHttp.Internals
                 return;
             }
             var transfer = _outgoingTransfers[pdu.RequestId];
-            transfer.RequestBodyProtocol.ProcessChunkGetPdu(connectionHandle);
+            transfer.RequestBodyProtocol.ProcessChunkGetPdu(pdu.ContentLength, connectionHandle);
         }
 
         public void ProcessRequestFinPdu(QuasiHttpPdu pdu)

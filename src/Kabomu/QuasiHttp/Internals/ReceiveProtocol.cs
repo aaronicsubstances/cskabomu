@@ -70,6 +70,7 @@ namespace Kabomu.QuasiHttp.Internals
             }
             catch (Exception e)
             {
+                cancellationIndicator.Cancel();
                 HandleApplicationProcessingOutcome(transfer, e, null, connectionHandle);
             }
         }
@@ -155,19 +156,14 @@ namespace Kabomu.QuasiHttp.Internals
                     }
                 }, null);
             };
-            SendPdu(pdu, connectionHandle, cb);
-        }
-
-        public void SendPdu(QuasiHttpPdu pdu, object connectionHandle, Action<Exception> cb)
-        {
-            if (Transport.SerializingEnabled)
+            try
             {
                 Transport.SendPdu(pdu, connectionHandle, cb);
             }
-            else
+            catch (Exception e)
             {
-                var pduBytes = pdu.Serialize();
-                Transport.SendSerializedPdu(pduBytes, 0, pduBytes.Length, connectionHandle, cb);
+                cancellationIndicator.Cancel();
+                HandleSendPduOutcome(transfer, e);
             }
         }
 
@@ -187,7 +183,7 @@ namespace Kabomu.QuasiHttp.Internals
                 return;
             }
             var transfer = _incomingTransfers[pdu.RequestId];
-            transfer.ResponseBodyProtocol.ProcessChunkGetPdu(connectionHandle);
+            transfer.ResponseBodyProtocol.ProcessChunkGetPdu(pdu.ContentLength, connectionHandle);
         }
 
         public void ProcessResponseFinPdu(QuasiHttpPdu pdu)
