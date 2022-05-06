@@ -20,7 +20,7 @@ namespace Kabomu.Tests.Common
         {
             return new List<object[]>
             {
-                new object[]{ "", "" },
+                new object[]{ "", "\"\"" },
                 new object[]{ "d", "d" },
                 new object[]{ "\n", "\"\n\"" },
                 new object[]{ "\r", "\"\r\"" },
@@ -41,7 +41,7 @@ namespace Kabomu.Tests.Common
         {
             return new List<object[]>
             {
-                new object[]{ "", "" },
+                new object[]{ "\"\"", "" },
                 new object[]{ "d", "d" },
                 new object[]{ "\"\n\"", "\n" },
                 new object[]{ "\"\r\"", "\r" },
@@ -64,6 +64,7 @@ namespace Kabomu.Tests.Common
         {
             return new List<object[]>
             {
+                new object[]{ "" },
                 new object[]{ "\"" },
                 new object[]{ "d\"" },
                 new object[]{ "\"\"\"" },
@@ -87,6 +88,20 @@ namespace Kabomu.Tests.Common
 
             var rows = new List<List<string>>();
             var expected = "";
+            testData.Add(new object[] { rows, expected });
+
+            rows = new List<List<string>>
+            {
+                new List<string>{ "" }
+            };
+            expected = "\"\"\n";
+            testData.Add(new object[] { rows, expected });
+
+            rows = new List<List<string>>
+            {
+                new List<string>()
+            };
+            expected = "\n";
             testData.Add(new object[] { rows, expected });
 
             rows = new List<List<string>>
@@ -142,14 +157,28 @@ namespace Kabomu.Tests.Common
             var expected = new List<List<string>>();
             testData.Add(new object[] { csv, expected });
 
-            csv = ",\n";
+            csv = "\"\"";
+            expected = new List<List<string>>
+            {
+                new List<string>{ "" }
+            };
+            testData.Add(new object[] { csv, expected });
+
+            csv = "\n";
+            expected = new List<List<string>>
+            {
+                new List<string>()
+            };
+            testData.Add(new object[] { csv, expected });
+
+            csv = "\"\",\"\"\n";
             expected = new List<List<string>>
             {
                 new List<string>{ "", "" }
             };
             testData.Add(new object[] { csv, expected });
 
-            csv = ",";
+            csv = "\"\",\"\"";
             expected = new List<List<string>>
             {
                 new List<string>{ "", "" }
@@ -172,7 +201,7 @@ namespace Kabomu.Tests.Common
             };
             testData.Add(new object[] { csv, expected });
 
-            csv = "a,\nb,c";
+            csv = "a,\"\"\nb,c";
             expected = new List<List<string>>
             {
                 new List<string>{ "a", "" },

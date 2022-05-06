@@ -38,7 +38,7 @@ namespace Udp.FileServer
                     var wrapper = new AsyncBody(request.Body);
                     while (true)
                     {
-                        var res = await wrapper.DataReadAsync();
+                        var res = await wrapper.DataReadAsync(4096);
                         var data = (byte[])res[0];
                         var offset = (int)res[1];
                         var length = (int)res[2];
@@ -74,10 +74,10 @@ namespace Udp.FileServer
                 _body = body;
             }
 
-            public Task<object[]> DataReadAsync()
+            public Task<object[]> DataReadAsync(int bytesToRead)
             {
                 var tcs = new TaskCompletionSource<object[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-                _body.OnDataRead((e, d, o, l) =>
+                _body.OnDataRead(bytesToRead, (e, d, o, l) =>
                 {
                     if (e != null)
                     {

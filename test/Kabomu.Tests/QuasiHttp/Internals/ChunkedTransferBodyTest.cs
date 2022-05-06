@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Bodies
+namespace Kabomu.Tests.QuasiHttp.Internals
 {
-    public class JsonBody
+    public class ChunkedTransferBodyTest
     {
     }
 }

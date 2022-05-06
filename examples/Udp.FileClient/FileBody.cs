@@ -13,22 +13,32 @@ namespace Udp.FileClient
         private readonly FileStream _fileStream;
         private readonly byte[] _buffer = new byte[8192];
 
-        public FileBody(string uploadDirPath, string fileName)
+        public FileBody(string uploadDirPath, string fileName, bool serveContentLength)
         {
             _fileName = fileName;
-            _fileStream = new FileStream(Path.Combine(uploadDirPath, fileName), FileMode.Open, FileAccess.Read,
+            FileInfo f = new FileInfo(Path.Combine(uploadDirPath, fileName));
+            _fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                     FileShare.Read);
+            if (serveContentLength)
+            {
+                ContentLength = (int)f.Length;
+            }
+            else
+            {
+                ContentLength = -1;
+            }
         }
 
         public string ContentType => "application/octet-stream";
 
-        public int ContentLength => -1;
+        public int ContentLength { get; }
 
-        public async void OnDataRead(QuasiHttpBodyCallback cb)
+        public async void OnDataRead(int bytesToRead, QuasiHttpBodyCallback cb)
         {
             try
             {
-                int bytesRead = await _fileStream.ReadAsync(_buffer, 0, _buffer.Length);
+                bytesToRead = Math.Min(bytesToRead, _buffer.Length);
+                int bytesRead = await _fileStream.ReadAsync(_buffer, 0, bytesToRead);
                 cb.Invoke(null, _buffer, 0, bytesRead);
             }
             catch (Exception e)

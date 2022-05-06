@@ -9,10 +9,9 @@ namespace Kabomu.QuasiHttp
         int DefaultTimeoutMillis { get; set; }
         IQuasiHttpApplication Application { get; set; }
         IQuasiHttpTransport Transport { get; set; }
-        void Send(QuasiHttpRequestMessage request, object connectionHandleOrRemoteEndpoint, 
-            QuasiHttpPostOptions options, Action<Exception, QuasiHttpResponseMessage> cb);
-        void ReceivePdu(byte[] data, int offset, int length, object connectionHandle);
-        void ReceiveDeserializedPdu(QuasiHttpPdu pdu, object connectionHandle);
+        void Send(QuasiHttpRequestMessage request, object remoteEndpoint, 
+            QuasiHttpSendOptions options, Action<Exception, QuasiHttpResponseMessage> cb);
+        void ReceivePdu(QuasiHttpPdu pdu, object connectionHandle);
         void Reset(Exception cause, Action<Exception> cb);
     }
 }
