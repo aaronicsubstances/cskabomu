@@ -4,18 +4,18 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp.Internals
 {
-    internal class IncomingUnackedChunkTransferProtocol : IChunkTransferProtocol
+    internal class IncomingChunkTransferProtocol : IChunkTransferProtocol
     {
         private STCancellationIndicator _sendBodyPduCancellationIndicator;
 
-        public IncomingUnackedChunkTransferProtocol(ITransferProtocol transferProtocol, Transfer transfer, byte chunkGetPduType, 
+        public IncomingChunkTransferProtocol(ITransferProtocol transferProtocol, Transfer transfer, byte chunkGetPduType, 
             int contentLength, string contentType)
         {
             TransferProtocol = transferProtocol;
             Transfer = transfer;
             ChunkGetPduType = chunkGetPduType;
 
-            Body = new ChunkedTransferBody(contentLength, contentType, OnBodyChunkReadCallback,
+            Body = new ChunkTransferBody(contentLength, contentType, OnBodyChunkReadCallback,
                 TransferProtocol.EventLoop);
         }
 
@@ -39,7 +39,7 @@ namespace Kabomu.QuasiHttp.Internals
         {
             try
             {
-                ((ChunkedTransferBody)Body).OnDataWrite(data ?? new byte[0], offset, length);
+                ((ChunkTransferBody)Body).OnDataWrite(data ?? new byte[0], offset, length);
                 TransferProtocol.ResetTimeout(Transfer);
             }
             catch (Exception e)

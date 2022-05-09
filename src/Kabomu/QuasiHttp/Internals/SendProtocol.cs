@@ -155,8 +155,8 @@ namespace Kabomu.QuasiHttp.Internals
                 pdu.ContentLength = request.Body.ContentLength;
                 if (Transport.IsChunkDeliveryAcknowledged)
                 {
-                    transfer.OutgoingRequestBodyProtocol = new OutgoingAckedChunkTransferProtocol(this,
-                        transfer, request.Body);
+                    new AckedTransferProtocol(false, request.Body, Transport,
+                        transfer.Connection).Start();
                 }
                 else
                 {
@@ -168,7 +168,7 @@ namespace Kabomu.QuasiHttp.Internals
                     }
                     else
                     {
-                        transfer.OutgoingRequestBodyProtocol = new OutgoingUnackedChunkTransferProtocol(this, transfer,
+                        transfer.OutgoingRequestBodyProtocol = new OutgoingChunkTransferProtocol(this, transfer,
                             QuasiHttpPdu.PduTypeRequestChunkRet, request.Body);
                     }
                 }
@@ -255,8 +255,11 @@ namespace Kabomu.QuasiHttp.Internals
                 }
                 if (pdu.ContentLength != 0)
                 {
-                    transfer.IncomingResponseBodyProtocol = new IncomingAckedChunkTransferProtocol();
-                    response.Body = transfer.IncomingResponseBodyProtocol.Body;
+                    response.Body = new AckedTransferBody(true, pdu.ContentLength,
+                        pdu.ContentType, Transport, transfer.Connection, EventLoop);
+                    // Prevent aborting of transfer from closing the connection,
+                    // since transfer of body will be using it.
+                    transfer.Connection = null;
                 }
             }
             else
@@ -268,7 +271,7 @@ namespace Kabomu.QuasiHttp.Internals
                 }
                 else if (pdu.ContentLength != 0)
                 {
-                    transfer.IncomingResponseBodyProtocol = new IncomingUnackedChunkTransferProtocol(this, transfer,
+                    transfer.IncomingResponseBodyProtocol = new IncomingChunkTransferProtocol(this, transfer,
                         QuasiHttpPdu.PduTypeResponseChunkGet, pdu.ContentLength,
                         pdu.ContentType);
                     response.Body = transfer.IncomingResponseBodyProtocol.Body;

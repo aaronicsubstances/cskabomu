@@ -5,12 +5,12 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp.Internals
 {
-    internal class OutgoingUnackedChunkTransferProtocol : IChunkTransferProtocol
+    internal class OutgoingChunkTransferProtocol : IChunkTransferProtocol
     {
         private STCancellationIndicator _bodyCallbackCancellationIndicator;
         private STCancellationIndicator _sendBodyPduCancellationIndicator;
 
-        public OutgoingUnackedChunkTransferProtocol(ITransferProtocol transferProtocol, Transfer transfer, byte chunkRetPduType,
+        public OutgoingChunkTransferProtocol(ITransferProtocol transferProtocol, Transfer transfer, byte chunkRetPduType,
             IQuasiHttpBody body)
         {
             TransferProtocol = transferProtocol;
