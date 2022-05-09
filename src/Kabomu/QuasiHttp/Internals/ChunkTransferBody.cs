@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp.Internals
 {
-    internal class ChunkedTransferBody : IQuasiHttpBody
+    internal class ChunkTransferBody : IQuasiHttpBody
     {
         private Action<Exception, int> _pendingCb;
         private byte[] _pendingData;
@@ -14,7 +14,7 @@ namespace Kabomu.QuasiHttp.Internals
         private int _readContentLength;
         private Exception _srcEndError;
 
-        public ChunkedTransferBody(int contentLength, string contentType, 
+        public ChunkTransferBody(int contentLength, string contentType, 
             Action<int> readCallback, IMutexApi mutexApi)
         {
             ContentLength = contentLength;
@@ -88,10 +88,10 @@ namespace Kabomu.QuasiHttp.Internals
                         OnEndRead(new Exception("content length exceeded"));
                         return;
                     }
+                    _readContentLength += length;
                 }
 
                 Array.Copy(data, offset, _pendingData, _pendingDataOffset, length);
-                _readContentLength += length;
                 _pendingCb.Invoke(null, length);
                 _pendingCb = null;
             }, null);
