@@ -12,54 +12,51 @@ namespace Kabomu.Examples.Common
     {
         private readonly UdpClient _udpClient;
         private readonly CancellationToken _cancellationToken;
+        private readonly Dictionary<int, QpcTransaction> _transactions;
+        private readonly Random _randGen = new Random();
 
         public UdpTransport(int port, CancellationToken cancellationToken)
         {
             _udpClient = new UdpClient(port);
             _cancellationToken = cancellationToken;
+            _transactions = new Dictionary<int, QpcTransaction>();
         }
 
         public IQuasiHttpClient Upstream { get; set; }
-
+        public IEventLoopApi EventLoop { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
-
-        public int MaximumChunkSize => 30_000;
-
+        public int MaximumChunkSize => 65_000;
         public bool DirectSendRequestProcessingEnabled => false;
-
         public bool IsChunkDeliveryAcknowledged => false;
+        public int MinRetryBackoffMillis { get; set; }
+        public int MaxRetryBackoffMillis { get; set; }
+        public int MaxRetryCount { get; set; }
+        public int TimeWaitMillis { get; set; }
 
-        public async void Write(object connection, byte[] data, int offset, int length, 
+        public void ProcessSendRequest(object remoteEndpoint, QuasiHttpRequestMessage request,
+            Action<Exception, QuasiHttpResponseMessage> cb)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Write(object connection, byte[] data, int offset, int length, 
             Action<Exception> cb)
         {
-            IPEndPoint remoteEndpoint;
-            if (connection is int)
+            var transaction = (QpcTransaction)connection;
+            if (transaction.Data != null)
             {
-                remoteEndpoint = new IPEndPoint(IPAddress.Loopback, (int)connection);
+                throw new InvalidOperationException();
             }
-            else
-            {
-                remoteEndpoint = (IPEndPoint)connection;
-            }
-            var datagram = Serialize(connection, data, offset, length);
-            try
-            {
-                int sent = await _udpClient.SendAsync(datagram, datagram.Length, remoteEndpoint);
-                if (sent != datagram.Length)
-                {
-                    throw new Exception("sent less bytes");
-                }
-                else
-                {
-                    // NB: Can be sent even if target port is not bound.
-                }
-                cb.Invoke(null);
-            }
-            catch (Exception e)
-            {
-                cb.Invoke(e);
-                ErrorHandler?.Invoke(e, "error encountered during sending");
-            }
+            transaction.Data = data;
+            transaction.DataOffset = offset;
+            transaction.DataLength = length;
+            transaction.RequestCallback = cb;
+            RetrySendPdu(transaction);
+        }
+
+        public void Read(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
+        {
+            throw new NotImplementedException();
         }
 
         public async void Start()
@@ -69,11 +66,8 @@ namespace Kabomu.Examples.Common
                 try
                 {
                     var datagram = await _udpClient.ReceiveAsync();
-                    object[] connectionAndHeaderLen = new object[2];
-                    Deserialize(datagram.Buffer, 0, connectionAndHeaderLen);
-                    var connection = connectionAndHeaderLen[0];
-                    int headerLen = (int)connectionAndHeaderLen[1];
-                    Upstream.OnReceive(connection, datagram.Buffer, headerLen, datagram.Buffer.Length - headerLen);
+                    var pdu = UdpTransportDatagram.Deserialize(datagram.Buffer, 0, datagram.Buffer.Length);
+                    EventLoop.PostCallback(_ => ProcessReceivedPdu(datagram.RemoteEndPoint, pdu), null);
                 }
                 catch (Exception e)
                 {
@@ -90,42 +84,143 @@ namespace Kabomu.Examples.Common
             _udpClient.Dispose();
         }
 
-        private byte[] Serialize(object connection, byte[] data, int offset, int length)
+        private void ProcessReceivedPdu(IPEndPoint remoteEndPoint, UdpTransportDatagram pdu)
         {
-            var guid = (string)connection;
-            var datagram = new byte[33 + length];
-            datagram[0] = 0;
-            Array.Copy(ByteUtils.StringToBytes(guid), 0, datagram, 1, 32);
-            Array.Copy(data, offset, datagram, 0, length);
-            return datagram;
-        }
-
-        private void Deserialize(byte[] data, int offset, object[] connectionAndHeaderLen)
-        {
-            connectionAndHeaderLen[0] = ByteUtils.BytesToString(data, offset + 1, 32);
-            connectionAndHeaderLen[1] = 33;
+            QpcTransaction transaction;
+            if (pdu.PduType == UdpTransportDatagram.PduTypeRequest)
+            {
+                if (_transactions.ContainsKey(pdu.RequestId))
+                {
+                    RetrySendPdu(_transactions[pdu.RequestId]);
+                    return;
+                }
+                transaction = new QpcTransaction
+                {
+                    RemoteEndpoint = remoteEndPoint,
+                    RequestId = pdu.RequestId,
+                    PduType = UdpTransportDatagram.PduTypeResponse,
+                };
+                _transactions.Add(pdu.RequestId, transaction);
+            }
+            else if (pdu.PduType == UdpTransportDatagram.PduTypeResponse)
+            {
+                transaction = _transactions[pdu.RequestId];
+            }
+            else
+            {
+                throw new Exception("unknown UDP transport pdu type: " + pdu.PduType);
+            }
+            Upstream.OnReceive(transaction, pdu.Data, pdu.DataOffset, pdu.DataLength);
         }
 
         public void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb)
         {
-            var guid = Guid.NewGuid().ToString("n");
-            cb.Invoke(null, guid);
+            var transaction = new QpcTransaction
+            {
+                PduType = UdpTransportDatagram.PduTypeRequest
+            };
+            if (remoteEndpoint is int)
+            {
+                transaction.RemoteEndpoint = new IPEndPoint(IPAddress.Loopback, (int)remoteEndpoint);
+            }
+            else
+            {
+                transaction.RemoteEndpoint = (IPEndPoint)remoteEndpoint;
+            }
+            transaction.RequestId = _randGen.Next();
+            _transactions.Add(transaction.RequestId, transaction);
+            cb.Invoke(null, transaction);
         }
 
         public void ReleaseConnection(object connection)
         {
-            // nothing to do.
+            var transaction = (QpcTransaction)connection;
+            if (transaction.Data == null)
+            {
+                AbortTransaction(transaction, null);
+                return;
+            }
+            transaction.TimeWaitId = EventLoop.ScheduleTimeout(TimeWaitMillis, _ =>
+            {
+                AbortTransaction(transaction, null);
+            }, null);
         }
 
-        public void Read(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
+        private void RetrySendPdu(QpcTransaction transaction)
         {
-            throw new NotImplementedException();
+            var pdu = new UdpTransportDatagram
+            {
+                Version = UdpTransportDatagram.Version01,
+                PduType = transaction.PduType,
+                RequestId = transaction.RequestId,
+                Data = transaction.Data,
+                DataOffset = transaction.DataOffset,
+                DataLength = transaction.DataLength
+            };
+            var datagram = pdu.Serialize();
+            try
+            {
+                _udpClient.BeginSend(datagram, datagram.Length, transaction.RemoteEndpoint,
+                    new AsyncCallback(HandleSendPduOutcome), transaction);
+            }
+            catch (Exception e)
+            {
+                AbortTransaction(transaction, e);
+            }
         }
 
-        public void ProcessSendRequest(object remoteEndpoint, QuasiHttpRequestMessage request,
-            Action<Exception, QuasiHttpResponseMessage> cb)
+        private void HandleSendPduOutcome(IAsyncResult ar)
         {
-            throw new NotImplementedException();
+            var transaction = (QpcTransaction)ar.AsyncState;
+            EventLoop.PostCallback(_ =>
+            {
+                if (!_transactions.ContainsKey(transaction.RequestId))
+                {
+                    return;
+                }
+                try
+                {
+                    int sent = _udpClient.EndSend(ar);
+                    // NB: Can be sent even if target port is not bound.
+                    if (sent != transaction.DataLength)
+                    {
+                        throw new Exception("sent less bytes");
+                    }
+                    transaction.RequestCallback?.Invoke(null);
+                    transaction.RequestCallback = null;
+                    if (transaction.PduType == UdpTransportDatagram.PduTypeRequest)
+                    {
+                        int backoffMillis = _randGen.Next(MinRetryBackoffMillis,
+                            MaxRetryBackoffMillis + 1);
+                        transaction.RetryBackoffTimeoutId = EventLoop.ScheduleTimeout(backoffMillis,
+                            _ => HandleRetryBackoffTimeout(transaction), null);
+                    }
+                }
+                catch (Exception e)
+                {
+                    AbortTransaction(transaction, e);
+                }
+            }, null);
+        }
+
+        private void HandleRetryBackoffTimeout(QpcTransaction transaction)
+        {
+            if (transaction.RetryCount < MaxRetryCount)
+            {
+                transaction.RetryCount++;
+                RetrySendPdu(transaction);
+            }
+        }
+
+        private void AbortTransaction(QpcTransaction transaction, Exception e)
+        {
+            if (!_transactions.Remove(transaction.RequestId))
+            {
+                return;
+            }
+            EventLoop.CancelTimeout(transaction.RetryBackoffTimeoutId);
+            EventLoop.CancelTimeout(transaction.TimeWaitId);
+            transaction.RequestCallback?.Invoke(e);
         }
     }
 }
