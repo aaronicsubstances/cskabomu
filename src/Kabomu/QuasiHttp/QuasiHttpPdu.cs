@@ -21,7 +21,6 @@ namespace Kabomu.QuasiHttp
         public byte Version { get; set; }
         public byte PduType { get; set; }
         public byte Flags { get; set; }
-        public int RequestId { get; set; }
         public string Path { get; set; }
         public bool StatusIndicatesSuccess { get; set; }
         public bool StatusIndicatesClientError { get; set; }
@@ -42,7 +41,6 @@ namespace Kabomu.QuasiHttp
             pdu.Version = byte.Parse(csvData[0][0]);
             pdu.PduType = byte.Parse(csvData[1][0]);
             pdu.Flags = byte.Parse(csvData[2][0]);
-            pdu.RequestId = int.Parse(csvData[3][0]);
             pdu.Path = csvData[4][0];
             pdu.StatusIndicatesSuccess = bool.Parse(csvData[5][0]);
             pdu.StatusIndicatesClientError = bool.Parse(csvData[6][0]);
@@ -51,7 +49,7 @@ namespace Kabomu.QuasiHttp
             pdu.ContentType = csvData[9][0];
             pdu.Data = Convert.FromBase64String(csvData[10][0]);
             pdu.DataLength = pdu.Data.Length;
-            for (int i = 11; i < csvData.Count; i++)
+            for (int i = 10; i < csvData.Count; i++)
             {
                 var headerRow = csvData[i];
                 var headerValue = new List<string>(headerRow.GetRange(1, headerRow.Count - 1));
@@ -70,7 +68,6 @@ namespace Kabomu.QuasiHttp
             csvData.Add(new List<string> { Version.ToString() });
             csvData.Add(new List<string> { PduType.ToString() });
             csvData.Add(new List<string> { Flags.ToString() });
-            csvData.Add(new List<string> { RequestId.ToString() });
             csvData.Add(new List<string> { Path ?? "" });
             csvData.Add(new List<string> { StatusIndicatesSuccess.ToString() });
             csvData.Add(new List<string> { StatusIndicatesClientError.ToString() });

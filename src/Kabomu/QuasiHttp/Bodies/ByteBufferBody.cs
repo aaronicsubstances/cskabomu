@@ -30,7 +30,7 @@ namespace Kabomu.QuasiHttp.Bodies
         public string ContentType { get; }
         public IMutexApi MutexApi { get; }
 
-        public void OnDataRead(int bytesToRead, QuasiHttpBodyCallback cb)
+        public void OnDataRead(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
             if (cb == null)
             {
@@ -44,12 +44,13 @@ namespace Kabomu.QuasiHttp.Bodies
             {
                 if (_srcEndError != null)
                 {
-                    cb.Invoke(_srcEndError, null, 0, 0);
+                    cb.Invoke(_srcEndError, 0);
                     return;
                 }
                 var lengthToUse = Math.Min(ContentLength - _bytesRead, bytesToRead);
-                cb.Invoke(null, Buffer, Offset + _bytesRead, lengthToUse);
+                Array.Copy(Buffer, Offset, data, offset, lengthToUse);
                 _bytesRead += lengthToUse;
+                cb.Invoke(null, lengthToUse);
             }, null);
         }
 

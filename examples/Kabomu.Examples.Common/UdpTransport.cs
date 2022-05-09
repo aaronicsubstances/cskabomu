@@ -23,29 +23,25 @@ namespace Kabomu.Examples.Common
 
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
-        public int MaxChunkSize => 30_000;
+        public int MaximumChunkSize => 30_000;
 
         public bool DirectSendRequestProcessingEnabled => false;
 
-        public void ProcessSendRequest(QuasiHttpRequestMessage request, object connectionHandleOrRemoteEndpoint, 
-            Action<Exception, QuasiHttpResponseMessage> cb)
-        {
-            throw new NotImplementedException();
-        }
+        public bool IsChunkDeliveryAcknowledged => false;
 
-        public async void SendPdu(QuasiHttpPdu pdu, object connectionHandleOrRemoteEndpoint, 
+        public async void Write(object connection, byte[] data, int offset, int length, 
             Action<Exception> cb)
         {
             IPEndPoint remoteEndpoint;
-            if (connectionHandleOrRemoteEndpoint is int)
+            if (connection is int)
             {
-                remoteEndpoint = new IPEndPoint(IPAddress.Loopback, (int)connectionHandleOrRemoteEndpoint);
+                remoteEndpoint = new IPEndPoint(IPAddress.Loopback, (int)connection);
             }
             else
             {
-                remoteEndpoint = (IPEndPoint)connectionHandleOrRemoteEndpoint;
+                remoteEndpoint = (IPEndPoint)connection;
             }
-            var datagram = pdu.Serialize();
+            var datagram = Serialize(connection, data, offset, length);
             try
             {
                 int sent = await _udpClient.SendAsync(datagram, datagram.Length, remoteEndpoint);
@@ -73,8 +69,11 @@ namespace Kabomu.Examples.Common
                 try
                 {
                     var datagram = await _udpClient.ReceiveAsync();
-                    var pdu = QuasiHttpPdu.Deserialize(datagram.Buffer, 0, datagram.Buffer.Length);
-                    Upstream.ReceivePdu(pdu, datagram.RemoteEndPoint);
+                    object[] connectionAndHeaderLen = new object[2];
+                    Deserialize(datagram.Buffer, 0, connectionAndHeaderLen);
+                    var connection = connectionAndHeaderLen[0];
+                    int headerLen = (int)connectionAndHeaderLen[1];
+                    Upstream.OnReceive(connection, datagram.Buffer, headerLen, datagram.Buffer.Length - headerLen);
                 }
                 catch (Exception e)
                 {
@@ -89,6 +88,44 @@ namespace Kabomu.Examples.Common
                 }
             }
             _udpClient.Dispose();
+        }
+
+        private byte[] Serialize(object connection, byte[] data, int offset, int length)
+        {
+            var guid = (string)connection;
+            var datagram = new byte[33 + length];
+            datagram[0] = 0;
+            Array.Copy(ByteUtils.StringToBytes(guid), 0, datagram, 1, 32);
+            Array.Copy(data, offset, datagram, 0, length);
+            return datagram;
+        }
+
+        private void Deserialize(byte[] data, int offset, object[] connectionAndHeaderLen)
+        {
+            connectionAndHeaderLen[0] = ByteUtils.BytesToString(data, offset + 1, 32);
+            connectionAndHeaderLen[1] = 33;
+        }
+
+        public void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb)
+        {
+            var guid = Guid.NewGuid().ToString("n");
+            cb.Invoke(null, guid);
+        }
+
+        public void ReleaseConnection(object connection)
+        {
+            // nothing to do.
+        }
+
+        public void Read(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ProcessSendRequest(object remoteEndpoint, QuasiHttpRequestMessage request,
+            Action<Exception, QuasiHttpResponseMessage> cb)
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -115,12 +115,12 @@ namespace Udp.FileClient
         {
             var request = new QuasiHttpRequestMessage
             {
-                Headers = new QuasiHttpKeyValueCollection(),
+                Headers = new Dictionary<string, List<string>>(),
                 Body = new FileBody(f.DirectoryName, f.Name, serveContentLength)
             };
-            request.Headers.Content.Add("f", new List<string> { f.Name });
+            request.Headers.Add("f", new List<string> { f.Name });
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            instance.Send(request, serverPort, null,
+            instance.Send(serverPort, request, null,
                 (ex, res) =>
                 {
                     if (ex != null)

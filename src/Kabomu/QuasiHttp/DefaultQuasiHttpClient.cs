@@ -85,45 +85,46 @@ namespace Kabomu.QuasiHttp
             }
         }
 
-        public void Send(QuasiHttpRequestMessage request, object connectionHandleOrRemoteEndpoint,
+        public void Send(object remoteEndpoint, QuasiHttpRequestMessage request,
             QuasiHttpSendOptions options, Action<Exception, QuasiHttpResponseMessage> cb)
         {
             EventLoop.PostCallback(_ =>
             {
-                _sendProtocol.ProcessOutgoingRequest(request, connectionHandleOrRemoteEndpoint,
+                _sendProtocol.ProcessOutgoingRequest(remoteEndpoint, request,
                     options, cb);
             }, null);
         }
 
-        public void ReceivePdu(QuasiHttpPdu pdu, object connectionHandle)
+        public void OnReceive(object connection, byte[] data, int offset, int length)
         {
+            var pdu = QuasiHttpPdu.Deserialize(data, offset, length);
             EventLoop.PostCallback(_ =>
             {
                 switch (pdu.PduType)
                 {
                     case QuasiHttpPdu.PduTypeRequest:
-                        _receiveProtocol.ProcessRequestPdu(pdu, connectionHandle);
+                        _receiveProtocol.ProcessRequestPdu(connection, pdu);
                         break;
                     case QuasiHttpPdu.PduTypeResponse:
-                        _sendProtocol.ProcessResponsePdu(pdu, connectionHandle);
+                        _sendProtocol.ProcessResponsePdu(connection, pdu);
                         break;
                     case QuasiHttpPdu.PduTypeRequestChunkGet:
-                        _sendProtocol.ProcessRequestChunkGetPdu(pdu, connectionHandle);
+                        _sendProtocol.ProcessRequestChunkGetPdu(connection, pdu);
                         break;
                     case QuasiHttpPdu.PduTypeRequestChunkRet:
-                        _receiveProtocol.ProcessRequestChunkRetPdu(pdu, connectionHandle);
+                        _receiveProtocol.ProcessRequestChunkRetPdu(connection, pdu);
                         break;
                     case QuasiHttpPdu.PduTypeResponseChunkGet:
-                        _receiveProtocol.ProcessResponseChunkGetPdu(pdu, connectionHandle);
+                        _receiveProtocol.ProcessResponseChunkGetPdu(connection, pdu);
                         break;
                     case QuasiHttpPdu.PduTypeResponseChunkRet:
-                        _sendProtocol.ProcessResponseChunkRetPdu(pdu, connectionHandle);
+                        _sendProtocol.ProcessResponseChunkRetPdu(connection, pdu);
                         break;
                     case QuasiHttpPdu.PduTypeRequestFin:
-                        _sendProtocol.ProcessRequestFinPdu(pdu);
+                        _sendProtocol.ProcessRequestFinPdu(connection, pdu);
                         break;
                     case QuasiHttpPdu.PduTypeResponseFin:
-                        _receiveProtocol.ProcessResponseFinPdu(pdu);
+                        _receiveProtocol.ProcessResponseFinPdu(connection, pdu);
                         break;
                     default:
                         throw new Exception("Unknown pdu type: " + pdu.PduType);
@@ -135,8 +136,16 @@ namespace Kabomu.QuasiHttp
         {
             EventLoop.PostCallback(_ =>
             {
-                _sendProtocol.ProcessReset(cause);
-                _receiveProtocol.ProcessReset(cause);
+                try
+                {
+                    _sendProtocol.ProcessReset(cause);
+                    _receiveProtocol.ProcessReset(cause);
+                    cb.Invoke(null);
+                }
+                catch (Exception e)
+                {
+                    cb.Invoke(e);
+                }
             }, null);
         }
     }
