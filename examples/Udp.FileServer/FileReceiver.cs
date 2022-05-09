@@ -23,7 +23,7 @@ namespace Udp.FileServer
 
         public async void ProcessRequest(QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> cb)
         {
-            var fileName = request.Headers.Content["f"][0];
+            var fileName = request.Headers["f"][0];
             LOG.Debug("Starting receipt of file {0} from {1}...", fileName, _port);
 
             Exception transferError = null;
@@ -36,17 +36,15 @@ namespace Udp.FileServer
                 using (var fileStream = new FileStream(p, FileMode.Create))
                 {
                     var wrapper = new AsyncBody(request.Body);
+                    var buffer = new byte[4096];
                     while (true)
                     {
-                        var res = await wrapper.DataReadAsync(4096);
-                        var data = (byte[])res[0];
-                        var offset = (int)res[1];
-                        var length = (int)res[2];
+                        var length = await wrapper.DataReadAsync(buffer, 0, buffer.Length);
                         if (length == 0)
                         {
                             break;
                         }
-                        await fileStream.WriteAsync(data, offset, length);
+                        await fileStream.WriteAsync(buffer, 0, length);
                     }
                 }
             }
@@ -74,10 +72,10 @@ namespace Udp.FileServer
                 _body = body;
             }
 
-            public Task<object[]> DataReadAsync(int bytesToRead)
+            public Task<int> DataReadAsync(byte[] data, int offset, int bytesToRead)
             {
-                var tcs = new TaskCompletionSource<object[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-                _body.OnDataRead(bytesToRead, (e, d, o, l) =>
+                var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _body.OnDataRead(data, offset, bytesToRead, (e, bytesRead) =>
                 {
                     if (e != null)
                     {
@@ -85,7 +83,7 @@ namespace Udp.FileServer
                     }
                     else
                     {
-                        tcs.SetResult(new object[] { d, o, l });
+                        tcs.SetResult(bytesRead);
                     }
                 });
                 return tcs.Task;

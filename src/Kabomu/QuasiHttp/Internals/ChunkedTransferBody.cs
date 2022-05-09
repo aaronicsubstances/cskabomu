@@ -7,7 +7,9 @@ namespace Kabomu.QuasiHttp.Internals
 {
     internal class ChunkedTransferBody : IQuasiHttpBody
     {
-        private QuasiHttpBodyCallback _pendingCb;
+        private Action<Exception, int> _pendingCb;
+        private byte[] _pendingData;
+        private int _pendingDataOffset;
         private int _pendingBytesToRead;
         private int _readContentLength;
         private Exception _srcEndError;
@@ -26,7 +28,7 @@ namespace Kabomu.QuasiHttp.Internals
         public Action<int> ReadCallback { get; }
         public IMutexApi MutexApi { get; }
 
-        public void OnDataRead(int bytesToRead, QuasiHttpBodyCallback cb)
+        public void OnDataRead(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
             if (cb == null)
             {
@@ -40,13 +42,17 @@ namespace Kabomu.QuasiHttp.Internals
             {
                 if (_srcEndError != null)
                 {
-                    cb.Invoke(_srcEndError, null, 0, 0);
+                    cb.Invoke(_srcEndError, 0);
+                    return;
                 }
                 if (_pendingCb != null)
                 {
-                    cb.Invoke(new Exception("pending read unresolved"), null, 0, 0);
+                    cb.Invoke(new Exception("pending read unresolved"), 0);
+                    return;
                 }
                 _pendingCb = cb;
+                _pendingData = data;
+                _pendingDataOffset = offset;
                 _pendingBytesToRead = bytesToRead;
                 ReadCallback.Invoke(bytesToRead);
             }, null);
@@ -84,9 +90,9 @@ namespace Kabomu.QuasiHttp.Internals
                     }
                 }
 
+                Array.Copy(data, offset, _pendingData, _pendingDataOffset, length);
                 _readContentLength += length;
-
-                _pendingCb.Invoke(null, data, offset, length);
+                _pendingCb.Invoke(null, length);
                 _pendingCb = null;
             }, null);
         }
@@ -100,7 +106,7 @@ namespace Kabomu.QuasiHttp.Internals
                     return;
                 }
                 _srcEndError = e ?? new Exception("end of read");
-                _pendingCb?.Invoke(_srcEndError, null, 0, 0);
+                _pendingCb?.Invoke(_srcEndError, 0);
                 _pendingCb = null;
                 ReadCallback.Invoke(-1);
             }, null);

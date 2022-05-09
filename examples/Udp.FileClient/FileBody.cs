@@ -11,7 +11,6 @@ namespace Udp.FileClient
 
         private readonly string _fileName;
         private readonly FileStream _fileStream;
-        private readonly byte[] _buffer = new byte[8192];
 
         public FileBody(string uploadDirPath, string fileName, bool serveContentLength)
         {
@@ -33,17 +32,16 @@ namespace Udp.FileClient
 
         public int ContentLength { get; }
 
-        public async void OnDataRead(int bytesToRead, QuasiHttpBodyCallback cb)
+        public async void OnDataRead(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
             try
             {
-                bytesToRead = Math.Min(bytesToRead, _buffer.Length);
-                int bytesRead = await _fileStream.ReadAsync(_buffer, 0, bytesToRead);
-                cb.Invoke(null, _buffer, 0, bytesRead);
+                int bytesRead = await _fileStream.ReadAsync(data, offset, bytesToRead);
+                cb.Invoke(null, bytesRead);
             }
             catch (Exception e)
             {
-                cb.Invoke(e, null, 0, 0);
+                cb.Invoke(e, 0);
             }
         }
 

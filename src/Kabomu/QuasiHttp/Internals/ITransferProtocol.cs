@@ -7,5 +7,7 @@ namespace Kabomu.QuasiHttp.Internals
     {
         IEventLoopApi EventLoop { get; }
         IQuasiHttpTransport Transport { get; }
+        void AbortTransfer(Transfer transfer, Exception exception);
+        void ResetTimeout(Transfer transfer);
     }
 }
