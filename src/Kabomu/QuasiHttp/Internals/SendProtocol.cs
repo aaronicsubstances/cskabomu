@@ -160,11 +160,15 @@ namespace Kabomu.QuasiHttp.Internals
                 }
                 else
                 {
-                    if (request.Body is ByteBufferBody byteBufferBody && pdu.ContentLength <= Transport.MaximumChunkSize)
+                    if (request.Body is ByteBufferBody byteBufferBody)
                     {
-                        pdu.Data = byteBufferBody.Buffer;
-                        pdu.DataOffset = byteBufferBody.Offset;
-                        pdu.DataLength = byteBufferBody.ContentLength;
+                        int sizeWithoutBody = pdu.Serialize().Length;
+                        if (sizeWithoutBody + pdu.ContentLength <= Transport.MaximumChunkSize)
+                        {
+                            pdu.Data = byteBufferBody.Buffer;
+                            pdu.DataOffset = byteBufferBody.Offset;
+                            pdu.DataLength = byteBufferBody.ContentLength;
+                        }
                     }
                     else
                     {

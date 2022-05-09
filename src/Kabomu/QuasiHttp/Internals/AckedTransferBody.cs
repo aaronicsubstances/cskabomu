@@ -70,6 +70,7 @@ namespace Kabomu.QuasiHttp.Internals
                 {
                     return;
                 }
+                _srcEndError = e ?? new Exception("end of read");
                 if (IsResponseBody)
                 {
                     Transport.ReleaseConnection(Connection);
