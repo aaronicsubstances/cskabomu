@@ -23,7 +23,7 @@ namespace Kabomu.Examples.Common
 
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
-        public int MaxPduPayloadSize => 30_000;
+        public int MaxChunkSize => 30_000;
 
         public bool DirectSendRequestProcessingEnabled => false;
 

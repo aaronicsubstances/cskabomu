@@ -16,6 +16,4 @@ namespace Kabomu.QuasiHttp
     public delegate void QuasiHttpMiddlewareContinuationCallback(
         Action<Exception, object> responseCb,
         Exception error);
-
-    public delegate void QuasiHttpBodyCallback(Exception error, byte[] data, int offset, int length);
 }

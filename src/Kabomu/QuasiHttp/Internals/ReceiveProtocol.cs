@@ -131,7 +131,7 @@ namespace Kabomu.QuasiHttp.Internals
             {
                 pdu.ContentLength = response.Body.ContentLength;
                 pdu.ContentType = response.Body.ContentType;
-                if (response.Body is ByteBufferBody byteBufferBody && pdu.ContentLength <= Transport.MaxPduPayloadSize)
+                if (response.Body is ByteBufferBody byteBufferBody && pdu.ContentLength <= Transport.MaxChunkSize)
                 {
                     pdu.Data = byteBufferBody.Buffer;
                     pdu.DataOffset = byteBufferBody.Offset;

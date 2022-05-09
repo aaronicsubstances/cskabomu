@@ -28,7 +28,7 @@ namespace Kabomu.QuasiHttp
         public string StatusMessage { get; set; }
         public int ContentLength { get; set; }
         public string ContentType { get; set; }
-        public QuasiHttpKeyValueCollection Headers { get; set; }
+        public Dictionary<string, List<string>> Headers { get; set; }
         public byte[] Data { get; set; }
         public int DataOffset { get; set; }
         public int DataLength{ get; set; }
@@ -57,9 +57,9 @@ namespace Kabomu.QuasiHttp
                 var headerValue = new List<string>(headerRow.GetRange(1, headerRow.Count - 1));
                 if (pdu.Headers == null)
                 {
-                    pdu.Headers = new QuasiHttpKeyValueCollection();
+                    pdu.Headers = new Dictionary<string, List<string>>();
                 }
-                pdu.Headers.Content.Add(headerRow[0], headerValue);
+                pdu.Headers.Add(headerRow[0], headerValue);
             }
             return pdu;
         }
@@ -78,7 +78,7 @@ namespace Kabomu.QuasiHttp
             csvData.Add(new List<string> { ContentLength.ToString() });
             csvData.Add(new List<string> { ContentType ?? "" });
             csvData.Add(new List<string> { Convert.ToBase64String(Data ?? new byte[0], DataOffset, DataLength) });
-            foreach (var header in (Headers ?? new QuasiHttpKeyValueCollection()).Content)
+            foreach (var header in Headers ?? new Dictionary<string, List<string>>())
             {
                 var headerRow = new List<string> { header.Key };
                 headerRow.AddRange(header.Value);

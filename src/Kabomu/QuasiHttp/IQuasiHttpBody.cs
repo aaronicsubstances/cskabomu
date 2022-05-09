@@ -9,7 +9,7 @@ namespace Kabomu.QuasiHttp
     {
         string ContentType { get; }
         int ContentLength { get; }
-        void OnDataRead(int bytesToRead, QuasiHttpBodyCallback cb);
+        void OnDataRead(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb);
         void OnEndRead(Exception e);
     }
 }
