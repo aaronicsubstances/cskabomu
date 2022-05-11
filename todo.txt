@@ -1,23 +1,12 @@
 remaining
 ==========
 
-tests
------
-DefaultEventLoopApi
-QuasiHttpKeyValueCollection
-QuasiHttpPdu (serialization)
-DefaultQuasiHttpClient
--ReceiveProtocol
--SendProtocol
--OutgoingBodyTransferProtocol
--IncomingBodyTransferProtocol
-DefaultQuasiHttpApplication
-
 default transports
 ------------------
 MemoryBasedTransport
 UdpBasedTransport - making it async may require use of third party library
 UnixSocketBasedTransport - availability and making it async may require use of third party library
+WindowsNamedPipes - availability and making it async may require use of third party library
 
 default middleware
 ------------------
@@ -38,16 +27,14 @@ default bodies
 Optimization
 ------------
 1. Let receive/send make use of event loop always on same thread
-2. For large timeouts (as determined by a config setting), introduce a single bulk polling timer
+2. For large timeouts (as determined by a config setting), introduce a single bulk interval timer
    in receive/send to skip timer creation until time remaining becomes small.
    a. still create timers for case of small timeouts.
 3. Reduce byte copying towards zero as much as possible
 
 Examples
 --------
--add demos each for udp, unix domain socket and memory
---based on single discard peer configurable with different ports, for bouncing headers back n forth 
-  to mimick ping-pong benchmarking
+-add demos each for udp, unix domain socket, windows named pipe, and memory
 --based on file server/client
 --copy over command line parsing
 
