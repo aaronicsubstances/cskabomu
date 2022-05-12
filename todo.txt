@@ -8,6 +8,11 @@ UdpBasedTransport - making it async may require use of third party library
 UnixSocketBasedTransport - availability and making it async may require use of third party library
 WindowsNamedPipes - availability and making it async may require use of third party library
 
+*let udptransport care only about creating connections with uuids to prevent external duplicates.
+assign variable length integers to chunk get/ret types and 
+deal with duplication internally - both resp, and chunk, and fins.
+make retry logic external component based on pdu req res pairs and sequence number replacements within same pair.
+
 default middleware
 ------------------
 -json
