@@ -65,7 +65,7 @@ namespace Kabomu.QuasiHttp.Internals
             }
             try
             {
-                Transport.Write(Connection, _buffer, 0, bytesRead, HandleWriteOutcome);
+                Transport.WriteBytesOrSendMessage(Connection, _buffer, 0, bytesRead, HandleWriteOutcome);
             }
             catch (Exception e2)
             {

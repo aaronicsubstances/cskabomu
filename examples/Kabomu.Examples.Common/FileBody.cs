@@ -3,9 +3,9 @@ using NLog;
 using System;
 using System.IO;
 
-namespace Udp.FileClient
+namespace Kabomu.Examples.Common
 {
-    internal class FileBody : IQuasiHttpBody
+    public class FileBody : IQuasiHttpBody
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 

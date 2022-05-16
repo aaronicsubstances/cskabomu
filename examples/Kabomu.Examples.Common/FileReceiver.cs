@@ -6,7 +6,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Udp.FileServer
+namespace Kabomu.Examples.Common
 {
     public class FileReceiver : IQuasiHttpApplication
     {

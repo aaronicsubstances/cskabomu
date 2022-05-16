@@ -6,13 +6,13 @@ namespace Kabomu.QuasiHttp
 {
     public interface IQuasiHttpTransport
     {
-        int MaximumChunkSize { get; }
-        bool IsChunkDeliveryAcknowledged { get; }
+        int MaxMessageSize { get; }
+        bool IsByteOriented { get; }
         void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb);
         void ReleaseConnection(object connection);
-        void Write(object connection, byte[] data, int offset, int length,
+        void WriteBytesOrSendMessage(object connection, byte[] data, int offset, int length,
             Action<Exception> cb);
-        void Read(object connection, byte[] data, int offset, int length, 
+        void ReadBytes(object connection, byte[] data, int offset, int length, 
             Action<Exception, int> cb);
 
         /// <summary>

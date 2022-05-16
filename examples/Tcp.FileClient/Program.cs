@@ -9,7 +9,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Udp.FileClient
+namespace Tcp.FileClient
 {
     class Program
     {
@@ -25,7 +25,7 @@ namespace Udp.FileClient
             public int? Port { get; set; }
             [Option('d', "upload-dir", Required = false,
                 HelpText = "Path to directory of files to upload. Defaults to current directory")]
-            public string UploadDirPath { get; set; }           
+            public string UploadDirPath { get; set; }
             [Option('a', "alt", Required = false,
                 HelpText = "Run alternative (currently means serving content lengths)")]
             public bool? ServeContentLength { get; set; }
@@ -51,12 +51,11 @@ namespace Udp.FileClient
                 }
             };
             var stopHandle = new CancellationTokenSource();
-            var udpTransport = new LocalhostUdpTransport(port)
+            var tcpTransport = new LocalhostTcpTransport(port)
             {
-                EventLoop = eventLoop,
                 ErrorHandler = (e, m) =>
                 {
-                    LOG.Warn(e, "UDP transport error: {0}", m);
+                    LOG.Warn(e, "TCP transport error: {0}", m);
                 }
             };
             var instance = new DefaultQuasiHttpClient
@@ -68,13 +67,13 @@ namespace Udp.FileClient
                     LOG.Error("Quasi Http Client error! {0}: {1}", m, e);
                 }
             };
-            udpTransport.Upstream = instance;
-            instance.Transport = udpTransport;
-            
+            tcpTransport.Upstream = instance;
+            instance.Transport = tcpTransport;
+
             try
             {
-                udpTransport.Start();
-                LOG.Info("Started Udp.FileClient at {0}", port);
+                tcpTransport.Start();
+                LOG.Info("Started Tcp.FileClient at {0}", port);
 
                 await StartTransferringFiles(instance, serverPort, uploadDirPath, serveContentLength);
             }
@@ -84,8 +83,8 @@ namespace Udp.FileClient
             }
             finally
             {
-                LOG.Debug("Stopping Udp.FileClient...");
-                udpTransport.Stop();
+                LOG.Debug("Stopping Tcp.FileClient...");
+                tcpTransport.Stop();
             }
         }
 

@@ -107,7 +107,7 @@ namespace Kabomu.QuasiHttp.Internals
             byte[] pduBytes = pdu.Serialize();
             try
             {
-                TransferProtocol.Transport.Write(Transfer.Connection, pduBytes, 0, pduBytes.Length, cb);
+                TransferProtocol.Transport.WriteBytesOrSendMessage(Transfer.Connection, pduBytes, 0, pduBytes.Length, cb);
             }
             catch (Exception e)
             {

@@ -137,6 +137,7 @@ namespace Kabomu.QuasiHttp.Internals
 
             transfer.Connection = connection;
             _outgoingTransfers.Add(connection, transfer);
+            ResetTimeout(transfer);
             SendRequestPdu(transfer, request);
         }
 
@@ -147,13 +148,14 @@ namespace Kabomu.QuasiHttp.Internals
                 Version = QuasiHttpPdu.Version01,
                 PduType = QuasiHttpPdu.PduTypeRequest,
                 Path = request.Path,
-                Headers = request.Headers
+                Headers = request.Headers,
+                IncludeLengthPrefixDuringSerialization = Transport.IsByteOriented
             };
             if (request.Body != null)
             {
                 pdu.ContentType = request.Body.ContentType;
                 pdu.ContentLength = request.Body.ContentLength;
-                if (Transport.IsChunkDeliveryAcknowledged)
+                if (Transport.IsByteOriented)
                 {
                     new AckedTransferProtocol(false, request.Body, Transport,
                         transfer.Connection).Start();
@@ -163,7 +165,7 @@ namespace Kabomu.QuasiHttp.Internals
                     if (request.Body is ByteBufferBody byteBufferBody)
                     {
                         int sizeWithoutBody = pdu.Serialize().Length;
-                        if (sizeWithoutBody + pdu.ContentLength <= Transport.MaximumChunkSize)
+                        if (sizeWithoutBody + pdu.ContentLength <= Transport.MaxMessageSize)
                         {
                             pdu.Data = byteBufferBody.Buffer;
                             pdu.DataOffset = byteBufferBody.Offset;
@@ -193,7 +195,7 @@ namespace Kabomu.QuasiHttp.Internals
             var pduBytes = pdu.Serialize();
             try
             {
-                Transport.Write(transfer.Connection, pduBytes, 0, pduBytes.Length, cb);
+                Transport.WriteBytesOrSendMessage(transfer.Connection, pduBytes, 0, pduBytes.Length, cb);
             }
             catch (Exception e)
             {
@@ -250,7 +252,7 @@ namespace Kabomu.QuasiHttp.Internals
                 StatusMessage = pdu.StatusMessage,
                 Headers = pdu.Headers
             }; 
-            if (Transport.IsChunkDeliveryAcknowledged)
+            if (Transport.IsByteOriented)
             {
                 if (pdu.DataLength > 0)
                 {
