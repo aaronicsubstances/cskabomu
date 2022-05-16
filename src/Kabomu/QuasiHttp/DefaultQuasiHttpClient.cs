@@ -85,6 +85,9 @@ namespace Kabomu.QuasiHttp
             }
         }
 
+        public int MaxRetryPeriodMillis { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int MaxRetryCount { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
         public void Send(object remoteEndpoint, QuasiHttpRequestMessage request,
             QuasiHttpSendOptions options, Action<Exception, QuasiHttpResponseMessage> cb)
         {
@@ -95,7 +98,15 @@ namespace Kabomu.QuasiHttp
             }, null);
         }
 
-        public void OnReceive(object connection, byte[] data, int offset, int length)
+        public void OnAcceptConnection(object connection)
+        {
+            EventLoop.PostCallback(_ =>
+            {
+                _receiveProtocol.ProcessAcceptConnection(connection);
+            }, null);
+        }
+
+        public void OnReceivePdu(object connection, byte[] data, int offset, int length)
         {
             var pdu = QuasiHttpPdu.Deserialize(data, offset, length);
             EventLoop.PostCallback(_ =>

@@ -95,7 +95,7 @@ namespace Kabomu.QuasiHttp.Internals
             byte[] pduBytes = pdu.Serialize();
             try
             {
-                TransferProtocol.Transport.Write(Transfer.Connection, pduBytes, 0, pduBytes.Length, cb);
+                TransferProtocol.Transport.WriteBytesOrSendMessage(Transfer.Connection, pduBytes, 0, pduBytes.Length, cb);
             }
             catch (Exception e)
             {
@@ -122,7 +122,7 @@ namespace Kabomu.QuasiHttp.Internals
                 PduType = finPduType
             };
             var pduBytes = pdu.Serialize();
-            TransferProtocol.Transport.Write(Transfer.Connection, pduBytes, 0, pduBytes.Length, _ => { });
+            TransferProtocol.Transport.WriteBytesOrSendMessage(Transfer.Connection, pduBytes, 0, pduBytes.Length, _ => { });
         }
     }
 }

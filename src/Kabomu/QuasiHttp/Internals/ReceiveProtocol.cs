@@ -17,6 +17,51 @@ namespace Kabomu.QuasiHttp.Internals
         public UncaughtErrorCallback ErrorHandler { get; set; }
         public IQuasiHttpApplication Application { get; set; }
 
+        public void ProcessAcceptConnection(object connection)
+        {
+            var transfer = new Transfer
+            {
+                Connection = connection,
+                TimeoutMillis = DefaultTimeoutMillis
+            };
+            transfer.TimeoutId = EventLoop.ScheduleTimeout(transfer.TimeoutMillis,
+               _ =>
+               {
+                   DisableTransfer(transfer, new Exception("connection accept timeout"));
+               }, null);
+            byte[] encodedLength = new byte[4];
+            ProtocolUtils.ReadBytesFully(Transport, EventLoop, connection, encodedLength, 0, encodedLength.Length, e =>
+            {
+                if (e != null)
+                {
+                    DisableTransfer(transfer, e);
+                    return;
+                }
+                int qHttpHeaderLen = ByteUtils.DeserializeInt32BigEndian(encodedLength, 0);
+                var pduBytes = new byte[qHttpHeaderLen];
+                ProtocolUtils.ReadBytesFully(Transport, EventLoop, connection, pduBytes, 0, pduBytes.Length, e =>
+                {
+                    if (e != null)
+                    {
+                        DisableTransfer(transfer, e);
+                        return;
+                    }
+                    EventLoop.PostCallback(_ =>
+                    {
+                        var pdu = QuasiHttpPdu.Deserialize(pduBytes, 0, pduBytes.Length);
+                        switch (pdu.PduType)
+                        {
+                            case QuasiHttpPdu.PduTypeRequest:
+                                ProcessRequestPdu(connection, pdu);
+                                break;
+                            default:
+                                throw new Exception("Unexpected pdu type: " + pdu.PduType);
+                        }
+                    }, null);
+                });
+            });
+        }
+
         public void ProcessRequestPdu(object connection, QuasiHttpPdu pdu)
         {
             var transfer = new Transfer
@@ -32,7 +77,7 @@ namespace Kabomu.QuasiHttp.Internals
                 Path = pdu.Path,
                 Headers = pdu.Headers
             };
-            if (Transport.IsChunkDeliveryAcknowledged)
+            if (Transport.IsByteOriented)
             {
                 if (pdu.DataLength > 0)
                 {
@@ -142,7 +187,7 @@ namespace Kabomu.QuasiHttp.Internals
             {
                 pdu.ContentLength = response.Body.ContentLength;
                 pdu.ContentType = response.Body.ContentType;
-                if (Transport.IsChunkDeliveryAcknowledged)
+                if (Transport.IsByteOriented)
                 {
                     new AckedTransferProtocol(true, response.Body, Transport,
                         transfer.Connection).Start();
@@ -155,7 +200,7 @@ namespace Kabomu.QuasiHttp.Internals
                     if (response.Body is ByteBufferBody byteBufferBody)
                     {
                         int sizeWithoutBody = pdu.Serialize().Length;
-                        if (sizeWithoutBody + pdu.ContentLength <= Transport.MaximumChunkSize)
+                        if (sizeWithoutBody + pdu.ContentLength <= Transport.MaxMessageSize)
                         {
                             pdu.Data = byteBufferBody.Buffer;
                             pdu.DataOffset = byteBufferBody.Offset;
@@ -185,7 +230,7 @@ namespace Kabomu.QuasiHttp.Internals
             var pduBytes = pdu.Serialize();
             try
             {
-                Transport.Write(transfer.Connection, pduBytes, 0, pduBytes.Length, cb);
+                Transport.WriteBytesOrSendMessage(transfer.Connection, pduBytes, 0, pduBytes.Length, cb);
             }
             catch (Exception e)
             {

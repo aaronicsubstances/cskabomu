@@ -58,7 +58,7 @@ namespace Kabomu.QuasiHttp.Internals
                     }
                     cb.Invoke(e, bytesRead);
                 };
-                Transport.Read(Connection, data, offset, bytesToRead, wrapperCb);
+                Transport.ReadBytes(Connection, data, offset, bytesToRead, wrapperCb);
             }, null);
         }
 

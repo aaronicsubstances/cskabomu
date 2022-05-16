@@ -42,9 +42,8 @@ namespace Udp.FileServer
                 }
             };
             var stopHandle = new CancellationTokenSource();
-            var udpTransport = new LocalhostUdpTransport(port)
+            var tcpTransport = new LocalhostTcpTransport(port)
             {
-                EventLoop = eventLoop,
                 ErrorHandler = (e, m) =>
                 {
                     LOG.Error("Transport error! {0}: {1}", m, e);
@@ -59,15 +58,15 @@ namespace Udp.FileServer
                     LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
                 }
             };
-            udpTransport.Upstream = instance;
-            instance.Transport = udpTransport;
+            tcpTransport.Upstream = instance;
+            instance.Transport = tcpTransport;
 
             instance.Application = new FileReceiver(port, uploadDirPath);
 
             try
             {
-                udpTransport.Start();
-                LOG.Info("Started Udp.FileServer at {0}", port);
+                tcpTransport.Start();
+                LOG.Info("Started Tcp.FileServer at {0}", port);
 
                 Console.ReadLine();
             }
@@ -77,8 +76,8 @@ namespace Udp.FileServer
             }
             finally
             {
-                LOG.Debug("Stopping Udp.FileServer...");
-                udpTransport.Stop();
+                LOG.Debug("Stopping Tcp.FileServer...");
+                tcpTransport.Stop();
             }
         }
     }

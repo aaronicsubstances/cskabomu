@@ -31,6 +31,7 @@ namespace Kabomu.QuasiHttp
         public byte[] Data { get; set; }
         public int DataOffset { get; set; }
         public int DataLength{ get; set; }
+        public bool IncludeLengthPrefixDuringSerialization { get; set; }
 
         public static QuasiHttpPdu Deserialize(byte[] data, int offset, int length)
         {
@@ -41,13 +42,13 @@ namespace Kabomu.QuasiHttp
             pdu.Version = byte.Parse(csvData[0][0]);
             pdu.PduType = byte.Parse(csvData[1][0]);
             pdu.Flags = byte.Parse(csvData[2][0]);
-            pdu.Path = csvData[4][0];
-            pdu.StatusIndicatesSuccess = bool.Parse(csvData[5][0]);
-            pdu.StatusIndicatesClientError = bool.Parse(csvData[6][0]);
-            pdu.StatusMessage = csvData[7][0];
-            pdu.ContentLength = int.Parse(csvData[8][0]);
-            pdu.ContentType = csvData[9][0];
-            pdu.Data = Convert.FromBase64String(csvData[10][0]);
+            pdu.Path = csvData[3][0];
+            pdu.StatusIndicatesSuccess = bool.Parse(csvData[4][0]);
+            pdu.StatusIndicatesClientError = bool.Parse(csvData[5][0]);
+            pdu.StatusMessage = csvData[6][0];
+            pdu.ContentLength = int.Parse(csvData[7][0]);
+            pdu.ContentType = csvData[8][0];
+            pdu.Data = Convert.FromBase64String(csvData[9][0]);
             pdu.DataLength = pdu.Data.Length;
             for (int i = 10; i < csvData.Count; i++)
             {
@@ -82,7 +83,15 @@ namespace Kabomu.QuasiHttp
                 csvData.Add(headerRow);
             }
             var csv = CsvUtils.Serialize(csvData);
-            return ByteUtils.StringToBytes(csv);
+            var csvBytes = ByteUtils.StringToBytes(csv);
+            if (!IncludeLengthPrefixDuringSerialization)
+            {
+                return csvBytes;
+            }
+            var pduBytes = new byte[4 + csvBytes.Length];
+            Array.Copy(csvBytes, 0, pduBytes, 4, csvBytes.Length);
+            ByteUtils.SerializeUpToInt64BigEndian(csvBytes.Length, pduBytes, 0, 4);
+            return pduBytes;
         }
     }
 }
