@@ -1,26 +1,32 @@
-﻿using System;
+﻿using Kabomu.Common;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Internals
+namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
 {
     internal class IncomingChunkTransferProtocol : IChunkTransferProtocol
     {
         private STCancellationIndicator _sendBodyPduCancellationIndicator;
 
-        public IncomingChunkTransferProtocol(ITransferProtocol transferProtocol, Transfer transfer, byte chunkGetPduType, 
-            int contentLength, string contentType)
+        public IncomingChunkTransferProtocol(IQuasiHttpTransport transport, IEventLoopApi eventLoop,
+            object connection, Action<Exception> abortCallback, 
+            byte chunkGetPduType, int contentLength, string contentType)
         {
-            TransferProtocol = transferProtocol;
-            Transfer = transfer;
+            Transport = transport;
+            EventLoop = eventLoop;
+            Connection = connection;
+            AbortCallback = abortCallback;
             ChunkGetPduType = chunkGetPduType;
 
             Body = new ChunkTransferBody(contentLength, contentType, OnBodyChunkReadCallback, OnBodyEndReadCallback,
-                TransferProtocol.EventLoop);
+                eventLoop);
         }
 
-        public ITransferProtocol TransferProtocol { get; }
-        public Transfer Transfer { get; }
+        public IQuasiHttpTransport Transport { get; }
+        public IEventLoopApi EventLoop { get; }
+        public object Connection { get; }
+        public Action<Exception> AbortCallback { get; }
         public byte ChunkGetPduType { get; }
         public IQuasiHttpBody Body { get; }
 
@@ -37,15 +43,7 @@ namespace Kabomu.QuasiHttp.Internals
 
         public void ProcessChunkRetPdu(byte[] data, int offset, int length)
         {
-            try
-            {
-                ((ChunkTransferBody)Body).OnDataWrite(data ?? new byte[0], offset, length);
-                TransferProtocol.ResetTimeout(Transfer);
-            }
-            catch (Exception e)
-            {
-                TransferProtocol.AbortTransfer(Transfer, e);
-            }
+            ((ChunkTransferBody)Body).OnDataWrite(data ?? new byte[0], offset, length);
         }
 
         private void OnBodyChunkReadCallback(int bytesToRead)
@@ -59,7 +57,7 @@ namespace Kabomu.QuasiHttp.Internals
 
             if (ChunkGetPduType == TransferPdu.PduTypeResponseChunkGet)
             {
-                TransferProtocol.AbortTransfer(Transfer, null);
+                AbortCallback.Invoke(null);
             }
         }
 
@@ -75,7 +73,7 @@ namespace Kabomu.QuasiHttp.Internals
             _sendBodyPduCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
-                TransferProtocol.EventLoop.PostCallback(_ =>
+                EventLoop.PostCallback(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
@@ -85,21 +83,14 @@ namespace Kabomu.QuasiHttp.Internals
                 }, null);
             };
             byte[] pduBytes = pdu.Serialize();
-            try
-            {
-                TransferProtocol.Transport.WriteBytesOrSendMessage(Transfer.Connection, pduBytes, 0, pduBytes.Length, cb);
-            }
-            catch (Exception e)
-            {
-                TransferProtocol.AbortTransfer(Transfer, e);
-            }
+            Transport.WriteBytesOrSendMessage(Connection, pduBytes, 0, pduBytes.Length, cb);
         }
 
         private void HandleSendPduOutcome(Exception e)
         {
             if (e != null)
             {
-                TransferProtocol.AbortTransfer(Transfer, e);
+                AbortCallback.Invoke(e);
                 return;
             }
         }
@@ -114,7 +105,7 @@ namespace Kabomu.QuasiHttp.Internals
                 PduType = finPduType
             };
             var pduBytes = pdu.Serialize();
-            TransferProtocol.Transport.WriteBytesOrSendMessage(Transfer.Connection, pduBytes, 0, pduBytes.Length, _ => { });
+            Transport.WriteBytesOrSendMessage(Connection, pduBytes, 0, pduBytes.Length, _ => { });
         }
     }
 }

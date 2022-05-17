@@ -3,25 +3,25 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Internals
+namespace Kabomu.QuasiHttp.Internals.ByteOrientedProtocols
 {
     internal class ByteOrientedTransferBody : IQuasiHttpBody
     {
         private int _readContentLength;
         private Exception _srcEndError;
 
-        public ByteOrientedTransferBody(bool releaseConnectionOnSuccessfulTransfer, int contentLength, string contentType,
+        public ByteOrientedTransferBody(bool releaseConnectionOnEndOfTransfer, int contentLength, string contentType,
             IQuasiHttpTransport transport, object connection,
             IMutexApi mutexApi)
         {
-            ReleaseConnectionOnSuccessfulTransfer = releaseConnectionOnSuccessfulTransfer;
+            ReleaseConnectionOnEndOfTransfer = releaseConnectionOnEndOfTransfer;
             ContentLength = contentLength;
             ContentType = contentType;
             Transport = transport;
             Connection = connection;
             MutexApi = mutexApi ?? new BlockingMutexApi(this);
         }
-        public bool ReleaseConnectionOnSuccessfulTransfer { get; }
+        public bool ReleaseConnectionOnEndOfTransfer { get; }
         public string ContentType { get; }
         public int ContentLength { get; }
         public IQuasiHttpTransport Transport { get; }
@@ -83,7 +83,7 @@ namespace Kabomu.QuasiHttp.Internals
                     return;
                 }
                 _srcEndError = e ?? new Exception("end of read");
-                if (ReleaseConnectionOnSuccessfulTransfer)
+                if (ReleaseConnectionOnEndOfTransfer)
                 {
                     Transport.ReleaseConnection(Connection);
                 }
