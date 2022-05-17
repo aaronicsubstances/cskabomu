@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Kabomu.QuasiHttp.Internals
+namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
 {
     internal interface IChunkTransferProtocol
     {

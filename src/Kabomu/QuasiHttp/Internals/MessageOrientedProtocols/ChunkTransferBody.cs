@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Internals
+namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
 {
     internal class ChunkTransferBody : IQuasiHttpBody
     {

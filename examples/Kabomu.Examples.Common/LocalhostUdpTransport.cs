@@ -10,15 +10,13 @@ namespace Kabomu.Examples.Common
     public class LocalhostUdpTransport : IQuasiHttpTransport
     {
         private readonly UdpClient _udpClient;
-        private readonly Dictionary<int, Dictionary<string, LocalhostUdpConnection>> _connections;
-        private readonly Random _randGen = new Random();
+        private readonly Dictionary<LocalhostUdpConnection, LocalhostUdpConnection> _unackedConnections;
 
         public LocalhostUdpTransport(int port)
         {
             _udpClient = new UdpClient(port);
-            _connections = new Dictionary<int, Dictionary<string, LocalhostUdpConnection>>();
-            ConnectTimeoutMilis = 1000;
-            ReadTimeoutMilis = 1000;
+            _unackedConnections = new Dictionary<LocalhostUdpConnection, LocalhostUdpConnection>();
+            ConnectionRetryIntervalMilis = 1000;
             MaxConnectionRetryCount = 3;
         }
 
@@ -28,11 +26,9 @@ namespace Kabomu.Examples.Common
 
         public bool DirectSendRequestProcessingEnabled => false;
 
+        public int ConnectionRetryIntervalMilis { get; set; }
+
         public int MaxConnectionRetryCount { get; set; }
-
-        public int ConnectTimeoutMilis { get; set; }
-
-        public int ReadTimeoutMilis { get; set; }
 
         public IQuasiHttpClient Upstream { get; set; }
 
@@ -60,20 +56,12 @@ namespace Kabomu.Examples.Common
             }
             var connection = new LocalhostUdpConnection
             {
+                PeerPort = port,
                 ConnectionId = Guid.NewGuid().ToString("n"),
-                DestinationPort = port,
                 AllocateConnectionCallback = cb,
                 ConnectionRetryCount = 0
             };
-            if (!_connections.ContainsKey(port))
-            {
-                _connections.Add(port, new Dictionary<string, LocalhostUdpConnection>());
-            }
-            _connections[port].Add(connection.ConnectionId, connection);
-            connection.ConnectionTimeoutId = EventLoop.ScheduleTimeout(ConnectTimeoutMilis, obj =>
-            {
-                AbortConnection(connection, new Exception("connect timeout"));
-            }, null);
+            _unackedConnections.Add(connection, connection);
             SendConnectionPdu(connection);
             if (MaxConnectionRetryCount > 0)
             {
@@ -100,11 +88,8 @@ namespace Kabomu.Examples.Common
 
         private void ResetReconnectInterval(LocalhostUdpConnection connection)
         {
-            var reconnectBackoffRange = MiscUtils.CalculateRetryBackoffRange(ConnectTimeoutMilis,
-                MaxConnectionRetryCount - connection.ConnectionRetryCount);
-            var reconnectDelay = _randGen.Next(reconnectBackoffRange[0], reconnectBackoffRange[1]);
             EventLoop.CancelTimeout(connection.ConnectionRetryBackoffId);
-            connection.ConnectionRetryBackoffId = EventLoop.ScheduleTimeout(reconnectDelay,
+            connection.ConnectionRetryBackoffId = EventLoop.ScheduleTimeout(ConnectionRetryIntervalMilis,
                 OnReconnectInterval, connection);
         }
 
@@ -119,50 +104,31 @@ namespace Kabomu.Examples.Common
             }
         }
 
-        private void EstablishConnection(LocalhostUdpConnection connection)
+        private void TryEstablishingConnection(LocalhostUdpConnection connection)
         {
-            if (connection.Established)
+            if (!_unackedConnections.ContainsKey(connection))
             {
+                // ignore pdus from previous connections which no longer exist.
                 return;
             }
-            connection.Established = true;
+            connection = _unackedConnections[connection];
             connection.AllocateConnectionCallback.Invoke(null, connection);
             connection.AllocateConnectionCallback = null;
-            EventLoop.CancelTimeout(connection.ConnectionRetryBackoffId);
-            ResetReadTimeout(connection);
-            EventLoop.CancelTimeout(connection.ConnectionTimeoutId);
+            EjectConnection(connection, null);
         }
 
         public void ReleaseConnection(object obj)
         {
             var connection = (LocalhostUdpConnection)obj;
-            AbortConnection(connection, null);
-            var finPdu = new LocalhostUdpDatagram
-            {
-                Version = LocalhostUdpDatagram.Version01,
-                ConnectionId = connection.ConnectionId,
-                PduType = LocalhostUdpDatagram.PduTypeFin
-            };
-            SendMessage(connection, finPdu, null);
+            EjectConnection(connection, null);
         }
 
-        private void AbortConnection(LocalhostUdpConnection connection, Exception e)
+        private void EjectConnection(LocalhostUdpConnection connection, Exception e)
         {
             EventLoop.CancelTimeout(connection.ConnectionRetryBackoffId);
-            EventLoop.CancelTimeout(connection.ReadTimeoutId);
-            if (!_connections.ContainsKey(connection.DestinationPort))
-            {
-                return;
-            }
-            if (!_connections[connection.DestinationPort].Remove(connection.ConnectionId))
-            {
-                return;
-            }
-            if (_connections[connection.DestinationPort].Count == 0)
-            {
-                _connections.Remove(connection.DestinationPort);
-            }
+            _unackedConnections.Remove(connection);
             connection.AllocateConnectionCallback?.Invoke(e ?? new Exception("connect error"), null);
+            connection.AllocateConnectionCallback = null;
         }
 
         public async void Start()
@@ -200,82 +166,40 @@ namespace Kabomu.Examples.Common
             {
                 throw new Exception("unknown pdu version: " + pdu.Version);
             }
+
+            var connection = new LocalhostUdpConnection
+            {
+                PeerPort = port,
+                ConnectionId = pdu.ConnectionId,
+            };
+
             if (pdu.PduType == LocalhostUdpDatagram.PduTypeSyn)
             {
-                if (!_connections.ContainsKey(port))
-                {
-                    _connections.Add(port, new Dictionary<string, LocalhostUdpConnection>());
-                }
-                if (!_connections[port].ContainsKey(pdu.ConnectionId))
-                {
-                    var newConnection = new LocalhostUdpConnection
-                    {
-                        ConnectionId = pdu.ConnectionId,
-                        DestinationPort = port,
-                        Established = true
-                    };
-                    _connections[port].Add(pdu.ConnectionId, newConnection);
-                    ResetReadTimeout(newConnection);
-                }
-                var connection = _connections[port][pdu.ConnectionId];
-                connection.LastReadTime = EventLoop.CurrentTimestamp;
-                // always send a syn ack even if connection has already been established.
+                // let upstream application deal with duplicate connection attempts.
+                Upstream.OnReceiveConnection(connection);
+
+                // send a syn ack to establish connection at initiating end.
                 var connectionConfirmationPdu = new LocalhostUdpDatagram
                 {
-                    ConnectionId = pdu.ConnectionId,
+                    Version = LocalhostUdpDatagram.Version01,
                     PduType = LocalhostUdpDatagram.PduTypeSynAck,
-                    Version = LocalhostUdpDatagram.Version01
+                    ConnectionId = pdu.ConnectionId
                 };
                 SendMessage(connection, connectionConfirmationPdu, null);
             }
-            else
+            else if (pdu.PduType == LocalhostUdpDatagram.PduTypeSynAck)
             {
-                if (!_connections.ContainsKey(port) || !_connections[port].ContainsKey(pdu.ConnectionId))
-                {
-                    // ignore pdus from previous connections which no longer exist.
-                    return;
-                }
-                var connection = _connections[port][pdu.ConnectionId];
-                connection.LastReadTime = EventLoop.CurrentTimestamp;
-                if (pdu.PduType == LocalhostUdpDatagram.PduTypeSynAck)
-                {
-                    EstablishConnection(connection);
-                }
-                else if (pdu.PduType == LocalhostUdpDatagram.PduTypeFin)
-                {
-                    AbortConnection(connection, new Exception("connection abort"));
-                }
-                else if (pdu.PduType == LocalhostUdpDatagram.PduTypeData)
-                {
-                    // let upstream application deal with possible duplication.
-                    Upstream.OnReceiveMessage(connection, pdu.Data, pdu.DataOffset, pdu.DataLength);
-                }
-                else
-                {
-                    throw new Exception("unknown pdu type: " + pdu.PduType);
-                }
+                TryEstablishingConnection(connection);
             }
-        }
-
-        private void OnReadTimeout(object obj)
-        {
-            var connection = (LocalhostUdpConnection)obj;
-            var timeSpentSinceLastRead = EventLoop.CurrentTimestamp - connection.LastReadTime;
-            if (timeSpentSinceLastRead >= ReadTimeoutMilis)
+            else if (pdu.PduType == LocalhostUdpDatagram.PduTypeData)
             {
-                AbortConnection(connection, new Exception("read timeout"));
+                // let upstream application deal with possible duplication.
+                Upstream.OnReceiveMessage(connection, pdu.Data, pdu.DataOffset, pdu.DataLength);
             }
             else
             {
-                ResetReadTimeout(connection);
+                throw new Exception("unknown pdu type: " + pdu.PduType);
             }
-        }
-
-        private void ResetReadTimeout(LocalhostUdpConnection connection)
-        {
-            EventLoop.CancelTimeout(connection.ReadTimeoutId);
-            connection.ReadTimeoutId = EventLoop.ScheduleTimeout(ReadTimeoutMilis,
-                OnReadTimeout, connection);
         }
 
         public void WriteBytesOrSendMessage(object connection, byte[] data, int offset, int length, Action<Exception> cb)
@@ -298,14 +222,14 @@ namespace Kabomu.Examples.Common
             var pduBytes = pdu.Serialize();
             try
             {
-                int sent = await _udpClient.SendAsync(pduBytes, pduBytes.Length, "localhost", connection.DestinationPort);
+                int sent = await _udpClient.SendAsync(pduBytes, pduBytes.Length, "localhost", connection.PeerPort);
                 if (sent != pduBytes.Length)
                 {
                     throw new Exception("could not send all bytes in datagram");
                 }
                 else
                 {
-                    // NB: Can be sent even if destination port is not bound.
+                    // NB: Can be sent even if peer port is not bound.
                 }
                 cb?.Invoke(null);
             }

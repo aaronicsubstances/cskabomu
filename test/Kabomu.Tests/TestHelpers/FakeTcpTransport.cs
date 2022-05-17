@@ -54,7 +54,7 @@ namespace Kabomu.Tests.TestHelpers
             {
                 var peer = Hub.Connections[typedConnection.RemoteEndpoint];
                 typedConnection.RemoteEndpoint = null;
-                peer.Upstream.OnReceiveBytes(typedConnection);
+                peer.Upstream.OnReceiveConnection(typedConnection);
             }
         }
     }

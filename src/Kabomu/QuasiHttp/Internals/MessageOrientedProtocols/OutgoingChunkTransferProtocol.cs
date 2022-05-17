@@ -3,24 +3,29 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Internals
+namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
 {
     internal class OutgoingChunkTransferProtocol : IChunkTransferProtocol
     {
         private STCancellationIndicator _bodyCallbackCancellationIndicator;
         private STCancellationIndicator _sendBodyPduCancellationIndicator;
 
-        public OutgoingChunkTransferProtocol(ITransferProtocol transferProtocol, Transfer transfer, byte chunkRetPduType,
+        public OutgoingChunkTransferProtocol(IQuasiHttpTransport transport, IEventLoopApi eventLoop,
+            object connection, Action<Exception> abortCallback, byte chunkRetPduType,
             IQuasiHttpBody body)
         {
-            TransferProtocol = transferProtocol;
-            Transfer = transfer;
+            Transport = transport;
+            EventLoop = eventLoop;
+            Connection = connection;
+            AbortCallback = abortCallback;
             ChunkRetPduType = chunkRetPduType;
             Body = body;
         }
 
-        public ITransferProtocol TransferProtocol { get; }
-        public Transfer Transfer { get; }
+        public IQuasiHttpTransport Transport { get; }
+        public IEventLoopApi EventLoop { get; }
+        public object Connection { get; }
+        public Action<Exception> AbortCallback { get; }
         public byte ChunkRetPduType { get; }
         public IQuasiHttpBody Body { get; }
 
@@ -50,15 +55,7 @@ namespace Kabomu.QuasiHttp.Internals
                     HandleBodyChunkReadOutcome(e, data, 0, bytesRead);
                 }
             };
-            try
-            {
-                Body.OnDataRead(data, 0, data.Length, cb);
-                TransferProtocol.ResetTimeout(Transfer);
-            }
-            catch (Exception e)
-            {
-                TransferProtocol.AbortTransfer(Transfer, e);
-            }
+            Body.OnDataRead(data, 0, data.Length, cb);
         }
 
         public void ProcessChunkRetPdu(byte[] data, int offset, int length)
@@ -70,12 +67,12 @@ namespace Kabomu.QuasiHttp.Internals
         {
             if (e != null)
             {
-                TransferProtocol.AbortTransfer(Transfer, e);
+                AbortCallback.Invoke(e);
                 return;
             }
             if (!ByteUtils.IsValidMessagePayload(data, offset, length))
             {
-                TransferProtocol.AbortTransfer(Transfer, new Exception("invalid outgoing body chunk"));
+                AbortCallback.Invoke(new Exception("invalid outgoing body chunk"));
                 return;
             }
             SendChunkRetPdu(data, offset, length);
@@ -95,7 +92,7 @@ namespace Kabomu.QuasiHttp.Internals
             _sendBodyPduCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
-                TransferProtocol.EventLoop.PostCallback(_ =>
+                EventLoop.PostCallback(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
@@ -105,21 +102,14 @@ namespace Kabomu.QuasiHttp.Internals
                 }, null);
             };
             byte[] pduBytes = pdu.Serialize();
-            try
-            {
-                TransferProtocol.Transport.WriteBytesOrSendMessage(Transfer.Connection, pduBytes, 0, pduBytes.Length, cb);
-            }
-            catch (Exception e)
-            {
-                TransferProtocol.AbortTransfer(Transfer, e);
-            }
+            Transport.WriteBytesOrSendMessage(Connection, pduBytes, 0, pduBytes.Length, cb);
         }
 
         private void HandleSendPduOutcome(Exception e)
         {
             if (e != null)
             {
-                TransferProtocol.AbortTransfer(Transfer, e);
+                AbortCallback.Invoke(e);
                 return;
             }
         }

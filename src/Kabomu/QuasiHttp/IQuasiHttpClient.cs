@@ -13,7 +13,7 @@ namespace Kabomu.QuasiHttp
         IQuasiHttpTransport Transport { get; set; }
         void Send(object remoteEndpoint, QuasiHttpRequestMessage request,
             QuasiHttpSendOptions options, Action<Exception, QuasiHttpResponseMessage> cb);
-        void OnReceiveBytes(object connection);
+        void OnReceiveConnection(object connection);
         void OnReceiveMessage(object connection, byte[] data, int offset, int length);
         void Reset(Exception cause, Action<Exception> cb);
     }

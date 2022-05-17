@@ -1,5 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.Internals;
+using Kabomu.QuasiHttp.Internals.ByteOrientedProtocols;
+using Kabomu.QuasiHttp.Internals.MessageOrientedProtocols;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -11,13 +13,18 @@ namespace Kabomu.QuasiHttp
 {
     public class DefaultQuasiHttpClient : IQuasiHttpClient
     {
-        private readonly SendProtocol _sendProtocol;
-        private readonly ReceiveProtocol _receiveProtocol;
+        private readonly MessageSendProtocol _msgSendProtocol;
+        private readonly ByteSendProtocol _byteSendProtocol;
+        private readonly MessageReceiveProtocol _msgReceiveProtocol;
+        private readonly ByteReceiveProtocol _byteReceiveProtocol;
 
         public DefaultQuasiHttpClient()
         {
-            _sendProtocol = new SendProtocol();
-            _receiveProtocol = new ReceiveProtocol();
+            _msgSendProtocol = new MessageSendProtocol();
+            _byteSendProtocol = new ByteSendProtocol();
+            _msgReceiveProtocol = new MessageReceiveProtocol();
+            _byteReceiveProtocol = new ByteReceiveProtocol();
+
             EventLoop = new DefaultEventLoopApi();
         }
 
@@ -25,12 +32,14 @@ namespace Kabomu.QuasiHttp
         {
             get
             {
-                return _sendProtocol.EventLoop;
+                return _msgSendProtocol.EventLoop;
             }
             set
             {
-                _sendProtocol.EventLoop = value;
-                _receiveProtocol.EventLoop = value;
+                _msgSendProtocol.EventLoop = value;
+                _byteSendProtocol.EventLoop = value;
+                _msgReceiveProtocol.EventLoop = value;
+                _byteReceiveProtocol.EventLoop = value;
             }
         }
 
@@ -38,12 +47,14 @@ namespace Kabomu.QuasiHttp
         {
             get
             {
-                return _sendProtocol.ErrorHandler;
+                return _msgSendProtocol.ErrorHandler;
             }
             set
             {
-                _sendProtocol.ErrorHandler = value;
-                _receiveProtocol.ErrorHandler = value;
+                _msgSendProtocol.ErrorHandler = value;
+                _byteSendProtocol.ErrorHandler = value;
+                _msgReceiveProtocol.ErrorHandler = value;
+                _byteReceiveProtocol.ErrorHandler = value;
             }
         }
 
@@ -51,12 +62,14 @@ namespace Kabomu.QuasiHttp
         {
             get
             {
-                return _sendProtocol.DefaultTimeoutMillis;
+                return _msgSendProtocol.DefaultTimeoutMillis;
             }
             set
             {
-                _sendProtocol.DefaultTimeoutMillis = value;
-                _receiveProtocol.DefaultTimeoutMillis = value;
+                _msgSendProtocol.DefaultTimeoutMillis = value;
+                _byteSendProtocol.DefaultTimeoutMillis = value;
+                _msgReceiveProtocol.DefaultTimeoutMillis = value;
+                _byteReceiveProtocol.DefaultTimeoutMillis = value;
             }
         }
 
@@ -64,11 +77,12 @@ namespace Kabomu.QuasiHttp
         {
             get
             {
-                return _receiveProtocol.Application;
+                return _msgReceiveProtocol.Application;
             }
             set
             {
-                _receiveProtocol.Application = value;
+                _msgReceiveProtocol.Application = value;
+                _byteReceiveProtocol.Application = value;
             }
         }
 
@@ -76,66 +90,87 @@ namespace Kabomu.QuasiHttp
         {
             get
             {
-                return _sendProtocol.Transport;
+                return _msgSendProtocol.Transport;
             }
             set
             {
-                _sendProtocol.Transport = value;
-                _receiveProtocol.Transport = value;
+                _msgSendProtocol.Transport = value;
+                _byteSendProtocol.Transport = value;
+                _msgReceiveProtocol.Transport = value;
+                _byteReceiveProtocol.Transport = value;
             }
         }
 
-        public int MaxRetryPeriodMillis { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int MaxRetryCount { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int MaxRetryPeriodMillis { get; set; }
+        public int MaxRetryCount { get; set; }
 
         public void Send(object remoteEndpoint, QuasiHttpRequestMessage request,
             QuasiHttpSendOptions options, Action<Exception, QuasiHttpResponseMessage> cb)
         {
             EventLoop.PostCallback(_ =>
             {
-                _sendProtocol.ProcessOutgoingRequest(remoteEndpoint, request,
-                    options, cb);
+                if (Transport.IsByteOriented)
+                {
+                    _byteSendProtocol.ProcessOutgoingRequest(remoteEndpoint, request,
+                        options, cb);
+                }
+                else
+                {
+                    _msgSendProtocol.ProcessOutgoingRequest(remoteEndpoint, request,
+                        options, cb);
+                }
             }, null);
         }
 
-        public void OnReceiveBytes(object connection)
+        public void OnReceiveConnection(object connection)
         {
             EventLoop.PostCallback(_ =>
             {
-                _receiveProtocol.ProcessRequestPduBytes(connection);
+                if (Transport.IsByteOriented)
+                {
+                    _byteReceiveProtocol.ProcessNewConnection(connection);
+                }
+                else
+                {
+                    _msgReceiveProtocol.ProcessNewConnection(connection);
+                }
             }, null);
         }
 
         public void OnReceiveMessage(object connection, byte[] data, int offset, int length)
         {
+            if (Transport.IsByteOriented)
+            {
+                throw new Exception("message processing forbidden on byte-oriented transports");
+            }
             var pdu = TransferPdu.Deserialize(data, offset, length);
             EventLoop.PostCallback(_ =>
             {
                 switch (pdu.PduType)
                 {
                     case TransferPdu.PduTypeRequest:
-                        _receiveProtocol.ProcessRequestPdu(connection, pdu);
+                        _msgReceiveProtocol.ProcessRequestPdu(connection, pdu);
                         break;
                     case TransferPdu.PduTypeResponse:
-                        _sendProtocol.ProcessResponsePdu(connection, pdu);
+                        _msgSendProtocol.ProcessResponsePdu(connection, pdu);
                         break;
                     case TransferPdu.PduTypeRequestChunkGet:
-                        _sendProtocol.ProcessRequestChunkGetPdu(connection, pdu);
+                        _msgSendProtocol.ProcessRequestChunkGetPdu(connection, pdu);
                         break;
                     case TransferPdu.PduTypeRequestChunkRet:
-                        _receiveProtocol.ProcessRequestChunkRetPdu(connection, pdu);
+                        _msgReceiveProtocol.ProcessRequestChunkRetPdu(connection, pdu);
                         break;
                     case TransferPdu.PduTypeResponseChunkGet:
-                        _receiveProtocol.ProcessResponseChunkGetPdu(connection, pdu);
+                        _msgReceiveProtocol.ProcessResponseChunkGetPdu(connection, pdu);
                         break;
                     case TransferPdu.PduTypeResponseChunkRet:
-                        _sendProtocol.ProcessResponseChunkRetPdu(connection, pdu);
+                        _msgSendProtocol.ProcessResponseChunkRetPdu(connection, pdu);
                         break;
                     case TransferPdu.PduTypeRequestFin:
-                        _sendProtocol.ProcessRequestFinPdu(connection, pdu);
+                        _msgSendProtocol.ProcessRequestFinPdu(connection);
                         break;
                     case TransferPdu.PduTypeResponseFin:
-                        _receiveProtocol.ProcessResponseFinPdu(connection, pdu);
+                        _msgReceiveProtocol.ProcessResponseFinPdu(connection);
                         break;
                     default:
                         throw new Exception("Unknown pdu type: " + pdu.PduType);
@@ -149,8 +184,11 @@ namespace Kabomu.QuasiHttp
             {
                 try
                 {
-                    _sendProtocol.ProcessReset(cause);
-                    _receiveProtocol.ProcessReset(cause);
+                    _msgSendProtocol.ProcessReset(cause);
+                    _byteSendProtocol.ProcessReset(cause);
+                    _msgReceiveProtocol.ProcessReset(cause);
+                    _byteReceiveProtocol.ProcessReset(cause);
+
                     cb.Invoke(null);
                 }
                 catch (Exception e)

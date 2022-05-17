@@ -12,7 +12,6 @@ namespace Kabomu.Examples.Common
         public static readonly byte PduTypeSyn = 1;
         public static readonly byte PduTypeSynAck = 2;
         public static readonly byte PduTypeData = 3;
-        public static readonly byte PduTypeFin = 4;
 
         public byte Version { get; set; }
         public byte PduType { get; set; }
