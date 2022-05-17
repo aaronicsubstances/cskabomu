@@ -15,7 +15,7 @@ namespace Kabomu.QuasiHttp.Internals
             Transfer = transfer;
             ChunkGetPduType = chunkGetPduType;
 
-            Body = new ChunkTransferBody(contentLength, contentType, OnBodyChunkReadCallback,
+            Body = new ChunkTransferBody(contentLength, contentType, OnBodyChunkReadCallback, OnBodyEndReadCallback,
                 TransferProtocol.EventLoop);
         }
 
@@ -50,32 +50,24 @@ namespace Kabomu.QuasiHttp.Internals
 
         private void OnBodyChunkReadCallback(int bytesToRead)
         {
-            if (bytesToRead < 0)
-            {
-                SendFinPdu();
+            SendChunkGetPdu(bytesToRead);
+        }
 
-                if (ChunkGetPduType == QuasiHttpPdu.PduTypeResponseChunkGet)
-                {
-                    TransferProtocol.AbortTransfer(Transfer, null);
-                }
-            }
-            else 
-            {
-                if (ProtocolUtils.IsOperationPending(_sendBodyPduCancellationIndicator))
-                {
-                    TransferProtocol.AbortTransfer(Transfer, new Exception("incoming chunk transfer protocol violation"));
-                    return;
-                }
+        private void OnBodyEndReadCallback()
+        {
+            SendFinPdu();
 
-                SendChunkGetPdu(bytesToRead);
+            if (ChunkGetPduType == TransferPdu.PduTypeResponseChunkGet)
+            {
+                TransferProtocol.AbortTransfer(Transfer, null);
             }
         }
 
         private void SendChunkGetPdu(int bytesToRead)
         {
-            var pdu = new QuasiHttpPdu
+            var pdu = new TransferPdu
             {
-                Version = QuasiHttpPdu.Version01,
+                Version = TransferPdu.Version01,
                 PduType = ChunkGetPduType,
                 ContentLength = bytesToRead
             };
@@ -114,11 +106,11 @@ namespace Kabomu.QuasiHttp.Internals
 
         private void SendFinPdu()
         {
-            var finPduType = ChunkGetPduType == QuasiHttpPdu.PduTypeResponseChunkGet ?
-                QuasiHttpPdu.PduTypeResponseFin : QuasiHttpPdu.PduTypeRequestFin;
-            var pdu = new QuasiHttpPdu
+            var finPduType = ChunkGetPduType == TransferPdu.PduTypeResponseChunkGet ?
+                TransferPdu.PduTypeResponseFin : TransferPdu.PduTypeRequestFin;
+            var pdu = new TransferPdu
             {
-                Version = QuasiHttpPdu.Version01,
+                Version = TransferPdu.Version01,
                 PduType = finPduType
             };
             var pduBytes = pdu.Serialize();

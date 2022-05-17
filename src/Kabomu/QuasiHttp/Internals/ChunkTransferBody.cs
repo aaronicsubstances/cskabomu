@@ -15,17 +15,19 @@ namespace Kabomu.QuasiHttp.Internals
         private Exception _srcEndError;
 
         public ChunkTransferBody(int contentLength, string contentType, 
-            Action<int> readCallback, IMutexApi mutexApi)
+            Action<int> readCallback, Action closeCallback, IMutexApi mutexApi)
         {
             ContentLength = contentLength;
             ContentType = contentType;
             ReadCallback = readCallback;
+            CloseCallback = closeCallback;
             MutexApi = mutexApi ?? new BlockingMutexApi(this);
         }
 
         public int ContentLength { get; }
         public string ContentType { get; }
         public Action<int> ReadCallback { get; }
+        public Action CloseCallback { get; }
         public IMutexApi MutexApi { get; }
 
         public void OnDataRead(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
@@ -108,7 +110,7 @@ namespace Kabomu.QuasiHttp.Internals
                 _srcEndError = e ?? new Exception("end of read");
                 _pendingCb?.Invoke(_srcEndError, 0);
                 _pendingCb = null;
-                ReadCallback.Invoke(-1);
+                CloseCallback.Invoke();
             }, null);
         }
     }

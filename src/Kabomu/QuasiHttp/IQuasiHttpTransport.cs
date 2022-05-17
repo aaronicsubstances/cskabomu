@@ -17,7 +17,7 @@ namespace Kabomu.QuasiHttp
 
         /// <summary>
         /// Memory-based transports return true with a probability between 0 and 1,
-        /// in order to catch any hidden errors during serialization to pdu.
+        /// in order to catch any hidden errors during serialization to bytes.
         /// HTTP-based transports return true always in order to completely take over
         /// processing of (Quasi) HTTP requests.
         /// </summary>

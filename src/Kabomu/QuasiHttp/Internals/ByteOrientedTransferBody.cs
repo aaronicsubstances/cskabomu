@@ -5,23 +5,23 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp.Internals
 {
-    internal class AckedTransferBody : IQuasiHttpBody
+    internal class ByteOrientedTransferBody : IQuasiHttpBody
     {
         private int _readContentLength;
         private Exception _srcEndError;
 
-        public AckedTransferBody(bool isResponseBody, int contentLength, string contentType,
+        public ByteOrientedTransferBody(bool releaseConnectionOnSuccessfulTransfer, int contentLength, string contentType,
             IQuasiHttpTransport transport, object connection,
             IMutexApi mutexApi)
         {
-            IsResponseBody = isResponseBody;
+            ReleaseConnectionOnSuccessfulTransfer = releaseConnectionOnSuccessfulTransfer;
             ContentLength = contentLength;
             ContentType = contentType;
             Transport = transport;
             Connection = connection;
             MutexApi = mutexApi ?? new BlockingMutexApi(this);
         }
-        public bool IsResponseBody { get; }
+        public bool ReleaseConnectionOnSuccessfulTransfer { get; }
         public string ContentType { get; }
         public int ContentLength { get; }
         public IQuasiHttpTransport Transport { get; }
@@ -47,16 +47,28 @@ namespace Kabomu.QuasiHttp.Internals
                 }
                 Action<Exception, int> wrapperCb = (e, bytesRead) =>
                 {
+                    if (e != null)
+                    {
+                        cb.Invoke(e, 0);
+                        return;
+                    }
                     if (ContentLength >= 0)
                     {
-                        if (_readContentLength + bytesRead > ContentLength)
+                        MutexApi.RunCallback(_ =>
                         {
-                            OnEndRead(new Exception("content length exceeded"));
-                            return;
-                        }
-                        _readContentLength += bytesRead;
+                            if (_readContentLength + bytesRead > ContentLength)
+                            {
+                                OnEndRead(new Exception("content length exceeded"));
+                                return;
+                            }
+                            _readContentLength += bytesRead;
+                            cb.Invoke(null, bytesRead);
+                        }, null);
                     }
-                    cb.Invoke(e, bytesRead);
+                    else
+                    {
+                        cb.Invoke(null, bytesRead);
+                    }
                 };
                 Transport.ReadBytes(Connection, data, offset, bytesToRead, wrapperCb);
             }, null);
@@ -71,7 +83,7 @@ namespace Kabomu.QuasiHttp.Internals
                     return;
                 }
                 _srcEndError = e ?? new Exception("end of read");
-                if (IsResponseBody)
+                if (ReleaseConnectionOnSuccessfulTransfer)
                 {
                     Transport.ReleaseConnection(Connection);
                 }

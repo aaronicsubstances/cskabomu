@@ -9,13 +9,11 @@ namespace Kabomu.QuasiHttp.Internals
         public object Connection { get; set; }
         public int TimeoutMillis { get; set; }
         public object TimeoutId { get; set; }
-        public IChunkTransferProtocol OutgoingRequestBodyProtocol { get; set; }
-        public IChunkTransferProtocol IncomingRequestBodyProtocol { get; set; }
-        public IChunkTransferProtocol OutgoingResponseBodyProtocol { get; set; }
-        public IChunkTransferProtocol IncomingResponseBodyProtocol { get; set; }
-        public Action<Exception, QuasiHttpResponseMessage> RequestCallback { get; set; }
-        public STCancellationIndicator ApplicationProcessingCancellationIndicator { get; set; }
-        public STCancellationIndicator SendRequestCancellationIndicator { get; set; }
-        public STCancellationIndicator SendResponseCancellationIndicator { get; set; }
+        public IChunkTransferProtocol MessageOrientedRequestBodyProtocol { get; set; }
+        public IChunkTransferProtocol MessageOrientedResponseBodyProtocol { get; set; }
+        public Action<Exception, QuasiHttpResponseMessage> SendCallback { get; set; }
+        public STCancellationIndicator ProcessingCancellationIndicator { get; set; }
+        public bool RequestBodyTransferRequired { get; set; }
+        public bool ResponseBodyTransferRequired { get; set; }
     }
 }
