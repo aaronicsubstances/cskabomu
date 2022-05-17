@@ -36,7 +36,7 @@ namespace Kabomu.QuasiHttp.Internals
             if (ProtocolUtils.IsOperationPending(_bodyCallbackCancellationIndicator) ||
                 ProtocolUtils.IsOperationPending(_sendBodyPduCancellationIndicator))
             {
-                TransferProtocol.AbortTransfer(Transfer, new Exception("outgoing chunk transfer protocol violation"));
+                // ignore duplicate..
                 return;
             }
             var cancellationIndicator = new STCancellationIndicator();
@@ -83,9 +83,9 @@ namespace Kabomu.QuasiHttp.Internals
 
         private void SendChunkRetPdu(byte[] data, int offset, int length)
         {
-            var pdu = new QuasiHttpPdu
+            var pdu = new TransferPdu
             {
-                Version = QuasiHttpPdu.Version01,
+                Version = TransferPdu.Version01,
                 PduType = ChunkRetPduType,
                 Data = data,
                 DataOffset = offset,

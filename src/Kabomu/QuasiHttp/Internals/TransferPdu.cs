@@ -3,9 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp
+namespace Kabomu.QuasiHttp.Internals
 {
-    public class QuasiHttpPdu
+    public class TransferPdu
     {
         public const byte Version01 = 1;
 
@@ -33,9 +33,9 @@ namespace Kabomu.QuasiHttp
         public int DataLength{ get; set; }
         public bool IncludeLengthPrefixDuringSerialization { get; set; }
 
-        public static QuasiHttpPdu Deserialize(byte[] data, int offset, int length)
+        public static TransferPdu Deserialize(byte[] data, int offset, int length)
         {
-            var pdu = new QuasiHttpPdu();
+            var pdu = new TransferPdu();
 
             var csv = ByteUtils.BytesToString(data, offset, length);
             var csvData = CsvUtils.Deserialize(csv);

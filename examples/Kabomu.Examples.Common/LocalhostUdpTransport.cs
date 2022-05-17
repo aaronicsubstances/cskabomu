@@ -136,10 +136,6 @@ namespace Kabomu.Examples.Common
         public void ReleaseConnection(object obj)
         {
             var connection = (LocalhostUdpConnection)obj;
-            if (connection == null)
-            {
-                return;
-            }
             AbortConnection(connection, null);
             var finPdu = new LocalhostUdpDatagram
             {
@@ -252,7 +248,7 @@ namespace Kabomu.Examples.Common
                 else if (pdu.PduType == LocalhostUdpDatagram.PduTypeData)
                 {
                     // let upstream application deal with possible duplication.
-                    Upstream.OnReceivePdu(connection, pdu.Data, pdu.DataOffset, pdu.DataLength);
+                    Upstream.OnReceiveMessage(connection, pdu.Data, pdu.DataOffset, pdu.DataLength);
                 }
                 else
                 {

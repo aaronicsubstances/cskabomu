@@ -98,43 +98,43 @@ namespace Kabomu.QuasiHttp
             }, null);
         }
 
-        public void OnAcceptConnection(object connection)
+        public void OnReceiveBytes(object connection)
         {
             EventLoop.PostCallback(_ =>
             {
-                _receiveProtocol.ProcessAcceptConnection(connection);
+                _receiveProtocol.ProcessRequestPduBytes(connection);
             }, null);
         }
 
-        public void OnReceivePdu(object connection, byte[] data, int offset, int length)
+        public void OnReceiveMessage(object connection, byte[] data, int offset, int length)
         {
-            var pdu = QuasiHttpPdu.Deserialize(data, offset, length);
+            var pdu = TransferPdu.Deserialize(data, offset, length);
             EventLoop.PostCallback(_ =>
             {
                 switch (pdu.PduType)
                 {
-                    case QuasiHttpPdu.PduTypeRequest:
+                    case TransferPdu.PduTypeRequest:
                         _receiveProtocol.ProcessRequestPdu(connection, pdu);
                         break;
-                    case QuasiHttpPdu.PduTypeResponse:
+                    case TransferPdu.PduTypeResponse:
                         _sendProtocol.ProcessResponsePdu(connection, pdu);
                         break;
-                    case QuasiHttpPdu.PduTypeRequestChunkGet:
+                    case TransferPdu.PduTypeRequestChunkGet:
                         _sendProtocol.ProcessRequestChunkGetPdu(connection, pdu);
                         break;
-                    case QuasiHttpPdu.PduTypeRequestChunkRet:
+                    case TransferPdu.PduTypeRequestChunkRet:
                         _receiveProtocol.ProcessRequestChunkRetPdu(connection, pdu);
                         break;
-                    case QuasiHttpPdu.PduTypeResponseChunkGet:
+                    case TransferPdu.PduTypeResponseChunkGet:
                         _receiveProtocol.ProcessResponseChunkGetPdu(connection, pdu);
                         break;
-                    case QuasiHttpPdu.PduTypeResponseChunkRet:
+                    case TransferPdu.PduTypeResponseChunkRet:
                         _sendProtocol.ProcessResponseChunkRetPdu(connection, pdu);
                         break;
-                    case QuasiHttpPdu.PduTypeRequestFin:
+                    case TransferPdu.PduTypeRequestFin:
                         _sendProtocol.ProcessRequestFinPdu(connection, pdu);
                         break;
-                    case QuasiHttpPdu.PduTypeResponseFin:
+                    case TransferPdu.PduTypeResponseFin:
                         _receiveProtocol.ProcessResponseFinPdu(connection, pdu);
                         break;
                     default:
