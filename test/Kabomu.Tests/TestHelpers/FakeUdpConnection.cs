@@ -8,6 +8,5 @@ namespace Kabomu.Tests.TestHelpers
     {
         public object RemoteEndpoint { get; set; }
         public FakeUdpConnection Peer { get; set; }
-        public bool ConnectionEstablished => Peer != null;
     }
 }

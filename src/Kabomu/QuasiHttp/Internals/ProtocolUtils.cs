@@ -13,82 +13,65 @@ namespace Kabomu.QuasiHttp.Internals
         public static void ReadBytesFully(IQuasiHttpTransport transport,
             object connection, byte[] data, int offset, int bytesToRead, Action<Exception> cb)
         {
-            Action<Exception, int> continuationCb = (e, bytesRead) =>
+            HandlePartialReadOutcome(transport, connection, data, offset, bytesToRead, null, 0, cb);
+        }
+
+        private static void HandlePartialReadOutcome(IQuasiHttpTransport transport,
+           object connection, byte[] data, int offset, int bytesToRead, Exception e, int bytesRead, Action<Exception> cb)
+        {
+            if (e != null)
             {
-                if (e != null)
-                {
-                    cb.Invoke(e);
-                }
-                else
-                {
-                    if (bytesRead < bytesToRead)
-                    {
-                        ReadBytesFully(transport, connection, data, offset + bytesRead, bytesToRead - bytesRead, cb);
-                    }
-                    else
-                    {
-                        cb.Invoke(null);
-                    }
-                }
-            };
-            transport.ReadBytes(connection, data, offset, bytesToRead, continuationCb);
+                cb.Invoke(e);
+                return;
+            }
+            if (bytesRead < bytesToRead)
+            {
+                int newOffset = offset + bytesRead;
+                int newBytesToRead = bytesToRead - bytesRead;
+                transport.ReadBytes(connection, data, newOffset, newBytesToRead, (e, bytesRead) =>
+                   HandlePartialReadOutcome(transport, connection, data, newOffset, newBytesToRead, e, bytesRead, cb));
+            }
+            else
+            {
+                cb.Invoke(null);
+            }
         }
 
         public static void TransferBodyToTransport(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
-            bool releaseConnectionOnSuccessfulTransfer)
+            Action<Exception> cb)
         {
             byte[] buffer = new byte[8192];
-            HandleWriteOutcome(transport, connection, body, releaseConnectionOnSuccessfulTransfer, buffer, null);
+            HandleWriteOutcome(transport, connection, body, buffer, null, cb);
         }
 
         private static void HandleWriteOutcome(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
-            bool releaseConnectionOnSuccessfulTransfer, byte[] buffer, Exception e)
+            byte[] buffer, Exception e, Action<Exception> cb)
         {
             if (e != null)
             {
-                transport.ReleaseConnection(connection);
-                body.OnEndRead(e);
+                cb.Invoke(e);
                 return;
             }
-            try
-            {
-                body.OnDataRead(buffer, 0, buffer.Length, (e, bytesRead) =>
-                    HandleReadOutcome(transport, connection, body, releaseConnectionOnSuccessfulTransfer, buffer, e, bytesRead));
-            }
-            catch (Exception e2)
-            {
-                transport.ReleaseConnection(connection);
-                body.OnEndRead(e2);
-            }
+            body.OnDataRead(buffer, 0, buffer.Length, (e, bytesRead) =>
+                HandleReadOutcome(transport, connection, body, buffer, e, bytesRead, cb));
         }
 
         private static void HandleReadOutcome(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
-            bool releaseConnectionOnSuccessfulTransfer, byte[] buffer, Exception e, int bytesRead)
+            byte[] buffer, Exception e, int bytesRead, Action<Exception> cb)
         {
             if (e != null)
             {
-                transport.ReleaseConnection(connection);
-                body.OnEndRead(e);
+                cb.Invoke(e);
                 return;
             }
-            if (bytesRead == 0)
-            {
-                if (releaseConnectionOnSuccessfulTransfer)
-                {
-                    transport.ReleaseConnection(connection);
-                }
-                body.OnEndRead(null);
-                return;
-            }
-            try
+            if (bytesRead > 0)
             {
                 transport.WriteBytesOrSendMessage(connection, buffer, 0, bytesRead, e =>
-                    HandleWriteOutcome(transport, connection, body, releaseConnectionOnSuccessfulTransfer, buffer, e));
+                    HandleWriteOutcome(transport, connection, body, buffer, e, cb));
             }
-            catch (Exception e2)
+            else
             {
-                transport.ReleaseConnection(connection);
-                body.OnEndRead(e2);
+                cb.Invoke(null);
             }
         }
     }

@@ -9,25 +9,23 @@ namespace Kabomu.Tests.TestHelpers
     public class FakeTcpTransport : IQuasiHttpTransport
     {
         public int MaxMessageSize => throw new NotImplementedException();
-
         public bool IsByteOriented => true;
-
-        public bool DirectSendRequestProcessingEnabled => false;
-
+        public bool DirectSendRequestProcessingEnabled { get; set; }
         public FakeTcpTransportHub Hub { get; set; }
         public IQuasiHttpClient Upstream { get; set; }
 
-        public void ProcessSendRequest(object remoteEndpoint, QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> cb)
+        public void ProcessSendRequest(object remoteEndpoint, QuasiHttpRequestMessage request, 
+            Action<Exception, QuasiHttpResponseMessage> cb)
         {
-            throw new NotImplementedException();
+            var peer = Hub.Connections[remoteEndpoint];
+            peer.Upstream.Application.ProcessRequest(request, cb);
         }
 
         public void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb)
         {
             var connection = new FakeTcpConnection
             {
-                RemoteEndpoint = remoteEndpoint,
-                DuplexStream = new MemoryStream()
+                RemoteEndpoint = remoteEndpoint
             };
             cb.Invoke(null, connection);
         }
@@ -36,12 +34,20 @@ namespace Kabomu.Tests.TestHelpers
         {
             var typedConnection = (FakeTcpConnection)connection;
             typedConnection.DuplexStream.Dispose();
+            if (typedConnection.ConnectionEstablished)
+            {
+                typedConnection.Peer.DuplexStream.Dispose();
+            }
         }
 
         public void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
         {
             var typedConnection = (FakeTcpConnection)connection;
-            int bytesRead = typedConnection.DuplexStream.Read(data, offset, length);
+            if (!typedConnection.ConnectionEstablished)
+            {
+                throw new Exception("cannot read from connection yet to be established");
+            }
+            int bytesRead = typedConnection.Peer.DuplexStream.Read(data, offset, length);
             cb.Invoke(null, bytesRead);
         }
 
@@ -53,8 +59,8 @@ namespace Kabomu.Tests.TestHelpers
             if (!typedConnection.ConnectionEstablished)
             {
                 var peer = Hub.Connections[typedConnection.RemoteEndpoint];
-                typedConnection.RemoteEndpoint = null;
-                peer.Upstream.OnReceiveConnection(typedConnection);
+                typedConnection.MarkConnectionAsEstablished();
+                peer.Upstream.OnReceive(typedConnection.Peer);
             }
         }
     }
