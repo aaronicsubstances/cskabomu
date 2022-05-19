@@ -122,7 +122,7 @@ namespace Kabomu.QuasiHttp
             }, null);
         }
 
-        public void OnReceiveConnection(object connection)
+        public void OnReceive(object connection)
         {
             EventLoop.PostCallback(_ =>
             {

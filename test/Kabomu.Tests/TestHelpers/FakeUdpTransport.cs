@@ -8,16 +8,14 @@ namespace Kabomu.Tests.TestHelpers
     public class FakeUdpTransport : IQuasiHttpTransport
     {
         public int MaxMessageSize { get; set; } = 100;
-
         public bool IsByteOriented => false;
-
         public bool DirectSendRequestProcessingEnabled { get; set; }
-
         public FakeUdpTransportHub Hub { get; set; }
         public IQuasiHttpClient Upstream { get; set; }
         public object LocalEndpoint { get; set; }
 
-        public void ProcessSendRequest(object remoteEndpoint, QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> cb)
+        public void ProcessSendRequest(object remoteEndpoint, QuasiHttpRequestMessage request, 
+            Action<Exception, QuasiHttpResponseMessage> cb)
         {
             var peer = Hub.Connections[remoteEndpoint];
             peer.Upstream.Application.ProcessRequest(request, cb);
@@ -28,6 +26,11 @@ namespace Kabomu.Tests.TestHelpers
             var connection = new FakeUdpConnection
             {
                 RemoteEndpoint = remoteEndpoint
+            };
+            connection.Peer = new FakeUdpConnection
+            {
+                RemoteEndpoint = LocalEndpoint,
+                Peer = connection
             };
             cb.Invoke(null, connection);
         }
@@ -47,14 +50,6 @@ namespace Kabomu.Tests.TestHelpers
             var typedConnection = (FakeUdpConnection)connection;
             var peer = Hub.Connections[typedConnection.RemoteEndpoint];
             cb.Invoke(null);
-            if (!typedConnection.ConnectionEstablished)
-            {
-                typedConnection.Peer = new FakeUdpConnection
-                {
-                    RemoteEndpoint = LocalEndpoint,
-                    Peer = typedConnection
-                };
-            }
             peer.Upstream.OnReceiveMessage(typedConnection.Peer, data, offset, length);
         }
     }

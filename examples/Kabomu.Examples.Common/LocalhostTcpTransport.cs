@@ -36,7 +36,7 @@ namespace Kabomu.Examples.Common
                 try
                 {
                     var tcpClient = await _tcpServer.AcceptTcpClientAsync();
-                    Upstream.OnReceiveConnection(tcpClient);
+                    Upstream.OnReceive(tcpClient);
                 }
                 catch (Exception e)
                 {

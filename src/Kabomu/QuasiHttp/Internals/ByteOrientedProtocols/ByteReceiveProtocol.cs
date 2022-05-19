@@ -97,8 +97,8 @@ namespace Kabomu.QuasiHttp.Internals.ByteOrientedProtocols
             };
             if (pdu.ContentLength != 0)
             {
-                var chunkedBody = new ByteOrientedTransferBody(false, pdu.ContentLength,
-                    pdu.ContentType, Transport, transfer.Connection, EventLoop);
+                var chunkedBody = new ByteOrientedTransferBody(pdu.ContentLength,
+                    pdu.ContentType, Transport, transfer.Connection, EventLoop, null);
                 request.Body = chunkedBody;
             }
             BeginApplicationPipelineProcessing(transfer, request);
@@ -188,7 +188,7 @@ namespace Kabomu.QuasiHttp.Internals.ByteOrientedProtocols
             }
             if (response.Body != null)
             {
-                ProtocolUtils.TransferBodyToTransport(Transport, transfer.Connection, response.Body, true);
+                ProtocolUtils.TransferBodyToTransport(Transport, transfer.Connection, response.Body, null);
                 // discard records of connection in QuasiHttpClient, but keep records
                 // in underlying transport.
                 transfer.Connection = null;

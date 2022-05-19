@@ -10,23 +10,25 @@ namespace Kabomu.QuasiHttp.Internals.ByteOrientedProtocols
         private int _readContentLength;
         private Exception _srcEndError;
 
-        public ByteOrientedTransferBody(bool releaseConnectionOnEndOfTransfer, int contentLength, string contentType,
+        public ByteOrientedTransferBody(int contentLength, string contentType,
             IQuasiHttpTransport transport, object connection,
-            IMutexApi mutexApi)
+            IMutexApi mutexApi, Action<Exception> cb)
         {
-            ReleaseConnectionOnEndOfTransfer = releaseConnectionOnEndOfTransfer;
             ContentLength = contentLength;
             ContentType = contentType;
             Transport = transport;
             Connection = connection;
             MutexApi = mutexApi ?? new BlockingMutexApi(this);
+            CompletionCallback = cb;
         }
-        public bool ReleaseConnectionOnEndOfTransfer { get; }
+
         public string ContentType { get; }
         public int ContentLength { get; }
         public IQuasiHttpTransport Transport { get; }
         public object Connection { get; }
         public IMutexApi MutexApi { get; }
+        public Action<Exception> CompletionCallback { get; }
+
 
         public void OnDataRead(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
@@ -52,9 +54,9 @@ namespace Kabomu.QuasiHttp.Internals.ByteOrientedProtocols
                         cb.Invoke(e, 0);
                         return;
                     }
-                    if (ContentLength >= 0)
+                    MutexApi.RunCallback(_ =>
                     {
-                        MutexApi.RunCallback(_ =>
+                        if (ContentLength >= 0)
                         {
                             if (_readContentLength + bytesRead > ContentLength)
                             {
@@ -62,13 +64,9 @@ namespace Kabomu.QuasiHttp.Internals.ByteOrientedProtocols
                                 return;
                             }
                             _readContentLength += bytesRead;
-                            cb.Invoke(null, bytesRead);
-                        }, null);
-                    }
-                    else
-                    {
+                        }
                         cb.Invoke(null, bytesRead);
-                    }
+                    }, null);
                 };
                 Transport.ReadBytes(Connection, data, offset, bytesToRead, wrapperCb);
             }, null);
@@ -82,11 +80,8 @@ namespace Kabomu.QuasiHttp.Internals.ByteOrientedProtocols
                 {
                     return;
                 }
+                CompletionCallback.Invoke(e);
                 _srcEndError = e ?? new Exception("end of read");
-                if (ReleaseConnectionOnEndOfTransfer)
-                {
-                    Transport.ReleaseConnection(Connection);
-                }
             }, null);
         }
     }

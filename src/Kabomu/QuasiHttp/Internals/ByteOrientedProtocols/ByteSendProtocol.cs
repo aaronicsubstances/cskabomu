@@ -167,7 +167,7 @@ namespace Kabomu.QuasiHttp.Internals.ByteOrientedProtocols
 
             if (request.Body != null)
             {
-                ProtocolUtils.TransferBodyToTransport(Transport, transfer.Connection, request.Body, false);
+                ProtocolUtils.TransferBodyToTransport(Transport, transfer.Connection, request.Body, null);
             }
             ProcessResponsePduBytes(transfer);
         }
@@ -248,8 +248,8 @@ namespace Kabomu.QuasiHttp.Internals.ByteOrientedProtocols
             
             if (pdu.ContentLength != 0)
             {
-                response.Body = new ByteOrientedTransferBody(true, pdu.ContentLength,
-                    pdu.ContentType, Transport, transfer.Connection, EventLoop);
+                response.Body = new ByteOrientedTransferBody(pdu.ContentLength,
+                    pdu.ContentType, Transport, transfer.Connection, EventLoop, null);
             }
 
             transfer.SendCallback.Invoke(null, response);

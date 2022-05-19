@@ -176,7 +176,7 @@ namespace Kabomu.Examples.Common
             if (pdu.PduType == LocalhostUdpDatagram.PduTypeSyn)
             {
                 // let upstream application deal with duplicate connection attempts.
-                Upstream.OnReceiveConnection(connection);
+                Upstream.OnReceive(connection);
 
                 // send a syn ack to establish connection at initiating end.
                 var connectionConfirmationPdu = new LocalhostUdpDatagram
