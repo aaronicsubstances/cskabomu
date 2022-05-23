@@ -11,12 +11,11 @@ namespace Kabomu.QuasiHttp.Internals
 
         public const byte PduTypeRequest = 1;
         public const byte PduTypeResponse = 2;
-        public const byte PduTypeRequestFin = 3;
-        public const byte PduTypeResponseFin = 4;
-        public const byte PduTypeRequestChunkGet = 5;
-        public const byte PduTypeRequestChunkRet = 6;
-        public const byte PduTypeResponseChunkGet = 7;
-        public const byte PduTypeResponseChunkRet = 8;
+        public const byte PduTypeFin = 3;
+        public const byte PduTypeRequestChunkGet = 4;
+        public const byte PduTypeRequestChunkRet = 5;
+        public const byte PduTypeResponseChunkGet = 6;
+        public const byte PduTypeResponseChunkRet = 7;
 
         public byte Version { get; set; }
         public byte PduType { get; set; }
