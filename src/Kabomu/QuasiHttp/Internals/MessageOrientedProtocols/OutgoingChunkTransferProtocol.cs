@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
 {
-    internal class OutgoingChunkTransferProtocol : IChunkTransferProtocol
+    internal class OutgoingChunkTransferProtocol
     {
         private STCancellationIndicator _bodyCallbackCancellationIndicator;
         private STCancellationIndicator _sendBodyPduCancellationIndicator;
@@ -56,11 +56,6 @@ namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
                 }
             };
             Body.OnDataRead(data, 0, data.Length, cb);
-        }
-
-        public void ProcessChunkRetPdu(byte[] data, int offset, int length)
-        {
-            throw new NotImplementedException();
         }
 
         private void HandleBodyChunkReadOutcome(Exception e, byte[] data, int offset, int length)

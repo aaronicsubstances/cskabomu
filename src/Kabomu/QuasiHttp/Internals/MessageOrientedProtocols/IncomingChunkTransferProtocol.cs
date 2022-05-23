@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
 {
-    internal class IncomingChunkTransferProtocol : IChunkTransferProtocol
+    internal class IncomingChunkTransferProtocol
     {
         private STCancellationIndicator _sendBodyPduCancellationIndicator;
 
@@ -28,7 +28,7 @@ namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
         public object Connection { get; }
         public Action<Exception> AbortCallback { get; }
         public byte ChunkGetPduType { get; }
-        public IQuasiHttpBody Body { get; }
+        public ChunkTransferBody Body { get; }
 
         public void Cancel(Exception e)
         {
@@ -36,14 +36,9 @@ namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
             Body.OnEndRead(e);
         }
 
-        public void ProcessChunkGetPdu(int bytesToRead)
-        {
-            throw new NotImplementedException();
-        }
-
         public void ProcessChunkRetPdu(byte[] data, int offset, int length)
         {
-            ((ChunkTransferBody)Body).OnDataWrite(data ?? new byte[0], offset, length);
+            Body.OnDataWrite(data ?? new byte[0], offset, length);
         }
 
         private void OnBodyChunkReadCallback(int bytesToRead)
@@ -53,10 +48,9 @@ namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
 
         private void OnBodyEndReadCallback()
         {
-            SendFinPdu();
-
             if (ChunkGetPduType == TransferPdu.PduTypeResponseChunkGet)
             {
+                SendFinPdu();
                 AbortCallback.Invoke(null);
             }
         }
@@ -97,12 +91,10 @@ namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
 
         private void SendFinPdu()
         {
-            var finPduType = ChunkGetPduType == TransferPdu.PduTypeResponseChunkGet ?
-                TransferPdu.PduTypeResponseFin : TransferPdu.PduTypeRequestFin;
             var pdu = new TransferPdu
             {
                 Version = TransferPdu.Version01,
-                PduType = finPduType
+                PduType = TransferPdu.PduTypeFin
             };
             var pduBytes = pdu.Serialize();
             Transport.WriteBytesOrSendMessage(Connection, pduBytes, 0, pduBytes.Length, _ => { });

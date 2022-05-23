@@ -1,44 +1,65 @@
-﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.Bodies;
+﻿using Kabomu.QuasiHttp.Bodies;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
 {
-    internal class MessageReceiveProtocol
+    internal class MessageReceiveProtocol : ITransferProtocol
     {
-        private readonly Dictionary<object, MessageTransfer> _incomingTransfers = 
-            new Dictionary<object, MessageTransfer>();
+        private IQuasiHttpBody _requestBody, _responseBody;
+        private IncomingChunkTransferProtocol _requestBodyProtocol;
+        private OutgoingChunkTransferProtocol _responseBodyProtocol;
 
-        public IQuasiHttpTransport Transport { get; set; }
-        public int DefaultTimeoutMillis { get; set; }
-        public IEventLoopApi EventLoop { get; set; }
-        public UncaughtErrorCallback ErrorHandler { get; set; }
-        public IQuasiHttpApplication Application { get; set; }
+        public IParentTransferProtocol Parent { get; set; }
+        public object Connection { get; set; }
+        public STCancellationIndicator ProcessingCancellationIndicator { get; set; }
+        public int TimeoutMillis { get; set; }
+        public object TimeoutId { get; set; }
+        public Action<Exception, QuasiHttpResponseMessage> SendCallback { get; set; }
 
-        public void ProcessNewConnection(object connection)
+        public void Cancel(Exception e)
         {
-            if (connection == null)
-            {
-                throw new ArgumentException("null connection");
-            }
-            var transfer = new MessageTransfer
-            {
-                Connection = connection,
-                TimeoutMillis = DefaultTimeoutMillis
-            };
-            _incomingTransfers.Add(connection, transfer);
-            ResetTimeout(transfer);
+            _requestBody?.OnEndRead(e);
+            _responseBody?.OnEndRead(e);
+            _requestBodyProtocol?.Cancel(e);
+            _responseBodyProtocol?.Cancel(e);
         }
 
-        public void ProcessRequestPdu(object connection, TransferPdu pdu)
+        public void OnSend(QuasiHttpRequestMessage request)
         {
-            if (!_incomingTransfers.ContainsKey(connection))
+            throw new NotImplementedException("implementation error");
+        }
+
+        public void OnReceive()
+        {
+            // nothing else to do.
+        }
+
+        public void OnReceiveMessage(byte[] data, int offset, int length)
+        {
+            var pdu = TransferPdu.Deserialize(data, offset, length);
+            switch (pdu.PduType)
             {
-                return;
+                case TransferPdu.PduTypeRequest:
+                    ProcessRequestPdu(pdu);
+                    break;
+                case TransferPdu.PduTypeRequestChunkRet:
+                    ProcessRequestChunkRetPdu(pdu);
+                    break;
+                case TransferPdu.PduTypeResponseChunkGet:
+                    ProcessResponseChunkGetPdu(pdu);
+                    break;
+                case TransferPdu.PduTypeFin:
+                    ProcessFinPdu();
+                    break;
+                default:
+                    throw new Exception("Unexpected pdu type: " + pdu.PduType);
             }
-            var transfer = _incomingTransfers[connection];
+        }
+
+        private void ProcessRequestPdu(TransferPdu pdu)
+        {
             var request = new QuasiHttpRequestMessage
             {
                 Path = pdu.Path,
@@ -47,69 +68,55 @@ namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
             if (pdu.DataLength > 0)
             {
                 request.Body = new ByteBufferBody(pdu.Data, pdu.DataOffset,
-                    pdu.DataLength, pdu.ContentType, EventLoop);
+                    pdu.DataLength, pdu.ContentType, Parent.EventLoop);
             }
             else if (pdu.ContentLength != 0)
             {
-                Action<Exception> abortCallback = e => AbortTransfer(transfer, e);
-                transfer.RequestBodyProtocol = new IncomingChunkTransferProtocol(Transport, EventLoop,
-                    transfer.Connection, abortCallback, TransferPdu.PduTypeRequestChunkGet, pdu.ContentLength, pdu.ContentType);
-                request.Body = transfer.RequestBodyProtocol.Body;
+                Action<Exception> abortCallback = e => Parent.AbortTransfer(this, e);
+                _requestBodyProtocol = new IncomingChunkTransferProtocol(Parent.Transport, Parent.EventLoop,
+                    Connection, abortCallback, TransferPdu.PduTypeRequestChunkGet, pdu.ContentLength, pdu.ContentType);
+                request.Body = _requestBodyProtocol.Body;
             }
-            BeginApplicationPipelineProcessing(transfer, request);
+            _requestBody = request.Body;
+            BeginApplicationPipelineProcessing(request);
         }
 
-        private void BeginApplicationPipelineProcessing(MessageTransfer transfer, QuasiHttpRequestMessage request)
+        private void BeginApplicationPipelineProcessing(QuasiHttpRequestMessage request)
         {
             var cancellationIndicator = new STCancellationIndicator();
-            transfer.ProcessingCancellationIndicator = cancellationIndicator;
+            ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception, QuasiHttpResponseMessage> cb = (e, res) =>
             {
-                EventLoop.PostCallback(_ =>
+                Parent.EventLoop.PostCallback(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
                         cancellationIndicator.Cancel();
-                        HandleApplicationProcessingOutcome(transfer, e, res);
+                        HandleApplicationProcessingOutcome(e, res);
                     }
                 }, null);
             };
-            Application.ProcessRequest(request, cb);
-            ResetTimeout(transfer);
+            Parent.Application.ProcessRequest(request, cb);
         }
 
-        public void ProcessRequestChunkRetPdu(object connection, TransferPdu pdu)
+        private void HandleApplicationProcessingOutcome(Exception e, QuasiHttpResponseMessage response)
         {
-            if (!_incomingTransfers.ContainsKey(connection))
-            {
-                return;
-            }
-            var transfer = _incomingTransfers[connection];
-            transfer.RequestBodyProtocol.ProcessChunkRetPdu(pdu.Data,
-                pdu.DataOffset, pdu.DataLength);
-            ResetTimeout(transfer);
-        }
-
-        private void HandleApplicationProcessingOutcome(MessageTransfer transfer, Exception e,
-            QuasiHttpResponseMessage response)
-        {            
             if (e != null)
             {
-                AbortTransfer(transfer, e);
+                Parent.AbortTransfer(this, e);
                 return;
             }
 
             if (response == null)
             {
-                AbortTransfer(transfer, new Exception("no response"));
+                Parent.AbortTransfer(this, new Exception("no response"));
                 return;
             }
 
-            SendResponsePdu(transfer, response);
-            ResetTimeout(transfer);
+            SendResponsePdu(response);
         }
 
-        private void SendResponsePdu(MessageTransfer transfer, QuasiHttpResponseMessage response)
+        private void SendResponsePdu(QuasiHttpResponseMessage response)
         {
             var pdu = new TransferPdu
             {
@@ -121,6 +128,7 @@ namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
                 Headers = response.Headers
             };
 
+            _responseBody = response.Body;
             if (response.Body != null)
             {
                 pdu.ContentLength = response.Body.ContentLength;
@@ -129,7 +137,7 @@ namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
                 if (response.Body is ByteBufferBody byteBufferBody)
                 {
                     int sizeWithoutBody = pdu.Serialize().Length;
-                    if (sizeWithoutBody + pdu.ContentLength <= Transport.MaxMessageSize)
+                    if (sizeWithoutBody + pdu.ContentLength <= Parent.Transport.MaxMessageSize)
                     {
                         pdu.Data = byteBufferBody.Buffer;
                         pdu.DataOffset = byteBufferBody.Offset;
@@ -139,108 +147,56 @@ namespace Kabomu.QuasiHttp.Internals.MessageOrientedProtocols
                 }
                 if (bodyTransferRequired)
                 {
-                    Action<Exception> abortCallback = e => AbortTransfer(transfer, e);
-                    transfer.ResponseBodyProtocol = new OutgoingChunkTransferProtocol(Transport, EventLoop,
-                        transfer.Connection, abortCallback, TransferPdu.PduTypeResponseChunkRet, response.Body);
+                    Action<Exception> abortCallback = e => Parent.AbortTransfer(this, e);
+                    _responseBodyProtocol = new OutgoingChunkTransferProtocol(Parent.Transport, Parent.EventLoop,
+                        Connection, abortCallback, TransferPdu.PduTypeResponseChunkRet, response.Body);
                 }
             }
 
             var cancellationIndicator = new STCancellationIndicator();
-            transfer.ProcessingCancellationIndicator = cancellationIndicator;
+            ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
-                EventLoop.PostCallback(_ =>
+                Parent.EventLoop.PostCallback(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
                         cancellationIndicator.Cancel();
-                        HandleSendResponsePduOutcome(transfer, e);
+                        HandleSendResponsePduOutcome(e);
                     }
                 }, null);
             };
             var pduBytes = pdu.Serialize();
-            Transport.WriteBytesOrSendMessage(transfer.Connection, pduBytes, 0, pduBytes.Length, cb);
+            Parent.Transport.WriteBytesOrSendMessage(Connection, pduBytes, 0, pduBytes.Length, cb);
         }
 
-        private void HandleSendResponsePduOutcome(MessageTransfer transfer, Exception e)
+        private void HandleSendResponsePduOutcome(Exception e)
         {
             if (e != null)
             {
-                AbortTransfer(transfer, e);
+                Parent.AbortTransfer(this, e);
                 return;
             }
 
-            if (transfer.ResponseBodyProtocol == null)
+            if (_responseBodyProtocol == null)
             {
-                AbortTransfer(transfer, null);
+                Parent.AbortTransfer(this, null);
             }
         }
 
-        public void ProcessResponseChunkGetPdu(object connection, TransferPdu pdu)
+        private void ProcessRequestChunkRetPdu(TransferPdu pdu)
         {
-            if (!_incomingTransfers.ContainsKey(connection))
-            {
-                return;
-            }
-            var transfer = _incomingTransfers[connection];
-            transfer.ResponseBodyProtocol.ProcessChunkGetPdu(pdu.ContentLength);
-            ResetTimeout(transfer);
+            _requestBodyProtocol.ProcessChunkRetPdu(pdu.Data, pdu.DataOffset, pdu.DataLength);
         }
 
-        public void ProcessResponseFinPdu(object connection)
+        private void ProcessResponseChunkGetPdu(TransferPdu pdu)
         {
-            if (!_incomingTransfers.ContainsKey(connection))
-            {
-                return;
-            }
-            var transfer = _incomingTransfers[connection];
-            AbortTransfer(transfer, null);
+            _responseBodyProtocol.ProcessChunkGetPdu(pdu.ContentLength);
         }
 
-        private void ResetTimeout(MessageTransfer transfer)
+        private void ProcessFinPdu()
         {
-            EventLoop.CancelTimeout(transfer.TimeoutId);
-            transfer.TimeoutId = EventLoop.ScheduleTimeout(transfer.TimeoutMillis,
-                _ =>
-                {
-                    AbortTransfer(transfer, new Exception("receive timeout"));
-                }, null);
-        }
-
-        private void AbortTransfer(MessageTransfer transfer, Exception e)
-        {
-            if (!_incomingTransfers.Remove(transfer.Connection))
-            {
-                return;
-            }
-            DisableTransfer(transfer, e);
-        }
-
-        public void ProcessReset(Exception causeOfReset)
-        {
-            foreach (var transfer in _incomingTransfers.Values)
-            {
-                DisableTransfer(transfer, causeOfReset);
-            }
-            _incomingTransfers.Clear();
-        }
-
-        private void DisableTransfer(MessageTransfer transfer, Exception e)
-        {
-            EventLoop.CancelTimeout(transfer.TimeoutId);
-            transfer.ProcessingCancellationIndicator?.Cancel();
-            transfer.RequestBodyProtocol?.Cancel(e);
-            transfer.ResponseBodyProtocol?.Cancel(e);
-
-            if (transfer.Connection != null)
-            {
-                Transport.ReleaseConnection(transfer.Connection);
-            }
-
-            if (e != null)
-            {
-                ErrorHandler?.Invoke(e, "incoming transfer error");
-            }
+            Parent.AbortTransfer(this, null);
         }
     }
 }
