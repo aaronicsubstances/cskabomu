@@ -58,7 +58,7 @@ namespace Tcp.FileClient
                     LOG.Warn(e, "TCP transport error: {0}", m);
                 }
             };
-            var instance = new DefaultQuasiHttpClient
+            var instance = new KabomuQuasiHttpClient
             {
                 DefaultTimeoutMillis = 5_000,
                 EventLoop = eventLoop,
@@ -88,7 +88,7 @@ namespace Tcp.FileClient
             }
         }
 
-        private static async Task StartTransferringFiles(IQuasiHttpClient instance, int serverPort, string uploadDirPath,
+        private static async Task StartTransferringFiles(KabomuQuasiHttpClient instance, int serverPort, string uploadDirPath,
             bool serveContentLength)
         {
             var directory = new DirectoryInfo(uploadDirPath);
@@ -111,9 +111,9 @@ namespace Tcp.FileClient
             LOG.Info("Successfully transferred {0} bytes ({1} MB) worth of data in {2} files in {3} seconds",
                 bytesTransferred, megaBytesTransferred, count, timeTaken);
         }
-        private static Task TransferFile(IQuasiHttpClient instance, int serverPort, FileInfo f, bool serveContentLength)
+        private static Task TransferFile(KabomuQuasiHttpClient instance, int serverPort, FileInfo f, bool serveContentLength)
         {
-            var request = new QuasiHttpRequestMessage
+            var request = new DefaultQuasiHttpRequestMessage
             {
                 Headers = new Dictionary<string, List<string>>(),
                 Body = new FileBody(f.DirectoryName, f.Name, serveContentLength)

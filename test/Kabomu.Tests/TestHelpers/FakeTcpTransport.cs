@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,14 +9,14 @@ namespace Kabomu.Tests.TestHelpers
 {
     public class FakeTcpTransport : IQuasiHttpTransport
     {
-        public int MaxMessageSize => throw new NotImplementedException();
+        public int MaxMessageOrChunkSize { get; set; }
         public bool IsByteOriented => true;
         public bool DirectSendRequestProcessingEnabled { get; set; }
         public FakeTcpTransportHub Hub { get; set; }
-        public IQuasiHttpClient Upstream { get; set; }
+        public KabomuQuasiHttpClient Upstream { get; set; }
 
-        public void ProcessSendRequest(object remoteEndpoint, QuasiHttpRequestMessage request, 
-            Action<Exception, QuasiHttpResponseMessage> cb)
+        public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequestMessage request, 
+            Action<Exception, IQuasiHttpResponseMessage> cb)
         {
             var peer = Hub.Connections[remoteEndpoint];
             peer.Upstream.Application.ProcessRequest(request, cb);

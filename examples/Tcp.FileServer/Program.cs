@@ -49,7 +49,7 @@ namespace Udp.FileServer
                     LOG.Error("Transport error! {0}: {1}", m, e);
                 }
             };
-            var instance = new DefaultQuasiHttpClient
+            var instance = new KabomuQuasiHttpClient
             {
                 DefaultTimeoutMillis = 5_000,
                 EventLoop = eventLoop,

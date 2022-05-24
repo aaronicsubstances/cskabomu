@@ -22,7 +22,7 @@ namespace Kabomu.Examples.Common
 
         public bool IsByteOriented => false;
 
-        public int MaxMessageSize => 65_000;
+        public int MaxMessageOrChunkSize => 65_000;
 
         public bool DirectSendRequestProcessingEnabled => false;
 
@@ -30,7 +30,7 @@ namespace Kabomu.Examples.Common
 
         public int MaxConnectionRetryCount { get; set; }
 
-        public IQuasiHttpClient Upstream { get; set; }
+        public KabomuQuasiHttpClient Upstream { get; set; }
 
         public IEventLoopApi EventLoop { get; set; }
 
@@ -41,8 +41,8 @@ namespace Kabomu.Examples.Common
             throw new NotImplementedException();
         }
 
-        public void ProcessSendRequest(object remoteEndpoint, QuasiHttpRequestMessage request,
-            Action<Exception, QuasiHttpResponseMessage> cb)
+        public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequestMessage request,
+            Action<Exception, IQuasiHttpResponseMessage> cb)
         {
             throw new NotImplementedException();
         }
