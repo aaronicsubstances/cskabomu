@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -21,7 +22,7 @@ namespace Kabomu.Examples.Common
             _uploadDirPath = uploadDirPath;
         }
 
-        public async void ProcessRequest(QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> cb)
+        public async void ProcessRequest(IQuasiHttpRequestMessage request, Action<Exception, IQuasiHttpResponseMessage> cb)
         {
             var fileName = request.Headers["f"][0];
             LOG.Debug("Starting receipt of file {0} from {1}...", fileName, _port);
@@ -55,7 +56,7 @@ namespace Kabomu.Examples.Common
 
             LOG.Info(transferError, "File {0} received {1}", fileName, transferError == null ? "successfully" : "with error");
 
-            var response = new QuasiHttpResponseMessage
+            var response = new DefaultQuasiHttpResponseMessage
             {
                 StatusIndicatesSuccess = transferError == null,
                 StatusMessage = transferError?.Message ?? "OK"

@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Internals;
 using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
@@ -16,15 +17,16 @@ namespace Kabomu.Examples.Common
         public LocalhostTcpTransport(int port)
         {
             _tcpServer = new TcpListener(IPAddress.Loopback, port);
+            MaxMessageOrChunkSize = 8192;
         }
 
-        public int MaxMessageSize => throw new NotImplementedException();
+        public int MaxMessageOrChunkSize { get; set; }
 
         public bool IsByteOriented => true;
 
         public bool DirectSendRequestProcessingEnabled => false;
 
-        public IQuasiHttpClient Upstream { get; set; }
+        public KabomuQuasiHttpClient Upstream { get; set; }
 
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
@@ -57,7 +59,8 @@ namespace Kabomu.Examples.Common
             _tcpServer.Stop();
         }
 
-        public void ProcessSendRequest(object remoteEndpoint, QuasiHttpRequestMessage request, Action<Exception, QuasiHttpResponseMessage> cb)
+        public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequestMessage request, 
+            Action<Exception, IQuasiHttpResponseMessage> cb)
         {
             throw new NotImplementedException();
         }

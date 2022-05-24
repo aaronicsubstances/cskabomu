@@ -17,4 +17,8 @@
     <ProjectReference Include="..\..\src\Kabomu\Kabomu.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="QuasiHttp\" />
+  </ItemGroup>
+
 </Project>

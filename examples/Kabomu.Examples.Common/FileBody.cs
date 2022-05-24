@@ -1,4 +1,4 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Common;
 using NLog;
 using System;
 using System.IO;
