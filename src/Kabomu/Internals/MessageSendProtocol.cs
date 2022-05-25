@@ -21,8 +21,8 @@ namespace Kabomu.Internals
 
         public void Cancel(Exception e)
         {
-            _requestBody?.OnEndRead(e);
-            _responseBody?.OnEndRead(e);
+            _requestBody?.OnEndRead(Parent.EventLoop, e);
+            _responseBody?.OnEndRead(Parent.EventLoop, e);
             _requestBodyProtocol?.Cancel(e);
             _responseBodyProtocol?.Cancel(e);
         }
@@ -133,7 +133,7 @@ namespace Kabomu.Internals
             if (pdu.DataLength > 0)
             {
                 response.Body = new ByteBufferBody(pdu.Data, pdu.DataOffset,
-                    pdu.DataLength, pdu.ContentType, Parent.EventLoop);
+                    pdu.DataLength, pdu.ContentType);
             }
             else if (pdu.ContentLength != 0)
             {

@@ -33,7 +33,7 @@ namespace Kabomu.Internals
         {
             _bodyCallbackCancellationIndicator?.Cancel();
             _sendBodyPduCancellationIndicator?.Cancel();
-            Body.OnEndRead(e);
+            Body.OnEndRead(EventLoop, e);
         }
 
         public void ProcessChunkGetPdu(int bytesToRead)
@@ -55,7 +55,7 @@ namespace Kabomu.Internals
                     HandleBodyChunkReadOutcome(e, data, 0, bytesRead);
                 }
             };
-            Body.OnDataRead(data, 0, data.Length, cb);
+            Body.OnDataRead(EventLoop, data, 0, data.Length, cb);
         }
 
         private void HandleBodyChunkReadOutcome(Exception e, byte[] data, int offset, int length)

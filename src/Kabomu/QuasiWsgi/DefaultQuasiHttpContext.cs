@@ -4,13 +4,13 @@ using System.Collections.Generic;
 
 namespace Kabomu.QuasiWsgi
 {
-    public class QuasiHttpContext
+    public class DefaultQuasiHttpContext : IQuasiHttpContext
     {
         private IQuasiHttpResponseMessage _response;
         private Exception _error;
         private bool _responseMarkedAsSent;
 
-        public QuasiHttpContext(IQuasiHttpRequestMessage request)
+        public DefaultQuasiHttpContext(IQuasiHttpRequestMessage request)
         {
             Request = request;
             RequestAttributes = new Dictionary<string, object>();

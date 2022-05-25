@@ -11,14 +11,12 @@ namespace Kabomu.Internals
         private Exception _srcEndError;
 
         public ByteOrientedTransferBody(int contentLength, string contentType,
-            IQuasiHttpTransport transport, object connection,
-            IMutexApi mutexApi, Action<Exception> cb)
+            IQuasiHttpTransport transport, object connection, Action<Exception> cb)
         {
             ContentLength = contentLength;
             ContentType = contentType;
             Transport = transport;
             Connection = connection;
-            MutexApi = mutexApi ?? new BlockingMutexApi(this);
             CompletionCallback = cb;
         }
 
@@ -26,11 +24,10 @@ namespace Kabomu.Internals
         public int ContentLength { get; }
         public IQuasiHttpTransport Transport { get; }
         public object Connection { get; }
-        public IMutexApi MutexApi { get; }
         public Action<Exception> CompletionCallback { get; }
 
 
-        public void OnDataRead(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
             if (cb == null)
             {
@@ -40,7 +37,7 @@ namespace Kabomu.Internals
             {
                 throw new ArgumentException("received negative bytes to read");
             }
-            MutexApi.RunCallback(_ =>
+            mutex.RunExclusively(_ =>
             {
                 if (_srcEndError != null)
                 {
@@ -54,13 +51,17 @@ namespace Kabomu.Internals
                         cb.Invoke(e, 0);
                         return;
                     }
-                    MutexApi.RunCallback(_ =>
+                    mutex.RunExclusively(_ =>
                     {
+                        if (_srcEndError != null)
+                        {
+                            return;
+                        }
                         if (ContentLength >= 0)
                         {
                             if (_readContentLength + bytesRead > ContentLength)
                             {
-                                OnEndRead(new Exception("content length exceeded"));
+                                EndRead(new Exception("content length exceeded"));
                                 return;
                             }
                             _readContentLength += bytesRead;
@@ -72,17 +73,22 @@ namespace Kabomu.Internals
             }, null);
         }
 
-        public void OnEndRead(Exception e)
+        public void OnEndRead(IMutexApi mutex, Exception e)
         {
-            MutexApi.RunCallback(_ =>
+            mutex.RunExclusively(_ =>
             {
                 if (_srcEndError != null)
                 {
                     return;
                 }
-                CompletionCallback.Invoke(e);
-                _srcEndError = e ?? new Exception("end of read");
+                EndRead(e);
             }, null);
+        }
+        
+        private void EndRead(Exception e)
+        {
+            CompletionCallback.Invoke(e);
+            _srcEndError = e ?? new Exception("end of read");
         }
     }
 }

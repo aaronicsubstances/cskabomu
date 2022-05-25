@@ -32,7 +32,7 @@ namespace Kabomu.Examples.Common
 
         public int ContentLength { get; }
 
-        public async void OnDataRead(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public async void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
             try
             {
@@ -45,7 +45,7 @@ namespace Kabomu.Examples.Common
             }
         }
 
-        public async void OnEndRead(Exception e)
+        public async void OnEndRead(IMutexApi mutex, Exception e)
         {
             try
             {

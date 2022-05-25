@@ -8,6 +8,18 @@ namespace Kabomu.Tests.Common
 {
     public class ByteUtilsTest
     {
+        [Fact]
+        public void TestReadBytesFully()
+        {
+
+        }
+
+        [Fact]
+        public void TestTransferBodyToTransport()
+        {
+
+        }
+
         [Theory]
         [MemberData(nameof(CreateTestIsValidMessagePayloadData))]
         public void TestIsValidMessagePayload(byte[] data, int offset, int length, bool expected)

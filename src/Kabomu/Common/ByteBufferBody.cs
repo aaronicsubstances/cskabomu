@@ -9,7 +9,7 @@ namespace Kabomu.Common
         private int _bytesRead;
         private Exception _srcEndError;
 
-        public ByteBufferBody(byte[] data, int offset, int length, string contentType, IMutexApi mutexApi)
+        public ByteBufferBody(byte[] data, int offset, int length, string contentType)
         {
             if (!ByteUtils.IsValidMessagePayload(data, offset, length))
             {
@@ -20,7 +20,6 @@ namespace Kabomu.Common
             Offset = offset;
             ContentLength = length;
             ContentType = contentType ?? "application/octet-stream";
-            MutexApi = mutexApi ?? new BlockingMutexApi(this);
         }
 
         public byte[] Buffer { get; }
@@ -29,7 +28,7 @@ namespace Kabomu.Common
         public string ContentType { get; }
         public IMutexApi MutexApi { get; }
 
-        public void OnDataRead(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
             if (cb == null)
             {
@@ -39,7 +38,7 @@ namespace Kabomu.Common
             {
                 throw new ArgumentException("received negative bytes to read");
             }
-            MutexApi.RunCallback(_ =>
+            mutex.RunExclusively(_ =>
             {
                 if (_srcEndError != null)
                 {
@@ -53,9 +52,9 @@ namespace Kabomu.Common
             }, null);
         }
 
-        public void OnEndRead(Exception e)
+        public void OnEndRead(IMutexApi mutex, Exception e)
         {
-            MutexApi.RunCallback(_ =>
+            mutex.RunExclusively(_ =>
             {
                 if (_srcEndError != null)
                 {

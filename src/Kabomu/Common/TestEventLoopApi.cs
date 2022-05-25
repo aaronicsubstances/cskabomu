@@ -57,8 +57,6 @@ namespace Kabomu.Common
 
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
-        public bool IsEventDispatchThread { get; set; }
-
         public int PendingEventCount
         {
             get
@@ -109,9 +107,11 @@ namespace Kabomu.Common
                 }
             }
         }
-        public void RunCallback(Action<object> cb, object cbState)
+
+        public void RunExclusively(Action<object> cb, object cbState)
         {
-            PostCallback(cb, cbState);
+            // run immediately.
+            cb.Invoke(cbState);
         }
 
         public void PostCallback(Action<object> cb, object cbState)

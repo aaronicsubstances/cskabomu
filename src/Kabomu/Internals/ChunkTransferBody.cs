@@ -15,22 +15,20 @@ namespace Kabomu.Internals
         private Exception _srcEndError;
 
         public ChunkTransferBody(int contentLength, string contentType, 
-            Action<int> readCallback, Action closeCallback, IMutexApi mutexApi)
+            Action<int> readCallback, Action closeCallback)
         {
             ContentLength = contentLength;
             ContentType = contentType;
             ReadCallback = readCallback;
             CloseCallback = closeCallback;
-            MutexApi = mutexApi ?? new BlockingMutexApi(this);
         }
 
         public int ContentLength { get; }
         public string ContentType { get; }
         public Action<int> ReadCallback { get; }
         public Action CloseCallback { get; }
-        public IMutexApi MutexApi { get; }
 
-        public void OnDataRead(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
             if (cb == null)
             {
@@ -40,7 +38,7 @@ namespace Kabomu.Internals
             {
                 throw new ArgumentException("received negative bytes to read");
             }
-            MutexApi.RunCallback(_ =>
+            mutex.RunExclusively(_ =>
             {
                 if (_srcEndError != null)
                 {
@@ -60,14 +58,14 @@ namespace Kabomu.Internals
             }, null);
         }
 
-        public void OnDataWrite(byte[] data, int offset, int length)
+        public void OnDataWrite(IMutexApi mutex,byte[] data, int offset, int length)
         {
             if (!ByteUtils.IsValidMessagePayload(data, offset, length))
             {
                 throw new ArgumentException("invalid buffer");
             }
 
-            MutexApi.RunCallback(_ =>
+            mutex.RunExclusively(_ =>
             {
                 if (_srcEndError != null)
                 {
@@ -75,19 +73,19 @@ namespace Kabomu.Internals
                 }
                 if (_pendingCb == null)
                 {
-                    OnEndRead(new Exception("received chunk response for no pending chunk request"));
+                    EndRead(new Exception("received chunk response for no pending chunk request"));
                     return;
                 }
                 if (length > _pendingBytesToRead)
                 {
-                    OnEndRead(new Exception("received chunk response larger than pending chunk request size"));
+                    EndRead(new Exception("received chunk response larger than pending chunk request size"));
                     return;
                 }
                 if (ContentLength >= 0)
                 {
                     if (_readContentLength + length > ContentLength)
                     {
-                        OnEndRead(new Exception("content length exceeded"));
+                        EndRead(new Exception("content length exceeded"));
                         return;
                     }
                     _readContentLength += length;
@@ -99,19 +97,24 @@ namespace Kabomu.Internals
             }, null);
         }
 
-        public void OnEndRead(Exception e)
+        public void OnEndRead(IMutexApi mutex, Exception e)
         {
-            MutexApi.RunCallback(_ =>
+            mutex.RunExclusively(_ =>
             {
                 if (_srcEndError != null)
                 {
                     return;
                 }
-                _srcEndError = e ?? new Exception("end of read");
-                _pendingCb?.Invoke(_srcEndError, 0);
-                _pendingCb = null;
-                CloseCallback.Invoke();
+                EndRead(e);
             }, null);
+        }
+
+        private void EndRead(Exception e)
+        {
+            _srcEndError = e ?? new Exception("end of read");
+            _pendingCb?.Invoke(_srcEndError, 0);
+            _pendingCb = null;
+            CloseCallback.Invoke();
         }
     }
 }

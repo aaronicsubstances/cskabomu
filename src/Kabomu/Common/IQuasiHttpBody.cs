@@ -9,7 +9,7 @@ namespace Kabomu.Common
     {
         string ContentType { get; }
         int ContentLength { get; }
-        void OnDataRead(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb);
-        void OnEndRead(Exception e);
+        void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb);
+        void OnEndRead(IMutexApi mutex, Exception e);
     }
 }

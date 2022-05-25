@@ -34,26 +34,26 @@ namespace Kabomu.Common
         }
 
         public static void TransferBodyToTransport(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
-            Action<Exception> cb)
+            IEventLoopApi eventLoop, Action<Exception> cb)
         {
             byte[] buffer = new byte[transport.MaxMessageOrChunkSize];
-            HandleWriteOutcome(transport, connection, body, buffer, null, cb);
+            HandleWriteOutcome(transport, connection, body, eventLoop, buffer, null, cb);
         }
 
         private static void HandleWriteOutcome(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
-            byte[] buffer, Exception e, Action<Exception> cb)
+            IEventLoopApi eventLoop, byte[] buffer, Exception e, Action<Exception> cb)
         {
             if (e != null)
             {
                 cb.Invoke(e);
                 return;
             }
-            body.OnDataRead(buffer, 0, buffer.Length, (e, bytesRead) =>
-                HandleReadOutcome(transport, connection, body, buffer, e, bytesRead, cb));
+            body.OnDataRead(eventLoop, buffer, 0, buffer.Length, (e, bytesRead) =>
+                HandleReadOutcome(transport, connection, body, eventLoop, buffer, e, bytesRead, cb));
         }
 
         private static void HandleReadOutcome(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
-            byte[] buffer, Exception e, int bytesRead, Action<Exception> cb)
+            IEventLoopApi eventLoop, byte[] buffer, Exception e, int bytesRead, Action<Exception> cb)
         {
             if (e != null)
             {
@@ -63,7 +63,7 @@ namespace Kabomu.Common
             if (bytesRead > 0)
             {
                 transport.WriteBytesOrSendMessage(connection, buffer, 0, bytesRead, e =>
-                    HandleWriteOutcome(transport, connection, body, buffer, e, cb));
+                    HandleWriteOutcome(transport, connection, body, eventLoop, buffer, e, cb));
             }
             else
             {

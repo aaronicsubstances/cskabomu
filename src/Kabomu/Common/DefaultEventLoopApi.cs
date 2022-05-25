@@ -19,13 +19,11 @@ namespace Kabomu.Common
             _throttledTaskScheduler = new LimitedConcurrencyLevelTaskScheduler(1);
         }
 
-        public bool IsEventDispatchThread => false;
-
         public long CurrentTimestamp => DateTimeUtils.UnixTimeMillis;
 
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
-        public void RunCallback(Action<object> cb, object cbState)
+        public void RunExclusively(Action<object> cb, object cbState)
         {
             PostCallback(cb, cbState);
         }
