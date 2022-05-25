@@ -26,7 +26,6 @@ namespace Kabomu.Common
         public int Offset { get; }
         public int ContentLength { get; }
         public string ContentType { get; }
-        public IMutexApi MutexApi { get; }
 
         public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
@@ -46,7 +45,7 @@ namespace Kabomu.Common
                     return;
                 }
                 var lengthToUse = Math.Min(ContentLength - _bytesRead, bytesToRead);
-                Array.Copy(Buffer, Offset, data, offset, lengthToUse);
+                Array.Copy(Buffer, Offset + _bytesRead, data, offset, lengthToUse);
                 _bytesRead += lengthToUse;
                 cb.Invoke(null, lengthToUse);
             }, null);

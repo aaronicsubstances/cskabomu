@@ -12,6 +12,9 @@ namespace Kabomu.Common
     /// </summary>
     public class DefaultEventLoopApi : IEventLoopApi
     {
+        [ThreadStatic]
+        private static Thread _postCallbackExecutionThread;
+
         private readonly LimitedConcurrencyLevelTaskScheduler _throttledTaskScheduler;
 
         public DefaultEventLoopApi()
@@ -25,7 +28,14 @@ namespace Kabomu.Common
 
         public void RunExclusively(Action<object> cb, object cbState)
         {
-            PostCallback(cb, cbState);
+            if (Thread.CurrentThread == _postCallbackExecutionThread)
+            {
+                cb.Invoke(cbState);
+            }
+            else
+            {
+                PostCallback(cb, cbState);
+            }
         }
 
         public void PostCallback(Action<object> cb, object cbState)
@@ -36,6 +46,7 @@ namespace Kabomu.Common
         private void PostCallback(Action<object> cb, object cbState, CancellationToken cancellationToken)
         {
             Task.Factory.StartNew(() => {
+                _postCallbackExecutionThread = Thread.CurrentThread;
                 try
                 {
                     cb.Invoke(cbState);
@@ -50,6 +61,10 @@ namespace Kabomu.Common
                     {
                         ErrorHandler.Invoke(ex, "Error encountered in callback execution");
                     }
+                }
+                finally
+                {
+                    _postCallbackExecutionThread = null;
                 }
             }, cancellationToken, TaskCreationOptions.None, _throttledTaskScheduler);
         }
