@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Internals;
 using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
@@ -73,7 +74,11 @@ namespace Kabomu.QuasiWsgi
             // apply all application level middlewares, path-specific router level middlewares,
             // and error middlewares in order.
             // also use middlewares to handle serialization and deserialization.
-            var context = new DefaultQuasiHttpContext(request);
+            var context = new DefaultQuasiHttpContext
+            {
+                Request = request,
+                RequestAttributes = new Dictionary<string, object>()
+            };
             Action<Exception, object> responseCbWrapper = (e, res) =>
             {
                 if (res == null)

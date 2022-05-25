@@ -452,6 +452,23 @@ namespace Kabomu.Tests.Common
         }
 
         [Fact]
+        public void TestMutualExclusion()
+        {
+            var instance = new TestEventLoopApi();
+            var actualAnswer = 0;
+            Action<object> doublingCb = num =>
+            {
+                actualAnswer = ((int)num) * 2;
+            };
+
+            instance.RunExclusively(doublingCb, 3);
+            Assert.Equal(6, actualAnswer);
+
+            instance.RunExclusively(doublingCb, 10);
+            Assert.Equal(20, actualAnswer);
+        }
+
+        [Fact]
         public void TestErrorUsage()
         {
             var instance = new TestEventLoopApi();
@@ -466,6 +483,10 @@ namespace Kabomu.Tests.Common
             Assert.ThrowsAny<Exception>(() =>
             {
                 instance.ScheduleTimeout(-1, _ => { }, null);
+            });
+            Assert.ThrowsAny<Exception>(() =>
+            {
+                instance.RunExclusively(null, null);
             });
         }
     }
