@@ -19,8 +19,8 @@ namespace Kabomu.Internals
 
         public void Cancel(Exception e)
         {
-            _requestBody?.OnEndRead(e);
-            _responseBody?.OnEndRead(e);
+            _requestBody?.OnEndRead(Parent.EventLoop, e);
+            _responseBody?.OnEndRead(Parent.EventLoop, e);
         }
 
         public void OnSend(IQuasiHttpRequestMessage request)
@@ -81,7 +81,7 @@ namespace Kabomu.Internals
 
             if (request.Body != null)
             {
-                ByteUtils.TransferBodyToTransport(Parent.Transport, Connection, request.Body,
+                ByteUtils.TransferBodyToTransport(Parent.Transport, Connection, request.Body, Parent.EventLoop,
                     e => { });
             }
             ProcessResponsePduBytes();
@@ -177,7 +177,7 @@ namespace Kabomu.Internals
                     }, null);
                 };
                 response.Body = new ByteOrientedTransferBody(pdu.ContentLength,
-                    pdu.ContentType, Parent.Transport, Connection, Parent.EventLoop, cb);
+                    pdu.ContentType, Parent.Transport, Connection, cb);
             }
             _responseBody = response.Body;
 

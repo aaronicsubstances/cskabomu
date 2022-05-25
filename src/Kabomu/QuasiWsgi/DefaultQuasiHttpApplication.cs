@@ -73,7 +73,7 @@ namespace Kabomu.QuasiWsgi
             // apply all application level middlewares, path-specific router level middlewares,
             // and error middlewares in order.
             // also use middlewares to handle serialization and deserialization.
-            var context = new QuasiHttpContext(request);
+            var context = new DefaultQuasiHttpContext(request);
             Action<Exception, object> responseCbWrapper = (e, res) =>
             {
                 if (res == null)
@@ -90,7 +90,7 @@ namespace Kabomu.QuasiWsgi
             RunNextMiddleware(context, responseCbWrapper, 0);
         }
 
-        private void RunNextMiddleware(QuasiHttpContext context,
+        private void RunNextMiddleware(DefaultQuasiHttpContext context,
             Action<Exception, object> responseCb,
             int index)
         {

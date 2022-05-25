@@ -61,7 +61,7 @@ namespace Udp.FileServer
             tcpTransport.Upstream = instance;
             instance.Transport = tcpTransport;
 
-            instance.Application = new FileReceiver(port, uploadDirPath);
+            instance.Application = new FileReceiver(port, uploadDirPath, eventLoop);
 
             try
             {

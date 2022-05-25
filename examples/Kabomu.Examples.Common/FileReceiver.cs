@@ -15,11 +15,13 @@ namespace Kabomu.Examples.Common
 
         private readonly int _port;
         private readonly string _uploadDirPath;
+        private readonly IEventLoopApi _eventLoop;
 
-        public FileReceiver(int port, string uploadDirPath)
+        public FileReceiver(int port, string uploadDirPath, IEventLoopApi eventLoop)
         {
             _port = port;
             _uploadDirPath = uploadDirPath;
+            _eventLoop = eventLoop;
         }
 
         public async void ProcessRequest(IQuasiHttpRequestMessage request, Action<Exception, IQuasiHttpResponseMessage> cb)
@@ -40,7 +42,7 @@ namespace Kabomu.Examples.Common
                     var buffer = new byte[4096];
                     while (true)
                     {
-                        var length = await wrapper.DataReadAsync(buffer, 0, buffer.Length);
+                        var length = await wrapper.DataReadAsync(_eventLoop, buffer, 0, buffer.Length);
                         if (length == 0)
                         {
                             break;
@@ -73,10 +75,10 @@ namespace Kabomu.Examples.Common
                 _body = body;
             }
 
-            public Task<int> DataReadAsync(byte[] data, int offset, int bytesToRead)
+            public Task<int> DataReadAsync(IMutexApi mutex, byte[] data, int offset, int bytesToRead)
             {
                 var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-                _body.OnDataRead(data, offset, bytesToRead, (e, bytesRead) =>
+                _body.OnDataRead(mutex, data, offset, bytesToRead, (e, bytesRead) =>
                 {
                     if (e != null)
                     {

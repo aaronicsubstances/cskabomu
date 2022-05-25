@@ -19,8 +19,7 @@ namespace Kabomu.Internals
             AbortCallback = abortCallback;
             ChunkGetPduType = chunkGetPduType;
 
-            Body = new ChunkTransferBody(contentLength, contentType, OnBodyChunkReadCallback, OnBodyEndReadCallback,
-                eventLoop);
+            Body = new ChunkTransferBody(contentLength, contentType, OnBodyChunkReadCallback, OnBodyEndReadCallback);
         }
 
         public IQuasiHttpTransport Transport { get; }
@@ -33,12 +32,12 @@ namespace Kabomu.Internals
         public void Cancel(Exception e)
         {
             _sendBodyPduCancellationIndicator?.Cancel();
-            Body.OnEndRead(e);
+            Body.OnEndRead(EventLoop, e);
         }
 
         public void ProcessChunkRetPdu(byte[] data, int offset, int length)
         {
-            Body.OnDataWrite(data ?? new byte[0], offset, length);
+            Body.OnDataWrite(EventLoop, data ?? new byte[0], offset, length);
         }
 
         private void OnBodyChunkReadCallback(int bytesToRead)

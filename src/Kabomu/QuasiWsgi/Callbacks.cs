@@ -5,11 +5,11 @@ using System.Text;
 namespace Kabomu.QuasiWsgi
 {
     public delegate void QuasiHttpSimpleMiddleware(
-        QuasiHttpContext context,
+        IQuasiHttpContext context,
         Action<Exception, object> responseCb);
 
     public delegate void QuasiHttpMiddleware(
-        QuasiHttpContext context,
+        IQuasiHttpContext context,
         Action<Exception, object> responseCb, 
         QuasiHttpMiddlewareContinuationCallback next);
 
