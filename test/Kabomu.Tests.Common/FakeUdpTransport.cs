@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Tests.TestHelpers
+namespace Kabomu.Tests.Common
 {
     public class FakeUdpTransport : IQuasiHttpTransport
     {
