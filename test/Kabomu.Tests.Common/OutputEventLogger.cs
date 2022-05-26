@@ -5,7 +5,7 @@ using System.Threading;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Kabomu.Tests.Common.TestHelpers
+namespace Kabomu.Tests.Common
 {
     public class OutputEventLogger
     {
