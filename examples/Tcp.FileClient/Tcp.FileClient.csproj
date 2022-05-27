@@ -12,7 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kabomu\Kabomu.csproj" />
-    <ProjectReference Include="..\Kabomu.Examples.Common\Kabomu.Examples.Common.csproj" />
+    <ProjectReference Include="..\Kabomu.Examples.Shared\Kabomu.Examples.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>

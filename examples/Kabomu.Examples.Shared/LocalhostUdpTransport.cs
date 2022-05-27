@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 
-namespace Kabomu.Examples.Common
+namespace Kabomu.Examples.Shared
 {
     public class LocalhostUdpTransport : IQuasiHttpTransport
     {

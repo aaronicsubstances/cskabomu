@@ -8,7 +8,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-namespace Kabomu.Examples.Common
+namespace Kabomu.Examples.Shared
 {
     public class LocalhostTcpTransport : IQuasiHttpTransport
     {

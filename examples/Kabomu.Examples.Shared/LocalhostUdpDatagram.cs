@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Examples.Common
+namespace Kabomu.Examples.Shared
 {
     public class LocalhostUdpDatagram
     {

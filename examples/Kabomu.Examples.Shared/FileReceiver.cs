@@ -7,7 +7,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.Examples.Common
+namespace Kabomu.Examples.Shared
 {
     public class FileReceiver : IQuasiHttpApplication
     {

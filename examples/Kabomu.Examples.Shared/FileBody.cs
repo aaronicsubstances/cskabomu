@@ -3,7 +3,7 @@ using NLog;
 using System;
 using System.IO;
 
-namespace Kabomu.Examples.Common
+namespace Kabomu.Examples.Shared
 {
     public class FileBody : IQuasiHttpBody
     {
