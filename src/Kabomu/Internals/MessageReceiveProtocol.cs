@@ -21,8 +21,8 @@ namespace Kabomu.Internals
 
         public void Cancel(Exception e)
         {
-            _requestBody?.OnEndRead(Parent.EventLoop, e);
-            _responseBody?.OnEndRead(Parent.EventLoop, e);
+            _requestBody?.OnEndRead(Parent.Mutex, e);
+            _responseBody?.OnEndRead(Parent.Mutex, e);
             _requestBodyProtocol?.Cancel(e);
             _responseBodyProtocol?.Cancel(e);
         }
@@ -74,7 +74,7 @@ namespace Kabomu.Internals
             else if (pdu.ContentLength != 0)
             {
                 Action<Exception> abortCallback = e => Parent.AbortTransfer(this, e);
-                _requestBodyProtocol = new IncomingChunkTransferProtocol(Parent.Transport, Parent.EventLoop,
+                _requestBodyProtocol = new IncomingChunkTransferProtocol(Parent.Transport, Parent.Mutex,
                     Connection, abortCallback, TransferPdu.PduTypeRequestChunkGet, pdu.ContentLength, pdu.ContentType);
                 request.Body = _requestBodyProtocol.Body;
             }
@@ -88,7 +88,7 @@ namespace Kabomu.Internals
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception, IQuasiHttpResponseMessage> cb = (e, res) =>
             {
-                Parent.EventLoop.PostCallback(_ =>
+                Parent.Mutex.RunExclusively(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
@@ -149,7 +149,7 @@ namespace Kabomu.Internals
                 if (bodyTransferRequired)
                 {
                     Action<Exception> abortCallback = e => Parent.AbortTransfer(this, e);
-                    _responseBodyProtocol = new OutgoingChunkTransferProtocol(Parent.Transport, Parent.EventLoop,
+                    _responseBodyProtocol = new OutgoingChunkTransferProtocol(Parent.Transport, Parent.Mutex,
                         Connection, abortCallback, TransferPdu.PduTypeResponseChunkRet, response.Body);
                 }
             }
@@ -158,7 +158,7 @@ namespace Kabomu.Internals
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
-                Parent.EventLoop.PostCallback(_ =>
+                Parent.Mutex.RunExclusively(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {

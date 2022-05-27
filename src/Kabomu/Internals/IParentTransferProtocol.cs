@@ -12,7 +12,7 @@ namespace Kabomu.Internals
         int MaxRetryCount { get; }
         IQuasiHttpApplication Application { get; }
         IQuasiHttpTransport Transport { get; }
-        public IEventLoopApi EventLoop { get; }
+        public IMutexApi Mutex { get; }
         public UncaughtErrorCallback ErrorHandler { get; }
         void AbortTransfer(ITransferProtocol transfer, Exception e);
     }

@@ -21,8 +21,8 @@ namespace Kabomu.Internals
 
         public void Cancel(Exception e)
         {
-            _requestBody?.OnEndRead(Parent.EventLoop, e);
-            _responseBody?.OnEndRead(Parent.EventLoop, e);
+            _requestBody?.OnEndRead(Parent.Mutex, e);
+            _responseBody?.OnEndRead(Parent.Mutex, e);
             _requestBodyProtocol?.Cancel(e);
             _responseBodyProtocol?.Cancel(e);
         }
@@ -85,7 +85,7 @@ namespace Kabomu.Internals
                 if (bodyTransferRequired)
                 {
                     Action<Exception> abortCallback = e => Parent.AbortTransfer(this, e);
-                    _requestBodyProtocol = new OutgoingChunkTransferProtocol(Parent.Transport, Parent.EventLoop,
+                    _requestBodyProtocol = new OutgoingChunkTransferProtocol(Parent.Transport, Parent.Mutex,
                         Connection, abortCallback, TransferPdu.PduTypeRequestChunkRet, request.Body);
                 }
             }
@@ -93,7 +93,7 @@ namespace Kabomu.Internals
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
-                Parent.EventLoop.PostCallback(_ =>
+                Parent.Mutex.RunExclusively(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
@@ -138,7 +138,7 @@ namespace Kabomu.Internals
             else if (pdu.ContentLength != 0)
             {
                 Action<Exception> abortCallback = e => Parent.AbortTransfer(this, e);
-                _responseBodyProtocol = new IncomingChunkTransferProtocol(Parent.Transport, Parent.EventLoop,
+                _responseBodyProtocol = new IncomingChunkTransferProtocol(Parent.Transport, Parent.Mutex,
                     Connection, abortCallback, TransferPdu.PduTypeResponseChunkGet, pdu.ContentLength,
                     pdu.ContentType);
                 response.Body = _responseBodyProtocol.Body;

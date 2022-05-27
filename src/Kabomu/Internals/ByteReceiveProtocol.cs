@@ -19,8 +19,8 @@ namespace Kabomu.Internals
 
         public void Cancel(Exception e)
         {
-            _requestBody?.OnEndRead(Parent.EventLoop, e);
-            _responseBody?.OnEndRead(Parent.EventLoop, e);
+            _requestBody?.OnEndRead(Parent.Mutex, e);
+            _responseBody?.OnEndRead(Parent.Mutex, e);
         }
 
         public void OnSend(IQuasiHttpRequestMessage request)
@@ -45,7 +45,7 @@ namespace Kabomu.Internals
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
-                Parent.EventLoop.PostCallback(_ =>
+                Parent.Mutex.RunExclusively(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
@@ -54,7 +54,7 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            ByteUtils.ReadBytesFully(Parent.Transport, Connection, encodedLength, 0, encodedLength.Length, cb);
+            TransportUtils.ReadBytesFully(Parent.Transport, Connection, encodedLength, 0, encodedLength.Length, cb);
         }
 
         private void HandleRequestPduLengthReadOutcome(Exception e, byte[] encodedLength)
@@ -71,7 +71,7 @@ namespace Kabomu.Internals
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
-                Parent.EventLoop.PostCallback(_ =>
+                Parent.Mutex.RunExclusively(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
@@ -80,7 +80,7 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            ByteUtils.ReadBytesFully(Parent.Transport, Connection, pduBytes, 0, pduBytes.Length, cb);
+            TransportUtils.ReadBytesFully(Parent.Transport, Connection, pduBytes, 0, pduBytes.Length, cb);
         }
 
         private void HandleRequestPduReadOutcome(Exception e, byte[] pduBytes)
@@ -124,7 +124,7 @@ namespace Kabomu.Internals
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception, IQuasiHttpResponseMessage> cb = (e, res) =>
             {
-                Parent.EventLoop.PostCallback(_ =>
+                Parent.Mutex.RunExclusively(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
@@ -177,7 +177,7 @@ namespace Kabomu.Internals
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
-                Parent.EventLoop.PostCallback(_ =>
+                Parent.Mutex.RunExclusively(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
@@ -204,7 +204,7 @@ namespace Kabomu.Internals
                 ProcessingCancellationIndicator = cancellationIndicator;
                 Action<Exception> cb = e2 =>
                 {
-                    Parent.EventLoop.PostCallback(_ =>
+                    Parent.Mutex.RunExclusively(_ =>
                     {
                         if (!cancellationIndicator.Cancelled)
                         {
@@ -213,8 +213,8 @@ namespace Kabomu.Internals
                         }
                     }, null);
                 };
-                ByteUtils.TransferBodyToTransport(Parent.Transport, Connection, response.Body,
-                    Parent.EventLoop, cb);
+                TransportUtils.TransferBodyToTransport(Parent.Transport, Connection, response.Body,
+                    Parent.Mutex, cb);
             }
             else
             {

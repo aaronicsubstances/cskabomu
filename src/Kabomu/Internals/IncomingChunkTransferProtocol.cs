@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 
 namespace Kabomu.Internals
 {
@@ -9,12 +10,12 @@ namespace Kabomu.Internals
     {
         private STCancellationIndicator _sendBodyPduCancellationIndicator;
 
-        public IncomingChunkTransferProtocol(IQuasiHttpTransport transport, IEventLoopApi eventLoop,
+        public IncomingChunkTransferProtocol(IQuasiHttpTransport transport, IMutexApi mutex,
             object connection, Action<Exception> abortCallback, 
             byte chunkGetPduType, int contentLength, string contentType)
         {
             Transport = transport;
-            EventLoop = eventLoop;
+            Mutex = mutex;
             Connection = connection;
             AbortCallback = abortCallback;
             ChunkGetPduType = chunkGetPduType;
@@ -23,7 +24,7 @@ namespace Kabomu.Internals
         }
 
         public IQuasiHttpTransport Transport { get; }
-        public IEventLoopApi EventLoop { get; }
+        public IMutexApi Mutex { get; }
         public object Connection { get; }
         public Action<Exception> AbortCallback { get; }
         public byte ChunkGetPduType { get; }
@@ -32,12 +33,12 @@ namespace Kabomu.Internals
         public void Cancel(Exception e)
         {
             _sendBodyPduCancellationIndicator?.Cancel();
-            Body.OnEndRead(EventLoop, e);
+            Body.OnEndRead(Mutex, e);
         }
 
         public void ProcessChunkRetPdu(byte[] data, int offset, int length)
         {
-            Body.OnDataWrite(EventLoop, data ?? new byte[0], offset, length);
+            Body.OnDataWrite(Mutex, data ?? new byte[0], offset, length);
         }
 
         private void OnBodyChunkReadCallback(int bytesToRead)
@@ -66,7 +67,7 @@ namespace Kabomu.Internals
             _sendBodyPduCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
-                EventLoop.PostCallback(_ =>
+                Mutex.RunExclusively(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
