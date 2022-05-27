@@ -58,7 +58,7 @@ namespace Kabomu.Internals
             }, null);
         }
 
-        public void OnDataWrite(IMutexApi mutex,byte[] data, int offset, int length)
+        public void OnDataWrite(IMutexApi mutex, byte[] data, int offset, int length)
         {
             if (!ByteUtils.IsValidMessagePayload(data, offset, length))
             {
