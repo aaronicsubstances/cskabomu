@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Examples.Common
+namespace Kabomu.Examples.Shared
 {
     internal class LocalhostUdpConnection
     {
