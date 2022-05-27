@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 
 namespace Kabomu.Internals
 {
@@ -10,12 +11,12 @@ namespace Kabomu.Internals
         private STCancellationIndicator _bodyCallbackCancellationIndicator;
         private STCancellationIndicator _sendBodyPduCancellationIndicator;
 
-        public OutgoingChunkTransferProtocol(IQuasiHttpTransport transport, IEventLoopApi eventLoop,
+        public OutgoingChunkTransferProtocol(IQuasiHttpTransport transport, IMutexApi mutex,
             object connection, Action<Exception> abortCallback, byte chunkRetPduType,
             IQuasiHttpBody body)
         {
             Transport = transport;
-            EventLoop = eventLoop;
+            Mutex = mutex;
             Connection = connection;
             AbortCallback = abortCallback;
             ChunkRetPduType = chunkRetPduType;
@@ -23,7 +24,7 @@ namespace Kabomu.Internals
         }
 
         public IQuasiHttpTransport Transport { get; }
-        public IEventLoopApi EventLoop { get; }
+        public IMutexApi Mutex { get; }
         public object Connection { get; }
         public Action<Exception> AbortCallback { get; }
         public byte ChunkRetPduType { get; }
@@ -33,7 +34,7 @@ namespace Kabomu.Internals
         {
             _bodyCallbackCancellationIndicator?.Cancel();
             _sendBodyPduCancellationIndicator?.Cancel();
-            Body.OnEndRead(EventLoop, e);
+            Body.OnEndRead(Mutex, e);
         }
 
         public void ProcessChunkGetPdu(int bytesToRead)
@@ -55,7 +56,7 @@ namespace Kabomu.Internals
                     HandleBodyChunkReadOutcome(e, data, 0, bytesRead);
                 }
             };
-            Body.OnDataRead(EventLoop, data, 0, data.Length, cb);
+            Body.OnDataRead(Mutex, data, 0, data.Length, cb);
         }
 
         private void HandleBodyChunkReadOutcome(Exception e, byte[] data, int offset, int length)
@@ -87,7 +88,7 @@ namespace Kabomu.Internals
             _sendBodyPduCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
-                EventLoop.PostCallback(_ =>
+                Mutex.RunExclusively(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {

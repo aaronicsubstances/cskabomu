@@ -31,7 +31,7 @@ namespace Kabomu.QuasiHttp
         public void Send(object remoteEndpoint, IQuasiHttpRequestMessage request, IQuasiHttpSendOptions options,
             Action<Exception, IQuasiHttpResponseMessage> cb)
         {
-            EventLoop.PostCallback(_ =>
+            EventLoop.RunExclusively(_ =>
             {
                 ProcessSend(remoteEndpoint, request, options, cb);
             }, null);
@@ -82,7 +82,7 @@ namespace Kabomu.QuasiHttp
             transfer.ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception, IQuasiHttpResponseMessage> cb = (e, res) =>
             {
-                EventLoop.PostCallback(_ =>
+                EventLoop.RunExclusively(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
@@ -120,7 +120,7 @@ namespace Kabomu.QuasiHttp
             transfer.ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception, object> cb = (e, connection) =>
             {
-                EventLoop.PostCallback(_ =>
+                EventLoop.RunExclusively(_ =>
                 {
                     if (!cancellationIndicator.Cancelled)
                     {
@@ -154,7 +154,7 @@ namespace Kabomu.QuasiHttp
 
         public void OnReceive(object connection)
         {
-            EventLoop.PostCallback(_ =>
+            EventLoop.RunExclusively(_ =>
             {
                 ITransferProtocol transfer;
                 if (Transport.IsByteOriented)
@@ -176,7 +176,7 @@ namespace Kabomu.QuasiHttp
 
         public void OnReceiveMessage(object connection, byte[] data, int offset, int length)
         {
-            EventLoop.PostCallback(_ =>
+            EventLoop.RunExclusively(_ =>
             {
                 if (!_transfers.ContainsKey(connection))
                 {
@@ -189,7 +189,7 @@ namespace Kabomu.QuasiHttp
 
         public void Reset(Exception cause, Action<Exception> cb)
         {
-            EventLoop.PostCallback(_ =>
+            EventLoop.RunExclusively(_ =>
             {
                 try
                 {
@@ -269,7 +269,7 @@ namespace Kabomu.QuasiHttp
 
             public IQuasiHttpTransport Transport => _delegate.Transport;
 
-            public IEventLoopApi EventLoop => _delegate.EventLoop;
+            public IMutexApi Mutex => _delegate.EventLoop;
 
             public UncaughtErrorCallback ErrorHandler => _delegate.ErrorHandler;
 
