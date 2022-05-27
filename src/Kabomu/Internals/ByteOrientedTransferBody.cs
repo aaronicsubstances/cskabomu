@@ -11,13 +11,13 @@ namespace Kabomu.Internals
         private Exception _srcEndError;
 
         public ByteOrientedTransferBody(int contentLength, string contentType,
-            IQuasiHttpTransport transport, object connection, Action<Exception> cb)
+            IQuasiHttpTransport transport, object connection, Action<Exception> completionCallback)
         {
             ContentLength = contentLength;
             ContentType = contentType;
             Transport = transport;
             Connection = connection;
-            CompletionCallback = cb;
+            CompletionCallback = completionCallback;
         }
 
         public string ContentType { get; }
@@ -55,18 +55,48 @@ namespace Kabomu.Internals
                     {
                         if (_srcEndError != null)
                         {
+                            cb.Invoke(_srcEndError, 0);
                             return;
                         }
-                        if (ContentLength >= 0)
+                        if (ContentLength < 0)
                         {
-                            if (_readContentLength + bytesRead > ContentLength)
+                            cb.Invoke(null, bytesRead);
+                            if (bytesRead <= 0)
                             {
-                                EndRead(new Exception("content length exceeded"));
+                                EndRead(null);
                                 return;
                             }
-                            _readContentLength += bytesRead;
                         }
-                        cb.Invoke(null, bytesRead);
+                        else
+                        {
+                            if (bytesRead <= 0)
+                            {
+                                Exception e2 = null;
+                                if (_readContentLength != ContentLength)
+                                {
+                                    e2 = new Exception("expected more content");
+                                }
+                                cb.Invoke(e2, bytesRead);
+                                EndRead(e2);
+                                return;
+                            }
+
+                            if (_readContentLength + bytesRead > ContentLength)
+                            {
+                                var e2 = new Exception("content length exceeded");
+                                cb.Invoke(e2, 0);
+                                EndRead(e2);
+                                return;
+                            }
+
+                            _readContentLength += bytesRead;
+                            cb.Invoke(null, bytesRead); 
+                            if (_readContentLength == ContentLength)
+                            {
+                                EndRead(null);
+                                return;
+                            }
+                        }
                     }, null);
                 };
                 Transport.ReadBytes(Connection, data, offset, bytesToRead, wrapperCb);

@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace Kabomu.Tests.Common
+namespace Kabomu.Tests.Shared
 {
     public class FakeTcpTransport : IQuasiHttpTransport
     {

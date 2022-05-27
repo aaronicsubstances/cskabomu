@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
@@ -16,7 +16,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kabomu\Kabomu.csproj" />
-    <ProjectReference Include="..\Kabomu.Tests.Common\Kabomu.Tests.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>
