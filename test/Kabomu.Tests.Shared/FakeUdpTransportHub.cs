@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Kabomu.Tests.Common
+namespace Kabomu.Tests.Shared
 {
     public class FakeUdpTransportHub
     {

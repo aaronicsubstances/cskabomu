@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Tests.Common
+namespace Kabomu.Tests.Shared
 {
     public class FakeTcpTransportHub
     {

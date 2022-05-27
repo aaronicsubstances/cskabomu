@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.Common
+namespace Kabomu.Tests.Shared
 {
     public class NullTransport : IQuasiHttpTransport
     {

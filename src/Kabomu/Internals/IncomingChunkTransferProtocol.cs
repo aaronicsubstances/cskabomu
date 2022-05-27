@@ -46,12 +46,12 @@ namespace Kabomu.Internals
             SendChunkGetPdu(bytesToRead);
         }
 
-        private void OnBodyEndReadCallback()
+        private void OnBodyEndReadCallback(Exception e)
         {
             if (ChunkGetPduType == TransferPdu.PduTypeResponseChunkGet)
             {
                 SendFinPdu();
-                AbortCallback.Invoke(null);
+                AbortCallback.Invoke(e);
             }
         }
 

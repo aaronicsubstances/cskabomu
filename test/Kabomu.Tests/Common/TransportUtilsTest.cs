@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.Text;

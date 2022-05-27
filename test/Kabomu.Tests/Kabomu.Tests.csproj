@@ -15,12 +15,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kabomu\Kabomu.csproj" />
-    <ProjectReference Include="..\Kabomu.Tests.Common\Kabomu.Tests.Common.csproj" />
+    <ProjectReference Include="..\Kabomu.Tests.Shared\Kabomu.Tests.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="QuasiHttp\" />
-    <Folder Include="TestHelpers\" />
   </ItemGroup>
 
 </Project>
