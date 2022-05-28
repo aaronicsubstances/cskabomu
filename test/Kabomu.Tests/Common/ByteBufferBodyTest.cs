@@ -30,5 +30,16 @@ namespace Kabomu.Tests.Common
             CommonBodyTestRunner.RunCommonBodyTest(instance, 3, "application/octet-stream",
                 new int[] { 2, 1 }, null, "Ab2");
         }
+
+        [Fact]
+        public void TestForArgumentErrors()
+        {
+            Assert.Throws<ArgumentException>(() =>
+            {
+                new ByteBufferBody(new byte[] { 0, 0 }, 1, 2, null);
+            });
+            var instance = new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2, null);
+            CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
+        }
     }
 }

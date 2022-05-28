@@ -43,33 +43,62 @@ namespace Kabomu.Tests.Shared
 
             if (expectedError != null)
             {
+                var cbCalled = false;
                 Action<Exception, int> cb2 = (e, bytesRead) =>
                 {
                     Assert.NotNull(e);
                     Assert.Equal(expectedError, e.Message);
+                    cbCalled = true;
                 };
                 instance.OnDataRead(mutex, buffer, 0, buffer.Length, cb2);
+                Assert.True(cbCalled);
             }
             else
             {
+                var cbCalled = false;
                 Action<Exception, int> cb2 = (e, bytesRead) =>
                 {
                     Assert.Null(expectedError);
                     Assert.Equal(0, bytesRead);
+                    cbCalled = true;
                 };
                 instance.OnDataRead(mutex, buffer, 0, buffer.Length, cb2);
+                Assert.True(cbCalled);
                 Assert.Equal(expectedSuccessData, readAccumulator.ToString());
 
                 instance.OnEndRead(mutex, null);
                 instance.OnEndRead(mutex, new Exception("test"));
 
+                cbCalled = false;
                 Action<Exception, int> endCb = (e, bytesRead) =>
                 {
                     Assert.NotNull(e);
                     Assert.Equal("end of read", e.Message);
+                    cbCalled = true;
                 };
                 instance.OnDataRead(mutex, buffer, 0, buffer.Length, endCb);
+                Assert.True(cbCalled);
             }
+        }
+
+        public static void RunCommonBodyTestForArgumentErrors(IQuasiHttpBody instance)
+        {
+            Assert.Throws<ArgumentException>(() =>
+            {
+                instance.OnDataRead(null, new byte[] { 0, 0, 0 }, 1, 2, (e, len) => { });
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                instance.OnEndRead(null, null);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                instance.OnDataRead(new TestEventLoopApi(), new byte[] { 0, 0 }, 1, 2, (e, len) => { });
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                instance.OnDataRead(new TestEventLoopApi(), new byte[] { 0, 0, 0 }, 1, 2, null);
+            });
         }
     }
 }
