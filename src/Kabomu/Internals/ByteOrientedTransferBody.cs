@@ -7,34 +7,42 @@ namespace Kabomu.Internals
 {
     internal class ByteOrientedTransferBody : IQuasiHttpBody
     {
+        private readonly IQuasiHttpTransport _transport;
+        private readonly object _connection;
+        private readonly Action _closeCallback;
         private int _readContentLength;
         private Exception _srcEndError;
 
         public ByteOrientedTransferBody(int contentLength, string contentType,
             IQuasiHttpTransport transport, object connection, Action closeCallback)
         {
+            if (transport == null)
+            {
+                throw new ArgumentException("null transport");
+            }
             ContentLength = contentLength;
             ContentType = contentType;
-            Transport = transport;
-            Connection = connection;
-            CloseCallback = closeCallback;
+            _transport = transport;
+            _connection = connection;
+            _closeCallback = closeCallback;
         }
 
         public string ContentType { get; }
         public int ContentLength { get; }
-        public IQuasiHttpTransport Transport { get; }
-        public object Connection { get; }
-        public Action CloseCallback { get; }
 
         public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
+            if (mutex == null)
+            {
+                throw new ArgumentException("null mutex api");
+            }
+            if (!ByteUtils.IsValidMessagePayload(data, offset, bytesToRead))
+            {
+                throw new ArgumentException("invalid destination buffer");
+            }
             if (cb == null)
             {
                 throw new ArgumentException("null callback");
-            }
-            if (bytesToRead < 0)
-            {
-                throw new ArgumentException("received negative bytes to read");
             }
             mutex.RunExclusively(_ =>
             {
@@ -43,7 +51,7 @@ namespace Kabomu.Internals
                     cb.Invoke(_srcEndError, 0);
                     return;
                 }
-                Transport.ReadBytes(Connection, data, offset, bytesToRead, (e, length) =>
+                _transport.ReadBytes(_connection, data, offset, bytesToRead, (e, length) =>
                 {
                     mutex.RunExclusively(_ =>
                     {
@@ -89,6 +97,10 @@ namespace Kabomu.Internals
 
         public void OnEndRead(IMutexApi mutex, Exception e)
         {
+            if (mutex == null)
+            {
+                throw new ArgumentException("null mutex api");
+            }
             mutex.RunExclusively(_ =>
             {
                 if (_srcEndError != null)
@@ -103,7 +115,7 @@ namespace Kabomu.Internals
         {
             _srcEndError = e ?? new Exception("end of read");
             cb?.Invoke(_srcEndError, 0);
-            CloseCallback.Invoke();
+            _closeCallback?.Invoke();
         }
     }
 }

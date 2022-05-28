@@ -13,7 +13,7 @@ namespace Kabomu.Common
         {
             if (!ByteUtils.IsValidMessagePayload(data, offset, length))
             {
-                throw new ArgumentException("invalid buffer");
+                throw new ArgumentException("invalid source buffer");
             }
 
             Buffer = data;
@@ -27,15 +27,19 @@ namespace Kabomu.Common
         public int ContentLength { get; }
         public string ContentType { get; }
 
-        public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int length, Action<Exception, int> cb)
         {
+            if (mutex == null)
+            {
+                throw new ArgumentException("null mutex api");
+            }
+            if (!ByteUtils.IsValidMessagePayload(data, offset, length))
+            {
+                throw new ArgumentException("invalid destination buffer");
+            }
             if (cb == null)
             {
                 throw new ArgumentException("null callback");
-            }
-            if (bytesToRead < 0)
-            {
-                throw new ArgumentException("received negative bytes to read");
             }
             mutex.RunExclusively(_ =>
             {
@@ -44,7 +48,7 @@ namespace Kabomu.Common
                     cb.Invoke(_srcEndError, 0);
                     return;
                 }
-                var lengthToUse = Math.Min(ContentLength - _bytesRead, bytesToRead);
+                var lengthToUse = Math.Min(ContentLength - _bytesRead, length);
                 Array.Copy(Buffer, Offset + _bytesRead, data, offset, lengthToUse);
                 _bytesRead += lengthToUse;
                 cb.Invoke(null, lengthToUse);
@@ -53,6 +57,10 @@ namespace Kabomu.Common
 
         public void OnEndRead(IMutexApi mutex, Exception e)
         {
+            if (mutex == null)
+            {
+                throw new ArgumentException("null mutex api");
+            }
             mutex.RunExclusively(_ =>
             {
                 if (_srcEndError != null)

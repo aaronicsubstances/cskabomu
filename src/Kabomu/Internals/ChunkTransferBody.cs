@@ -7,6 +7,8 @@ namespace Kabomu.Internals
 {
     internal class ChunkTransferBody : IQuasiHttpBody
     {
+        private Action<int> _readCallback;
+        private Action _closeCallback;
         private Action<Exception, int> _pendingCb;
         private byte[] _pendingData;
         private int _pendingDataOffset;
@@ -17,26 +19,32 @@ namespace Kabomu.Internals
         public ChunkTransferBody(int contentLength, string contentType, 
             Action<int> readCallback, Action closeCallback)
         {
+            if (readCallback == null)
+            {
+                throw new ArgumentException("null read callback");
+            }
             ContentLength = contentLength;
             ContentType = contentType;
-            ReadCallback = readCallback;
-            CloseCallback = closeCallback;
+            _readCallback = readCallback;
+            _closeCallback = closeCallback;
         }
 
         public int ContentLength { get; }
         public string ContentType { get; }
-        public Action<int> ReadCallback { get; }
-        public Action CloseCallback { get; }
 
-        public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int length, Action<Exception, int> cb)
         {
+            if (mutex == null)
+            {
+                throw new ArgumentException("null mutex api");
+            }
+            if (!ByteUtils.IsValidMessagePayload(data, offset, length))
+            {
+                throw new ArgumentException("invalid destination buffer");
+            }
             if (cb == null)
             {
                 throw new ArgumentException("null callback");
-            }
-            if (bytesToRead < 0)
-            {
-                throw new ArgumentException("received negative bytes to read");
             }
             mutex.RunExclusively(_ =>
             {
@@ -53,16 +61,20 @@ namespace Kabomu.Internals
                 _pendingCb = cb;
                 _pendingData = data;
                 _pendingDataOffset = offset;
-                _pendingBytesToRead = bytesToRead;
-                ReadCallback.Invoke(bytesToRead);
+                _pendingBytesToRead = length;
+                _readCallback.Invoke(length);
             }, null);
         }
 
         public void OnDataWrite(IMutexApi mutex, byte[] data, int offset, int length)
         {
+            if (mutex == null)
+            {
+                throw new ArgumentException("null mutex api");
+            }
             if (!ByteUtils.IsValidMessagePayload(data, offset, length))
             {
-                throw new ArgumentException("invalid buffer");
+                throw new ArgumentException("invalid source buffer");
             }
 
             mutex.RunExclusively(_ =>
@@ -104,6 +116,10 @@ namespace Kabomu.Internals
 
         public void OnEndRead(IMutexApi mutex, Exception e)
         {
+            if (mutex == null)
+            {
+                throw new ArgumentException("null mutex api");
+            }
             mutex.RunExclusively(_ =>
             {
                 if (_srcEndError != null)
@@ -119,7 +135,7 @@ namespace Kabomu.Internals
             _srcEndError = e ?? new Exception("end of read");
             _pendingCb?.Invoke(_srcEndError, 0);
             _pendingCb = null;
-            CloseCallback.Invoke();
+            _closeCallback?.Invoke();
         }
     }
 }

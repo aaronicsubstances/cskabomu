@@ -112,7 +112,7 @@ namespace Kabomu.Internals
             if (pdu.ContentLength != 0)
             {
                 request.Body = new ByteOrientedTransferBody(pdu.ContentLength,
-                    pdu.ContentType, Parent.Transport, Connection, () => { });
+                    pdu.ContentType, Parent.Transport, Connection, null);
             }
             _requestBody = request.Body;
             BeginApplicationPipelineProcessing(request);
