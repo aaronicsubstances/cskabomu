@@ -46,12 +46,11 @@ namespace Kabomu.Internals
             SendChunkGetPdu(bytesToRead);
         }
 
-        private void OnBodyEndReadCallback(Exception e)
+        private void OnBodyEndReadCallback()
         {
             if (ChunkGetPduType == TransferPdu.PduTypeResponseChunkGet)
             {
-                SendFinPdu();
-                AbortCallback.Invoke(e);
+                AbortCallback.Invoke(null);
             }
         }
 
@@ -87,17 +86,6 @@ namespace Kabomu.Internals
                 AbortCallback.Invoke(e);
                 return;
             }
-        }
-
-        private void SendFinPdu()
-        {
-            var pdu = new TransferPdu
-            {
-                Version = TransferPdu.Version01,
-                PduType = TransferPdu.PduTypeFin
-            };
-            var pduBytes = pdu.Serialize();
-            Transport.WriteBytesOrSendMessage(Connection, pduBytes, 0, pduBytes.Length, _ => { });
         }
     }
 }

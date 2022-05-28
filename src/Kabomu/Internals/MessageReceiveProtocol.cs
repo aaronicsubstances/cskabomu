@@ -51,9 +51,6 @@ namespace Kabomu.Internals
                 case TransferPdu.PduTypeResponseChunkGet:
                     ProcessResponseChunkGetPdu(pdu);
                     break;
-                case TransferPdu.PduTypeFin:
-                    ProcessFinPdu();
-                    break;
                 default:
                     throw new Exception("Unexpected pdu type: " + pdu.PduType);
             }
@@ -193,11 +190,6 @@ namespace Kabomu.Internals
         private void ProcessResponseChunkGetPdu(TransferPdu pdu)
         {
             _responseBodyProtocol.ProcessChunkGetPdu(pdu.ContentLength);
-        }
-
-        private void ProcessFinPdu()
-        {
-            Parent.AbortTransfer(this, null);
         }
     }
 }
