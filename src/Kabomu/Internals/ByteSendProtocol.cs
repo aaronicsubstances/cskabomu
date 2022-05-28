@@ -165,19 +165,19 @@ namespace Kabomu.Internals
             {
                 var cancellationIndicator = new STCancellationIndicator();
                 ProcessingCancellationIndicator = cancellationIndicator;
-                Action<Exception> cb = e =>
+                Action closeCb = () =>
                 {
                     Parent.Mutex.RunExclusively(_ =>
                     {
                         if (!cancellationIndicator.Cancelled)
                         {
                             cancellationIndicator.Cancel();
-                            Parent.AbortTransfer(this, e);
+                            Parent.AbortTransfer(this, null);
                         }
                     }, null);
                 };
                 response.Body = new ByteOrientedTransferBody(pdu.ContentLength,
-                    pdu.ContentType, Parent.Transport, Connection, cb);
+                    pdu.ContentType, Parent.Transport, Connection, closeCb);
             }
             _responseBody = response.Body;
 

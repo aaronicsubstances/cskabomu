@@ -11,7 +11,7 @@ namespace Kabomu.Tests.Internals
     public class ChunkTransferBodyTest
     {
         [Fact]
-        public void TestEmptyRead()
+        public void TestEmptyReadWithContentLength()
         {
             // arrange.
             var mutex = new TestEventLoopApi();
@@ -24,24 +24,41 @@ namespace Kabomu.Tests.Internals
                 var data = Encoding.UTF8.GetBytes(str);
                 instance.OnDataWrite(mutex, data, 0, data.Length);
             };
-            bool completed = false;
-            Exception completionError = null;
-            Action<Exception> completionCallback = e =>
+            var closed = false;
+            Action closeCb = () => closed = true;
+            instance = new ChunkTransferBody(0, null, readCallback, closeCb);
+
+            // act and assert.
+            CommonBodyTestRunner.RunCommonBodyTest(instance, 0, null,
+                new int[0], null, "");
+            Assert.True(closed);
+        }
+        [Fact]
+        public void TestEmptyReadWithoutContentLength()
+        {
+            // arrange.
+            var mutex = new TestEventLoopApi();
+            ChunkTransferBody instance = null;
+            var dataList = new string[] { "" };
+            var readIndex = 0;
+            Action<int> readCallback = bytesToRead =>
             {
-                completed = true;
-                completionError = e;
+                var str = dataList[readIndex++];
+                var data = Encoding.UTF8.GetBytes(str);
+                instance.OnDataWrite(mutex, data, 0, data.Length);
             };
-            instance = new ChunkTransferBody(-1, null, readCallback, completionCallback);
+            var closed = false;
+            Action closeCb = () => closed = true;
+            instance = new ChunkTransferBody(-1, null, readCallback, closeCb);
 
             // act and assert.
             CommonBodyTestRunner.RunCommonBodyTest(instance, -1, null,
                 new int[0], null, "");
-            Assert.Null(completionError);
-            Assert.True(completed);
+            Assert.True(closed);
         }
 
         [Fact]
-        public void TestNonEmptyRead()
+        public void TestNonEmptyReadWithContentLength()
         {
             // arrange.
             var mutex = new TestEventLoopApi();
@@ -54,20 +71,38 @@ namespace Kabomu.Tests.Internals
                 var data = Encoding.UTF8.GetBytes(str);
                 instance.OnDataWrite(mutex, data, 0, data.Length);
             };
-            bool completed = false;
-            Exception completionError = null;
-            Action<Exception> completionCallback = e =>
-            {
-                completed = true;
-                completionError = e;
-            };
-            instance = new ChunkTransferBody(8, "text/xml", readCallback, completionCallback);
+            var closed = false;
+            Action closeCb = () => closed = true;
+            instance = new ChunkTransferBody(8, "text/xml", readCallback, closeCb);
 
             // act and assert.
             CommonBodyTestRunner.RunCommonBodyTest(instance, 8, "text/xml",
                 new int[] { 3, 1, 4 }, null, "car seat");
-            Assert.Null(completionError);
-            Assert.True(completed);
+            Assert.True(closed);
+        }
+
+        [Fact]
+        public void TestNonEmptyReadWithoutContentLength()
+        {
+            // arrange.
+            var mutex = new TestEventLoopApi();
+            ChunkTransferBody instance = null;
+            var dataList = new string[] { "car", " ", "seat", "" };
+            var readIndex = 0;
+            Action<int> readCallback = bytesToRead =>
+            {
+                var str = dataList[readIndex++];
+                var data = Encoding.UTF8.GetBytes(str);
+                instance.OnDataWrite(mutex, data, 0, data.Length);
+            };
+            var closed = false;
+            Action closeCb = () => closed = true;
+            instance = new ChunkTransferBody(-1, "text/xml", readCallback, closeCb);
+
+            // act and assert.
+            CommonBodyTestRunner.RunCommonBodyTest(instance, -1, "text/xml",
+                new int[] { 3, 1, 4 }, null, "car seat");
+            Assert.True(closed);
         }
     }
 }

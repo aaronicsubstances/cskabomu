@@ -11,21 +11,20 @@ namespace Kabomu.Internals
         private Exception _srcEndError;
 
         public ByteOrientedTransferBody(int contentLength, string contentType,
-            IQuasiHttpTransport transport, object connection, Action<Exception> completionCallback)
+            IQuasiHttpTransport transport, object connection, Action closeCallback)
         {
             ContentLength = contentLength;
             ContentType = contentType;
             Transport = transport;
             Connection = connection;
-            CompletionCallback = completionCallback;
+            CloseCallback = closeCallback;
         }
 
         public string ContentType { get; }
         public int ContentLength { get; }
         public IQuasiHttpTransport Transport { get; }
         public object Connection { get; }
-        public Action<Exception> CompletionCallback { get; }
-
+        public Action CloseCallback { get; }
 
         public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
@@ -44,13 +43,8 @@ namespace Kabomu.Internals
                     cb.Invoke(_srcEndError, 0);
                     return;
                 }
-                Action<Exception, int> wrapperCb = (e, bytesRead) =>
+                Transport.ReadBytes(Connection, data, offset, bytesToRead, (e, length) =>
                 {
-                    if (e != null)
-                    {
-                        cb.Invoke(e, 0);
-                        return;
-                    }
                     mutex.RunExclusively(_ =>
                     {
                         if (_srcEndError != null)
@@ -58,48 +52,38 @@ namespace Kabomu.Internals
                             cb.Invoke(_srcEndError, 0);
                             return;
                         }
-                        if (ContentLength < 0)
+                        if (e != null)
                         {
-                            cb.Invoke(null, bytesRead);
-                            if (bytesRead <= 0)
-                            {
-                                EndRead(null);
-                                return;
-                            }
+                            EndRead(cb, e);
+                            return;
                         }
-                        else
+                        if (length < 0)
                         {
-                            if (bytesRead <= 0)
-                            {
-                                Exception e2 = null;
-                                if (_readContentLength != ContentLength)
-                                {
-                                    e2 = new Exception("expected more content");
-                                }
-                                cb.Invoke(e2, bytesRead);
-                                EndRead(e2);
-                                return;
-                            }
-
-                            if (_readContentLength + bytesRead > ContentLength)
-                            {
-                                var e2 = new Exception("content length exceeded");
-                                cb.Invoke(e2, 0);
-                                EndRead(e2);
-                                return;
-                            }
-
-                            _readContentLength += bytesRead;
-                            cb.Invoke(null, bytesRead); 
-                            if (_readContentLength == ContentLength)
-                            {
-                                EndRead(null);
-                                return;
-                            }
+                            EndRead(cb, new Exception("invalid negative size received"));
+                            return;
                         }
+                        if (length > bytesToRead)
+                        {
+                            EndRead(cb, new Exception("received bytes more than requested size"));
+                            return;
+                        }
+                        if (ContentLength >= 0)
+                        {
+                            if (length == 0 && _readContentLength != ContentLength)
+                            {
+                                EndRead(cb, new Exception("content length not achieved"));
+                                return;
+                            }
+                            if (_readContentLength + length > ContentLength)
+                            {
+                                EndRead(cb, new Exception("content length exceeded"));
+                                return;
+                            }
+                            _readContentLength += length;
+                        }
+                        cb.Invoke(null, length);
                     }, null);
-                };
-                Transport.ReadBytes(Connection, data, offset, bytesToRead, wrapperCb);
+                });
             }, null);
         }
 
@@ -111,14 +95,15 @@ namespace Kabomu.Internals
                 {
                     return;
                 }
-                EndRead(e);
+                EndRead(null, e);
             }, null);
         }
         
-        private void EndRead(Exception e)
+        private void EndRead(Action<Exception, int> cb, Exception e)
         {
-            CompletionCallback.Invoke(e);
             _srcEndError = e ?? new Exception("end of read");
+            cb?.Invoke(_srcEndError, 0);
+            CloseCallback.Invoke();
         }
     }
 }
