@@ -52,7 +52,7 @@ namespace Kabomu.Tests.Shared
             cb.Invoke(null, bytesRead);
         }
 
-        public void WriteBytesOrSendMessage(object connection, byte[] data, int offset, int length, Action<Exception> cb)
+        public void WriteBytes(object connection, byte[] data, int offset, int length, Action<Exception> cb)
         {
             var typedConnection = (FakeTcpConnection)connection;
             typedConnection.DuplexStream.Write(data, offset, length);
@@ -63,6 +63,12 @@ namespace Kabomu.Tests.Shared
                 typedConnection.MarkConnectionAsEstablished();
                 peer.Upstream.OnReceive(typedConnection.Peer);
             }
+        }
+
+        public void SendMessage(object connection, byte[] data, int offset, int length, 
+            Action<Action<bool>> cancellationEnquirer, Action<Exception> cb)
+        {
+            throw new NotImplementedException();
         }
     }
 }

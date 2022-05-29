@@ -69,8 +69,9 @@ namespace Kabomu.Tests.Shared
             cb.Invoke(e, nextBytesRead);
         }
 
-        public void WriteBytesOrSendMessage(object connection, 
-            byte[] data, int offset, int length, Action<Exception> cb)
+        public void WriteBytes(object connection, 
+            byte[] data, int offset, int length,
+            Action<Exception> cb)
         {
             Assert.Equal(_expectedConnection, connection);
             Assert.Equal(MaxMessageOrChunkSize, data.Length);
@@ -86,5 +87,14 @@ namespace Kabomu.Tests.Shared
             }
             cb.Invoke(e);
         }
+
+        public void SendMessage(object connection,
+            byte[] data, int offset, int length,
+            Action<Action<bool>> cancellationEnquirer,
+            Action<Exception> cb)
+        {
+            throw new NotImplementedException();
+        }
+
     }
 }

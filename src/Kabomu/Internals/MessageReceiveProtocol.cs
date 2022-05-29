@@ -11,6 +11,7 @@ namespace Kabomu.Internals
         private IQuasiHttpBody _requestBody, _responseBody;
         private IncomingChunkTransferProtocol _requestBodyProtocol;
         private OutgoingChunkTransferProtocol _responseBodyProtocol;
+        private bool _responseSent;
 
         public IParentTransferProtocol Parent { get; set; }
         public object Connection { get; set; }
@@ -134,13 +135,16 @@ namespace Kabomu.Internals
                 bool bodyTransferRequired = true;
                 if (response.Body is ByteBufferBody byteBufferBody)
                 {
-                    int sizeWithoutBody = pdu.Serialize().Length;
-                    if (sizeWithoutBody + pdu.ContentLength <= Parent.Transport.MaxMessageOrChunkSize)
+                    if (pdu.ContentLength < Parent.Transport.MaxMessageOrChunkSize)
                     {
-                        pdu.Data = byteBufferBody.Buffer;
-                        pdu.DataOffset = byteBufferBody.Offset;
-                        pdu.DataLength = byteBufferBody.ContentLength;
-                        bodyTransferRequired = false;
+                        int sizeWithoutBody = pdu.Serialize(false).Length;
+                        if (sizeWithoutBody + pdu.ContentLength <= Parent.Transport.MaxMessageOrChunkSize)
+                        {
+                            pdu.Data = byteBufferBody.Buffer;
+                            pdu.DataOffset = byteBufferBody.Offset;
+                            pdu.DataLength = byteBufferBody.ContentLength;
+                            bodyTransferRequired = false;
+                        }
                     }
                 }
                 if (bodyTransferRequired)
@@ -164,8 +168,11 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            var pduBytes = pdu.Serialize();
-            Parent.Transport.WriteBytesOrSendMessage(Connection, pduBytes, 0, pduBytes.Length, cb);
+            var pduBytes = pdu.Serialize(false);
+            Parent.Transport.SendMessage(Connection, pduBytes, 0, pduBytes.Length,
+                ProtocolUtils.CreateCancellationEnquirer(Parent.Mutex, cancellationIndicator),
+                cb);
+            _responseSent = true;
         }
 
         private void HandleSendResponsePduOutcome(Exception e)
@@ -184,12 +191,17 @@ namespace Kabomu.Internals
 
         private void ProcessRequestChunkRetPdu(TransferPdu pdu)
         {
-            _requestBodyProtocol.ProcessChunkRetPdu(pdu.Data, pdu.DataOffset, pdu.DataLength);
+            _requestBodyProtocol.ProcessChunkRetPdu(pdu.SequenceNumber, pdu.Data, pdu.DataOffset, pdu.DataLength);
         }
 
         private void ProcessResponseChunkGetPdu(TransferPdu pdu)
         {
-            _responseBodyProtocol.ProcessChunkGetPdu(pdu.ContentLength);
+            // cancel response headers sending if it has not yet returned.
+            if (_responseSent)
+            {
+                ProcessingCancellationIndicator?.Cancel();
+            }
+            _responseBodyProtocol.ProcessChunkGetPdu(pdu.SequenceNumber, pdu.ContentLength);
         }
     }
 }

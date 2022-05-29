@@ -162,8 +162,7 @@ namespace Kabomu.Internals
                 StatusIndicatesSuccess = response.StatusIndicatesSuccess,
                 StatusIndicatesClientError = response.StatusIndicatesClientError,
                 StatusMessage = response.StatusMessage,
-                Headers = response.Headers,
-                IncludeLengthPrefixDuringSerialization = true
+                Headers = response.Headers
             };
             
             _responseBody = response.Body;
@@ -186,8 +185,8 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            var pduBytes = pdu.Serialize();
-            Parent.Transport.WriteBytesOrSendMessage(Connection, pduBytes, 0, pduBytes.Length, cb);
+            var pduBytes = pdu.Serialize(true);
+            Parent.Transport.WriteBytes(Connection, pduBytes, 0, pduBytes.Length, cb);
         }
 
         private void HandleSendResponsePduOutcome(Exception e, IQuasiHttpResponseMessage response)

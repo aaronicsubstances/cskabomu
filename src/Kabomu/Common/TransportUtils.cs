@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.Internals;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -69,13 +70,33 @@ namespace Kabomu.Common
             }
             if (bytesRead > 0)
             {
-                transport.WriteBytesOrSendMessage(connection, buffer, 0, bytesRead, e =>
+                transport.WriteBytes(connection, buffer, 0, bytesRead, e =>
                     HandleWriteOutcome(transport, connection, body, mutex, buffer, e, cb));
             }
             else
             {
                 cb.Invoke(null);
             }
+        }
+
+        public static bool IsRequestPdu(byte[] data, int offset, int length)
+        {
+            if (length < 2)
+            {
+                throw new ArgumentException("too small to contain pdu type");
+            }
+            var pduType = data[offset + 1];
+            return pduType == TransferPdu.PduTypeRequest || pduType == TransferPdu.PduTypeRequestChunkGet
+                || pduType == TransferPdu.PduTypeRequestChunkRet;
+        }
+
+        public static int GetPduSequenceNumber(byte[] data, int offset, int length)
+        {
+            if (length < 7)
+            {
+                throw new ArgumentException("too small to contain sequence number");
+            }
+            return (int)ByteUtils.DeserializeUpToInt64BigEndian(data, offset + 3, 4);
         }
     }
 }

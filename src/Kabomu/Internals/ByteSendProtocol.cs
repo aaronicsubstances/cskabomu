@@ -45,8 +45,7 @@ namespace Kabomu.Internals
                 Version = TransferPdu.Version01,
                 PduType = TransferPdu.PduTypeRequest,
                 Path = request.Path,
-                Headers = request.Headers,
-                IncludeLengthPrefixDuringSerialization = true
+                Headers = request.Headers
             };
             _requestBody = request.Body;
             if (request.Body != null)
@@ -67,8 +66,8 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            var pduBytes = pdu.Serialize();
-            Parent.Transport.WriteBytesOrSendMessage(Connection, pduBytes, 0, pduBytes.Length, cb);
+            var pduBytes = pdu.Serialize(true);
+            Parent.Transport.WriteBytes(Connection, pduBytes, 0, pduBytes.Length, cb);
         }
 
         private void HandleSendRequestPduOutcome(Exception e, IQuasiHttpRequestMessage request)

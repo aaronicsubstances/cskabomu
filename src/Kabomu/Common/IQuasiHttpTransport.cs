@@ -10,8 +10,10 @@ namespace Kabomu.Common
         bool IsByteOriented { get; }
         void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb);
         void ReleaseConnection(object connection);
-        void WriteBytesOrSendMessage(object connection, byte[] data, int offset, int length,
+        void WriteBytes(object connection, byte[] data, int offset, int length,
             Action<Exception> cb);
+        void SendMessage(object connection, byte[] data, int offset, int length,
+            Action<Action<bool>> cancellationEnquirer, Action<Exception> cb);
         void ReadBytes(object connection, byte[] data, int offset, int length, 
             Action<Exception, int> cb);
 

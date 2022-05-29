@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Internals;
 using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
@@ -87,7 +86,7 @@ namespace Kabomu.Examples.Shared
             tcpClient.Dispose();
         }
 
-        public async void WriteBytesOrSendMessage(object connection, byte[] data, int offset, int length, Action<Exception> cb)
+        public async void WriteBytes(object connection, byte[] data, int offset, int length, Action<Exception> cb)
         {
             var tcpClient = (TcpClient)connection;
             Stream networkStream = tcpClient.GetStream();
@@ -100,6 +99,12 @@ namespace Kabomu.Examples.Shared
             {
                 cb.Invoke(e);
             }
+        }
+
+        public void SendMessage(object connection, byte[] data, int offset, int length, 
+            Action<Action<bool>> cancellationEnquirer, Action<Exception> cb)
+        {
+            throw new NotImplementedException();
         }
 
         public async void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
