@@ -8,8 +8,8 @@ namespace Kabomu.Internals
 {
     internal class OutgoingChunkTransferProtocol
     {
-        private STCancellationIndicator _bodyCallbackCancellationIndicator;
-        private STCancellationIndicator _sendBodyPduCancellationIndicator;
+        private STCancellationIndicator _chunkProcessingCancellationIndicator;
+        private int _expectedSeqNr = 1;
 
         public OutgoingChunkTransferProtocol(IQuasiHttpTransport transport, IMutexApi mutex,
             object connection, Action<Exception> abortCallback, byte chunkRetPduType,
@@ -32,21 +32,23 @@ namespace Kabomu.Internals
 
         public void Cancel(Exception e)
         {
-            _bodyCallbackCancellationIndicator?.Cancel();
-            _sendBodyPduCancellationIndicator?.Cancel();
+            _chunkProcessingCancellationIndicator?.Cancel();
             Body.OnEndRead(Mutex, e);
         }
 
-        public void ProcessChunkGetPdu(int bytesToRead)
+        public void ProcessChunkGetPdu(int seqNr, int bytesToRead)
         {
-            if (ProtocolUtils.IsOperationPending(_bodyCallbackCancellationIndicator) ||
-                ProtocolUtils.IsOperationPending(_sendBodyPduCancellationIndicator))
+            if (_expectedSeqNr != seqNr)
             {
-                // ignore duplicate..
+                // ignore duplicates.
                 return;
             }
+            // cancel the most recent sending of ChunkRet if it has not yet returned.
+            _chunkProcessingCancellationIndicator?.Cancel();
+            // prevent processing of duplicates
+            _expectedSeqNr++;
             var cancellationIndicator = new STCancellationIndicator();
-            _bodyCallbackCancellationIndicator = cancellationIndicator;
+            _chunkProcessingCancellationIndicator = cancellationIndicator;
             byte[] data = new byte[bytesToRead];
             Action<Exception, int> cb = (e, bytesRead) =>
             {
@@ -80,12 +82,13 @@ namespace Kabomu.Internals
             {
                 Version = TransferPdu.Version01,
                 PduType = ChunkRetPduType,
+                SequenceNumber = _expectedSeqNr - 1,
                 Data = data,
                 DataOffset = offset,
                 DataLength = length
             };
             var cancellationIndicator = new STCancellationIndicator();
-            _sendBodyPduCancellationIndicator = cancellationIndicator;
+            _chunkProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
                 Mutex.RunExclusively(_ =>
@@ -97,8 +100,10 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            byte[] pduBytes = pdu.Serialize();
-            Transport.WriteBytesOrSendMessage(Connection, pduBytes, 0, pduBytes.Length, cb);
+            byte[] pduBytes = pdu.Serialize(false);
+            Transport.SendMessage(Connection, pduBytes, 0, pduBytes.Length,
+                ProtocolUtils.CreateCancellationEnquirer(Mutex, cancellationIndicator),
+                cb);
         }
 
         private void HandleSendPduOutcome(Exception e)

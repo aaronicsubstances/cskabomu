@@ -5,9 +5,16 @@ namespace Kabomu.Internals
 {
     internal class ProtocolUtils
     {
-        public static bool IsOperationPending(STCancellationIndicator cancellationIndicator)
+        public static Action<Action<bool>> CreateCancellationEnquirer(IMutexApi mutex, 
+            STCancellationIndicator cancellationIndicator)
         {
-            return cancellationIndicator != null && !cancellationIndicator.Cancelled;
+            return cb =>
+            {
+                mutex.RunExclusively(_ =>
+                {
+                    cb.Invoke(cancellationIndicator.Cancelled);
+                }, null);
+            };
         }
     }
 }

@@ -44,7 +44,13 @@ namespace Kabomu.Tests.Shared
             throw new NotImplementedException();
         }
 
-        public void WriteBytesOrSendMessage(object connection, byte[] data, int offset, int length, Action<Exception> cb)
+        public void WriteBytes(object connection, byte[] data, int offset, int length, Action<Exception> cb)
+        {
+            cb.Invoke(_writeError);
+        }
+
+        public void SendMessage(object connection, byte[] data, int offset, int length,
+            Action<Action<bool>> cancellationEnquirer, Action<Exception> cb)
         {
             cb.Invoke(_writeError);
         }

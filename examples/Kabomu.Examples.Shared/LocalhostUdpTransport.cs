@@ -41,6 +41,11 @@ namespace Kabomu.Examples.Shared
             throw new NotImplementedException();
         }
 
+        public void WriteBytes(object connection, byte[] data, int offset, int length, Action<Exception> cb)
+        {
+            throw new NotImplementedException();
+        }
+
         public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequestMessage request,
             Action<Exception, IQuasiHttpResponseMessage> cb)
         {
@@ -202,7 +207,8 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        public void WriteBytesOrSendMessage(object connection, byte[] data, int offset, int length, Action<Exception> cb)
+        public void SendMessage(object connection, byte[] data, int offset, int length,
+            Action<Action<bool>> cancellationEnquirer, Action<Exception> cb)
         {
             var typedConnection = (LocalhostUdpConnection)connection;
             var pdu = new LocalhostUdpDatagram

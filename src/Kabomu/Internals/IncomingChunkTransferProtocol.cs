@@ -8,7 +8,8 @@ namespace Kabomu.Internals
 {
     internal class IncomingChunkTransferProtocol
     {
-        private STCancellationIndicator _sendBodyPduCancellationIndicator;
+        private STCancellationIndicator _chunkProcessingCancellationIndicator;
+        private int _expectedSeqNr = 1;
 
         public IncomingChunkTransferProtocol(IQuasiHttpTransport transport, IMutexApi mutex,
             object connection, Action<Exception> abortCallback, 
@@ -32,13 +33,22 @@ namespace Kabomu.Internals
 
         public void Cancel(Exception e)
         {
-            _sendBodyPduCancellationIndicator?.Cancel();
+            _chunkProcessingCancellationIndicator?.Cancel();
             Body.OnEndRead(Mutex, e);
         }
 
-        public void ProcessChunkRetPdu(byte[] data, int offset, int length)
+        public void ProcessChunkRetPdu(int seqNr, byte[] data, int offset, int length)
         {
-            Body.OnDataWrite(Mutex, data ?? new byte[0], offset, length);
+            if (_expectedSeqNr != seqNr)
+            {
+                // ignore duplicates.
+                return;
+            }
+            // cancel the most recent sending of ChunkGet if it has not yet returned.
+            _chunkProcessingCancellationIndicator?.Cancel();
+            // prevent processing of duplicates
+            _expectedSeqNr++;
+            Body.OnDataWrite(Mutex, data, offset, length);
         }
 
         private void OnBodyChunkReadCallback(int bytesToRead)
@@ -60,10 +70,11 @@ namespace Kabomu.Internals
             {
                 Version = TransferPdu.Version01,
                 PduType = ChunkGetPduType,
+                SequenceNumber = _expectedSeqNr,
                 ContentLength = bytesToRead
             };
             var cancellationIndicator = new STCancellationIndicator();
-            _sendBodyPduCancellationIndicator = cancellationIndicator;
+            _chunkProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
                 Mutex.RunExclusively(_ =>
@@ -75,8 +86,10 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            byte[] pduBytes = pdu.Serialize();
-            Transport.WriteBytesOrSendMessage(Connection, pduBytes, 0, pduBytes.Length, cb);
+            byte[] pduBytes = pdu.Serialize(false);
+            Transport.SendMessage(Connection, pduBytes, 0, pduBytes.Length,
+                ProtocolUtils.CreateCancellationEnquirer(Mutex, cancellationIndicator), 
+                cb);
         }
 
         private void HandleSendPduOutcome(Exception e)
