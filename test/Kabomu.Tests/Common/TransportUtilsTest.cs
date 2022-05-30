@@ -196,5 +196,39 @@ namespace Kabomu.Tests.Common
 
             return testData;
         }
+
+        [Theory]
+        [MemberData(nameof(CreateTestIsRequestPduData))]
+        public void TestIsRequestPdu(byte[] data, int offset, int length, bool expected)
+        {
+            var actual = TransportUtils.IsRequestPdu(data, offset, length);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateTestIsRequestPduData()
+        {
+            return new List<object[]>
+            {
+                new object[]{ new byte[] { 0, 1, 3, 1 }, 1, 3, true },
+                new object[]{ new byte[] { 1, 2 }, 0, 2, false },
+            };
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestGetPduSequenceNumberData))]
+        public void TestGetPduSequenceNumber(byte[] data, int offset, int length, int expected)
+        {
+            var actual = TransportUtils.GetPduSequenceNumber(data, offset, length);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateTestGetPduSequenceNumberData()
+        {
+            return new List<object[]>
+            {
+                new object[]{ new byte[] { 1, 1, 0, 1, 2, 3, 4 }, 0, 7, 16_909_060 },
+                new object[]{ new byte[] { 0, 1, 5, 0, 1, 1, 0, 0, 2, 3, 7 }, 1, 10, 16_842_752 },
+            };
+        }
     }
 }
