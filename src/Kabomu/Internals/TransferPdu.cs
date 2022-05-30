@@ -12,8 +12,8 @@ namespace Kabomu.Internals
         public const byte PduTypeRequest = 1;
         public const byte PduTypeResponse = 2;
         public const byte PduTypeRequestChunkGet = 3;
-        public const byte PduTypeRequestChunkRet = 4;
-        public const byte PduTypeResponseChunkGet = 5;
+        public const byte PduTypeResponseChunkGet = 4;
+        public const byte PduTypeRequestChunkRet = 5;
         public const byte PduTypeResponseChunkRet = 6;
 
         public byte Version { get; set; }
@@ -52,15 +52,28 @@ namespace Kabomu.Internals
             }
             var csv = ByteUtils.BytesToString(data, offset + 11, csvDataLength);
             var csvData = CsvUtils.Deserialize(csv);
-            pdu.Path = csvData[0][0];
+            if (csvData[0].Count > 0)
+            {
+                pdu.Path = csvData[0][0];
+            }
             pdu.StatusIndicatesSuccess = bool.Parse(csvData[1][0]);
             pdu.StatusIndicatesClientError = bool.Parse(csvData[2][0]);
-            pdu.StatusMessage = csvData[3][0];
+            if (csvData[3].Count > 0)
+            {
+                pdu.StatusMessage = csvData[3][0];
+            }
             pdu.ContentLength = int.Parse(csvData[4][0]);
-            pdu.ContentType = csvData[5][0];
+            if (csvData[5].Count > 0)
+            {
+                pdu.ContentType = csvData[5][0];
+            }
             for (int i = 6; i < csvData.Count; i++)
             {
                 var headerRow = csvData[i];
+                if (headerRow.Count < 2)
+                {
+                    continue;
+                }
                 var headerValue = new List<string>(headerRow.GetRange(1, headerRow.Count - 1));
                 if (pdu.Headers == null)
                 {
@@ -79,21 +92,28 @@ namespace Kabomu.Internals
         public byte[] Serialize(bool includeLengthPrefix)
         {
             var csvData = new List<List<string>>();
-            csvData.Add(new List<string> { Path ?? "" });
+            csvData.Add(Path != null ? new List<string> { Path } : new List<string>());
             csvData.Add(new List<string> { StatusIndicatesSuccess.ToString() });
             csvData.Add(new List<string> { StatusIndicatesClientError.ToString() });
-            csvData.Add(new List<string> { StatusMessage ?? "" });
+            csvData.Add(StatusMessage != null ? new List<string> { StatusMessage } : new List<string>());
             csvData.Add(new List<string> { ContentLength.ToString() });
-            csvData.Add(new List<string> { ContentType ?? "" });
-            foreach (var header in Headers ?? new Dictionary<string, List<string>>())
+            csvData.Add(ContentType != null ? new List<string> { ContentType } : new List<string>());
+            if (Headers != null)
             {
-                var headerRow = new List<string> { header.Key };
-                headerRow.AddRange(header.Value);
-                csvData.Add(headerRow);
+                foreach (var header in Headers)
+                {
+                    if (header.Value.Count == 0)
+                    {
+                        continue;
+                    }
+                    var headerRow = new List<string> { header.Key };
+                    headerRow.AddRange(header.Value);
+                    csvData.Add(headerRow);
+                }
             }
             var csv = CsvUtils.Serialize(csvData);
             var csvBytes = ByteUtils.StringToBytes(csv);
-            var lengthOfBinaryBytes = 7 + DataLength;
+            var lengthOfBinaryBytes = 11 + DataLength;
             if (includeLengthPrefix)
             {
                 lengthOfBinaryBytes += 4;
