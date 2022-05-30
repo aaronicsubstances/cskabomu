@@ -48,6 +48,23 @@ namespace Kabomu.Tests.Internals
             ComparePdus(expected, actual);
         }
 
+        [Fact]
+        public void TestForErrors()
+        {
+            Assert.Throws<ArgumentException>(() =>
+            {
+                TransferPdu.Deserialize(new byte[10], 0, 10);
+            });
+            Assert.ThrowsAny<Exception>(() =>
+            {
+                TransferPdu.Deserialize(new byte[11], 0, 11);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                TransferPdu.Deserialize(new byte[] { 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 9 }, 0, 11);
+            });
+        }
+
         private static void ComparePdus(TransferPdu expected, TransferPdu actual)
         {
             Assert.Equal(expected.Version, actual.Version);
