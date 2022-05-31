@@ -21,15 +21,13 @@ namespace Kabomu.QuasiHttp
         }
 
         public int DefaultTimeoutMillis { get; set; }
-        public int MaxRetryPeriodMillis { get; set; }
-        public int MaxRetryCount { get; set; }
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public IEventLoopApi EventLoop { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
-        public void Send(object remoteEndpoint, IQuasiHttpRequestMessage request, IQuasiHttpSendOptions options,
-            Action<Exception, IQuasiHttpResponseMessage> cb)
+        public void Send(object remoteEndpoint, IQuasiHttpRequest request, IQuasiHttpSendOptions options,
+            Action<Exception, IQuasiHttpResponse> cb)
         {
             EventLoop.RunExclusively(_ =>
             {
@@ -38,9 +36,9 @@ namespace Kabomu.QuasiHttp
         }
 
         private void ProcessSend(object remoteEndpoint,
-            IQuasiHttpRequestMessage request,
+            IQuasiHttpRequest request,
             IQuasiHttpSendOptions options,
-            Action<Exception, IQuasiHttpResponseMessage> cb)
+            Action<Exception, IQuasiHttpResponse> cb)
         {
             ITransferProtocol transfer;
             if (Transport.IsByteOriented)
@@ -76,11 +74,11 @@ namespace Kabomu.QuasiHttp
             }
         }
 
-        private void ProcessSendRequestDirectly(object remoteEndpoint, ITransferProtocol transfer, IQuasiHttpRequestMessage request)
+        private void ProcessSendRequestDirectly(object remoteEndpoint, ITransferProtocol transfer, IQuasiHttpRequest request)
         {
             var cancellationIndicator = new STCancellationIndicator();
             transfer.ProcessingCancellationIndicator = cancellationIndicator;
-            Action<Exception, IQuasiHttpResponseMessage> cb = (e, res) =>
+            Action<Exception, IQuasiHttpResponse> cb = (e, res) =>
             {
                 EventLoop.RunExclusively(_ =>
                 {
@@ -94,7 +92,7 @@ namespace Kabomu.QuasiHttp
             Transport.ProcessSendRequest(remoteEndpoint, request, cb);
         }
 
-        private void HandleDirectSendRequestProcessingOutcome(Exception e, IQuasiHttpResponseMessage res,
+        private void HandleDirectSendRequestProcessingOutcome(Exception e, IQuasiHttpResponse res,
             ITransferProtocol transfer)
         {
             if (e != null)
@@ -114,7 +112,7 @@ namespace Kabomu.QuasiHttp
             DisableTransfer(transfer, null);
         }
 
-        private void AllocateConnection(object remoteEndpoint, ITransferProtocol transfer, IQuasiHttpRequestMessage request)
+        private void AllocateConnection(object remoteEndpoint, ITransferProtocol transfer, IQuasiHttpRequest request)
         {
             var cancellationIndicator = new STCancellationIndicator();
             transfer.ProcessingCancellationIndicator = cancellationIndicator;
@@ -133,7 +131,7 @@ namespace Kabomu.QuasiHttp
         }
 
         private void HandleConnectionAllocationOutcome(Exception e, object connection, ITransferProtocol transfer,
-            IQuasiHttpRequestMessage request)
+            IQuasiHttpRequest request)
         {
             if (e != null)
             {
@@ -260,10 +258,6 @@ namespace Kabomu.QuasiHttp
             }
 
             public int DefaultTimeoutMillis => _delegate.DefaultTimeoutMillis;
-
-            public int MaxRetryPeriodMillis => _delegate.MaxRetryPeriodMillis;
-
-            public int MaxRetryCount => _delegate.MaxRetryCount;
 
             public IQuasiHttpApplication Application => _delegate.Application;
 

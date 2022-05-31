@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kabomu.Common
 {
-    public interface IQuasiHttpRequestMessage
+    public interface IQuasiHttpRequest
     {
         string Path { get; }
         Dictionary<string, List<string>> Headers { get; }

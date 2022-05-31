@@ -15,8 +15,8 @@ namespace Kabomu.Tests.Shared
         public FakeTcpTransportHub Hub { get; set; }
         public KabomuQuasiHttpClient Upstream { get; set; }
 
-        public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequestMessage request, 
-            Action<Exception, IQuasiHttpResponseMessage> cb)
+        public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request, 
+            Action<Exception, IQuasiHttpResponse> cb)
         {
             var peer = Hub.Connections[remoteEndpoint];
             peer.Upstream.Application.ProcessRequest(request, cb);

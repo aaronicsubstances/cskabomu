@@ -113,7 +113,7 @@ namespace Tcp.FileClient
         }
         private static Task TransferFile(KabomuQuasiHttpClient instance, int serverPort, FileInfo f, bool serveContentLength)
         {
-            var request = new DefaultQuasiHttpRequestMessage
+            var request = new DefaultQuasiHttpRequest
             {
                 Headers = new Dictionary<string, List<string>>(),
                 Body = new FileBody(f.DirectoryName, f.Name, serveContentLength)

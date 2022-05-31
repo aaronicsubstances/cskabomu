@@ -18,7 +18,7 @@ namespace Kabomu.Internals
         public STCancellationIndicator ProcessingCancellationIndicator { get; set; }
         public int TimeoutMillis { get; set; }
         public object TimeoutId { get; set; }
-        public Action<Exception, IQuasiHttpResponseMessage> SendCallback { get; set; }
+        public Action<Exception, IQuasiHttpResponse> SendCallback { get; set; }
 
         public void Cancel(Exception e)
         {
@@ -28,7 +28,7 @@ namespace Kabomu.Internals
             _responseBodyProtocol?.Cancel(e);
         }
 
-        public void OnSend(IQuasiHttpRequestMessage request)
+        public void OnSend(IQuasiHttpRequest request)
         {
             SendRequestPdu(request);
         }
@@ -57,7 +57,7 @@ namespace Kabomu.Internals
             }
         }
 
-        private void SendRequestPdu(IQuasiHttpRequestMessage request)
+        private void SendRequestPdu(IQuasiHttpRequest request)
         {
             var pdu = new TransferPdu
             {
@@ -142,7 +142,7 @@ namespace Kabomu.Internals
             ProcessingCancellationIndicator?.Cancel();
             // prevent processing of duplicates
             _responseReceived = true;
-            var response = new DefaultQuasiHttpResponseMessage
+            var response = new DefaultQuasiHttpResponse
             {
                 StatusIndicatesSuccess = pdu.StatusIndicatesSuccess,
                 StatusIndicatesClientError = pdu.StatusIndicatesClientError,

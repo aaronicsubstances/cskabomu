@@ -7,9 +7,9 @@ namespace Kabomu.QuasiWsgi
 {
     public interface IQuasiHttpContext
     {
-        IQuasiHttpRequestMessage Request { get; }
+        IQuasiHttpRequest Request { get; }
         Dictionary<string, object> RequestAttributes { get; }
-        IQuasiHttpResponseMessage Response { get; }
+        IQuasiHttpResponse Response { get; }
         bool ResponseMarkedAsSent { get; }
         Exception Error { get; }
     }

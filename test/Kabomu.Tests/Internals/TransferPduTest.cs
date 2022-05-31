@@ -1,4 +1,5 @@
-﻿using Kabomu.Internals;
+﻿using Kabomu.Common;
+using Kabomu.Internals;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -18,6 +19,8 @@ namespace Kabomu.Tests.Internals
             ComparePdus(expected, actual);
 
             bytes = expected.Serialize(true);
+            int encodedLength = ByteUtils.DeserializeInt32BigEndian(bytes, 0);
+            Assert.Equal(bytes.Length - 4, encodedLength);
             actual = TransferPdu.Deserialize(bytes, 4, bytes.Length - 4);
             ComparePdus(expected, actual);
         }
@@ -44,6 +47,8 @@ namespace Kabomu.Tests.Internals
             ComparePdus(expected, actual);
             
             bytes = expected.Serialize(true);
+            int encodedLength = ByteUtils.DeserializeInt32BigEndian(bytes, 0);
+            Assert.Equal(bytes.Length - 4, encodedLength);
             actual = TransferPdu.Deserialize(bytes, 4, bytes.Length - 4);
             ComparePdus(expected, actual);
         }
@@ -65,7 +70,7 @@ namespace Kabomu.Tests.Internals
             });
         }
 
-        private static void ComparePdus(TransferPdu expected, TransferPdu actual)
+        internal static void ComparePdus(TransferPdu expected, TransferPdu actual)
         {
             Assert.Equal(expected.Version, actual.Version);
             Assert.Equal(expected.PduType, actual.PduType);
@@ -82,7 +87,7 @@ namespace Kabomu.Tests.Internals
                 actual.DataOffset, actual.DataLength);
         }
 
-        private static void CompareHeaders(Dictionary<string, List<string>> expected,
+        internal static void CompareHeaders(Dictionary<string, List<string>> expected,
             Dictionary<string, List<string>> actual)
         {
             var expectedKeys = new List<string>();

@@ -15,7 +15,7 @@ namespace Kabomu.Internals
         public STCancellationIndicator ProcessingCancellationIndicator { get; set; }
         public int TimeoutMillis { get; set; }
         public object TimeoutId { get; set; }
-        public Action<Exception, IQuasiHttpResponseMessage> SendCallback { get; set; }
+        public Action<Exception, IQuasiHttpResponse> SendCallback { get; set; }
 
         public void Cancel(Exception e)
         {
@@ -23,7 +23,7 @@ namespace Kabomu.Internals
             _responseBody?.OnEndRead(Parent.Mutex, e);
         }
 
-        public void OnSend(IQuasiHttpRequestMessage request)
+        public void OnSend(IQuasiHttpRequest request)
         {
             SendRequestPdu(request);
         }
@@ -38,7 +38,7 @@ namespace Kabomu.Internals
             throw new NotImplementedException("unsupported for byte-oriented transports");
         }
 
-        private void SendRequestPdu(IQuasiHttpRequestMessage request)
+        private void SendRequestPdu(IQuasiHttpRequest request)
         {
             var pdu = new TransferPdu
             {
@@ -70,7 +70,7 @@ namespace Kabomu.Internals
             Parent.Transport.WriteBytes(Connection, pduBytes, 0, pduBytes.Length, cb);
         }
 
-        private void HandleSendRequestPduOutcome(Exception e, IQuasiHttpRequestMessage request)
+        private void HandleSendRequestPduOutcome(Exception e, IQuasiHttpRequest request)
         {
             if (e != null)
             {
@@ -152,7 +152,7 @@ namespace Kabomu.Internals
 
         private void ProcessResponsePdu(TransferPdu pdu)
         {
-            var response = new DefaultQuasiHttpResponseMessage
+            var response = new DefaultQuasiHttpResponse
             {
                 StatusIndicatesSuccess = pdu.StatusIndicatesSuccess,
                 StatusIndicatesClientError = pdu.StatusIndicatesClientError,

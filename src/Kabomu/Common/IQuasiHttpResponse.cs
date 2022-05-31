@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kabomu.Common
 {
-    public interface IQuasiHttpResponseMessage
+    public interface IQuasiHttpResponse
     {
         bool StatusIndicatesSuccess { get; }
         bool StatusIndicatesClientError { get; }

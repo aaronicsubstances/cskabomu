@@ -122,7 +122,7 @@ namespace Kabomu.Internals
             int offset = 0;
             if (includeLengthPrefix)
             {
-                ByteUtils.SerializeUpToInt64BigEndian(pduBytes.Length, pduBytes, 0, 4);
+                ByteUtils.SerializeUpToInt64BigEndian(pduBytes.Length - 4, pduBytes, 0, 4);
                 offset += 4;
             }
             ByteUtils.SerializeUpToInt64BigEndian(Version, pduBytes, offset, 1);
