@@ -6,6 +6,6 @@ namespace Kabomu.Common
 {
     public interface IQuasiHttpApplication
     {
-        void ProcessRequest(IQuasiHttpRequestMessage request, Action<Exception, IQuasiHttpResponseMessage> cb);
+        void ProcessRequest(IQuasiHttpRequest request, Action<Exception, IQuasiHttpResponse> cb);
     }
 }

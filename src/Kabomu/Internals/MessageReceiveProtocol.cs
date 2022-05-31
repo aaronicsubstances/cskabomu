@@ -18,7 +18,7 @@ namespace Kabomu.Internals
         public STCancellationIndicator ProcessingCancellationIndicator { get; set; }
         public int TimeoutMillis { get; set; }
         public object TimeoutId { get; set; }
-        public Action<Exception, IQuasiHttpResponseMessage> SendCallback { get; set; }
+        public Action<Exception, IQuasiHttpResponse> SendCallback { get; set; }
 
         public void Cancel(Exception e)
         {
@@ -28,7 +28,7 @@ namespace Kabomu.Internals
             _responseBodyProtocol?.Cancel(e);
         }
 
-        public void OnSend(IQuasiHttpRequestMessage request)
+        public void OnSend(IQuasiHttpRequest request)
         {
             throw new NotImplementedException("implementation error");
         }
@@ -59,7 +59,7 @@ namespace Kabomu.Internals
 
         private void ProcessRequestPdu(TransferPdu pdu)
         {
-            var request = new DefaultQuasiHttpRequestMessage
+            var request = new DefaultQuasiHttpRequest
             {
                 Path = pdu.Path,
                 Headers = pdu.Headers
@@ -80,11 +80,11 @@ namespace Kabomu.Internals
             BeginApplicationPipelineProcessing(request);
         }
 
-        private void BeginApplicationPipelineProcessing(IQuasiHttpRequestMessage request)
+        private void BeginApplicationPipelineProcessing(IQuasiHttpRequest request)
         {
             var cancellationIndicator = new STCancellationIndicator();
             ProcessingCancellationIndicator = cancellationIndicator;
-            Action<Exception, IQuasiHttpResponseMessage> cb = (e, res) =>
+            Action<Exception, IQuasiHttpResponse> cb = (e, res) =>
             {
                 Parent.Mutex.RunExclusively(_ =>
                 {
@@ -98,7 +98,7 @@ namespace Kabomu.Internals
             Parent.Application.ProcessRequest(request, cb);
         }
 
-        private void HandleApplicationProcessingOutcome(Exception e, IQuasiHttpResponseMessage response)
+        private void HandleApplicationProcessingOutcome(Exception e, IQuasiHttpResponse response)
         {
             if (e != null)
             {
@@ -115,7 +115,7 @@ namespace Kabomu.Internals
             SendResponsePdu(response);
         }
 
-        private void SendResponsePdu(IQuasiHttpResponseMessage response)
+        private void SendResponsePdu(IQuasiHttpResponse response)
         {
             var pdu = new TransferPdu
             {

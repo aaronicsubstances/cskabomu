@@ -69,7 +69,7 @@ namespace Kabomu.QuasiWsgi
             }
         }
         
-        public void ProcessRequest(IQuasiHttpRequestMessage request, Action<Exception, IQuasiHttpResponseMessage> responseCb)
+        public void ProcessRequest(IQuasiHttpRequest request, Action<Exception, IQuasiHttpResponse> responseCb)
         {
             // apply all application level middlewares, path-specific router level middlewares,
             // and error middlewares in order.
@@ -83,12 +83,12 @@ namespace Kabomu.QuasiWsgi
             {
                 if (res == null)
                 {
-                    res = new DefaultQuasiHttpResponseMessage
+                    res = new DefaultQuasiHttpResponse
                     {
                         StatusIndicatesSuccess = true
                     };
                 }
-                context.Response = (IQuasiHttpResponseMessage)res;
+                context.Response = (IQuasiHttpResponse)res;
                 responseCb.Invoke(e, context.Response);
                 context.ResponseMarkedAsSent = true;
             };

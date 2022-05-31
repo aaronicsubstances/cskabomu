@@ -5,9 +5,11 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp
 {
-    public class DefaultQuasiHttpRequestMessage : IQuasiHttpRequestMessage
+    public class DefaultQuasiHttpResponse : IQuasiHttpResponse
     {
-        public string Path { get; set; }
+        public bool StatusIndicatesSuccess { get; set; }
+        public bool StatusIndicatesClientError { get; set; }
+        public string StatusMessage { get; set; }
         public Dictionary<string, List<string>> Headers { get; set; }
         public IQuasiHttpBody Body { get; set; }
     }

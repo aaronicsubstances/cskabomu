@@ -25,7 +25,7 @@ namespace Kabomu.Common
         /// </summary>
         bool DirectSendRequestProcessingEnabled { get; }
 
-        void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequestMessage request,
-            Action<Exception, IQuasiHttpResponseMessage> cb);
+        void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request,
+            Action<Exception, IQuasiHttpResponse> cb);
     }
 }

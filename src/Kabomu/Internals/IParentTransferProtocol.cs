@@ -8,8 +8,6 @@ namespace Kabomu.Internals
     internal interface IParentTransferProtocol
     {
         int DefaultTimeoutMillis { get; }
-        int MaxRetryPeriodMillis { get; }
-        int MaxRetryCount { get; }
         IQuasiHttpApplication Application { get; }
         IQuasiHttpTransport Transport { get; }
         public IMutexApi Mutex { get; }

@@ -24,7 +24,7 @@ namespace Kabomu.Examples.Shared
             _eventLoop = eventLoop;
         }
 
-        public async void ProcessRequest(IQuasiHttpRequestMessage request, Action<Exception, IQuasiHttpResponseMessage> cb)
+        public async void ProcessRequest(IQuasiHttpRequest request, Action<Exception, IQuasiHttpResponse> cb)
         {
             var fileName = request.Headers["f"][0];
             LOG.Debug("Starting receipt of file {0} from {1}...", fileName, _port);
@@ -58,7 +58,7 @@ namespace Kabomu.Examples.Shared
 
             LOG.Info(transferError, "File {0} received {1}", fileName, transferError == null ? "successfully" : "with error");
 
-            var response = new DefaultQuasiHttpResponseMessage
+            var response = new DefaultQuasiHttpResponse
             {
                 StatusIndicatesSuccess = transferError == null,
                 StatusMessage = transferError?.Message ?? "OK"
