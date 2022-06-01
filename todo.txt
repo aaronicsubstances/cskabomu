@@ -4,14 +4,10 @@ remaining
 default transports
 ------------------
 MemoryBasedTransport
+TcpBasedTransport - making it async may require use of third party library
 UdpBasedTransport - making it async may require use of third party library
 UnixSocketBasedTransport - availability and making it async may require use of third party library
 WindowsNamedPipes - availability and making it async may require use of third party library
-
-*let udptransport care only about creating connections with uuids to prevent external duplicates.
-assign variable length integers to chunk get/ret types and 
-deal with duplication internally - both resp, and chunk, and fins.
-make retry logic external component based on pdu req res pairs and sequence number replacements within same pair.
 
 default middleware
 ------------------
@@ -22,16 +18,16 @@ default middleware
 
 default bodies
 ---------------
--jsonbody
--stringbody
+-bytebufferbody - done.
+-stringbody - done.
+-jsonbody - depends on third party JSON serialization library.
 -formbody
--bytebufferbody
 *filebody - making it async may require use of third party library
 *streambody - making it async may require use of third pary library
 
 Optimization
 ------------
-1. Let receive/send make use of event loop always on same thread
+1. Let receive/send make use of event loop always on same thread - done via mutex.
 2. For large timeouts (as determined by a config setting), introduce a single bulk interval timer
    in receive/send to skip timer creation until time remaining becomes small.
    a. still create timers for case of small timeouts.
@@ -39,7 +35,7 @@ Optimization
 
 Examples
 --------
--add demos each for udp, unix domain socket, windows named pipe, and memory
+-add demos each for udp, tcp, unix domain socket, windows named pipe, and memory
 --based on file server/client
 --copy over command line parsing
 
