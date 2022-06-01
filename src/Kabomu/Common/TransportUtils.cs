@@ -105,6 +105,7 @@ namespace Kabomu.Common
             }
             else
             {
+                body.OnEndRead(mutex, null);
                 cb.Invoke(null, byteStream.ToArray());
             }
         }

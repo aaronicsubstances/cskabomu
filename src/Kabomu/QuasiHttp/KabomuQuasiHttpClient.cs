@@ -271,6 +271,16 @@ namespace Kabomu.QuasiHttp
             {
                 _delegate.AbortTransfer(transfer, e);
             }
+
+            public void ReadBytesFullyFromTransport(object connection, byte[] data, int offset, int length, Action<Exception> cb)
+            {
+                TransportUtils.ReadBytesFully(_delegate.Transport, connection, data, offset, length, cb);
+            }
+
+            public void TransferBodyToTransport(object connection, IQuasiHttpBody body, Action<Exception> cb)
+            {
+                TransportUtils.TransferBodyToTransport(_delegate.Transport, connection, body, _delegate.EventLoop, cb);
+            }
         }
     }
 }

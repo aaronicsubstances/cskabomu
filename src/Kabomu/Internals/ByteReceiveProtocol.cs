@@ -54,7 +54,7 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            TransportUtils.ReadBytesFully(Parent.Transport, Connection, encodedLength, 0, encodedLength.Length, cb);
+            Parent.ReadBytesFullyFromTransport(Connection, encodedLength, 0, encodedLength.Length, cb);
         }
 
         private void HandleRequestPduLengthReadOutcome(Exception e, byte[] encodedLength)
@@ -80,7 +80,7 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            TransportUtils.ReadBytesFully(Parent.Transport, Connection, pduBytes, 0, pduBytes.Length, cb);
+            Parent.ReadBytesFullyFromTransport(Connection, pduBytes, 0, pduBytes.Length, cb);
         }
 
         private void HandleRequestPduReadOutcome(Exception e, byte[] pduBytes)
@@ -212,8 +212,7 @@ namespace Kabomu.Internals
                         }
                     }, null);
                 };
-                TransportUtils.TransferBodyToTransport(Parent.Transport, Connection, response.Body,
-                    Parent.Mutex, cb);
+                Parent.TransferBodyToTransport(Connection, response.Body, cb);
             }
             else
             {

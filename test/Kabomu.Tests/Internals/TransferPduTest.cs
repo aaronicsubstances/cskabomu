@@ -1,5 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.Internals;
+using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -82,59 +83,9 @@ namespace Kabomu.Tests.Internals
             Assert.Equal(expected.StatusMessage, actual.StatusMessage);
             Assert.Equal(expected.ContentLength, actual.ContentLength);
             Assert.Equal(expected.ContentType, actual.ContentType);
-            CompareHeaders(expected.Headers, actual.Headers);
-            CompareData(expected.Data, expected.DataOffset, expected.DataLength, actual.Data,
+            ComparisonUtils.CompareHeaders(expected.Headers, actual.Headers);
+            ComparisonUtils.CompareData(expected.Data, expected.DataOffset, expected.DataLength, actual.Data,
                 actual.DataOffset, actual.DataLength);
-        }
-
-        internal static void CompareHeaders(Dictionary<string, List<string>> expected,
-            Dictionary<string, List<string>> actual)
-        {
-            var expectedKeys = new List<string>();
-            if (expected != null)
-            {
-                foreach (var key in expected.Keys)
-                {
-                    var value = expected[key];
-                    if (value != null & value.Count > 0)
-                    {
-                        expectedKeys.Add(key);
-                    }
-                }
-            }
-            expectedKeys.Sort();
-            var actualKeys = new List<string>();
-            if (actual != null)
-            {
-                foreach (var key in actual.Keys)
-                {
-                    var value = actual[key];
-                    if (value != null & value.Count > 0)
-                    {
-                        actualKeys.Add(key);
-                    }
-                }
-            }
-            actualKeys.Sort();
-            Assert.Equal(expectedKeys, actualKeys);
-            foreach (var key in expectedKeys)
-            {
-                var expectedValue = expected[key];
-                var actualValue = actual[key];
-                Assert.Equal(expectedValue, actualValue);
-            }
-        }
-
-        private static void CompareData(byte[] expectedData, int expectedDataOffset, int expectedDataLength,
-            byte[] actualData, int actualDataOffset, int actualDataLength)
-        {
-            Assert.Equal(expectedDataLength, actualDataLength);
-            for (int i = 0; i < expectedDataLength; i++)
-            {
-                var expectedByte = expectedData[expectedDataOffset + i];
-                var actualByte = actualData[actualDataOffset + i];
-                Assert.Equal(expectedByte, actualByte);
-            }
         }
     }
 }
