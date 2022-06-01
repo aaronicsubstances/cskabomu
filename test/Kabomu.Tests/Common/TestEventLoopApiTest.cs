@@ -461,6 +461,14 @@ namespace Kabomu.Tests.Common
                 actualAnswer = ((int)num) * 2;
             };
 
+            instance.RunMutexApiThroughPostCallback = true;
+            instance.RunExclusively(doublingCb, 8);
+            Assert.Equal(0, actualAnswer);
+            instance.AdvanceTimeBy(0);
+            Assert.Equal(16, actualAnswer);
+
+            instance.RunMutexApiThroughPostCallback = false;
+
             instance.RunExclusively(doublingCb, 3);
             Assert.Equal(6, actualAnswer);
 
