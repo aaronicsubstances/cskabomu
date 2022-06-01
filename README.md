@@ -16,9 +16,9 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 1. Deployment enviroment: localhost
 
-1. Quasi Web transport wrapper: connectionless, datagram.
+1. Quasi Web transport wrapper: connection-oriented, byte-oriented, message-oriented (ie datagram).
 
-1. Quasi Web transports: memory, UDP, unix domain socket.
+1. Quasi Web transports: memory, UDP, TCP, unix domain socket, windows named pipe.
 
 3. Multithreading strategy: event loop
 
@@ -41,7 +41,6 @@ Overall mission is toward monolithic applications for enforcement of architectur
     2. ProcessPost(QuasiHttpRequestMessage, Action<HttpResponseMessage>)
 
 6. QuasiHttpRequestMessage structure
-    2. verb (Internal): must always be POST.
     1. path
     4. content-length: int. can be negative to indicate unknown size.
     4. content-type: one of application/octet-stream, application/json (always UTF-8), text/plain (always UTF-8), application/x-www-form-urlencoded (always UTF-8).
@@ -60,7 +59,7 @@ Overall mission is toward monolithic applications for enforcement of architectur
     2. headers
     5. body
 
-9. QpcClient API (works for server too, similar to how UdpClient works both ways).
+9. QpcClient API (works for server too, similar to how C#.NET's UdpClient class works both ways).
     1. BeginPost(QuasiHttpRequestMessage, timeoutOptions, Action<Exception, QuasiHttpResponseMessage> cb): void
     1. (can later add helper methods or helper class which only upload and download bodies, and automatically serializes bodies given enough serialization info)
     1. BeginProcessPost(QuasiHttpRequestMessage, Action<Exception, QuasiHttpResponseMessage> cb): void
@@ -74,10 +73,8 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 10. Streaming Design
     1. On demand/Pull strategy. ie when client calls on read() of http body, it should lead to sending pdu of type "ChunkRequest", and then a "ChunkResponse" can be sent in return. Read() calls can only be done one at a time, but multiple outstanding writes are allowed, in order to serve future multiple read() calls.
-    2. Any valid "ChunkRequest" or "ChunkResponse" pdu should postpone timeout.
-    2. Also when a client calls close() on http request body it received from application processing pipeline, it should lead to sending pdu of type "RequestFin", which should postpone the timeout. "RequestFin" can be used to indicate errors as well for logging purposes.
-    3. However if a client calls close() on http response body it received from underlying transport, it should lead to sending pdu of type "ResponseFin", which should clear any records tracking the request at the server. "ResponseFin" can be used to indicate errors as well.
-    4. When protocol receives a response from application processing pipeline, it should immediately clear any records tracking the request if response doesn't have a body. Else it should reset timeout in anticipation of chunk transfer.
+    3. However if a client calls close() on http response body it received from underlying transport, it should lead to closing of connection.
+    4. When protocol receives a response from application processing pipeline, it should immediately clear any records tracking the request if response doesn't have a body.
     5. Similarly when protocol receives a response from underlying transport, it should immediately clear any records tracking the request if response doesn't have a body.
 
 10. Supporting types:
