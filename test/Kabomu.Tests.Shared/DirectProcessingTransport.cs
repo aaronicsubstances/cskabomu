@@ -18,7 +18,7 @@ namespace Kabomu.Tests.QuasiHttp
 
         public int MaxMessageOrChunkSize => throw new NotImplementedException();
 
-        public bool IsByteOriented { get; set; }
+        public bool IsByteOriented => throw new NotImplementedException();
 
         public bool DirectSendRequestProcessingEnabled => true;
 

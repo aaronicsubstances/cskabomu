@@ -84,7 +84,8 @@ namespace Kabomu.Tests.QuasiHttp
                 Headers = new Dictionary<string, List<string>>
                 {
                     { "tr", new List<string>{ "e", "d" } }
-                }
+                },
+                Body = new StringBody("a", null)
             };
             DefaultQuasiHttpSendOptions options = null;
             int responseTimeMillis = 0;
@@ -92,7 +93,8 @@ namespace Kabomu.Tests.QuasiHttp
             var expectedResponse = new DefaultQuasiHttpResponse
             {
                 StatusIndicatesSuccess = true,
-                StatusMessage = "ok"
+                StatusMessage = "ok",
+                Body = new StringBody("A,a", "text/csv")
             };
             testData.Add(new object[] { remoteEndpoint, request, options,
                 responseTimeMillis, expectedResponseError, expectedResponse });
