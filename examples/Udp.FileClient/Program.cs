@@ -6,7 +6,6 @@ using NLog;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Udp.FileClient
@@ -50,7 +49,6 @@ namespace Udp.FileClient
                     LOG.Error("Event Loop error! {0}: {1}", m, e);
                 }
             };
-            var stopHandle = new CancellationTokenSource();
             var udpTransport = new LocalhostUdpTransport(port)
             {
                 EventLoop = eventLoop,
