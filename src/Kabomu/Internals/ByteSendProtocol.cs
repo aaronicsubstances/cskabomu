@@ -80,8 +80,7 @@ namespace Kabomu.Internals
 
             if (request.Body != null)
             {
-                TransportUtils.TransferBodyToTransport(Parent.Transport, Connection, request.Body, Parent.Mutex,
-                    e => { });
+                Parent.TransferBodyToTransport(Connection, request.Body, e => { });
             }
             ProcessResponsePduBytes();
         }
@@ -102,7 +101,7 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            TransportUtils.ReadBytesFully(Parent.Transport, Connection, encodedLength, 0, encodedLength.Length, cb);
+            Parent.ReadBytesFullyFromTransport(Connection, encodedLength, 0, encodedLength.Length, cb);
         }
 
         private void HandleResponsePduLengthReadOutcome(Exception e, byte[] encodedLength)
@@ -128,7 +127,7 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            TransportUtils.ReadBytesFully(Parent.Transport, Connection, pduBytes, 0, pduBytes.Length, cb);
+            Parent.ReadBytesFullyFromTransport(Connection, pduBytes, 0, pduBytes.Length, cb);
         }
 
         private void HandleResponsePduReadOutcome(Exception e, byte[] pduBytes)

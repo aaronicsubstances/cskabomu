@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.Internals;
 using Kabomu.QuasiHttp;
+using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -49,7 +50,7 @@ namespace Kabomu.Tests.Internals
             }
             inputStream.Position = 0; // rewind read pointer.
             var outputStream = new MemoryStream();
-            IQuasiHttpTransport transport = new TestQuasiHttpTransport(connection,
+            IQuasiHttpTransport transport = new MemoryStreamTransport(connection,
                 inputStream, outputStream, maxChunkSize);
             var instance = new ByteReceiveProtocol();
             instance.Connection = connection;
@@ -57,9 +58,12 @@ namespace Kabomu.Tests.Internals
             var cbCalled = false;
             IQuasiHttpApplication app = new TestQuasiHttpApplication((req, resCb) =>
             {
+                Assert.False(cbCalled);
                 actualRequest = req;
                 resCb.Invoke(null, expectedResponse);
                 cbCalled = true;
+                // just for testing correct cancelling of callback waits, repeat
+                resCb.Invoke(null, expectedResponse);
             });
             instance.Parent = new TestParentTransferProtocol(instance)
             {
@@ -73,8 +77,9 @@ namespace Kabomu.Tests.Internals
 
             // assert
             Assert.True(cbCalled);
-            CompareRequests(eventLoop, maxChunkSize, request, actualRequest,
+            ComparisonUtils.CompareRequests(eventLoop, maxChunkSize, request, actualRequest,
                 requestBodyStr);
+            Assert.True(((TestParentTransferProtocol)instance.Parent).AbortCalled);
             var actualRes = outputStream.ToArray();
             Assert.NotEmpty(actualRes);
             int actualResPduLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualRes, 0, 4);
@@ -197,135 +202,6 @@ namespace Kabomu.Tests.Internals
                 expectedResponse, expectedResBodyStr });
 
             return testData;
-        }
-
-        private static void CompareRequests(IMutexApi mutex, int maxChunkSize, 
-            IQuasiHttpRequest expected, IQuasiHttpRequest actual,
-            string expectedReqBodyStr)
-        {
-            Assert.Equal(expected.Path, actual.Path);
-            TransferPduTest.CompareHeaders(expected.Headers, actual.Headers);
-            if (expectedReqBodyStr == null)
-            {
-                Assert.Null(actual.Body);
-            }
-            else
-            {
-                Assert.NotNull(actual.Body);
-                Assert.Equal(expected.Body.ContentLength, actual.Body.ContentLength);
-                Assert.Equal(expected.Body.ContentType, actual.Body.ContentType);
-                byte[] actualReqBodyBytes = null;
-                var cbCalled = false;
-                TransportUtils.ReadBodyToEnd(expected.Body, mutex, maxChunkSize, (e, data) =>
-                {
-                    Assert.Null(e);
-                    actualReqBodyBytes = data;
-                    cbCalled = true;
-                });
-                Assert.True(cbCalled);
-                var actualReqBodyStr = Encoding.UTF8.GetString(actualReqBodyBytes, 0,
-                    actualReqBodyBytes.Length);
-                Assert.Equal(expectedReqBodyStr, actualReqBodyStr);
-            }
-        }
-
-        private class TestParentTransferProtocol : IParentTransferProtocol
-        {
-            private readonly ITransferProtocol _expectedTransfer;
-
-            public TestParentTransferProtocol(ITransferProtocol expectedTransfer)
-            {
-                _expectedTransfer = expectedTransfer;
-            }
-
-            public int DefaultTimeoutMillis { get; set; }
-
-            public IQuasiHttpApplication Application { get; set; }
-
-            public IQuasiHttpTransport Transport { get; set; }
-
-            public IMutexApi Mutex { get; set; }
-
-            public UncaughtErrorCallback ErrorHandler { get; set; }
-
-            public void AbortTransfer(ITransferProtocol transfer, Exception e)
-            {
-                Assert.Equal(_expectedTransfer, transfer);
-                Assert.Null(e);
-            }
-        }
-
-        private class TestQuasiHttpTransport : IQuasiHttpTransport
-        {
-            private readonly object _expectedConnection;
-            private readonly MemoryStream _inputStream;
-            private readonly MemoryStream _outputStream;
-
-            public TestQuasiHttpTransport(object expectedConnection, MemoryStream inputStream,
-                MemoryStream outputStream, int maxChunkSize)
-            {
-                _expectedConnection = expectedConnection;
-                _inputStream = inputStream;
-                _outputStream = outputStream;
-                MaxMessageOrChunkSize = maxChunkSize;
-            }
-
-            public int MaxMessageOrChunkSize { get; }
-
-            public bool IsByteOriented => true;
-
-            public bool DirectSendRequestProcessingEnabled => throw new NotImplementedException();
-
-            public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request,
-                Action<Exception, IQuasiHttpResponse> cb)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void ReleaseConnection(object connection)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void SendMessage(object connection, byte[] data, int offset, int length,
-                Action<Action<bool>> cancellationEnquirer, Action<Exception> cb)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
-            {
-                Assert.Equal(_expectedConnection, connection);
-                var bytesRead = _inputStream.Read(data, offset, length);
-                cb.Invoke(null, bytesRead);
-            }
-
-            public void WriteBytes(object connection, byte[] data, int offset, int length, Action<Exception> cb)
-            {
-                Assert.Equal(_expectedConnection, connection);
-                _outputStream.Write(data, offset, length);
-                cb.Invoke(null);
-            }
-        }
-
-        private class TestQuasiHttpApplication : IQuasiHttpApplication
-        {
-            private readonly Action<IQuasiHttpRequest, Action<Exception, IQuasiHttpResponse>> _processingCb;
-
-            public TestQuasiHttpApplication(Action<IQuasiHttpRequest, Action<Exception, IQuasiHttpResponse>> cb)
-            {
-                _processingCb = cb;
-            }
-
-            public void ProcessRequest(IQuasiHttpRequest request, Action<Exception, IQuasiHttpResponse> cb)
-            {
-                _processingCb.Invoke(request, cb);
-            }
         }
     }
 }
