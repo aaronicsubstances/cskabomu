@@ -2,6 +2,7 @@
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -198,6 +199,63 @@ namespace Kabomu.Tests.Common
         }
 
         [Theory]
+        [MemberData(nameof(CreateTestReadBodyToEndData))]
+        public void TestReadBodyToEnd(IQuasiHttpBody body, int maxChunkSize, string expectedError, string expectedData)
+        {
+            var cbCalled = false;
+            TransportUtils.ReadBodyToEnd(body, new TestEventLoopApi(), maxChunkSize, (e, data) =>
+            {
+                Assert.False(cbCalled);
+                if (expectedError != null)
+                {
+                    Assert.NotNull(e);
+                    Assert.Equal(expectedError, e.Message);
+                }
+                else
+                {
+                    Assert.Null(e);
+                    var actualData = Encoding.UTF8.GetString(data);
+                    Assert.Equal(expectedData, actualData);
+                    Exception eofError = null;
+                    body.OnDataRead(new TestEventLoopApi(), new byte[1], 0, 1, (e, i) =>
+                    {
+                        eofError = e;
+                    });
+                    Assert.NotNull(eofError);
+                    Assert.Equal("end of read", eofError.Message);
+                }
+                cbCalled = true;
+            });
+            Assert.True(cbCalled);
+        }
+
+        public static List<object[]> CreateTestReadBodyToEndData()
+        {
+            var testData = new List<object[]>();
+
+            var data = "abcdefghijklmnopqrstuvwxyz";
+            IQuasiHttpBody body = new StringBody(data, null);
+            int maxChunkSize = 5;
+            string expectedError = null;
+            testData.Add(new object[] { body, maxChunkSize, expectedError, data });
+
+            data = "0123456789";
+            var dataBytes = Encoding.UTF8.GetBytes(data);
+            body = new ByteBufferBody(dataBytes, 0, dataBytes.Length, null);
+            maxChunkSize = 1;
+            expectedError = null;
+            testData.Add(new object[] { body, maxChunkSize, expectedError, data });
+
+            data = null;
+            expectedError = "test read error";
+            body = new ErrorQuasiHttpBody(expectedError);
+            maxChunkSize = 10;
+            testData.Add(new object[] { body, maxChunkSize, expectedError, data });
+
+            return testData;
+        }
+
+        [Theory]
         [MemberData(nameof(CreateTestIsRequestPduData))]
         public void TestIsRequestPdu(byte[] data, int offset, int length, bool expected)
         {
@@ -229,6 +287,30 @@ namespace Kabomu.Tests.Common
                 new object[]{ new byte[] { 1, 1, 0, 1, 2, 3, 4 }, 0, 7, 16_909_060 },
                 new object[]{ new byte[] { 0, 1, 5, 0, 1, 1, 0, 0, 2, 3, 7 }, 1, 10, 16_842_752 },
             };
+        }
+
+        private class ErrorQuasiHttpBody : IQuasiHttpBody
+        {
+            private readonly string _errorMessage;
+
+            public ErrorQuasiHttpBody(string errorMessage)
+            {
+                _errorMessage = errorMessage;
+            }
+
+            public string ContentType => throw new NotImplementedException();
+
+            public int ContentLength => throw new NotImplementedException();
+
+            public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+            {
+                cb.Invoke(new Exception(_errorMessage), 0);
+            }
+
+            public void OnEndRead(IMutexApi mutex, Exception e)
+            {
+                throw new NotImplementedException();
+            }
         }
     }
 }

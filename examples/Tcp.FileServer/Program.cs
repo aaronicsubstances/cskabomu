@@ -4,7 +4,6 @@ using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using NLog;
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Udp.FileServer
@@ -41,7 +40,6 @@ namespace Udp.FileServer
                     LOG.Error("Event Loop error! {0}: {1}", m, e);
                 }
             };
-            var stopHandle = new CancellationTokenSource();
             var tcpTransport = new LocalhostTcpTransport(port)
             {
                 ErrorHandler = (e, m) =>
