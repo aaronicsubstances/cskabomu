@@ -29,6 +29,14 @@ namespace Kabomu.QuasiHttp
         public void Send(object remoteEndpoint, IQuasiHttpRequest request, IQuasiHttpSendOptions options,
             Action<Exception, IQuasiHttpResponse> cb)
         {
+            if (request == null)
+            {
+                throw new ArgumentException("null request");
+            }
+            if (cb == null)
+            {
+                throw new ArgumentException("null cb");
+            }
             EventLoop.RunExclusively(_ =>
             {
                 ProcessSend(remoteEndpoint, request, options, cb);
