@@ -1,6 +1,7 @@
 ﻿using Kabomu.Internals;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 
 namespace Kabomu.Common
@@ -76,6 +77,35 @@ namespace Kabomu.Common
             else
             {
                 cb.Invoke(null);
+            }
+        }
+
+        public static void ReadBodyToEnd(IQuasiHttpBody body, IMutexApi mutex, int maxChunkSize,
+            Action<Exception, byte[]> cb)
+        {
+            var readBuffer = new byte[maxChunkSize];
+            var byteStream = new MemoryStream();
+            body.OnDataRead(mutex, readBuffer, 0, readBuffer.Length, (e, i) =>
+                HandleReadOutcome2(body, mutex, readBuffer, byteStream, e, i, cb));
+        }
+
+        private static void HandleReadOutcome2(IQuasiHttpBody body, IMutexApi mutex, byte[] readBuffer,
+            MemoryStream byteStream, Exception e, int bytesRead, Action<Exception, byte[]> cb)
+        {
+            if (e != null)
+            {
+                cb.Invoke(e, null);
+                return;
+            }
+            if (bytesRead > 0)
+            {
+                byteStream.Write(readBuffer, 0, bytesRead);
+                body.OnDataRead(mutex, readBuffer, 0, readBuffer.Length, (e, i) =>
+                    HandleReadOutcome2(body, mutex, readBuffer, byteStream, e, i, cb));
+            }
+            else
+            {
+                cb.Invoke(null, byteStream.ToArray());
             }
         }
 
