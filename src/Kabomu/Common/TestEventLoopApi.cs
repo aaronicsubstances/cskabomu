@@ -65,6 +65,8 @@ namespace Kabomu.Common
             }
         }
 
+        public bool RunMutexApiThroughPostCallback { get; set; }
+
         private void TriggerActions(long stoppageTimestamp)
         {
             // invoke task queue actions starting with tail of queue
@@ -110,8 +112,15 @@ namespace Kabomu.Common
 
         public void RunExclusively(Action<object> cb, object cbState)
         {
-            // run immediately.
-            cb.Invoke(cbState);
+            if (RunMutexApiThroughPostCallback)
+            {
+                PostCallback(cb, cbState);
+            }
+            else
+            {
+                // run immediately.
+                cb.Invoke(cbState);
+            }
         }
 
         public void PostCallback(Action<object> cb, object cbState)

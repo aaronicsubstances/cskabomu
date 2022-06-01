@@ -18,8 +18,4 @@
     <ProjectReference Include="..\Kabomu.Tests.Shared\Kabomu.Tests.Shared.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="QuasiHttp\" />
-  </ItemGroup>
-
 </Project>
