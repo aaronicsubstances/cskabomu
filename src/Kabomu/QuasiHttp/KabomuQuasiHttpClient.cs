@@ -48,14 +48,22 @@ namespace Kabomu.QuasiHttp
             IQuasiHttpSendOptions options,
             Action<Exception, IQuasiHttpResponse> cb)
         {
+            bool directSendRequestProcessingEnabled = Transport.DirectSendRequestProcessingEnabled;
             ITransferProtocol transfer;
-            if (Transport.IsByteOriented)
+            if (directSendRequestProcessingEnabled)
             {
-                transfer = new ByteSendProtocol();
+                transfer = new DirectTransferProtocol();
             }
             else
             {
-                transfer = new MessageSendProtocol();
+                if (Transport.IsByteOriented)
+                {
+                    transfer = new ByteSendProtocol();
+                }
+                else
+                {
+                    transfer = new MessageSendProtocol();
+                }
             }
             transfer.Parent = _representative;
             transfer.SendCallback = cb;
@@ -72,7 +80,7 @@ namespace Kabomu.QuasiHttp
                {
                    DisableTransfer(transfer, new Exception("send timeout"));
                }, null);
-            if (Transport.DirectSendRequestProcessingEnabled)
+            if (directSendRequestProcessingEnabled)
             {
                 ProcessSendRequestDirectly(remoteEndpoint, transfer, request);
             }
