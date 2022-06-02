@@ -66,7 +66,7 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            var pduBytes = pdu.Serialize(true);
+            var pduBytes = pdu.Serialize();
             Parent.Transport.WriteBytes(Connection, pduBytes, 0, pduBytes.Length, cb);
         }
 

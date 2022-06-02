@@ -14,15 +14,10 @@ namespace Kabomu.Tests.Internals
         public void TestRecoveryWithDefaultValues()
         {
             var expected = new TransferPdu();
-
-            var bytes = expected.Serialize(false);
-            var actual = TransferPdu.Deserialize(bytes, 0, bytes.Length);
-            ComparePdus(expected, actual);
-
-            bytes = expected.Serialize(true);
+            var bytes = expected.Serialize();
             int encodedLength = ByteUtils.DeserializeInt32BigEndian(bytes, 0);
             Assert.Equal(bytes.Length - 4, encodedLength);
-            actual = TransferPdu.Deserialize(bytes, 4, bytes.Length - 4);
+            var actual = TransferPdu.Deserialize(bytes, 4, bytes.Length - 4);
             ComparePdus(expected, actual);
         }
 
@@ -43,14 +38,10 @@ namespace Kabomu.Tests.Internals
             expected.Headers.Add("accept", new List<string> { "text/plain", "text/xml" });
             expected.Headers.Add("a", new List<string>());
 
-            var bytes = expected.Serialize(false);
-            var actual = TransferPdu.Deserialize(bytes, 0, bytes.Length);
-            ComparePdus(expected, actual);
-            
-            bytes = expected.Serialize(true);
+            var bytes = expected.Serialize();
             int encodedLength = ByteUtils.DeserializeInt32BigEndian(bytes, 0);
             Assert.Equal(bytes.Length - 4, encodedLength);
-            actual = TransferPdu.Deserialize(bytes, 4, bytes.Length - 4);
+            var actual = TransferPdu.Deserialize(bytes, 4, bytes.Length - 4);
             ComparePdus(expected, actual);
         }
 

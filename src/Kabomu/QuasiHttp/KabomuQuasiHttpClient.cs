@@ -56,14 +56,7 @@ namespace Kabomu.QuasiHttp
             }
             else
             {
-                if (Transport.IsByteOriented)
-                {
-                    transfer = new ByteSendProtocol();
-                }
-                else
-                {
-                    transfer = new MessageSendProtocol();
-                }
+                transfer = new ByteSendProtocol();
             }
             transfer.Parent = _representative;
             transfer.SendCallback = cb;
@@ -170,34 +163,13 @@ namespace Kabomu.QuasiHttp
         {
             EventLoop.RunExclusively(_ =>
             {
-                ITransferProtocol transfer;
-                if (Transport.IsByteOriented)
-                {
-                    transfer = new ByteReceiveProtocol();
-                }
-                else
-                {
-                    transfer = new MessageReceiveProtocol();
-                }
+                ITransferProtocol transfer = new ByteReceiveProtocol();
                 transfer.Parent = _representative;
                 transfer.Connection = connection;
                 transfer.TimeoutMillis = DefaultTimeoutMillis;
                 ResetTimeout(transfer);
                 _transfers.Add(connection, transfer);
                 transfer.OnReceive();
-            }, null);
-        }
-
-        public void OnReceiveMessage(object connection, byte[] data, int offset, int length)
-        {
-            EventLoop.RunExclusively(_ =>
-            {
-                if (!_transfers.ContainsKey(connection))
-                {
-                    return;
-                }
-                var transfer = _transfers[connection];
-                transfer.OnReceiveMessage(data, offset, length);
             }, null);
         }
 

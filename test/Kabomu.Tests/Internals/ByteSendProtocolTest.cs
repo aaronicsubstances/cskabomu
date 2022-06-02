@@ -43,7 +43,7 @@ namespace Kabomu.Tests.Internals
             };
 
             var inputStream = new MemoryStream();
-            inputStream.Write(resPdu.Serialize(true));
+            inputStream.Write(resPdu.Serialize());
             if (responseBodyStr != null)
             {
                 inputStream.Write(Encoding.UTF8.GetBytes(responseBodyStr));

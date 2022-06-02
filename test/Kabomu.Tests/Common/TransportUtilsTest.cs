@@ -123,7 +123,7 @@ namespace Kabomu.Tests.Common
             var tcs = new TaskCompletionSource<int>();
             var savedWrites = new StringBuilder();
             var transport = new NullTransport(connection, null, savedWrites, maxWriteCount);
-            transport.MaxMessageOrChunkSize = chunkSize;
+            transport.MaxChunkSize = chunkSize;
             var bodyBytes = Encoding.UTF8.GetBytes(bodyData);
             var body = new ByteBufferBody(bodyBytes, 0, bodyBytes.Length, null);
             TransportUtils.TransferBodyToTransport(transport, connection, body, new TestEventLoopApi(),

@@ -149,7 +149,7 @@ namespace Kabomu.Tests.QuasiHttp
             return testData;
         }
 
-        [Fact]
+        /*[Fact]
         public void TestIndirectSend()
         {
             // arrange.
@@ -180,7 +180,7 @@ namespace Kabomu.Tests.QuasiHttp
             var londonTransport = new FakeTcpTransport
             {
                 Hub = hub,
-                MaxMessageOrChunkSize = 5,
+                MaxChunkSize = 5,
             };
             var londonInstance = new KabomuQuasiHttpClient
             {
@@ -206,7 +206,7 @@ namespace Kabomu.Tests.QuasiHttp
             var kumasiTransport = new FakeTcpTransport
             {
                 Hub = hub,
-                MaxMessageOrChunkSize = 5,
+                MaxChunkSize = 5,
             };
             var kumasiInstance = new KabomuQuasiHttpClient
             {
@@ -363,7 +363,7 @@ namespace Kabomu.Tests.QuasiHttp
             }
         }
 
-        /*private static string SerializeResponse(IQuasiHttpResponse res)
+        private static string SerializeResponse(IQuasiHttpResponse res)
         {
             var s = new StringBuilder();
             s.Append(res.StatusIndicatesSuccess);

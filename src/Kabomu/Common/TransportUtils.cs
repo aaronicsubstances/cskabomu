@@ -44,7 +44,7 @@ namespace Kabomu.Common
         public static void TransferBodyToTransport(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
             IMutexApi mutex, Action<Exception> cb)
         {
-            byte[] buffer = new byte[transport.MaxMessageOrChunkSize];
+            byte[] buffer = new byte[transport.MaxChunkSize];
             body.OnDataRead(mutex, buffer, 0, buffer.Length, (e, bytesRead) =>
                 HandleReadOutcome(transport, connection, body, mutex, buffer, e, bytesRead, cb));
         }
