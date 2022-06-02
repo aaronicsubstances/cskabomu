@@ -4,12 +4,12 @@ using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp
 {
-    public class DirectProcessingTransport : IQuasiHttpTransport
+    public class TestDirectProcessingTransport : IQuasiHttpTransport
     {
         private readonly object _expectedRemoteEndpoint;
         private Action<IQuasiHttpRequest, Action<Exception, IQuasiHttpResponse>> _processingCb;
 
-        public DirectProcessingTransport(object expectedRemoteEndpoint, 
+        public TestDirectProcessingTransport(object expectedRemoteEndpoint, 
             Action<IQuasiHttpRequest, Action<Exception, IQuasiHttpResponse>> cb)
         {
             _expectedRemoteEndpoint = expectedRemoteEndpoint;

@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Kabomu.Tests.Shared
 {
-    public class NullTransport : IQuasiHttpTransport
+    public class TestNullTransport : IQuasiHttpTransport
     {
         private readonly object _expectedConnection;
         private readonly string[] _readChunks;
@@ -15,7 +15,7 @@ namespace Kabomu.Tests.Shared
         private int readIndex;
         private int _writeCount;
 
-        public NullTransport(object expectedConnection,
+        public TestNullTransport(object expectedConnection,
             string[] readChunks, StringBuilder savedWrites, int maxWriteCount)
         {
             _expectedConnection = expectedConnection;
