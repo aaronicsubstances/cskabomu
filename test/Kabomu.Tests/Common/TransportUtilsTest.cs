@@ -58,7 +58,7 @@ namespace Kabomu.Tests.Common
             var testData = new List<object[]>();
 
             object connection = "tea";
-            var transport = new NullTransport(connection, new string[] { "car", "e" }, null, 0);
+            var transport = new TestNullTransport(connection, new string[] { "car", "e" }, null, 0);
             byte[] data = new byte[4];
             int offset = 0;
             int bytesToRead = data.Length;
@@ -69,7 +69,7 @@ namespace Kabomu.Tests.Common
                 expectedError, expectedData});
 
             connection = null;
-            transport = new NullTransport(connection, new string[] { "are" }, null, 0);
+            transport = new TestNullTransport(connection, new string[] { "are" }, null, 0);
             data = new byte[4];
             offset = 1;
             bytesToRead = 3;
@@ -80,7 +80,7 @@ namespace Kabomu.Tests.Common
                 expectedError, expectedData});
 
             connection = 5;
-            transport = new NullTransport(connection, new string[] { "sen", "der", "s" }, null, 0);
+            transport = new TestNullTransport(connection, new string[] { "sen", "der", "s" }, null, 0);
             data = new byte[10];
             offset = 2;
             bytesToRead = 7;
@@ -91,7 +91,7 @@ namespace Kabomu.Tests.Common
                 expectedError, expectedData});
 
             connection = 5;
-            transport = new NullTransport(connection, new string[] { "123", "der", "." }, null, 0);
+            transport = new TestNullTransport(connection, new string[] { "123", "der", "." }, null, 0);
             data = new byte[10];
             offset = 2;
             bytesToRead = 8;
@@ -102,7 +102,7 @@ namespace Kabomu.Tests.Common
                 expectedError, expectedData});
 
             connection = 5;
-            transport = new NullTransport(connection, new string[0], null, 0);
+            transport = new TestNullTransport(connection, new string[0], null, 0);
             data = new byte[10];
             offset = 7;
             bytesToRead = 0;
@@ -122,7 +122,7 @@ namespace Kabomu.Tests.Common
         {
             var tcs = new TaskCompletionSource<int>();
             var savedWrites = new StringBuilder();
-            var transport = new NullTransport(connection, null, savedWrites, maxWriteCount);
+            var transport = new TestNullTransport(connection, null, savedWrites, maxWriteCount);
             transport.MaxChunkSize = chunkSize;
             var bodyBytes = Encoding.UTF8.GetBytes(bodyData);
             var body = new ByteBufferBody(bodyBytes, 0, bodyBytes.Length, null);

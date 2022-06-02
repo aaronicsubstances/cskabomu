@@ -50,7 +50,7 @@ namespace Kabomu.Tests.Internals
             }
             inputStream.Position = 0; // rewind read pointer.
             var outputStream = new MemoryStream();
-            IQuasiHttpTransport transport = new MemoryStreamTransport(null, connection,
+            IQuasiHttpTransport transport = new TestMemoryTransport(null, connection,
                 inputStream, outputStream, maxChunkSize);
             var instance = new ByteReceiveProtocol();
             instance.Connection = connection;

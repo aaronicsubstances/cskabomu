@@ -7,14 +7,14 @@ using Xunit;
 
 namespace Kabomu.Tests.Shared
 {
-    public class MemoryStreamTransport : IQuasiHttpTransport
+    public class TestMemoryTransport : IQuasiHttpTransport
     {
         private readonly object _expectedRemoteEndpoint;
         private readonly object _expectedConnection;
         private readonly MemoryStream _inputStream;
         private readonly MemoryStream _outputStream;
 
-        public MemoryStreamTransport(object expectedRemoteEndpoint, object expectedConnection,
+        public TestMemoryTransport(object expectedRemoteEndpoint, object expectedConnection,
             MemoryStream inputStream, MemoryStream outputStream, int maxChunkSize)
         {
             _expectedRemoteEndpoint = expectedRemoteEndpoint;

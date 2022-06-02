@@ -5,13 +5,13 @@ using System.Text;
 
 namespace Kabomu.Tests.Shared
 {
-    public class SameBehaviourTransport : IQuasiHttpTransport
+    public class TestConstantBehaviourTransport : IQuasiHttpTransport
     {
         private readonly Exception _readError;
         private readonly int _readLen;
         private readonly Exception _writeError;
 
-        public SameBehaviourTransport(Exception readError, int readLen, Exception writeError)
+        public TestConstantBehaviourTransport(Exception readError, int readLen, Exception writeError)
         {
             _readError = readError;
             _readLen = readLen;

@@ -15,7 +15,7 @@ namespace Kabomu.Tests.Internals
         {
             // arrange.
             var dataList = new string[0];
-            var transport = new NullTransport("lo", dataList, null, 0);
+            var transport = new TestNullTransport("lo", dataList, null, 0);
             var closed = false;
             Action closeCb = () => closed = true;
             var instance = new ByteOrientedTransferBody(0, null, transport, "lo", closeCb);
@@ -31,7 +31,7 @@ namespace Kabomu.Tests.Internals
         {
             // arrange.
             var dataList = new string[0];
-            var transport = new NullTransport("lo", dataList, null, 0);
+            var transport = new TestNullTransport("lo", dataList, null, 0);
             var closed = false;
             Action closeCb = () => closed = true;
             var instance = new ByteOrientedTransferBody(-1, null, transport, "lo", closeCb);
@@ -47,7 +47,7 @@ namespace Kabomu.Tests.Internals
         {
             // arrange.
             var dataList = new string[] { "car", " ", "seat" };
-            var transport = new NullTransport(null, dataList, null, 0);
+            var transport = new TestNullTransport(null, dataList, null, 0);
             var closed = false;
             Action closeCb = () => closed = true;
             var instance = new ByteOrientedTransferBody(8, "text/xml", transport, null, closeCb);
@@ -63,7 +63,7 @@ namespace Kabomu.Tests.Internals
         {
             // arrange.
             var dataList = new string[] { "car", " ", "seat" };
-            var transport = new NullTransport(null, dataList, null, 0);
+            var transport = new TestNullTransport(null, dataList, null, 0);
             var closed = false;
             Action closeCb = () => closed = true;
             var instance = new ByteOrientedTransferBody(-1, "text/xml", transport, null, closeCb);
@@ -79,7 +79,7 @@ namespace Kabomu.Tests.Internals
         {
             // arrange.
             var dataList = new string[] { "car" };
-            var transport = new NullTransport("De", dataList, null, 0);
+            var transport = new TestNullTransport("De", dataList, null, 0);
             var closed = false;
             Action closeCb = () => closed = true;
             var instance = new ByteOrientedTransferBody(5, "text/xml", transport, "De", closeCb);
@@ -95,7 +95,7 @@ namespace Kabomu.Tests.Internals
         {
             // arrange.
             var dataList = new string[] { "c", "a", "r" };
-            var transport = new NullTransport(4, dataList, null, 0);
+            var transport = new TestNullTransport(4, dataList, null, 0);
             var closed = false;
             Action closeCb = () => closed = true;
             var instance = new ByteOrientedTransferBody(2, "application/xml", transport, 4, closeCb);
@@ -111,7 +111,7 @@ namespace Kabomu.Tests.Internals
         {
             // arrange.
             var dataList = new string[] { "de", "al" };
-            var transport = new NullTransport(1786, dataList, null, 0);
+            var transport = new TestNullTransport(1786, dataList, null, 0);
             var instance = new ByteOrientedTransferBody(-1, "image/gif", transport, 1786, null);
 
             // act and assert.
@@ -122,7 +122,7 @@ namespace Kabomu.Tests.Internals
         [Fact]
         public void TestReadWithTransportError2()
         {
-            var transport = new SameBehaviourTransport(null, -1, null);
+            var transport = new TestConstantBehaviourTransport(null, -1, null);
             var instance = new ByteOrientedTransferBody(-1, null, transport, null, null);
             var cbCalled = false;
             Action<Exception, int> cb = (e, len) =>
@@ -138,7 +138,7 @@ namespace Kabomu.Tests.Internals
         [Fact]
         public void TestReadWithTransportError3()
         {
-            var transport = new SameBehaviourTransport(null, 100, null);
+            var transport = new TestConstantBehaviourTransport(null, 100, null);
             var instance = new ByteOrientedTransferBody(-1, null, transport, null, null);
             var cbCalled = false;
             Action<Exception, int> cb = (e, len) =>
@@ -159,7 +159,7 @@ namespace Kabomu.Tests.Internals
                 new ByteOrientedTransferBody(0, null, null, null, () => { });
             });
             var instance = new ByteOrientedTransferBody(0, null, 
-                new NullTransport(null, new string[0], null, 0), null, () => { });
+                new TestNullTransport(null, new string[0], null, 0), null, () => { });
             CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }

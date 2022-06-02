@@ -25,7 +25,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 Assert.Equal(expectedResponseError, e?.Message);
             };
-            var directProcessingTransport = new DirectProcessingTransport(remoteEndpoint, (req, resCb) =>
+            var directProcessingTransport = new TestDirectProcessingTransport(remoteEndpoint, (req, resCb) =>
             {
                 Assert.Equal(request, req);
                 eventLoop.ScheduleTimeout(responseTimeMillis, _ =>
