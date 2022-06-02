@@ -24,9 +24,7 @@ namespace Kabomu.Tests.Shared
             _maxWriteCount = maxWriteCount;
         }
 
-        public int MaxMessageOrChunkSize { get; set; }
-
-        public bool IsByteOriented => true;
+        public int MaxChunkSize { get; set; }
 
         public bool DirectSendRequestProcessingEnabled => false;
 
@@ -74,7 +72,7 @@ namespace Kabomu.Tests.Shared
             Action<Exception> cb)
         {
             Assert.Equal(_expectedConnection, connection);
-            Assert.Equal(MaxMessageOrChunkSize, data.Length);
+            Assert.Equal(MaxChunkSize, data.Length);
             Exception e = null;
             if (_writeCount < _maxWriteCount)
             {
@@ -87,14 +85,5 @@ namespace Kabomu.Tests.Shared
             }
             cb.Invoke(e);
         }
-
-        public void SendMessage(object connection,
-            byte[] data, int offset, int length,
-            Action<Action<bool>> cancellationEnquirer,
-            Action<Exception> cb)
-        {
-            throw new NotImplementedException();
-        }
-
     }
 }

@@ -16,9 +16,7 @@ namespace Kabomu.Tests.QuasiHttp
             _processingCb = cb;
         }
 
-        public int MaxMessageOrChunkSize => throw new NotImplementedException();
-
-        public bool IsByteOriented => throw new NotImplementedException();
+        public int MaxChunkSize => throw new NotImplementedException();
 
         public bool DirectSendRequestProcessingEnabled => true;
 
@@ -33,18 +31,12 @@ namespace Kabomu.Tests.QuasiHttp
             throw new NotImplementedException();
         }
 
-        public void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
-        {
-            throw new NotImplementedException();
-        }
-
         public void ReleaseConnection(object connection)
         {
             throw new NotImplementedException();
         }
 
-        public void SendMessage(object connection, byte[] data, int offset, int length, 
-            Action<Action<bool>> cancellationEnquirer, Action<Exception> cb)
+        public void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
         {
             throw new NotImplementedException();
         }

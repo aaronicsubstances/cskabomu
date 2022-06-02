@@ -16,12 +16,10 @@ namespace Kabomu.Examples.Shared
         public LocalhostTcpTransport(int port)
         {
             _tcpServer = new TcpListener(IPAddress.Loopback, port);
-            MaxMessageOrChunkSize = 8192;
+            MaxChunkSize = 8192;
         }
 
-        public int MaxMessageOrChunkSize { get; set; }
-
-        public bool IsByteOriented => true;
+        public int MaxChunkSize { get; set; }
 
         public bool DirectSendRequestProcessingEnabled => false;
 
@@ -99,12 +97,6 @@ namespace Kabomu.Examples.Shared
             {
                 cb.Invoke(e);
             }
-        }
-
-        public void SendMessage(object connection, byte[] data, int offset, int length, 
-            Action<Action<bool>> cancellationEnquirer, Action<Exception> cb)
-        {
-            throw new NotImplementedException();
         }
 
         public async void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)

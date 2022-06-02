@@ -89,7 +89,7 @@ namespace Kabomu.Internals
             return pdu;
         }
 
-        public byte[] Serialize(bool includeLengthPrefix)
+        public byte[] Serialize()
         {
             var csvData = new List<List<string>>();
             csvData.Add(Path != null ? new List<string> { Path } : new List<string>());
@@ -113,18 +113,11 @@ namespace Kabomu.Internals
             }
             var csv = CsvUtils.Serialize(csvData);
             var csvBytes = ByteUtils.StringToBytes(csv);
-            var lengthOfBinaryBytes = 11 + DataLength;
-            if (includeLengthPrefix)
-            {
-                lengthOfBinaryBytes += 4;
-            }
+            var lengthOfBinaryBytes = 15 + DataLength;
             var pduBytes = new byte[lengthOfBinaryBytes + csvBytes.Length];
             int offset = 0;
-            if (includeLengthPrefix)
-            {
-                ByteUtils.SerializeUpToInt64BigEndian(pduBytes.Length - 4, pduBytes, 0, 4);
-                offset += 4;
-            }
+            ByteUtils.SerializeUpToInt64BigEndian(pduBytes.Length - 4, pduBytes, 0, 4);
+            offset += 4;
             ByteUtils.SerializeUpToInt64BigEndian(Version, pduBytes, offset, 1);
             offset += 1;
             ByteUtils.SerializeUpToInt64BigEndian(PduType, pduBytes, offset, 1);

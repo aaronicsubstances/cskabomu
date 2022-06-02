@@ -21,23 +21,15 @@ namespace Kabomu.Tests.Shared
             _expectedConnection = expectedConnection;
             _inputStream = inputStream;
             _outputStream = outputStream;
-            MaxMessageOrChunkSize = maxChunkSize;
+            MaxChunkSize = maxChunkSize;
         }
 
-        public int MaxMessageOrChunkSize { get; }
-
-        public bool IsByteOriented => true;
+        public int MaxChunkSize { get; }
 
         public bool DirectSendRequestProcessingEnabled => false;
 
         public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request,
             Action<Exception, IQuasiHttpResponse> cb)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void SendMessage(object connection, byte[] data, int offset, int length,
-            Action<Action<bool>> cancellationEnquirer, Action<Exception> cb)
         {
             throw new NotImplementedException();
         }
