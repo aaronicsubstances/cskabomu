@@ -18,7 +18,7 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 1. Quasi Web transport wrapper: connection-oriented, byte-oriented, message-oriented (ie datagram).
 
-1. Quasi Web transports: memory, UDP, TCP, unix domain socket, windows named pipe.
+1. Quasi Web transports: memory, TCP, unix domain socket, windows named pipe.
 
 3. Multithreading strategy: event loop
 

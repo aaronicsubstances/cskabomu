@@ -5,7 +5,6 @@ default transports
 ------------------
 MemoryBasedTransport
 TcpBasedTransport - making it async may require use of third party library
-UdpBasedTransport - making it async may require use of third party library
 UnixSocketBasedTransport - availability and making it async may require use of third party library
 WindowsNamedPipes - availability and making it async may require use of third party library
 
@@ -35,7 +34,7 @@ Optimization
 
 Examples
 --------
--add demos each for udp, tcp, unix domain socket, windows named pipe, and memory
+-add demos each for tcp, unix domain socket, windows named pipe, and memory
 --based on file server/client
 --copy over command line parsing
 

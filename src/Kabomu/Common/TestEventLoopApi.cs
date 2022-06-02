@@ -99,7 +99,7 @@ namespace Kabomu.Common
                     {
                         if (ErrorHandler == null)
                         {
-                            throw ex;
+                            throw;
                         }
                         else
                         {

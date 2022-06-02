@@ -22,23 +22,22 @@ namespace Kabomu.Tests.Shared
             peer.Upstream.Application.ProcessRequest(request, cb);
         }
 
+        public void SendMessage(object connection, byte[] data, int offset, int length,
+            Action<Action<bool>> cancellationEnquirer, Action<Exception> cb)
+        {
+            throw new NotImplementedException();
+        }
+
         public void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb)
         {
-            var connection = new FakeTcpConnection
-            {
-                RemoteEndpoint = remoteEndpoint
-            };
+            var connection = new FakeTcpConnection(remoteEndpoint, this);
             cb.Invoke(null, connection);
         }
 
         public void ReleaseConnection(object connection)
         {
             var typedConnection = (FakeTcpConnection)connection;
-            typedConnection.DuplexStream.Dispose();
-            if (typedConnection.ConnectionEstablished)
-            {
-                typedConnection.Peer.DuplexStream.Dispose();
-            }
+            typedConnection.GetWriteStream(this).Dispose();
         }
 
         public void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
@@ -48,27 +47,27 @@ namespace Kabomu.Tests.Shared
             {
                 throw new Exception("cannot read from connection yet to be established");
             }
-            int bytesRead = typedConnection.Peer.DuplexStream.Read(data, offset, length);
+            var readStream = typedConnection.GetReadStream(this);
+            readStream.Position = typedConnection.GetReadStreamPosition(this);
+            int bytesRead = readStream.Read(data, offset, length);
+            typedConnection.IncrementReadPosition(this, bytesRead);
             cb.Invoke(null, bytesRead);
         }
 
         public void WriteBytes(object connection, byte[] data, int offset, int length, Action<Exception> cb)
         {
             var typedConnection = (FakeTcpConnection)connection;
-            typedConnection.DuplexStream.Write(data, offset, length);
-            cb.Invoke(null);
+            FakeTcpTransport peer = null;
             if (!typedConnection.ConnectionEstablished)
             {
-                var peer = Hub.Connections[typedConnection.RemoteEndpoint];
-                typedConnection.MarkConnectionAsEstablished();
-                peer.Upstream.OnReceive(typedConnection.Peer);
+                peer = Hub.Connections[typedConnection._remoteEndpoint];
+                typedConnection.EstablishConnection(peer);
             }
-        }
-
-        public void SendMessage(object connection, byte[] data, int offset, int length, 
-            Action<Action<bool>> cancellationEnquirer, Action<Exception> cb)
-        {
-            throw new NotImplementedException();
+            var writeStream = typedConnection.GetWriteStream(this);
+            writeStream.Position = writeStream.Length;
+            writeStream.Write(data, offset, length);
+            peer?.Upstream.OnReceive(typedConnection);
+            cb.Invoke(null);
         }
     }
 }
