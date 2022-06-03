@@ -70,13 +70,6 @@ Overall mission is toward monolithic applications for enforcement of architectur
     6. IQpcTransport prop
     5. IApplicationCallback prop for processing incoming requests.
 
-
-10. Streaming Design
-    1. On demand/Pull strategy. ie when client calls on read() of http body, it should lead to sending pdu of type "ChunkRequest", and then a "ChunkResponse" can be sent in return. Read() calls can only be done one at a time, but multiple outstanding writes are allowed, in order to serve future multiple read() calls.
-    3. However if a client calls close() on http response body it received from underlying transport, it should lead to closing of connection.
-    4. When protocol receives a response from application processing pipeline, it should immediately clear any records tracking the request if response doesn't have a body.
-    5. Similarly when protocol receives a response from underlying transport, it should immediately clear any records tracking the request if response doesn't have a body.
-
 10. Supporting types:
     1. QuasiHttpException. thrown if IsSuccess is false.
     if this error occurs, it will have a reference to the quasi http response message.

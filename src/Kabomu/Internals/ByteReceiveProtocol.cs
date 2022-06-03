@@ -33,11 +33,6 @@ namespace Kabomu.Internals
             ProcessNewConnection();
         }
 
-        public void OnReceiveMessage(byte[] data, int offset, int length)
-        {
-            throw new NotImplementedException("unsupported for byte-oriented transports");
-        }
-
         private void ProcessNewConnection()
         {
             byte[] encodedLength = new byte[4];

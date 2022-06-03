@@ -33,11 +33,6 @@ namespace Kabomu.Internals
             throw new NotImplementedException("implementation error");
         }
 
-        public void OnReceiveMessage(byte[] data, int offset, int length)
-        {
-            throw new NotImplementedException("unsupported for byte-oriented transports");
-        }
-
         private void SendRequestPdu(IQuasiHttpRequest request)
         {
             var pdu = new TransferPdu

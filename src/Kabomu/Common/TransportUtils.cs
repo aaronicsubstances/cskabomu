@@ -109,25 +109,5 @@ namespace Kabomu.Common
                 cb.Invoke(null, byteStream.ToArray());
             }
         }
-
-        public static bool IsRequestPdu(byte[] data, int offset, int length)
-        {
-            if (length < 2)
-            {
-                throw new ArgumentException("too small to contain pdu type");
-            }
-            var pduType = data[offset + 1];
-            return pduType == TransferPdu.PduTypeRequest || pduType == TransferPdu.PduTypeRequestChunkGet
-                || pduType == TransferPdu.PduTypeRequestChunkRet;
-        }
-
-        public static int GetPduSequenceNumber(byte[] data, int offset, int length)
-        {
-            if (length < 7)
-            {
-                throw new ArgumentException("too small to contain sequence number");
-            }
-            return (int)ByteUtils.DeserializeUpToInt64BigEndian(data, offset + 3, 4);
-        }
     }
 }

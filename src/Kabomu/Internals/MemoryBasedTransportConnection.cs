@@ -8,16 +8,16 @@ namespace Kabomu.Internals
 {
     internal class MemoryBasedTransportConnection
     {
-        private object _remoteEndpoint;
         private readonly Dictionary<object, ReadWriteRequest> _readRequests;
-        private readonly Dictionary<object, ReadWriteRequest> _writeRequests;
+        private readonly Dictionary<object, List<ReadWriteRequest>> _writeRequests;
         private Exception _releaseError;
 
         public MemoryBasedTransportConnection(object remoteEndpoint)
         {
-            RemoteEndpoint = remoteEndpoint ?? new ArgumentException("null remoteEndpoint");
+            // Rely on Transport code's validation of arguments.
+            RemoteEndpoint = remoteEndpoint;
             _readRequests = new Dictionary<object, ReadWriteRequest>();
-            _writeRequests = new Dictionary<object, ReadWriteRequest>();
+            _writeRequests = new Dictionary<object, List<ReadWriteRequest>>();
         }
 
         public object RemoteEndpoint { get; private set; }
@@ -31,6 +31,11 @@ namespace Kabomu.Internals
 
         public void ProcessReadRequest(object localEndpoint, byte[] data, int offset, int length, Action<Exception, int> cb)
         {
+            // Rely on Transport code's validation of arguments except for localEndpoint.
+            if (localEndpoint == null)
+            {
+                throw new ArgumentException("null local endpoint");
+            }
             if (_releaseError != null)
             {
                 cb.Invoke(_releaseError, 0);
@@ -38,7 +43,6 @@ namespace Kabomu.Internals
             }
             var readRequest = new ReadWriteRequest
             {
-                LocalEndpoint = localEndpoint,
                 Data = data,
                 Offset = offset,
                 Length = length,
@@ -46,25 +50,29 @@ namespace Kabomu.Internals
             };
             _readRequests.Add(localEndpoint, readRequest);
 
-            ReadWriteRequest awaitingWriteRequest = null;
-            foreach (var entry in _writeRequests.Values)
+            object remoteEndpoint = null;
+            foreach (var key in _writeRequests.Keys)
             {
-                if (entry.LocalEndpoint != localEndpoint)
+                if (key != localEndpoint)
                 {
-                    awaitingWriteRequest = entry;
+                    remoteEndpoint = key;
                     break;
                 }
             }
-            if (awaitingWriteRequest == null)
+            if (remoteEndpoint != null && _writeRequests[remoteEndpoint].Count > 0)
             {
-                return;
+                var earliestPendingWriteRequest = _writeRequests[remoteEndpoint][0];
+                MatchPendingWriteAndRead(earliestPendingWriteRequest, readRequest);
             }
-
-            MatchPendingWriteAndRead(awaitingWriteRequest, readRequest);
         }
 
         public void ProcessWriteRequest(object localEndpoint, byte[] data, int offset, int length, Action<Exception> cb)
         {
+            // Rely on Transport code's validation of arguments except for localEndpoint.
+            if (localEndpoint == null)
+            {
+                throw new ArgumentException("null local endpoint");
+            }
             if (_releaseError != null)
             {
                 cb.Invoke(_releaseError);
@@ -78,29 +86,36 @@ namespace Kabomu.Internals
                 Length = length,
                 WriteCallback = cb
             };
-            _writeRequests.Add(localEndpoint, writeRequest);
+            if (!_writeRequests.ContainsKey(localEndpoint))
+            {
+                _writeRequests.Add(localEndpoint, new List<ReadWriteRequest>());
+            }
+            _writeRequests[localEndpoint].Add(writeRequest);
 
-            ReadWriteRequest awaitingReadRequest = null;
+            ReadWriteRequest earliestPendingReadRequest = null;
             foreach (var entry in _readRequests.Values)
             {
                 if (entry.LocalEndpoint != localEndpoint)
                 {
-                    awaitingReadRequest = entry;
+                    earliestPendingReadRequest = entry;
                     break;
                 }
             }
-            if (awaitingReadRequest == null)
+            if (earliestPendingReadRequest == null)
             {
                 return;
             }
 
-            MatchPendingWriteAndRead(writeRequest, awaitingReadRequest);
+            var earliestPendingWriteRequest = _writeRequests[localEndpoint][0];
+            MatchPendingWriteAndRead(earliestPendingWriteRequest, earliestPendingReadRequest);
         }
 
         private void MatchPendingWriteAndRead(ReadWriteRequest pendingWrite, ReadWriteRequest pendingRead)
         {
-            _readRequests.Remove(pendingRead.LocalEndpoint);
             var bytesToReturn = Math.Min(pendingWrite.Length, pendingRead.Length);
+            Array.Copy(pendingWrite.Data, pendingWrite.Offset,
+                pendingRead.Data, pendingRead.Offset, bytesToReturn);
+            _readRequests.Remove(pendingRead.LocalEndpoint);
             if (bytesToReturn < pendingWrite.Length)
             {
                 pendingWrite.Offset += bytesToReturn;
@@ -120,17 +135,20 @@ namespace Kabomu.Internals
             {
                 return;
             }
-            _releaseError = new Exception("released");
-            foreach (var entry in _writeRequests.Values)
-            {
-                entry.WriteCallback.Invoke(_releaseError);
-            }
+            _releaseError = new Exception("connection reset");
             foreach (var entry in _readRequests.Values)
             {
                 entry.ReadCallback.Invoke(_releaseError, 0);
             }
-            _writeRequests.Clear();
+            foreach (var entry in _writeRequests.Values)
+            {
+                foreach (var value in entry)
+                {
+                    value.WriteCallback.Invoke(_releaseError);
+                }
+            }
             _readRequests.Clear();
+            _writeRequests.Clear();
         }
 
         private class ReadWriteRequest

@@ -17,6 +17,5 @@ namespace Kabomu.Internals
         void Cancel(Exception e);
         void OnSend(IQuasiHttpRequest request);
         void OnReceive();
-        void OnReceiveMessage(byte[] data, int offset, int length);
     }
 }

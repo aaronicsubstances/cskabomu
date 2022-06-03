@@ -7,6 +7,6 @@ namespace Kabomu.Common
 {
     public class MemoryBasedTransportHub
     {
-        public Dictionary<object, KabomuQuasiHttpClient> Connections { get; } = new Dictionary<object, KabomuQuasiHttpClient>();
+        public Dictionary<object, KabomuQuasiHttpClient> Clients { get; } = new Dictionary<object, KabomuQuasiHttpClient>();
     }
 }
