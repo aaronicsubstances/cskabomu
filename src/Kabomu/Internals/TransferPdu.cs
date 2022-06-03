@@ -11,15 +11,10 @@ namespace Kabomu.Internals
 
         public const byte PduTypeRequest = 1;
         public const byte PduTypeResponse = 2;
-        public const byte PduTypeRequestChunkGet = 3;
-        public const byte PduTypeResponseChunkGet = 4;
-        public const byte PduTypeRequestChunkRet = 5;
-        public const byte PduTypeResponseChunkRet = 6;
 
         public byte Version { get; set; }
         public byte PduType { get; set; }
         public byte Flags { get; set; }
-        public int SequenceNumber { get; set; }
         public string Path { get; set; }
         public bool StatusIndicatesSuccess { get; set; }
         public bool StatusIndicatesClientError { get; set; }
@@ -43,14 +38,13 @@ namespace Kabomu.Internals
             pdu.Version = (byte)ByteUtils.DeserializeUpToInt64BigEndian(data, offset, 1);
             pdu.PduType = (byte)ByteUtils.DeserializeUpToInt64BigEndian(data, offset + 1, 1);
             pdu.Flags = (byte)ByteUtils.DeserializeUpToInt64BigEndian(data, offset + 2, 1);
-            pdu.SequenceNumber = (int)ByteUtils.DeserializeUpToInt64BigEndian(data, offset + 3, 4);
 
-            var csvDataLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(data, offset + 7, 4);
-            if (csvDataLength + 11 > length)
+            var csvDataLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(data, offset + 3, 4);
+            if (csvDataLength + 7 > length)
             {
                 throw new ArgumentException("invalid pdu");
             }
-            var csv = ByteUtils.BytesToString(data, offset + 11, csvDataLength);
+            var csv = ByteUtils.BytesToString(data, offset + 7, csvDataLength);
             var csvData = CsvUtils.Deserialize(csv);
             if (csvData[0].Count > 0)
             {
@@ -83,8 +77,8 @@ namespace Kabomu.Internals
             }
 
             pdu.Data = data;
-            pdu.DataOffset = offset + 11 + csvDataLength;
-            pdu.DataLength = length - 11 - csvDataLength;
+            pdu.DataOffset = offset + 7 + csvDataLength;
+            pdu.DataLength = length - 7 - csvDataLength;
 
             return pdu;
         }
@@ -113,9 +107,10 @@ namespace Kabomu.Internals
             }
             var csv = CsvUtils.Serialize(csvData);
             var csvBytes = ByteUtils.StringToBytes(csv);
-            var lengthOfBinaryBytes = 15 + DataLength;
+            var lengthOfBinaryBytes = 4 + 7 + DataLength;
             var pduBytes = new byte[lengthOfBinaryBytes + csvBytes.Length];
             int offset = 0;
+            // NB: length prefix excludes itself
             ByteUtils.SerializeUpToInt64BigEndian(pduBytes.Length - 4, pduBytes, 0, 4);
             offset += 4;
             ByteUtils.SerializeUpToInt64BigEndian(Version, pduBytes, offset, 1);
@@ -124,8 +119,6 @@ namespace Kabomu.Internals
             offset += 1;
             ByteUtils.SerializeUpToInt64BigEndian(Flags, pduBytes, offset, 1);
             offset += 1;
-            ByteUtils.SerializeUpToInt64BigEndian(SequenceNumber, pduBytes, offset, 4);
-            offset += 4;
 
             ByteUtils.SerializeUpToInt64BigEndian(csvBytes.Length, pduBytes, offset, 4);
             offset += 4;

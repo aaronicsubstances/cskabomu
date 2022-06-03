@@ -28,7 +28,6 @@ namespace Kabomu.Tests.Internals
             expected.Version = TransferPdu.Version01;
             expected.PduType = TransferPdu.PduTypeRequest;
             expected.Flags = 1;
-            expected.SequenceNumber = 19;
             expected.Path = "/detail";
             expected.StatusIndicatesSuccess = true;
             expected.StatusMessage = "ok";
@@ -67,7 +66,6 @@ namespace Kabomu.Tests.Internals
             Assert.Equal(expected.Version, actual.Version);
             Assert.Equal(expected.PduType, actual.PduType);
             Assert.Equal(expected.Flags, actual.Flags);
-            Assert.Equal(expected.SequenceNumber, actual.SequenceNumber);
             Assert.Equal(expected.Path, actual.Path);
             Assert.Equal(expected.StatusIndicatesSuccess, actual.StatusIndicatesSuccess);
             Assert.Equal(expected.StatusIndicatesClientError, actual.StatusIndicatesClientError);

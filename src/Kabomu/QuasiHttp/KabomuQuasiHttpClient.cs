@@ -161,6 +161,10 @@ namespace Kabomu.QuasiHttp
 
         public void OnReceive(object connection)
         {
+            if (connection == null)
+            {
+                throw new ArgumentException("null connection");
+            }
             EventLoop.RunExclusively(_ =>
             {
                 ITransferProtocol transfer = new ByteReceiveProtocol();

@@ -24,11 +24,6 @@ namespace Kabomu.Internals
             throw new NotImplementedException();
         }
 
-        public void OnReceiveMessage(byte[] data, int offset, int length)
-        {
-            throw new NotImplementedException();
-        }
-
         public void OnSend(IQuasiHttpRequest request)
         {
             throw new NotImplementedException();
