@@ -12,25 +12,15 @@ namespace Kabomu.Examples.Shared
         private readonly string _fileName;
         private readonly FileStream _fileStream;
 
-        public FileBody(string uploadDirPath, string fileName, bool serveContentLength)
+        public FileBody(string uploadDirPath, string fileName)
         {
             _fileName = fileName;
             FileInfo f = new FileInfo(Path.Combine(uploadDirPath, fileName));
             _fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                     FileShare.Read);
-            if (serveContentLength)
-            {
-                ContentLength = (int)f.Length;
-            }
-            else
-            {
-                ContentLength = -1;
-            }
         }
 
         public string ContentType => "application/octet-stream";
-
-        public int ContentLength { get; }
 
         public async void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {

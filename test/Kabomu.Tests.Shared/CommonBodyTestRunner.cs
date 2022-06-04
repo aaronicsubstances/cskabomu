@@ -9,7 +9,7 @@ namespace Kabomu.Tests.Shared
 {
     public class CommonBodyTestRunner
     {
-        public static void RunCommonBodyTest(IQuasiHttpBody instance, int expectedContentLength,
+        public static void RunCommonBodyTest(IQuasiHttpBody instance,
             string expectedContentType, int[] expectedByteReads, string expectedError,
             string expectedSuccessData)
         {
@@ -23,7 +23,6 @@ namespace Kabomu.Tests.Shared
             var buffer = new byte[maxByteRead];
 
             // act and assert.
-            Assert.Equal(expectedContentLength, instance.ContentLength);
             Assert.Equal(expectedContentType, instance.ContentType);
 
             var readAccumulator = new StringBuilder();

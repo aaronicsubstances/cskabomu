@@ -114,7 +114,7 @@ namespace Tcp.FileClient
             var request = new DefaultQuasiHttpRequest
             {
                 Headers = new Dictionary<string, List<string>>(),
-                Body = new FileBody(f.DirectoryName, f.Name, serveContentLength)
+                Body = new FileBody(f.DirectoryName, f.Name)
             };
             request.Headers.Add("f", new List<string> { f.Name });
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

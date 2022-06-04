@@ -19,7 +19,7 @@ namespace Kabomu.Internals
         public bool StatusIndicatesSuccess { get; set; }
         public bool StatusIndicatesClientError { get; set; }
         public string StatusMessage { get; set; }
-        public int ContentLength { get; set; }
+        public bool HasContent { get; set; }
         public string ContentType { get; set; }
         public Dictionary<string, List<string>> Headers { get; set; }
         public byte[] Data { get; set; }
@@ -56,7 +56,7 @@ namespace Kabomu.Internals
             {
                 pdu.StatusMessage = csvData[3][0];
             }
-            pdu.ContentLength = int.Parse(csvData[4][0]);
+            pdu.HasContent = bool.Parse(csvData[4][0]);
             if (csvData[5].Count > 0)
             {
                 pdu.ContentType = csvData[5][0];
@@ -90,7 +90,7 @@ namespace Kabomu.Internals
             csvData.Add(new List<string> { StatusIndicatesSuccess.ToString() });
             csvData.Add(new List<string> { StatusIndicatesClientError.ToString() });
             csvData.Add(StatusMessage != null ? new List<string> { StatusMessage } : new List<string>());
-            csvData.Add(new List<string> { ContentLength.ToString() });
+            csvData.Add(new List<string> { HasContent.ToString() });
             csvData.Add(ContentType != null ? new List<string> { ContentType } : new List<string>());
             if (Headers != null)
             {

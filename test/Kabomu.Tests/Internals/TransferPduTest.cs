@@ -31,7 +31,7 @@ namespace Kabomu.Tests.Internals
             expected.Path = "/detail";
             expected.StatusIndicatesSuccess = true;
             expected.StatusMessage = "ok";
-            expected.ContentLength = 34;
+            expected.HasContent = true;
             expected.ContentType = "text/plain";
             expected.Headers = new Dictionary<string, List<string>>();
             expected.Headers.Add("accept", new List<string> { "text/plain", "text/xml" });
@@ -70,7 +70,7 @@ namespace Kabomu.Tests.Internals
             Assert.Equal(expected.StatusIndicatesSuccess, actual.StatusIndicatesSuccess);
             Assert.Equal(expected.StatusIndicatesClientError, actual.StatusIndicatesClientError);
             Assert.Equal(expected.StatusMessage, actual.StatusMessage);
-            Assert.Equal(expected.ContentLength, actual.ContentLength);
+            Assert.Equal(expected.HasContent, actual.HasContent);
             Assert.Equal(expected.ContentType, actual.ContentType);
             ComparisonUtils.CompareHeaders(expected.Headers, actual.Headers);
             ComparisonUtils.CompareData(expected.Data, expected.DataOffset, expected.DataLength, actual.Data,

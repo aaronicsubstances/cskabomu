@@ -104,9 +104,9 @@ namespace Kabomu.Internals
                 Path = pdu.Path,
                 Headers = pdu.Headers
             };
-            if (pdu.ContentLength != 0)
+            if (pdu.HasContent)
             {
-                request.Body = new ByteOrientedTransferBody(pdu.ContentLength,
+                request.Body = new ByteOrientedTransferBody(
                     pdu.ContentType, Parent.Transport, Connection, null);
             }
             _requestBody = request.Body;
@@ -163,7 +163,7 @@ namespace Kabomu.Internals
             _responseBody = response.Body;
             if (response.Body != null)
             {
-                pdu.ContentLength = response.Body.ContentLength;
+                pdu.HasContent = true;
                 pdu.ContentType = response.Body.ContentType;
             }
 
