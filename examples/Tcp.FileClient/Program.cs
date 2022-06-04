@@ -25,9 +25,6 @@ namespace Tcp.FileClient
             [Option('d', "upload-dir", Required = false,
                 HelpText = "Path to directory of files to upload. Defaults to current directory")]
             public string UploadDirPath { get; set; }
-            [Option('a', "alt", Required = false,
-                HelpText = "Run alternative (currently means serving content lengths)")]
-            public bool? ServeContentLength { get; set; }
         }
 
         static void Main(string[] args)
@@ -35,12 +32,12 @@ namespace Tcp.FileClient
             Parser.Default.ParseArguments<Options>(args)
                    .WithParsed<Options>(o =>
                    {
-                       RunMain(o.Port ?? 5002, o.ServerPort ?? 5001, o.UploadDirPath ?? ".",
-                           o.ServeContentLength ?? false).Wait();
+                       RunMain(o.Port ?? 5002, o.ServerPort ?? 5001,
+                           o.UploadDirPath ?? ".").Wait();
                    });
         }
 
-        static async Task RunMain(int port, int serverPort, string uploadDirPath, bool serveContentLength)
+        static async Task RunMain(int port, int serverPort, string uploadDirPath)
         {
             var eventLoop = new DefaultEventLoopApi
             {
@@ -73,7 +70,7 @@ namespace Tcp.FileClient
                 tcpTransport.Start();
                 LOG.Info("Started Tcp.FileClient at {0}", port);
 
-                await StartTransferringFiles(instance, serverPort, uploadDirPath, serveContentLength);
+                await StartTransferringFiles(instance, serverPort, uploadDirPath);
             }
             catch (Exception e)
             {
@@ -86,8 +83,8 @@ namespace Tcp.FileClient
             }
         }
 
-        private static async Task StartTransferringFiles(KabomuQuasiHttpClient instance, int serverPort, string uploadDirPath,
-            bool serveContentLength)
+        private static async Task StartTransferringFiles(KabomuQuasiHttpClient instance, int serverPort, 
+            string uploadDirPath)
         {
             var directory = new DirectoryInfo(uploadDirPath);
             int count = 0;
@@ -98,7 +95,7 @@ namespace Tcp.FileClient
             {
                 LOG.Debug("Transferring {0}", f.Name);
                 //tasks.Add(TransferFile(instance, serverPort, f));
-                await TransferFile(instance, serverPort, f, serveContentLength);
+                await TransferFile(instance, serverPort, f);
                 LOG.Info("Successfully transferred {0}", f.Name);
                 bytesTransferred += f.Length;
                 count++;
@@ -109,7 +106,7 @@ namespace Tcp.FileClient
             LOG.Info("Successfully transferred {0} bytes ({1} MB) worth of data in {2} files in {3} seconds",
                 bytesTransferred, megaBytesTransferred, count, timeTaken);
         }
-        private static Task TransferFile(KabomuQuasiHttpClient instance, int serverPort, FileInfo f, bool serveContentLength)
+        private static Task TransferFile(KabomuQuasiHttpClient instance, int serverPort, FileInfo f)
         {
             var request = new DefaultQuasiHttpRequest
             {

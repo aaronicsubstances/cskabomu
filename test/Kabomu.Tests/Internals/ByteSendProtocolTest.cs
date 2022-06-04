@@ -50,8 +50,36 @@ namespace Kabomu.Tests.Internals
             }
             inputStream.Position = 0; // rewind read pointer.
             var outputStream = new MemoryStream();
-            IQuasiHttpTransport transport = new TestMemoryTransport(null, connection,
-                inputStream, outputStream, maxChunkSize);
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                MaxChunkSize = maxChunkSize,
+                AllocateConnectionCallback = (actualRemoteEndpoint, cb) =>
+                {
+                    Assert.Null(actualRemoteEndpoint);
+                    cb.Invoke(null, connection);
+                    // test handling of multiple callback invocations.
+                    cb.Invoke(null, connection);
+                },
+                ReleaseConnectionCallback = actualConnection =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    // nothing to do again.
+                },
+                ReadBytesCallback = (actualConnection, data, offset, length, cb) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    var bytesRead = inputStream.Read(data, offset, length);
+                    cb.Invoke(null, bytesRead);
+                },
+                WriteBytesCallback = (actualConnection, data, offset, length, cb) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    outputStream.Write(data, offset, length);
+                    cb.Invoke(null);
+                    // test handling of repeated callback invocations
+                    cb.Invoke(null);
+                }
+            };
             var instance = new ByteSendProtocol();
             instance.Connection = connection;
             IQuasiHttpResponse actualResponse = null;

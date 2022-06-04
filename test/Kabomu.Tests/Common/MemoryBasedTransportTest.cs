@@ -72,21 +72,27 @@ namespace Kabomu.Tests.Common
             IQuasiHttpResponse res1 = new DefaultQuasiHttpResponse(), res2 = new DefaultQuasiHttpResponse();
             directRequestProcessingMapForLondon.Add(req1, res1);
             directRequestProcessingMapForLondon.Add(req2, res2);
-            londonClient.Application = new TestQuasiHttpApplication((req, resCb) =>
+            londonClient.Application = new ConfigurableQuasiHttpApplication
             {
-                var res = directRequestProcessingMapForLondon[req];
-                resCb.Invoke(null, res);
-            });
+                ProcessRequestCallback = (req, resCb) =>
+                {
+                    var res = directRequestProcessingMapForLondon[req];
+                    resCb.Invoke(null, res);
+                }
+            };
             
             var directRequestProcessingMapForKumasi = new Dictionary<IQuasiHttpRequest, IQuasiHttpResponse>();
             IQuasiHttpRequest req3 = new DefaultQuasiHttpRequest();
             IQuasiHttpResponse res3 = new DefaultQuasiHttpResponse();
             directRequestProcessingMapForKumasi.Add(req3, res3);
-            kumasiClient.Application = new TestQuasiHttpApplication((req, resCb) =>
+            kumasiClient.Application = new ConfigurableQuasiHttpApplication
             {
-                var res = directRequestProcessingMapForKumasi[req];
-                resCb.Invoke(null, res);
-            });
+                ProcessRequestCallback = (req, resCb) =>
+                {
+                    var res = directRequestProcessingMapForKumasi[req];
+                    resCb.Invoke(null, res);
+                }
+            };
 
             // act.
             londonInstance.AllocateConnection(kumasiEndpoint, (e, conn) =>
