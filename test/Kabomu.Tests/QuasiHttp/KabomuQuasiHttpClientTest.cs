@@ -25,16 +25,21 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 Assert.Equal(expectedResponseError, e?.Message);
             };
-            var directProcessingTransport = new TestDirectProcessingTransport(remoteEndpoint, (req, resCb) =>
+            var directProcessingTransport = new ConfigurableQuasiHttpTransport
             {
-                Assert.Equal(request, req);
-                eventLoop.ScheduleTimeout(responseTimeMillis, _ =>
+                DirectSendRequestProcessingEnabled = true,
+                ProcessSendRequestCallback = (actualRemoteEndpoint, req, resCb) =>
                 {
-                    resCb.Invoke(null, expectedResponse);
-                    // test handling of multiple callback invocations.
-                    resCb.Invoke(null, expectedResponse);
-                }, null);
-            });
+                    Assert.Equal(remoteEndpoint, actualRemoteEndpoint);
+                    Assert.Equal(request, req);
+                    eventLoop.ScheduleTimeout(responseTimeMillis, _ =>
+                    {
+                        resCb.Invoke(null, expectedResponse);
+                        // test handling of multiple callback invocations.
+                        resCb.Invoke(null, expectedResponse);
+                    }, null);
+                }
+            };
             var instance = new KabomuQuasiHttpClient
             {
                 DefaultTimeoutMillis = 100,

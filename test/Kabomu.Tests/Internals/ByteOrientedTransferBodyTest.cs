@@ -10,12 +10,42 @@ namespace Kabomu.Tests.Internals
 {
     public class ByteOrientedTransferBodyTest
     {
+        private static IQuasiHttpTransport CreateTransport(object connection, string[] dataChunks)
+        {
+            int readIndex = 0;
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = (actualConnection, data, offset, length, cb) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    int nextBytesRead = 0;
+                    Exception e = null;
+                    if (readIndex < dataChunks.Length)
+                    {
+                        var nextReadChunk = Encoding.UTF8.GetBytes(dataChunks[readIndex++]);
+                        nextBytesRead = nextReadChunk.Length;
+                        Array.Copy(nextReadChunk, 0, data, offset, nextBytesRead);
+                    }
+                    else if (readIndex == dataChunks.Length)
+                    {
+                        readIndex++;
+                    }
+                    else
+                    {
+                        e = new Exception("END");
+                    }
+                    cb.Invoke(e, nextBytesRead);
+                }
+            };
+            return transport;
+        }
+
         [Fact]
-        public void TestEmptyReadWithContentLength()
+        public void TestEmptyRead()
         {
             // arrange.
             var dataList = new string[0];
-            var transport = new TestNullTransport("lo", dataList, null, 0);
+            var transport = CreateTransport("lo", dataList);
             var closed = false;
             Action closeCb = () => closed = true;
             var instance = new ByteOrientedTransferBody(null, transport, "lo", closeCb);
@@ -27,43 +57,11 @@ namespace Kabomu.Tests.Internals
         }
 
         [Fact]
-        public void TestEmptyReadWithoutContentLength()
-        {
-            // arrange.
-            var dataList = new string[0];
-            var transport = new TestNullTransport("lo", dataList, null, 0);
-            var closed = false;
-            Action closeCb = () => closed = true;
-            var instance = new ByteOrientedTransferBody(null, transport, "lo", closeCb);
-
-            // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(instance, null,
-                new int[0], null, "");
-            Assert.True(closed);
-        }
-
-        [Fact]
-        public void TestNonEmptyReadWithContentLength()
+        public void TestNonEmptyRead()
         {
             // arrange.
             var dataList = new string[] { "car", " ", "seat" };
-            var transport = new TestNullTransport(null, dataList, null, 0);
-            var closed = false;
-            Action closeCb = () => closed = true;
-            var instance = new ByteOrientedTransferBody("text/xml", transport, null, closeCb);
-
-            // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(instance, "text/xml",
-                new int[] { 3, 1, 4 }, null, "car seat");
-            Assert.True(closed);
-        }
-
-        [Fact]
-        public void TestNonEmptyReadWithoutContentLength()
-        {
-            // arrange.
-            var dataList = new string[] { "car", " ", "seat" };
-            var transport = new TestNullTransport(null, dataList, null, 0);
+            var transport = CreateTransport(null, dataList);
             var closed = false;
             Action closeCb = () => closed = true;
             var instance = new ByteOrientedTransferBody("text/xml", transport, null, closeCb);
@@ -79,7 +77,7 @@ namespace Kabomu.Tests.Internals
         {
             // arrange.
             var dataList = new string[] { "de", "al" };
-            var transport = new TestNullTransport(1786, dataList, null, 0);
+            var transport = CreateTransport(1786, dataList);
             var instance = new ByteOrientedTransferBody("image/gif", transport, 1786, null);
 
             // act and assert.
@@ -90,7 +88,13 @@ namespace Kabomu.Tests.Internals
         [Fact]
         public void TestReadWithTransportError2()
         {
-            var transport = new TestConstantBehaviourTransport(null, -1, null);
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = (conn, data, offset, len, cb) =>
+                {
+                    cb.Invoke(null, -1);
+                }
+            };
             var instance = new ByteOrientedTransferBody(null, transport, null, null);
             var cbCalled = false;
             Action<Exception, int> cb = (e, len) =>
@@ -106,7 +110,13 @@ namespace Kabomu.Tests.Internals
         [Fact]
         public void TestReadWithTransportError3()
         {
-            var transport = new TestConstantBehaviourTransport(null, 100, null);
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = (conn, data, offset, len, cb) =>
+                {
+                    cb.Invoke(null, 100);
+                }
+            };
             var instance = new ByteOrientedTransferBody(null, transport, null, null);
             var cbCalled = false;
             Action<Exception, int> cb = (e, len) =>
@@ -127,7 +137,7 @@ namespace Kabomu.Tests.Internals
                 new ByteOrientedTransferBody(null, null, null, () => { });
             });
             var instance = new ByteOrientedTransferBody(null, 
-                new TestNullTransport(null, new string[0], null, 0), null, () => { });
+                CreateTransport(null, new string[0]), null, () => { });
             CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }
