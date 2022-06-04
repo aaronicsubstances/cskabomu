@@ -14,7 +14,7 @@ namespace Kabomu.Internals
 
         public MemoryBasedTransportConnection(object remoteEndpoint)
         {
-            // Rely on Transport code's validation of arguments.
+            // Rely on transport code's validation of arguments.
             RemoteEndpoint = remoteEndpoint;
             _readRequests = new Dictionary<object, ReadWriteRequest>();
             _writeRequests = new Dictionary<object, List<ReadWriteRequest>>();
@@ -22,7 +22,7 @@ namespace Kabomu.Internals
 
         public object RemoteEndpoint { get; private set; }
 
-        public bool IsConnectionEstablished => RemoteEndpoint != null;
+        public bool IsConnectionEstablished => RemoteEndpoint == null;
 
         public void MarkConnectionAsEstablished()
         {
@@ -36,13 +36,14 @@ namespace Kabomu.Internals
             {
                 throw new ArgumentException("null local endpoint");
             }
-            if (_releaseError != null)
+            if (_releaseError != null || length == 0)
             {
                 cb.Invoke(_releaseError, 0);
                 return;
             }
             var readRequest = new ReadWriteRequest
             {
+                LocalEndpoint = localEndpoint,
                 Data = data,
                 Offset = offset,
                 Length = length,
@@ -73,7 +74,7 @@ namespace Kabomu.Internals
             {
                 throw new ArgumentException("null local endpoint");
             }
-            if (_releaseError != null)
+            if (_releaseError != null || length == 0)
             {
                 cb.Invoke(_releaseError);
                 return;
@@ -116,6 +117,7 @@ namespace Kabomu.Internals
             Array.Copy(pendingWrite.Data, pendingWrite.Offset,
                 pendingRead.Data, pendingRead.Offset, bytesToReturn);
             _readRequests.Remove(pendingRead.LocalEndpoint);
+            pendingRead.ReadCallback.Invoke(null, bytesToReturn);
             if (bytesToReturn < pendingWrite.Length)
             {
                 pendingWrite.Offset += bytesToReturn;
@@ -124,9 +126,8 @@ namespace Kabomu.Internals
             else
             {
                 _writeRequests.Remove(pendingWrite.LocalEndpoint);
+                pendingWrite.WriteCallback.Invoke(null);
             }
-            pendingRead.ReadCallback.Invoke(null, bytesToReturn);
-            pendingWrite.WriteCallback.Invoke(null);
         }
 
         public void Release()

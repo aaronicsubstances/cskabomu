@@ -3,9 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Internals
+namespace Kabomu.Common
 {
-    internal interface IQuasiHttpClient
+    public interface IQuasiHttpClient
     {
         int DefaultTimeoutMillis { get; set; }
         IQuasiHttpApplication Application { get; set; }
