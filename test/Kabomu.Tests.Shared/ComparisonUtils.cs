@@ -21,7 +21,6 @@ namespace Kabomu.Tests.Shared
             else
             {
                 Assert.NotNull(actual.Body);
-                Assert.Equal(expected.Body.ContentLength, actual.Body.ContentLength);
                 Assert.Equal(expected.Body.ContentType, actual.Body.ContentType);
                 byte[] actualReqBodyBytes = null;
                 var cbCalled = false;
@@ -54,7 +53,6 @@ namespace Kabomu.Tests.Shared
             else
             {
                 Assert.NotNull(actual.Body);
-                Assert.Equal(expected.Body.ContentLength, actual.Body.ContentLength);
                 Assert.Equal(expected.Body.ContentType, actual.Body.ContentType);
                 byte[] actualResBodyBytes = null;
                 var cbCalled = false;

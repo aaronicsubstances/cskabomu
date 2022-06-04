@@ -10,17 +10,15 @@ namespace Kabomu.Internals
         private readonly IQuasiHttpTransport _transport;
         private readonly object _connection;
         private readonly Action _closeCallback;
-        private int _readContentLength;
         private Exception _srcEndError;
 
-        public ByteOrientedTransferBody(int contentLength, string contentType,
+        public ByteOrientedTransferBody(string contentType,
             IQuasiHttpTransport transport, object connection, Action closeCallback)
         {
             if (transport == null)
             {
                 throw new ArgumentException("null transport");
             }
-            ContentLength = contentLength;
             ContentType = contentType;
             _transport = transport;
             _connection = connection;
@@ -28,7 +26,6 @@ namespace Kabomu.Internals
         }
 
         public string ContentType { get; }
-        public int ContentLength { get; }
 
         public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
@@ -74,20 +71,6 @@ namespace Kabomu.Internals
                         {
                             EndRead(cb, new Exception("received bytes more than requested size"));
                             return;
-                        }
-                        if (ContentLength >= 0)
-                        {
-                            if (length == 0 && _readContentLength != ContentLength)
-                            {
-                                EndRead(cb, new Exception("content length not achieved"));
-                                return;
-                            }
-                            if (_readContentLength + length > ContentLength)
-                            {
-                                EndRead(cb, new Exception("content length exceeded"));
-                                return;
-                            }
-                            _readContentLength += length;
                         }
                         cb.Invoke(null, length);
                     }, null);

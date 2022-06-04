@@ -23,8 +23,6 @@ namespace Kabomu.Common
 
         public string ContentType { get; }
 
-        public int ContentLength => -1;
-
         public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead,
             Action<Exception, int> cb)
         {

@@ -26,8 +26,8 @@ namespace Kabomu.Tests.Internals
                 PduType = TransferPdu.PduTypeRequest,
                 Path = request.Path,
                 Headers = request.Headers,
-                ContentLength = request.Body?.ContentLength ?? 0,
-                ContentType = request.Body?.ContentType,
+                HasContent = request.Body != null,
+                ContentType = request.Body?.ContentType
             };
 
             var expectedResPdu = new TransferPdu
@@ -38,7 +38,7 @@ namespace Kabomu.Tests.Internals
                 StatusIndicatesClientError = expectedResponse.StatusIndicatesClientError,
                 StatusMessage = expectedResponse.StatusMessage,
                 Headers = expectedResponse.Headers,
-                ContentLength = expectedResponse.Body?.ContentLength ?? 0,
+                HasContent = expectedResponse.Body != null,
                 ContentType = expectedResponse.Body?.ContentType
             };
 

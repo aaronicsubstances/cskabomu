@@ -18,13 +18,13 @@ namespace Kabomu.Common
 
             Buffer = data;
             Offset = offset;
-            ContentLength = length;
+            Length = length;
             ContentType = contentType ?? "application/octet-stream";
         }
 
         public byte[] Buffer { get; }
         public int Offset { get; }
-        public int ContentLength { get; }
+        public int Length { get; }
         public string ContentType { get; }
 
         public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int length, Action<Exception, int> cb)
@@ -48,7 +48,7 @@ namespace Kabomu.Common
                     cb.Invoke(_srcEndError, 0);
                     return;
                 }
-                var lengthToUse = Math.Min(ContentLength - _bytesRead, length);
+                var lengthToUse = Math.Min(Length - _bytesRead, length);
                 Array.Copy(Buffer, Offset + _bytesRead, data, offset, lengthToUse);
                 _bytesRead += lengthToUse;
                 cb.Invoke(null, lengthToUse);

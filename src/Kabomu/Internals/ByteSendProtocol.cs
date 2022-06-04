@@ -45,8 +45,8 @@ namespace Kabomu.Internals
             _requestBody = request.Body;
             if (request.Body != null)
             {
+                pdu.HasContent = true;
                 pdu.ContentType = request.Body.ContentType;
-                pdu.ContentLength = request.Body.ContentLength;
             }
             var cancellationIndicator = new STCancellationIndicator();
             ProcessingCancellationIndicator = cancellationIndicator;
@@ -154,7 +154,7 @@ namespace Kabomu.Internals
                 Headers = pdu.Headers
             };
 
-            if (pdu.ContentLength != 0)
+            if (pdu.HasContent)
             {
                 var cancellationIndicator = new STCancellationIndicator();
                 ProcessingCancellationIndicator = cancellationIndicator;
@@ -169,7 +169,7 @@ namespace Kabomu.Internals
                         }
                     }, null);
                 };
-                response.Body = new ByteOrientedTransferBody(pdu.ContentLength,
+                response.Body = new ByteOrientedTransferBody(
                     pdu.ContentType, Parent.Transport, Connection, closeCb);
             }
             _responseBody = response.Body;
