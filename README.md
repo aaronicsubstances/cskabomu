@@ -16,7 +16,7 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 1. Deployment enviroment: localhost
 
-1. Quasi Web transport wrapper: connection-oriented, byte-oriented, message-oriented (ie datagram).
+1. Quasi Web transport wrapper: connection-oriented, byte-oriented.
 
 1. Quasi Web transports: memory, TCP, unix domain socket, windows named pipe.
 

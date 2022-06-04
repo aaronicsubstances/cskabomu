@@ -7,12 +7,15 @@ namespace Kabomu.Common
 {
     public class MemoryBasedTransport : IQuasiHttpTransport
     {
+        private readonly Random _randGen = new Random();
+
         public object LocalEndpoint { get; set; }
         public MemoryBasedTransportHub Hub { get; set; }
+        public double DirectSendRequestProcessingProbability { get; set; }
 
-        public int MaxChunkSize { get; set; }
+        public int MaxChunkSize { get; set; } = 8_192;
 
-        public bool DirectSendRequestProcessingEnabled { get; set; }
+        public bool DirectSendRequestProcessingEnabled => _randGen.NextDouble() < DirectSendRequestProcessingProbability;
 
         public IMutexApi Mutex { get; set; }
 
@@ -21,6 +24,10 @@ namespace Kabomu.Common
             if (remoteEndpoint == null)
             {
                 throw new ArgumentException("null remote endpoint");
+            }
+            if (request == null)
+            {
+                throw new ArgumentException("null request");
             }
             if (cb == null)
             {
@@ -68,7 +75,7 @@ namespace Kabomu.Common
         {
             Mutex.RunExclusively(_ =>
             {
-                var typedConnection = (MemoryBasedTransportConnection)connection;
+                var typedConnection = connection as MemoryBasedTransportConnection;
                 typedConnection?.Release();
             }, null);
         }

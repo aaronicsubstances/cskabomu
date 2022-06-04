@@ -3,7 +3,7 @@ remaining
 
 default transports
 ------------------
-MemoryBasedTransport
+MemoryBasedTransport - done
 TcpBasedTransport - making it async may require use of third party library
 UnixSocketBasedTransport - availability and making it async may require use of third party library
 WindowsNamedPipes - availability and making it async may require use of third party library
