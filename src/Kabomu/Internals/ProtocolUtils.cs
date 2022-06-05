@@ -24,9 +24,9 @@ namespace Kabomu.Internals
                 cb.Invoke(new Exception("larger than max chunk size of transport"));
                 return;
             }
-            if (byteCount >= 1<<16)
+            if (byteCount > TransportUtils.MaxChunkSize)
             {
-                cb.Invoke(new Exception("larger than uin16.MAX_VALUE"));
+                cb.Invoke(new Exception("size cannot fit in 16-bit unsigned integer"));
                 return;
             }
             var encodedLength = new byte[2];

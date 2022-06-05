@@ -27,10 +27,11 @@ namespace Kabomu.Common
                 Version = LeadChunk.Version01
             }.Serialize()[0];
             var reservedBytesToUse = 2 + chunkPrefix.Length;
-            if (bytesToRead <= reservedBytesToUse || bytesToRead >= (1 << 16))
+            if (bytesToRead <= reservedBytesToUse)
             {
                 throw new ArgumentException("invalid bytes to read");
             }
+            bytesToRead = Math.Min(bytesToRead, TransportUtils.MaxChunkSize);
             _wrappedBody.OnDataRead(mutex, data, offset + reservedBytesToUse,
                 bytesToRead - reservedBytesToUse, (e, bytesRead) =>
             {
