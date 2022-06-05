@@ -42,7 +42,7 @@ namespace Kabomu.Tests.Common
         }
 
         private static IQuasiHttpTransport CreateTransportForWriteBytesFully(object connection, int maxChunkSize,
-            MemoryStream savedWrites, int maxWriteCount)
+            StringBuilder savedWrites, int maxWriteCount)
         {
             int writeCount = 0;
             var transport = new ConfigurableQuasiHttpTransport
@@ -55,7 +55,7 @@ namespace Kabomu.Tests.Common
                     Exception e = null;
                     if (writeCount < maxWriteCount)
                     {
-                        savedWrites.Write(data, offset, length);
+                        savedWrites.Append(Encoding.UTF8.GetString(data, offset, length));
                         writeCount++;
                     }
                     else
@@ -167,10 +167,10 @@ namespace Kabomu.Tests.Common
         [Theory]
         [MemberData(nameof(CreateTestTransferBodyToTransportData))]
         public async Task TestTransferBodyToTransport(object connection, string bodyData,
-            int chunkSize, int maxWriteCount, string expectedError, byte[] expectedSavedWrites)
+            int chunkSize, int maxWriteCount, string expectedError)
         {
             var tcs = new TaskCompletionSource<int>();
-            var savedWrites = new MemoryStream();
+            var savedWrites = new StringBuilder();
             var transport = CreateTransportForWriteBytesFully(connection, chunkSize, savedWrites, maxWriteCount);
             var bodyBytes = Encoding.UTF8.GetBytes(bodyData);
             var body = new ByteBufferBody(bodyBytes, 0, bodyBytes.Length, null);
@@ -203,7 +203,7 @@ namespace Kabomu.Tests.Common
             else
             {
                 Assert.Null(actualException);
-                Assert.Equal(expectedSavedWrites, savedWrites.ToArray());
+                Assert.Equal(bodyData, savedWrites.ToString());
             }
         }
 
@@ -213,42 +213,35 @@ namespace Kabomu.Tests.Common
 
             object connection = "tea";
             string bodyData = "care";
-            int chunkSize = 3;
+            int chunkSize = 4;
             int maxWriteCount = 5;
             string expectedError = null;
-            byte[] expectedSavedWrites = new byte[] { 0, 1, (byte)'c', 0, 1, (byte)'a',
-                0, 1, (byte)'r', 0, 1, (byte)'e', 0, 0 };
             testData.Add(new object[] { connection, bodyData, chunkSize, maxWriteCount,
-                expectedError, expectedSavedWrites });
+                expectedError });
 
             connection = null;
             bodyData = "";
             chunkSize = 8;
-            maxWriteCount = 1;
+            maxWriteCount = 0;
             expectedError = null;
-            expectedSavedWrites = new byte[] { 0, 0 };
             testData.Add(new object[] { connection, bodyData, chunkSize, maxWriteCount,
-                expectedError, expectedSavedWrites });
+                expectedError });
 
             connection = 4;
             bodyData = "tintontannn!!!";
-            chunkSize = 12;
+            chunkSize = 10;
             maxWriteCount = 3;
             expectedError = null;
-            expectedSavedWrites = new byte[] { 0, 10, (byte)'t', (byte)'i', (byte)'n', (byte)'t',
-                 (byte)'o', (byte)'n', (byte)'t', (byte)'a', (byte)'n', (byte)'n', 0, 4, 
-                 (byte)'n', (byte)'!', (byte)'!', (byte)'!', 0, 0 };
             testData.Add(new object[] { connection, bodyData, chunkSize, maxWriteCount,
-                expectedError, expectedSavedWrites });
+                expectedError });
 
             connection = null;
             bodyData = "!!!";
-            chunkSize = 7;
+            chunkSize = 2;
             maxWriteCount = 1;
             expectedError = "END";
-            expectedSavedWrites = null;
             testData.Add(new object[] { connection, bodyData, chunkSize, maxWriteCount,
-                expectedError, expectedSavedWrites });
+                expectedError });
 
             return testData;
         }
