@@ -57,7 +57,7 @@ namespace Kabomu.Tests.Shared
                 var cbCalled = false;
                 Action<Exception, int> cb2 = (e, bytesRead) =>
                 {
-                    Assert.Null(expectedError);
+                    Assert.Null(e);
                     Assert.Equal(0, bytesRead);
                     cbCalled = true;
                 };

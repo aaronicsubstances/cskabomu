@@ -2,6 +2,7 @@
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -41,7 +42,7 @@ namespace Kabomu.Tests.Common
         }
 
         private static IQuasiHttpTransport CreateTransportForWriteBytesFully(object connection, int maxChunkSize,
-            StringBuilder savedWrites, int maxWriteCount)
+            MemoryStream savedWrites, int maxWriteCount)
         {
             int writeCount = 0;
             var transport = new ConfigurableQuasiHttpTransport
@@ -54,7 +55,7 @@ namespace Kabomu.Tests.Common
                     Exception e = null;
                     if (writeCount < maxWriteCount)
                     {
-                        savedWrites.Append(Encoding.UTF8.GetString(data, offset, length));
+                        savedWrites.Write(data, offset, length);
                         writeCount++;
                     }
                     else
@@ -166,10 +167,10 @@ namespace Kabomu.Tests.Common
         [Theory]
         [MemberData(nameof(CreateTestTransferBodyToTransportData))]
         public async Task TestTransferBodyToTransport(object connection, string bodyData,
-            int chunkSize, int maxWriteCount, string expectedError)
+            int chunkSize, int maxWriteCount, string expectedError, byte[] expectedSavedWrites)
         {
             var tcs = new TaskCompletionSource<int>();
-            var savedWrites = new StringBuilder();
+            var savedWrites = new MemoryStream();
             var transport = CreateTransportForWriteBytesFully(connection, chunkSize, savedWrites, maxWriteCount);
             var bodyBytes = Encoding.UTF8.GetBytes(bodyData);
             var body = new ByteBufferBody(bodyBytes, 0, bodyBytes.Length, null);
@@ -202,7 +203,7 @@ namespace Kabomu.Tests.Common
             else
             {
                 Assert.Null(actualException);
-                Assert.Equal(bodyData, savedWrites.ToString());
+                Assert.Equal(expectedSavedWrites, savedWrites.ToArray());
             }
         }
 
@@ -212,35 +213,42 @@ namespace Kabomu.Tests.Common
 
             object connection = "tea";
             string bodyData = "care";
-            int chunkSize = 1;
-            int maxWriteCount = 4;
+            int chunkSize = 3;
+            int maxWriteCount = 5;
             string expectedError = null;
+            byte[] expectedSavedWrites = new byte[] { 0, 1, (byte)'c', 0, 1, (byte)'a',
+                0, 1, (byte)'r', 0, 1, (byte)'e', 0, 0 };
             testData.Add(new object[] { connection, bodyData, chunkSize, maxWriteCount,
-                expectedError });
+                expectedError, expectedSavedWrites });
 
             connection = null;
             bodyData = "";
-            chunkSize = 0;
-            maxWriteCount = 0;
+            chunkSize = 8;
+            maxWriteCount = 1;
             expectedError = null;
+            expectedSavedWrites = new byte[] { 0, 0 };
             testData.Add(new object[] { connection, bodyData, chunkSize, maxWriteCount,
-                expectedError });
+                expectedError, expectedSavedWrites });
 
             connection = 4;
             bodyData = "tintontannn!!!";
-            chunkSize = 10;
-            maxWriteCount = 2;
+            chunkSize = 12;
+            maxWriteCount = 3;
             expectedError = null;
+            expectedSavedWrites = new byte[] { 0, 10, (byte)'t', (byte)'i', (byte)'n', (byte)'t',
+                 (byte)'o', (byte)'n', (byte)'t', (byte)'a', (byte)'n', (byte)'n', 0, 4, 
+                 (byte)'n', (byte)'!', (byte)'!', (byte)'!', 0, 0 };
             testData.Add(new object[] { connection, bodyData, chunkSize, maxWriteCount,
-                expectedError });
+                expectedError, expectedSavedWrites });
 
             connection = null;
             bodyData = "!!!";
-            chunkSize = 2;
+            chunkSize = 7;
             maxWriteCount = 1;
             expectedError = "END";
+            expectedSavedWrites = null;
             testData.Add(new object[] { connection, bodyData, chunkSize, maxWriteCount,
-                expectedError });
+                expectedError, expectedSavedWrites });
 
             return testData;
         }

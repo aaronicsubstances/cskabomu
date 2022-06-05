@@ -10,6 +10,9 @@ namespace Kabomu.Internals
         private readonly IQuasiHttpTransport _transport;
         private readonly object _connection;
         private readonly Action _closeCallback;
+        private byte[] _lastChunk;
+        private int _lastChunkOffset;
+        private int _lastChunkRem;
         private Exception _srcEndError;
 
         public ByteOrientedTransferBody(string contentType,
@@ -48,7 +51,14 @@ namespace Kabomu.Internals
                     cb.Invoke(_srcEndError, 0);
                     return;
                 }
-                _transport.ReadBytes(_connection, data, offset, bytesToRead, (e, length) =>
+                if (_lastChunk != null && (_lastChunk.Length == 0 || _lastChunkRem > 0))
+                {
+                    SupplyFromLastChunk(data, offset, bytesToRead, cb);
+                    return;
+                }
+                var encodedLength = new byte[2];
+                TransportUtils.ReadBytesFully(_transport, _connection,
+                    encodedLength, 0, encodedLength.Length, e =>
                 {
                     mutex.RunExclusively(_ =>
                     {
@@ -62,20 +72,46 @@ namespace Kabomu.Internals
                             EndRead(cb, e);
                             return;
                         }
-                        if (length < 0)
+                        int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
+                            encodedLength.Length);
+                        _lastChunk = new byte[chunkLen];
+                        _lastChunkOffset = 0;
+                        _lastChunkRem = _lastChunk.Length;
+                        if (_lastChunkRem == 0)
                         {
-                            EndRead(cb, new Exception("invalid negative size received"));
+                            cb.Invoke(null, 0);
                             return;
                         }
-                        if (length > bytesToRead)
+                        TransportUtils.ReadBytesFully(_transport, _connection,
+                            _lastChunk, 0, _lastChunk.Length, e =>
                         {
-                            EndRead(cb, new Exception("received bytes more than requested size"));
-                            return;
-                        }
-                        cb.Invoke(null, length);
+                            mutex.RunExclusively(_ =>
+                            {
+                                if (_srcEndError != null)
+                                {
+                                    cb.Invoke(_srcEndError, 0);
+                                    return;
+                                }
+                                if (e != null)
+                                {
+                                    EndRead(cb, e);
+                                    return;
+                                }
+                                SupplyFromLastChunk(data, offset, bytesToRead, cb);
+                            }, null);
+                        });
                     }, null);
                 });
             }, null);
+        }
+
+        private void SupplyFromLastChunk(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        {
+            int lengthToUse = Math.Min(_lastChunkRem, bytesToRead);
+            Array.Copy(_lastChunk, _lastChunkOffset, data, offset, lengthToUse);
+            _lastChunkOffset += lengthToUse;
+            _lastChunkRem -= lengthToUse;
+            cb.Invoke(null, lengthToUse);
         }
 
         public void OnEndRead(IMutexApi mutex, Exception e)
