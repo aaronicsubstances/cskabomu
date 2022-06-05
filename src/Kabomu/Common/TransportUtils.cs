@@ -45,7 +45,7 @@ namespace Kabomu.Common
             IMutexApi mutex, Action<Exception> cb)
         {
             int effectiveChunkSize = transport.MaxChunkSize;
-            if (effectiveChunkSize <= 0)
+            if (effectiveChunkSize <= 3)
             {
                 effectiveChunkSize = 3;
             }

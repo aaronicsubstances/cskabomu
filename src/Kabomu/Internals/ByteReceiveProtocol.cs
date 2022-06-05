@@ -35,7 +35,7 @@ namespace Kabomu.Internals
 
         private void ProcessNewConnection()
         {
-            byte[] encodedLength = new byte[4];
+            byte[] encodedLength = new byte[2];
             var cancellationIndicator = new STCancellationIndicator();
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
@@ -60,7 +60,8 @@ namespace Kabomu.Internals
                 return;
             }
 
-            int qHttpHeaderLen = ByteUtils.DeserializeInt32BigEndian(encodedLength, 0);
+            int qHttpHeaderLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
+                encodedLength.Length);
             var pduBytes = new byte[qHttpHeaderLen];
             var cancellationIndicator = new STCancellationIndicator();
             ProcessingCancellationIndicator = cancellationIndicator;
