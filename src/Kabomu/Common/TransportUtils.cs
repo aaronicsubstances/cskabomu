@@ -44,20 +44,14 @@ namespace Kabomu.Common
         public static void TransferBodyToTransport(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
             IMutexApi mutex, Action<Exception> cb)
         {
-            byte[] buffer = new byte[transport.MaxChunkSize];
-            body.OnDataRead(mutex, buffer, 0, buffer.Length, (e, bytesRead) =>
-                HandleReadOutcome(transport, connection, body, mutex, buffer, e, bytesRead, cb));
-        }
-
-        private static void HandleWriteOutcome(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
-            IMutexApi mutex, byte[] buffer, Exception e, Action<Exception> cb)
-        {
-            if (e != null)
+            int effectiveChunkSize = transport.MaxChunkSize;
+            if (effectiveChunkSize <= 0)
             {
-                cb.Invoke(e);
-                return;
+                effectiveChunkSize = 3;
             }
-            body.OnDataRead(mutex, buffer, 0, buffer.Length, (e, bytesRead) =>
+            effectiveChunkSize = Math.Min(effectiveChunkSize, 65_535); // max unsigned 16-bit integer.
+            byte[] buffer = new byte[effectiveChunkSize];
+            body.OnDataRead(mutex, buffer, 2, buffer.Length - 2, (e, bytesRead) =>
                 HandleReadOutcome(transport, connection, body, mutex, buffer, e, bytesRead, cb));
         }
 
@@ -69,15 +63,25 @@ namespace Kabomu.Common
                 cb.Invoke(e);
                 return;
             }
-            if (bytesRead > 0)
+            if (bytesRead < 0)
             {
-                transport.WriteBytes(connection, buffer, 0, bytesRead, e =>
-                    HandleWriteOutcome(transport, connection, body, mutex, buffer, e, cb));
+                bytesRead = 0;
             }
-            else
+            ByteUtils.SerializeUpToInt64BigEndian(bytesRead, buffer, 0, 2);
+            transport.WriteBytes(connection, buffer, 0, bytesRead + 2, e =>
+                HandleWriteOutcome(transport, connection, body, mutex, buffer, e, bytesRead, cb));
+        }
+
+        private static void HandleWriteOutcome(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
+            IMutexApi mutex, byte[] buffer, Exception e, int bytesWritten, Action<Exception> cb)
+        {
+            if (e != null || bytesWritten == 0)
             {
-                cb.Invoke(null);
+                cb.Invoke(e);
+                return;
             }
+            body.OnDataRead(mutex, buffer, 2, buffer.Length - 2, (e, bytesRead) =>
+                HandleReadOutcome(transport, connection, body, mutex, buffer, e, bytesRead, cb));
         }
 
         public static void ReadBodyToEnd(IQuasiHttpBody body, IMutexApi mutex, int maxChunkSize,
