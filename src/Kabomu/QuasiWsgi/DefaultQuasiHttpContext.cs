@@ -3,9 +3,9 @@ using Kabomu.QuasiWsgi;
 using System;
 using System.Collections.Generic;
 
-namespace Kabomu.Internals
+namespace Kabomu.QuasiWsgi
 {
-    internal class DefaultQuasiHttpContext : IQuasiHttpContext
+    public class DefaultQuasiHttpContext : IQuasiHttpContext
     {
         public IQuasiHttpRequest Request { get; set; }
         public Dictionary<string, object> RequestAttributes { get; set; }
