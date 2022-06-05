@@ -46,7 +46,10 @@ namespace Kabomu.Tests.Internals
             inputStream.Write(resPdu.Serialize());
             if (responseBodyStr != null)
             {
-                inputStream.Write(Encoding.UTF8.GetBytes(responseBodyStr));
+                byte[] responseBodyBytes = Encoding.UTF8.GetBytes(responseBodyStr);
+                inputStream.Write(ByteUtils.SerializeInt16BigEndian((short)responseBodyBytes.Length));
+                inputStream.Write(responseBodyBytes);
+                inputStream.Write(new byte[2]);
             }
             inputStream.Position = 0; // rewind read pointer.
             var outputStream = new MemoryStream();
@@ -107,18 +110,20 @@ namespace Kabomu.Tests.Internals
             Assert.True(((TestParentTransferProtocol)instance.Parent).AbortCalled);
             var actualReq = outputStream.ToArray();
             Assert.NotEmpty(actualReq);
-            int actualReqPduLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualReq, 0, 4);
-            var actualReqPdu = TransferPdu.Deserialize(actualReq, 4, actualReqPduLength);
+            int actualReqPduLength = ByteUtils.DeserializeInt16BigEndian(actualReq, 0);
+            var actualReqPdu = TransferPdu.Deserialize(actualReq, 2, actualReqPduLength);
             TransferPduTest.ComparePdus(expectedReqPdu, actualReqPdu);
-            var actualRequestBodyLen = actualReq.Length - 4 - actualReqPduLength;
+            var actualRequestBodyLen = actualReq.Length - 2 - actualReqPduLength;
             if (expectedRequestBodyStr == null)
             {
                 Assert.Equal(0, actualRequestBodyLen);
             }
             else
             {
-                var actualRequestBodyStr = Encoding.UTF8.GetString(actualReq, 4 + actualReqPduLength,
+                var actualReqBodyBytes = MiscUtils.ReadChunkedBody(actualReq, actualReqPduLength + 2,
                     actualRequestBodyLen);
+                var actualRequestBodyStr = Encoding.UTF8.GetString(actualReqBodyBytes, 0,
+                    actualReqBodyBytes.Length);
                 Assert.Equal(expectedRequestBodyStr, actualRequestBodyStr);
             }
         }

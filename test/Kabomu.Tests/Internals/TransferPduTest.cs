@@ -15,9 +15,9 @@ namespace Kabomu.Tests.Internals
         {
             var expected = new TransferPdu();
             var bytes = expected.Serialize();
-            int encodedLength = ByteUtils.DeserializeInt32BigEndian(bytes, 0);
-            Assert.Equal(bytes.Length - 4, encodedLength);
-            var actual = TransferPdu.Deserialize(bytes, 4, bytes.Length - 4);
+            int encodedLength = ByteUtils.DeserializeInt16BigEndian(bytes, 0);
+            Assert.Equal(bytes.Length - 2, encodedLength);
+            var actual = TransferPdu.Deserialize(bytes, 2, bytes.Length - 2);
             ComparePdus(expected, actual);
         }
 
@@ -38,9 +38,9 @@ namespace Kabomu.Tests.Internals
             expected.Headers.Add("a", new List<string>());
 
             var bytes = expected.Serialize();
-            int encodedLength = ByteUtils.DeserializeInt32BigEndian(bytes, 0);
-            Assert.Equal(bytes.Length - 4, encodedLength);
-            var actual = TransferPdu.Deserialize(bytes, 4, bytes.Length - 4);
+            int encodedLength = ByteUtils.DeserializeInt16BigEndian(bytes, 0);
+            Assert.Equal(bytes.Length - 2, encodedLength);
+            var actual = TransferPdu.Deserialize(bytes, 2, bytes.Length - 2);
             ComparePdus(expected, actual);
         }
 
@@ -49,11 +49,11 @@ namespace Kabomu.Tests.Internals
         {
             Assert.Throws<ArgumentException>(() =>
             {
-                TransferPdu.Deserialize(new byte[10], 0, 10);
+                TransferPdu.Deserialize(new byte[6], 0, 6);
             });
             Assert.ThrowsAny<Exception>(() =>
             {
-                TransferPdu.Deserialize(new byte[11], 0, 11);
+                TransferPdu.Deserialize(new byte[7], 0, 7);
             });
             Assert.Throws<ArgumentException>(() =>
             {
