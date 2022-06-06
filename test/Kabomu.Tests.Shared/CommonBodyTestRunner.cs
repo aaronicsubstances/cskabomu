@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Xunit;
@@ -9,33 +10,25 @@ namespace Kabomu.Tests.Shared
 {
     public class CommonBodyTestRunner
     {
-        public static void RunCommonBodyTest(IQuasiHttpBody instance,
+        public static void RunCommonBodyTest(int maxByteRead, IQuasiHttpBody instance,
             string expectedContentType, int[] expectedByteReads, string expectedError,
-            string expectedSuccessData)
+            byte[] expectedSuccessData)
         {
             // arrange.
             var mutex = new TestEventLoopApi();
-            int maxByteRead = 0;
-            if (expectedByteReads.Length > 0)
-            {
-                maxByteRead = expectedByteReads.Max();
-            }
             var buffer = new byte[maxByteRead];
 
             // act and assert.
             Assert.Equal(expectedContentType, instance.ContentType);
 
-            var readAccumulator = new StringBuilder();
+            var readAccumulator = new MemoryStream();
             foreach (int expectedBytesRead in expectedByteReads)
             {
                 Action<Exception, int> cb = (e, bytesRead) =>
                 {
                     Assert.Null(e);
                     Assert.Equal(expectedBytesRead, bytesRead);
-                    for (int i = 0; i < bytesRead; i++)
-                    {
-                        readAccumulator.Append((char)buffer[i]);
-                    }
+                    readAccumulator.Write(buffer, 0, bytesRead);
                 };
                 instance.OnDataRead(mutex, buffer, 0, buffer.Length, cb);
             }
@@ -63,7 +56,7 @@ namespace Kabomu.Tests.Shared
                 };
                 instance.OnDataRead(mutex, buffer, 0, buffer.Length, cb2);
                 Assert.True(cbCalled);
-                Assert.Equal(expectedSuccessData, readAccumulator.ToString());
+                Assert.Equal(expectedSuccessData, readAccumulator.ToArray());
 
                 instance.OnEndRead(mutex, null);
                 instance.OnEndRead(mutex, new Exception("test"));

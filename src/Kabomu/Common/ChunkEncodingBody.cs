@@ -8,6 +8,7 @@ namespace Kabomu.Common
     public class ChunkEncodingBody : IQuasiHttpBody
     {
         private readonly IQuasiHttpBody _wrappedBody;
+        private bool _endOfReadSeen;
 
         public ChunkEncodingBody(IQuasiHttpBody wrappedBody)
         {
@@ -25,8 +26,9 @@ namespace Kabomu.Common
             var chunkPrefix = new SubsequentChunk
             {
                 Version = LeadChunk.Version01
-            }.Serialize()[0];
-            var reservedBytesToUse = 2 + chunkPrefix.Length;
+            }.Serialize();
+            var chunkPrefixLength = ByteUtils.CalculateSizeOfSlices(chunkPrefix);
+            var reservedBytesToUse = 2 + chunkPrefixLength;
             if (bytesToRead <= reservedBytesToUse)
             {
                 throw new ArgumentException("invalid bytes to read");
@@ -34,16 +36,28 @@ namespace Kabomu.Common
             bytesToRead = Math.Min(bytesToRead, TransportUtils.MaxChunkSize);
             _wrappedBody.OnDataRead(mutex, data, offset + reservedBytesToUse,
                 bytesToRead - reservedBytesToUse, (e, bytesRead) =>
-            {
-                if (e != null)
                 {
-                    cb.Invoke(e, 0);
-                    return;
-                }
-                ByteUtils.SerializeUpToInt64BigEndian(bytesRead + chunkPrefix.Length, data, offset, 2);
-                Array.Copy(chunkPrefix.Data, chunkPrefix.Offset, data, offset + 2, chunkPrefix.Length);
-                cb.Invoke(null, bytesRead);
-            });
+                    if (e != null)
+                    {
+                        cb.Invoke(e, 0);
+                        return;
+                    }
+                    if (bytesRead == 0)
+                    {
+                        if (_endOfReadSeen)
+                        {
+                            cb.Invoke(null, 0);
+                            return;
+                        }
+                        else
+                        {
+                            _endOfReadSeen = true;
+                        }
+                    }
+                    ByteUtils.SerializeUpToInt64BigEndian(bytesRead + chunkPrefixLength, data, offset, 2);
+                    ByteUtils.TransferSlices(chunkPrefix, data, offset + 2);
+                    cb.Invoke(null, bytesRead + reservedBytesToUse);
+                });
         }
 
         public void OnEndRead(IMutexApi mutex, Exception e)

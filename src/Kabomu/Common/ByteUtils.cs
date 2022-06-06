@@ -130,5 +130,24 @@ namespace Kabomu.Common
             int intSize = 8;
             return DeserializeUpToInt64BigEndian(rawBytes, offset, intSize);
         }
+
+        public static int CalculateSizeOfSlices(ByteBufferSlice[] slices)
+        {
+            int byteCount = 0;
+            foreach (var slice in slices)
+            {
+                byteCount += slice.Length;
+            }
+            return byteCount;
+        }
+
+        public static void TransferSlices(ByteBufferSlice[] slices, byte[] data, int offset)
+        {
+            foreach (var slice in slices)
+            {
+                Array.Copy(slice.Data, slice.Offset, data, offset, slice.Length);
+                offset += slice.Length;
+            }
+        }
     }
 }
