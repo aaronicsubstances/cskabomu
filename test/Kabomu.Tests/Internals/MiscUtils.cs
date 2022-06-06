@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Internals;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -25,7 +24,7 @@ namespace Kabomu.Tests.Internals
                     cb.Invoke(null, bytesRead);
                 }
             };
-            var body = new ByteOrientedTransferBody(null, transport, null, null);
+            var body = new ChunkDecodingBody(null, transport, null, null);
             byte[] result = null;
             TransportUtils.ReadBodyToEnd(body, new TestEventLoopApi(), 100, (e, d) =>
             {

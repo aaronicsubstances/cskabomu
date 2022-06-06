@@ -16,8 +16,8 @@ namespace Kabomu.Tests.Common
             var instance = new ByteBufferBody(new byte[0], 0, 0, "text/plain");
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(instance, "text/plain",
-                new int[0], null, "");
+            CommonBodyTestRunner.RunCommonBodyTest(0, instance, "text/plain",
+                new int[0], null, new byte[0]);
         }
 
         [Fact]
@@ -27,8 +27,8 @@ namespace Kabomu.Tests.Common
             var instance = new ByteBufferBody(new byte[] { (byte)'A', (byte)'b', (byte)'2' }, 0, 3, null);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(instance, "application/octet-stream",
-                new int[] { 2, 1 }, null, "Ab2");
+            CommonBodyTestRunner.RunCommonBodyTest(2, instance, "application/octet-stream",
+                new int[] { 2, 1 }, null, instance.Buffer);
         }
 
         [Fact]
