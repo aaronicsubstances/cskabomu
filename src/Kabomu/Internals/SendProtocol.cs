@@ -61,7 +61,7 @@ namespace Kabomu.Internals
                 }, null);
             };
             var serializedChunk = chunk.Serialize();
-            ProtocolUtils.WriteBytes(Parent.Transport, Connection, serializedChunk, cb);
+            ProtocolUtils.WriteByteSlices(Parent.Transport, Connection, serializedChunk, cb);
         }
 
         private void HandleSendRequestLeadChunkOutcome(Exception e, IQuasiHttpRequest request)
