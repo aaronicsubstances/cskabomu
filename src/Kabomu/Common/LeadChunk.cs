@@ -30,12 +30,17 @@ namespace Kabomu.Common
             };
 
             var csvData = new List<List<string>>();
-            csvData.Add(Path != null ? new List<string> { Path } : new List<string>());
-            csvData.Add(new List<string> { StatusIndicatesSuccess.ToString() });
-            csvData.Add(new List<string> { StatusIndicatesClientError.ToString() });
-            csvData.Add(StatusMessage != null ? new List<string> { StatusMessage } : new List<string>());
-            csvData.Add(new List<string> { HasContent.ToString() });
-            csvData.Add(ContentType != null ? new List<string> { ContentType } : new List<string>());
+            var specialHeaderRow = new List<string>();
+            specialHeaderRow.Add((Path != null).ToString());
+            specialHeaderRow.Add(Path ?? "");
+            specialHeaderRow.Add(StatusIndicatesSuccess.ToString());
+            specialHeaderRow.Add(StatusIndicatesClientError.ToString());
+            specialHeaderRow.Add((StatusMessage != null).ToString());
+            specialHeaderRow.Add(StatusMessage ?? "");
+            specialHeaderRow.Add(HasContent.ToString());
+            specialHeaderRow.Add((ContentType != null).ToString());
+            specialHeaderRow.Add(ContentType ?? "");
+            csvData.Add(specialHeaderRow);
             if (Headers != null)
             {
                 foreach (var header in Headers)
@@ -72,26 +77,31 @@ namespace Kabomu.Common
 
             var csv = ByteUtils.BytesToString(data, offset + 2, length - 2);
             var csvData = CsvUtils.Deserialize(csv);
-            if (csvData.Count < 6)
+            if (csvData.Count == 0)
             {
                 throw new ArgumentException("invalid lead chunk");
             }
-            if (csvData[0].Count > 0)
+            var specialHeader = csvData[0];
+            if (specialHeader.Count < 9)
             {
-                instance.Path = csvData[0][0];
+                throw new ArgumentException("invalid special header");
             }
-            instance.StatusIndicatesSuccess = bool.Parse(csvData[1][0]);
-            instance.StatusIndicatesClientError = bool.Parse(csvData[2][0]);
-            if (csvData[3].Count > 0)
+            if (bool.Parse(specialHeader[0]))
             {
-                instance.StatusMessage = csvData[3][0];
+                instance.Path = specialHeader[1];
             }
-            instance.HasContent = bool.Parse(csvData[4][0]);
-            if (csvData[5].Count > 0)
+            instance.StatusIndicatesSuccess = bool.Parse(specialHeader[2]);
+            instance.StatusIndicatesClientError = bool.Parse(specialHeader[3]);
+            if (bool.Parse(specialHeader[4]))
             {
-                instance.ContentType = csvData[5][0];
+                instance.StatusMessage = specialHeader[5];
             }
-            for (int i = 6; i < csvData.Count; i++)
+            instance.HasContent = bool.Parse(specialHeader[6]);
+            if (bool.Parse(specialHeader[7]))
+            {
+                instance.ContentType = specialHeader[8];
+            }
+            for (int i = 1; i < csvData.Count; i++)
             {
                 var headerRow = csvData[i];
                 if (headerRow.Count < 2)
