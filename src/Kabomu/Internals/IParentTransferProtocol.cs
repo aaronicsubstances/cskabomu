@@ -15,5 +15,6 @@ namespace Kabomu.Internals
         void AbortTransfer(ITransferProtocol transfer, Exception e);
         void TransferBodyToTransport(object connection, IQuasiHttpBody body, Action<Exception> cb);
         void ReadBytesFullyFromTransport(object connection, byte[] data, int offset, int length, Action<Exception> cb);
+        void WriteByteSlices(object connection, ByteBufferSlice[] slices, Action<Exception> cb);
     }
 }

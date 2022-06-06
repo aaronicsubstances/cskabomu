@@ -328,5 +328,72 @@ namespace Kabomu.Tests.Common
                 new object[]{ new byte[] { 255, 255, 255, 255, 255, 255, 255, 255 }, 0, -1 }
             };
         }
+
+        [Theory]
+        [MemberData(nameof(CreateTestCalculateSizeOfSlicesData))]
+        public void TestCalculateSizeOfSlices(ByteBufferSlice[] slices, int expected)
+        {
+            var actual = ByteUtils.CalculateSizeOfSlices(slices);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateTestCalculateSizeOfSlicesData()
+        {
+            var testData = new List<object[]>();
+
+            var slices = new ByteBufferSlice[]
+            {
+                new ByteBufferSlice
+                {
+                    Data = new byte[5],
+                    Length = 5
+                },
+                new ByteBufferSlice
+                {
+                    Data = new byte[4],
+                    Length = 2
+                },
+                new ByteBufferSlice
+                {
+                    Data = new byte[3],
+                    Length = 0
+                },
+                new ByteBufferSlice
+                {
+                    Data = new byte[1],
+                    Length = 1
+                }
+            };
+            int expected = 8;
+            testData.Add(new object[] { slices, expected });
+
+            slices = new ByteBufferSlice[]
+            {
+                new ByteBufferSlice
+                {
+                    Data = new byte[4],
+                    Length = 2
+                }
+            };
+            expected = 2;
+            testData.Add(new object[] { slices, expected });
+
+            slices = new ByteBufferSlice[]
+            {
+                new ByteBufferSlice
+                {
+                    Data = new byte[4],
+                    Length = 0
+                }
+            };
+            expected = 0;
+            testData.Add(new object[] { slices, expected });
+
+            slices = new ByteBufferSlice[0];
+            expected = 0;
+            testData.Add(new object[] { slices, expected });
+
+            return testData;
+        }
     }
 }

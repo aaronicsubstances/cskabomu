@@ -10,7 +10,16 @@ namespace Kabomu.Tests.Internals
 {
     public static class MiscUtils
     {
-
+        public static void WriteChunk(ByteBufferSlice[] slices, Action<byte[], int, int> writeCallback)
+        {
+            var byteCount = (short)ByteUtils.CalculateSizeOfSlices(slices);
+            var encodedLength = ByteUtils.SerializeInt16BigEndian(byteCount);
+            writeCallback.Invoke(encodedLength, 0, encodedLength.Length);
+            foreach (var slice in slices)
+            {
+                writeCallback.Invoke(slice.Data, slice.Offset, slice.Length);
+            }
+        }
         public static byte[] ReadChunkedBody(byte[] data, int offset, int length)
         {
             var inputStream = new MemoryStream();

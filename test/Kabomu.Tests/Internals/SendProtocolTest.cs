@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.Internals;
 using Kabomu.QuasiHttp;
+using Kabomu.Tests.Common;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -10,46 +11,58 @@ using Xunit;
 
 namespace Kabomu.Tests.Internals
 {
-    public class ByteReceiveProtocolTest
+    public class SendProtocolTest
     {
         [Theory]
-        [MemberData(nameof(CreateTestOnReceiveData))]
-        public void TestOnReceive(object connection, int maxChunkSize,
-            IQuasiHttpRequest request, string requestBodyStr,
-            IQuasiHttpResponse expectedResponse, string expectedResponseBodyStr)
+        [MemberData(nameof(CreateTestOnSendData))]
+        public void TestOnSend(object connection, int maxChunkSize,
+            IQuasiHttpRequest expectedRequest, string expectedRequestBodyStr,
+            IQuasiHttpResponse response, string responseBodyStr)
         {
             // arrange.
             var eventLoop = new TestEventLoopApi();
-            var reqPdu = new TransferPdu
+            var expectedReqChunk = new LeadChunk
             {
-                Version = TransferPdu.Version01,
-                PduType = TransferPdu.PduTypeRequest,
-                Path = request.Path,
-                Headers = request.Headers,
-                HasContent = request.Body != null,
-                ContentType = request.Body?.ContentType
+                Version = LeadChunk.Version01,
+                Path = expectedRequest.Path,
+                Headers = expectedRequest.Headers,
+                HasContent = expectedRequest.Body != null,
+                ContentType = expectedRequest.Body?.ContentType,
             };
 
-            var expectedResPdu = new TransferPdu
+            var resChunk = new LeadChunk
             {
-                Version = TransferPdu.Version01,
-                PduType = TransferPdu.PduTypeResponse,
-                StatusIndicatesSuccess = expectedResponse.StatusIndicatesSuccess,
-                StatusIndicatesClientError = expectedResponse.StatusIndicatesClientError,
-                StatusMessage = expectedResponse.StatusMessage,
-                Headers = expectedResponse.Headers,
-                HasContent = expectedResponse.Body != null,
-                ContentType = expectedResponse.Body?.ContentType
+                Version = LeadChunk.Version01,
+                StatusIndicatesSuccess = response.StatusIndicatesSuccess,
+                StatusIndicatesClientError = response.StatusIndicatesClientError,
+                StatusMessage = response.StatusMessage,
+                Headers = response.Headers,
+                HasContent = response.Body != null,
+                ContentType = response.Body?.ContentType
             };
 
             var inputStream = new MemoryStream();
-            inputStream.Write(reqPdu.Serialize());
-            if (requestBodyStr != null)
+            var serializedRes = resChunk.Serialize();
+            MiscUtils.WriteChunk(serializedRes, (data, offset, length) =>
+                inputStream.Write(data, offset, length));
+            if (responseBodyStr != null)
             {
-                byte[] requestBodyBytes = Encoding.UTF8.GetBytes(requestBodyStr);
-                inputStream.Write(ByteUtils.SerializeInt16BigEndian((short)requestBodyBytes.Length));
-                inputStream.Write(requestBodyBytes);
-                inputStream.Write(new byte[2]);
+                byte[] responseBodyBytes = Encoding.UTF8.GetBytes(responseBodyStr);
+                var resBodyChunk = new SubsequentChunk
+                {
+                    Version = LeadChunk.Version01,
+                    Data = responseBodyBytes,
+                    DataLength = responseBodyBytes.Length
+                }.Serialize();
+                MiscUtils.WriteChunk(resBodyChunk, (data, offset, length) =>
+                    inputStream.Write(data, offset, length));
+                // write trailing empty chunk.
+                var emptyBodyChunk = new SubsequentChunk
+                {
+                    Version = LeadChunk.Version01
+                }.Serialize();
+                MiscUtils.WriteChunk(emptyBodyChunk, (data, offset, length) =>
+                    inputStream.Write(data, offset, length));
             }
             inputStream.Position = 0; // rewind read pointer.
             var outputStream = new MemoryStream();
@@ -79,67 +92,59 @@ namespace Kabomu.Tests.Internals
                     Assert.Equal(connection, actualConnection);
                     outputStream.Write(data, offset, length);
                     cb.Invoke(null);
-                    // test handling of repeated callback invocations
-                    cb.Invoke(null);
                 }
             };
-            var instance = new ByteReceiveProtocol();
+            var instance = new SendProtocol();
             instance.Connection = connection;
-            IQuasiHttpRequest actualRequest = null;
+            IQuasiHttpResponse actualResponse = null;
             var cbCalled = false;
-            IQuasiHttpApplication app = new ConfigurableQuasiHttpApplication
+            instance.SendCallback = (e, res) =>
             {
-                ProcessRequestCallback = (req, resCb) =>
-                {
-                    Assert.False(cbCalled);
-                    actualRequest = req;
-                    resCb.Invoke(null, expectedResponse);
-                    cbCalled = true;
-                    // just for testing correct cancelling of callback waits, repeat
-                    resCb.Invoke(null, expectedResponse);
-                }
+                Assert.False(cbCalled);
+                Assert.Null(e);
+                actualResponse = res;
+                cbCalled = true;
             };
             instance.Parent = new TestParentTransferProtocol(instance)
             {
-                Application = app,
                 Transport = transport,
                 Mutex = eventLoop
             };
 
-            // act
-            instance.OnReceive();
+            // act.
+            instance.OnSend(expectedRequest);
 
-            // assert
+            // assert.
             Assert.True(cbCalled);
-            ComparisonUtils.CompareRequests(eventLoop, maxChunkSize, request, actualRequest,
-                requestBodyStr);
+            ComparisonUtils.CompareResponses(eventLoop, maxChunkSize, response, actualResponse,
+                responseBodyStr);
             Assert.True(((TestParentTransferProtocol)instance.Parent).AbortCalled);
-            var actualRes = outputStream.ToArray();
-            Assert.NotEmpty(actualRes);
-            int actualResPduLength = ByteUtils.DeserializeInt16BigEndian(actualRes, 0);
-            var actualResPdu = TransferPdu.Deserialize(actualRes, 2, actualResPduLength);
-            //TransferPduTest.ComparePdus(expectedResPdu, actualResPdu);
-            var actualResponseBodyLen = actualRes.Length - 2 - actualResPduLength;
-            if (expectedResponseBodyStr == null)
+            var actualReq = outputStream.ToArray();
+            Assert.NotEmpty(actualReq);
+            int actualReqChunkLength = ByteUtils.DeserializeInt16BigEndian(actualReq, 0);
+            var actualReqChunk = LeadChunk.Deserialize(actualReq, 2, actualReqChunkLength);
+            LeadChunkTest.CompareChunks(expectedReqChunk, actualReqChunk);
+            var actualRequestBodyLen = actualReq.Length - 2 - actualReqChunkLength;
+            if (expectedRequestBodyStr == null)
             {
-                Assert.Equal(0, actualResponseBodyLen);
+                Assert.Equal(0, actualRequestBodyLen);
             }
             else
             {
-                var actualResBodyBytes = MiscUtils.ReadChunkedBody(actualRes, actualResPduLength + 2,
-                    actualResponseBodyLen);
-                var actualResponseBodyStr = Encoding.UTF8.GetString(actualResBodyBytes, 0,
-                    actualResBodyBytes.Length);
-                Assert.Equal(expectedResponseBodyStr, actualResponseBodyStr);
+                var actualReqBodyBytes = MiscUtils.ReadChunkedBody(actualReq, actualReqChunkLength + 2,
+                    actualRequestBodyLen);
+                var actualRequestBodyStr = Encoding.UTF8.GetString(actualReqBodyBytes, 0,
+                    actualReqBodyBytes.Length);
+                Assert.Equal(expectedRequestBodyStr, actualRequestBodyStr);
             }
         }
 
-        public static List<object[]> CreateTestOnReceiveData()
+        public static List<object[]> CreateTestOnSendData()
         {
             var testData = new List<object[]>();
 
             object connection = "vgh";
-            int maxChunkSize = 4;
+            int maxChunkSize = 85;
             var request = new DefaultQuasiHttpRequest
             {
                 Path = "/koobi",
@@ -170,7 +175,7 @@ namespace Kabomu.Tests.Internals
                 expectedResponse, expectedResBodyStr });
 
             connection = 123;
-            maxChunkSize = 10;
+            maxChunkSize = 90;
             request = new DefaultQuasiHttpRequest
             {
                 Path = "/p"
@@ -188,7 +193,7 @@ namespace Kabomu.Tests.Internals
                 expectedResponse, expectedResBodyStr });
 
             connection = null;
-            maxChunkSize = 1;
+            maxChunkSize = 95;
             request = new DefaultQuasiHttpRequest
             {
                 Path = "/bread"

@@ -55,7 +55,12 @@ namespace Kabomu.Common
                         }
                     }
                     ByteUtils.SerializeUpToInt64BigEndian(bytesRead + chunkPrefixLength, data, offset, 2);
-                    ByteUtils.TransferSlices(chunkPrefix, data, offset + 2);
+                    int sliceBytesWritten = 0;
+                    foreach (var slice in chunkPrefix)
+                    {
+                        Array.Copy(slice.Data, slice.Offset, data, offset + 2 + sliceBytesWritten, slice.Length);
+                        sliceBytesWritten += slice.Length;
+                    }
                     cb.Invoke(null, bytesRead + reservedBytesToUse);
                 });
         }
