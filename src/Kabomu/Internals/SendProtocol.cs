@@ -23,14 +23,14 @@ namespace Kabomu.Internals
             _responseBody?.OnEndRead(Parent.Mutex, e);
         }
 
-        public void OnSend(IQuasiHttpRequest request)
-        {
-            SendRequestLeadChunk(request);
-        }
-
         public void OnReceive()
         {
             throw new NotImplementedException("implementation error");
+        }
+
+        public void OnSend(IQuasiHttpRequest request)
+        {
+            SendRequestLeadChunk(request);
         }
 
         private void SendRequestLeadChunk(IQuasiHttpRequest request)
@@ -61,7 +61,7 @@ namespace Kabomu.Internals
                 }, null);
             };
             var serializedChunk = chunk.Serialize();
-            ProtocolUtils.WriteByteSlices(Parent.Transport, Connection, serializedChunk, cb);
+            Parent.WriteByteSlices(Connection, serializedChunk, cb);
         }
 
         private void HandleSendRequestLeadChunkOutcome(Exception e, IQuasiHttpRequest request)

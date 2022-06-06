@@ -30,10 +30,10 @@ namespace Kabomu.Internals
 
         public void OnReceive()
         {
-            ProcessNewConnection();
+            ReadRequestLeadChunk();
         }
 
-        private void ProcessNewConnection()
+        private void ReadRequestLeadChunk()
         {
             byte[] encodedLength = new byte[2];
             var cancellationIndicator = new STCancellationIndicator();
@@ -164,7 +164,7 @@ namespace Kabomu.Internals
                 }, null);
             };
             var serializedChunk = chunk.Serialize();
-            ProtocolUtils.WriteByteSlices(Parent.Transport, Connection, serializedChunk, cb);
+            Parent.WriteByteSlices(Connection, serializedChunk, cb);
         }
 
         private void HandleSendResponseLeadChunkOutcome(Exception e, IQuasiHttpResponse response)

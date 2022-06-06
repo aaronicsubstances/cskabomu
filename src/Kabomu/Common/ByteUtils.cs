@@ -140,14 +140,5 @@ namespace Kabomu.Common
             }
             return byteCount;
         }
-
-        public static void TransferSlices(ByteBufferSlice[] slices, byte[] data, int offset)
-        {
-            foreach (var slice in slices)
-            {
-                Array.Copy(slice.Data, slice.Offset, data, offset, slice.Length);
-                offset += slice.Length;
-            }
-        }
     }
 }

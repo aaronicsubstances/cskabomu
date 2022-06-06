@@ -56,7 +56,7 @@ namespace Kabomu.QuasiHttp
             }
             else
             {
-                transfer = new ByteSendProtocol();
+                transfer = new SendProtocol();
             }
             transfer.Parent = _representative;
             transfer.SendCallback = cb;
@@ -167,7 +167,7 @@ namespace Kabomu.QuasiHttp
             }
             EventLoop.RunExclusively(_ =>
             {
-                ITransferProtocol transfer = new ByteReceiveProtocol();
+                ITransferProtocol transfer = new ReceiveProtocol();
                 transfer.Parent = _representative;
                 transfer.Connection = connection;
                 transfer.TimeoutMillis = DefaultTimeoutMillis;
@@ -272,6 +272,11 @@ namespace Kabomu.QuasiHttp
             public void TransferBodyToTransport(object connection, IQuasiHttpBody body, Action<Exception> cb)
             {
                 TransportUtils.TransferBodyToTransport(_delegate.Transport, connection, body, _delegate.EventLoop, cb);
+            }
+
+            public void WriteByteSlices(object connection, ByteBufferSlice[] slices, Action<Exception> cb)
+            {
+                ProtocolUtils.WriteByteSlices(_delegate.Transport, connection, slices, cb);
             }
         }
     }

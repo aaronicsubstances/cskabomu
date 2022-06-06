@@ -12,6 +12,39 @@ namespace Kabomu.Tests.Internals
     public class ProtocolUtilsTest
     {
         [Fact]
+        public void TestWriteEmpty()
+        {
+            // arrange.
+            object connection = null;
+            var destStream = new MemoryStream();
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                MaxChunkSize = 100,
+                WriteBytesCallback = (actualConnection, data, offset, length, cb) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    destStream.Write(data, offset, length);
+                    cb.Invoke(null);
+                }
+            };
+            var slices = new ByteBufferSlice[0];
+            var expectedStreamContents = new byte[] { 0, 0 };
+
+            // act.
+            var cbCalled = false;
+            ProtocolUtils.WriteByteSlices(transport, connection, slices, e =>
+            {
+                Assert.False(cbCalled);
+                Assert.Null(e);
+                cbCalled = true;
+            });
+
+            // assert.
+            Assert.True(cbCalled);
+            Assert.Equal(expectedStreamContents, destStream.ToArray());
+        }
+
+        [Fact]
         public void TestWriteByteSlices()
         {
             // arrange.

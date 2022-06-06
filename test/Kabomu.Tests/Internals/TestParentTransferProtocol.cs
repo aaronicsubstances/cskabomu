@@ -54,5 +54,15 @@ namespace Kabomu.Tests.Internals
                 cb.Invoke(e);
             });
         }
+
+        public void WriteByteSlices(object connection, ByteBufferSlice[] slices, Action<Exception> cb)
+        {
+            ProtocolUtils.WriteByteSlices(Transport, connection, slices, e =>
+            {
+                cb.Invoke(e);
+                // test handling of repeated callback invocations
+                cb.Invoke(e);
+            });
+        }
     }
 }
