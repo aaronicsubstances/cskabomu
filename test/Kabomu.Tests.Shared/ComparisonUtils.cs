@@ -10,11 +10,11 @@ namespace Kabomu.Tests.Shared
     {
         public static void CompareRequests(IMutexApi mutex, int maxChunkSize,
             IQuasiHttpRequest expected, IQuasiHttpRequest actual,
-            string expectedReqBodyStr)
+            byte[] expectedReqBodyBytes)
         {
             Assert.Equal(expected.Path, actual.Path);
             CompareHeaders(expected.Headers, actual.Headers);
-            if (expectedReqBodyStr == null)
+            if (expectedReqBodyBytes == null)
             {
                 Assert.Null(actual.Body);
             }
@@ -32,21 +32,19 @@ namespace Kabomu.Tests.Shared
                     cbCalled = true;
                 });
                 Assert.True(cbCalled);
-                var actualReqBodyStr = Encoding.UTF8.GetString(actualReqBodyBytes, 0,
-                    actualReqBodyBytes.Length);
-                Assert.Equal(expectedReqBodyStr, actualReqBodyStr);
+                Assert.Equal(expectedReqBodyBytes, actualReqBodyBytes);
             }
         }
 
         public static void CompareResponses(IMutexApi mutex, int maxChunkSize,
             IQuasiHttpResponse expected, IQuasiHttpResponse actual,
-            string expectedResBodyStr)
+            byte[] expectedResBodyBytes)
         {
             Assert.Equal(expected.StatusIndicatesSuccess, actual.StatusIndicatesSuccess);
             Assert.Equal(expected.StatusIndicatesClientError, actual.StatusIndicatesClientError);
             Assert.Equal(expected.StatusMessage, actual.StatusMessage);
             CompareHeaders(expected.Headers, actual.Headers);
-            if (expectedResBodyStr == null)
+            if (expectedResBodyBytes == null)
             {
                 Assert.Null(actual.Body);
             }
@@ -64,9 +62,7 @@ namespace Kabomu.Tests.Shared
                     cbCalled = true;
                 });
                 Assert.True(cbCalled);
-                var actualResBodyStr = Encoding.UTF8.GetString(actualResBodyBytes, 0,
-                    actualResBodyBytes.Length);
-                Assert.Equal(expectedResBodyStr, actualResBodyStr);
+                Assert.Equal(expectedResBodyBytes, actualResBodyBytes);
             }
         }
 

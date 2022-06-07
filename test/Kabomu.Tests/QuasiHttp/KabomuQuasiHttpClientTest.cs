@@ -1,5 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
+using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -154,240 +155,424 @@ namespace Kabomu.Tests.QuasiHttp
             return testData;
         }
 
-        /*[Fact]
-        public void TestIndirectSend()
+        [Theory]
+        [MemberData(nameof(CreateTestNormalSendAndReceiveData))]
+        public void TestNormalSendAndReceiveSeparately(int scheduledTime, string localEndpoint,
+            IQuasiHttpRequest request, IQuasiHttpSendOptions options, string responseError,
+            IQuasiHttpResponse response, byte[] responseBodyBytes)
+        {
+            var testData = new List<object[]>();
+            testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
+                responseError, response, responseBodyBytes });
+            RunTestNormalSendAndReceive(testData);
+        }
+
+        [Fact]
+        public void TestNormalSendAndReceiveTogether()
+        {
+            var testData = CreateTestNormalSendAndReceiveData();
+            RunTestNormalSendAndReceive(testData);
+        }
+
+        private void RunTestNormalSendAndReceive(List<object[]> testDataList)
         {
             // arrange.
             var eventLoop = new TestEventLoopApi
             {
                 RunMutexApiThroughPostCallback = true
             };
-            OutputEventLogger logger = new OutputEventLogger
+            var accraEndpoint = "accra";
+            var accraClient = new KabomuQuasiHttpClient
             {
-                Logs = new List<string>()
-            };
-            UncaughtErrorCallback errorHandler = (e, m) =>
-            {
-                logger.Logs.Add($"error({m},{e?.Message})");
-            };
-            var hub = new FakeTcpTransportHub();
-
-            var londonEndpoint = "london";
-            var numbersFromLondon = new Dictionary<string, List<string>>
-            {
-                { "1", new List<string>{ "one" } },
-                { "2", new List<string>{ "two" } },
-                { "3", new List<string>{ "three" } },
-                { "4", new List<string>{ "four" } },
-                { "5", new List<string>{ "five" } }
-            };
-            var londonApp = CreateApplication(eventLoop, londonEndpoint, 20, numbersFromLondon);
-            var londonTransport = new FakeTcpTransport
-            {
-                Hub = hub,
-                MaxChunkSize = 5,
-            };
-            var londonInstance = new KabomuQuasiHttpClient
-            {
-                DefaultTimeoutMillis = 100,
-                ErrorHandler = errorHandler,
                 EventLoop = eventLoop,
-                Transport = londonTransport,
-                Application = londonApp
+                DefaultTimeoutMillis = 100
             };
-            londonTransport.Upstream = londonInstance;
-            hub.Connections.Add(londonEndpoint, londonTransport);
-
             var kumasiEndpoint = "kumasi";
-            var numbersFromKumasi = new Dictionary<string, List<string>>
+            var kumasiClient = new KabomuQuasiHttpClient
             {
-                { "1", new List<string>{ "baako" } },
-                { "2", new List<string>{ "mmienu" } },
-                { "3", new List<string>{ "mmi\u0025Bsa", "mmi3nsa" } },
-                { "4", new List<string>{ "nnan" } },
-                { "5", new List<string>{ "nnum" } }
-            };
-            var kumasiApp = CreateApplication(eventLoop, kumasiEndpoint, 30, numbersFromKumasi);
-            var kumasiTransport = new FakeTcpTransport
-            {
-                Hub = hub,
-                MaxChunkSize = 5,
-            };
-            var kumasiInstance = new KabomuQuasiHttpClient
-            {
-                DefaultTimeoutMillis = 100,
-                ErrorHandler = errorHandler,
                 EventLoop = eventLoop,
-                Transport = kumasiTransport,
-                Application = kumasiApp
+                DefaultTimeoutMillis = 50
             };
-            kumasiTransport.Upstream = kumasiInstance;
-            hub.Connections.Add(kumasiEndpoint, kumasiTransport);
 
-            var requestBodyStr = "caveat";
+            var hub = new MemoryBasedTransportHub();
+            hub.Clients.Add(accraEndpoint, accraClient);
+            hub.Clients.Add(kumasiEndpoint, kumasiClient);
+
+            var accraTransport = new MemoryBasedTransport
+            {
+                LocalEndpoint = accraEndpoint,
+                Hub = hub,
+                Mutex = eventLoop,
+                MaxChunkSize = 150
+            };
+            accraClient.Transport = accraTransport;
+            accraClient.Application = CreateEndpointApplication(eventLoop, accraEndpoint,
+                accraTransport.MaxChunkSize, 7);
+            var kumasiTransport = new MemoryBasedTransport
+            {
+                LocalEndpoint = kumasiEndpoint,
+                Hub = hub,
+                Mutex = eventLoop,
+                MaxChunkSize = 120
+            };
+            kumasiClient.Transport = kumasiTransport;
+            kumasiClient.Application = CreateEndpointApplication(eventLoop, kumasiEndpoint,
+                kumasiTransport.MaxChunkSize, 10);
+
+            var maxChunkSizes = new int[testDataList.Count];
+            var actualResponseErrors = new Exception[testDataList.Count];
+            var actualResponses = new IQuasiHttpResponse[testDataList.Count];
+
+            for (int i = 0; i < testDataList.Count; i++)
+            {
+                var testData = testDataList[i];
+                var scheduledTime = (int)testData[0];
+                var localEndpoint = (string)testData[1];
+                var request = (IQuasiHttpRequest)testData[2];
+                var options = (IQuasiHttpSendOptions)testData[3];
+
+                IQuasiHttpClient client;
+                string remoteEndpoint;
+                if (localEndpoint == accraEndpoint)
+                {
+                    client = accraClient;
+                    maxChunkSizes[i] = accraTransport.MaxChunkSize;
+                    remoteEndpoint = kumasiEndpoint;
+                }
+                else
+                {
+                    client = kumasiClient;
+                    maxChunkSizes[i] = kumasiTransport.MaxChunkSize;
+                    remoteEndpoint = accraEndpoint;
+                }
+                var testDataIndex = i; // capture it.
+                eventLoop.ScheduleTimeout(scheduledTime, _ =>
+                {
+                    client.Send(remoteEndpoint, request, options, (e, res) =>
+                    {
+                        actualResponseErrors[testDataIndex] = e;
+                        if (e != null)
+                        {
+                            return;
+                        }
+                        actualResponses[testDataIndex] = res;
+                        if (res.Body != null)
+                        {
+                            // read response body before assertion to prevent timeout during
+                            // event loop advance.
+                            TransportUtils.ReadBodyToEnd(res.Body, eventLoop,
+                                maxChunkSizes[testDataIndex], (e, d) =>
+                            {
+                                Assert.Null(e);
+                                var equivalentRes = new DefaultQuasiHttpResponse
+                                {
+                                    StatusIndicatesSuccess = res.StatusIndicatesSuccess,
+                                    StatusIndicatesClientError = res.StatusIndicatesClientError,
+                                    StatusMessage = res.StatusMessage,
+                                    Headers = res.Headers
+                                };
+                                equivalentRes.Body = new ByteBufferBody(d, 0, d.Length, res.Body.ContentType);
+                                actualResponses[testDataIndex] = equivalentRes;
+                            });
+                        }
+                    });
+                }, null);
+            }
+
+            // act.
+            eventLoop.AdvanceTimeTo(1000);
+
+            // assert.
+            eventLoop.RunMutexApiThroughPostCallback = false;
+            for (int i = 0; i < testDataList.Count; i++)
+            {
+                var testData = testDataList[i];
+                var expectedResponseError = (string)testData[4];
+                var expectedResponse = (IQuasiHttpResponse)testData[5];
+                var expectedResponseBodyBytes = (byte[])testData[6];
+                var actualResponseError = actualResponseErrors[i];
+                var actualResponse = actualResponses[i];
+                var maxChunkSize = maxChunkSizes[i];
+                
+                if (expectedResponseError != null)
+                {
+                    Assert.NotNull(actualResponseError);
+                    Assert.Equal(expectedResponseError, actualResponseError.Message);
+                }
+                else
+                {
+                    Assert.Null(actualResponseError);
+                    ComparisonUtils.CompareResponses(eventLoop, maxChunkSize,
+                        expectedResponse, actualResponse, expectedResponseBodyBytes);
+                }
+            }
+        }
+
+        public static List<object[]> CreateTestNormalSendAndReceiveData()
+        {
+            var accraEndpoint = "accra";
+            var kumasiEndpoint = "kumasi";
+            var testData = new List<object[]>();
+
+            int scheduledTime = 2;
+            var localEndpoint = accraEndpoint;
             var request = new DefaultQuasiHttpRequest
+            {
+                
+            };
+            DefaultQuasiHttpSendOptions options = null;
+            string responseError = null;
+            var response = new DefaultQuasiHttpResponse
+            {
+                StatusIndicatesSuccess = false,
+                StatusIndicatesClientError = true,
+                StatusMessage = "bad request",
+                Headers = new Dictionary<string, List<string>>
+                {
+                    { "origin", new List<string>{ kumasiEndpoint } }
+                }
+            };
+            byte[] responseBodyBytes = null;
+            testData.Add(new object[] { scheduledTime, localEndpoint, request, options, 
+                responseError, response, responseBodyBytes });
+
+            scheduledTime = 5;
+            localEndpoint = accraEndpoint;
+            request = new DefaultQuasiHttpRequest
             {
                 Path = "/",
                 Headers = new Dictionary<string, List<string>>
                 {
-                    {  "y", new List<string>{ "yes" } }
-                },
+                    { "op", new List<string>{ "sub" } },
+                    { "first", new List<string>{ "02", "034f" } },
+                    { "second", new List<string>{ "2" } }
+                }
             };
-            // to prevent end of read error, serialize before assigning body.
-            string expectedResStr = null;
-            SerializeRequest(new TestEventLoopApi(), request, (e, s) =>
+            options = new DefaultQuasiHttpSendOptions
             {
-                Assert.Null(e);
-                expectedResStr = s;
-            });
-            if (requestBodyStr != null)
-            {
-                request.Body = new StringBody(requestBodyStr, null);
-                expectedResStr += requestBodyStr;
-            }
-            IQuasiHttpSendOptions options = null;
-            string expectedResponseError = null;
-            var expectedResponse = new DefaultQuasiHttpResponse
+                TimeoutMillis = 40
+            };
+            responseError = null;
+            response = new DefaultQuasiHttpResponse
             {
                 StatusIndicatesSuccess = true,
+                StatusMessage = "ok",
+                Headers = new Dictionary<string, List<string>>
+                {
+                    { "origin", new List<string>{ kumasiEndpoint } },
+                    { "path", new List<string>{ "/" } },
+                    { "ans", new List<string>{ "00", "014d" } }
+                }
             };
-            expectedResponse.Body = new StringBody(expectedResStr, null);
+            responseBodyBytes = null;
+            testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
+                responseError, response, responseBodyBytes });
 
-            KabomuQuasiHttpClient instance;
-            string remoteEndpoint;
-            bool sendFromKumasi = true;
-            if (sendFromKumasi)
+            scheduledTime = 5;
+            localEndpoint = kumasiEndpoint;
+            request = new DefaultQuasiHttpRequest
             {
-                remoteEndpoint = londonEndpoint;
-                instance = kumasiInstance;
-                expectedResponse.StatusMessage = londonEndpoint;
-                expectedResponse.Headers = numbersFromLondon;
-            }
-            else
+                Path = "/compute",
+                Headers = new Dictionary<string, List<string>>
+                {
+                    { "op", new List<string>{ "div" } },
+                    { "first", new List<string>{ "02", "034f" } },
+                    { "second", new List<string>{ "2" } }
+                }
+            };
+            request.Body = new ByteBufferBody(new byte[] { 0x13, 0x14, 0x15, 0x16 }, 0, 4, null);
+            options = null;
+            responseError = null;
+            response = new DefaultQuasiHttpResponse
             {
-                remoteEndpoint = kumasiEndpoint;
-                instance = londonInstance;
-                expectedResponse.StatusMessage = kumasiEndpoint;
-                expectedResponse.Headers = numbersFromKumasi;
-            }
+                StatusIndicatesSuccess = true,
+                StatusMessage = "ok",
+                Headers = new Dictionary<string, List<string>>
+                {
+                    { "origin", new List<string>{ accraEndpoint } },
+                    { "path", new List<string>{ "/compute" } },
+                    { "ans", new List<string>{ "01", "0127" } }
+                }
+            };
+            response.Body = new ByteBufferBody(new byte[] { 0x09, 0x0a, 0x0a, 0x0b }, 0, 4, null);
+            responseBodyBytes = new byte[] { 0x09, 0x0a, 0x0a, 0x0b };
+            testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
+                responseError, response, responseBodyBytes });
 
-            // act.
-            string actualResponseError = null;
-            IQuasiHttpResponse actualResponse = null;
-            var cbCalled = false;
-            instance.Send(remoteEndpoint, request, options, (e, res) =>
+            scheduledTime = 11;
+            localEndpoint = kumasiEndpoint;
+            request = new DefaultQuasiHttpRequest
             {
-                Assert.False(cbCalled);
-                actualResponseError = e?.Message;
-                actualResponse = res;
-                cbCalled = true;
-            });
-            eventLoop.AdvanceTimeBy(1000);
+                Path = "/grind",
+                Headers = new Dictionary<string, List<string>>
+                {
+                    { "op", new List<string>{ "sub" } },
+                    { "first", new List<string>{ "0a" } },
+                    { "second", new List<string>{ "1" } }
+                }
+            };
+            request.Body = new ByteBufferBody(new byte[] { 0, 0x26, 0 }, 1, 1, null);
+            options = null;
+            responseError = null;
+            response = new DefaultQuasiHttpResponse
+            {
+                StatusIndicatesSuccess = true,
+                StatusMessage = "ok",
+                Headers = new Dictionary<string, List<string>>
+                {
+                    { "origin", new List<string>{ accraEndpoint } },
+                    { "path", new List<string>{ "/grind" } },
+                    { "ans", new List<string>{ "09" } }
+                }
+            };
+            response.Body = new ByteBufferBody(new byte[] { 0x25, 0 }, 0, 1, null);
+            responseBodyBytes = new byte[] { 0x25 };
+            testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
+                responseError, response, responseBodyBytes });
 
-            // assert
-            Assert.True(cbCalled);
-            if (expectedResponseError != null)
+            scheduledTime = 11;
+            localEndpoint = accraEndpoint;
+            request = new DefaultQuasiHttpRequest
             {
-                Assert.NotNull(actualResponseError);
-                Assert.Equal(expectedResponseError, actualResponseError);
-                Assert.Single(logger.Logs);
-            }
-            else
+                Path = "/ping",
+                Headers = new Dictionary<string, List<string>>
+                {
+                    { "op", new List<string>{ "div" } },
+                    { "first", new List<string>{ "" } },
+                    { "second", new List<string>{ "14000" } }
+                }
+            };
+            request.Body = new ByteBufferBody(new byte[] { 0, 0x26, 0 }, 1, 0, null);
+            options = null;
+            responseError = null;
+            response = new DefaultQuasiHttpResponse
             {
-                Assert.Null(actualResponseError);
-                ComparisonUtils.CompareResponses(eventLoop, 1000, expectedResponse, actualResponse,
-                    expectedResStr);
-                Assert.Empty(logger.Logs);
-            }
+                StatusIndicatesSuccess = true,
+                StatusMessage = "ok",
+                Headers = new Dictionary<string, List<string>>
+                {
+                    { "origin", new List<string>{ kumasiEndpoint } },
+                    { "path", new List<string>{ "/ping" } },
+                    { "ans", new List<string>{ "" } }
+                }
+            };
+            response.Body = new ByteBufferBody(new byte[] { 0x25, 0 }, 1, 0, null);
+            responseBodyBytes = new byte[0];
+            testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
+                responseError, response, responseBodyBytes });
+
+            scheduledTime = 12;
+            localEndpoint = accraEndpoint;
+            request = new DefaultQuasiHttpRequest
+            {
+                Path = "/t",
+                Headers = new Dictionary<string, List<string>>
+                {
+                    { "op", new List<string>{ "sub" } },
+                    { "first", new List<string>{ "082b" } },
+                    { "second", new List<string>{ "14000" } }
+                }
+            };
+            options = new DefaultQuasiHttpSendOptions
+            {
+                TimeoutMillis = 3
+            };
+            responseError = "send timeout";
+            response = null;
+            responseBodyBytes = null;
+            testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
+                responseError, response, responseBodyBytes });
+
+            return testData;
         }
 
-        private static IQuasiHttpApplication CreateApplication(IEventLoopApi eventLoop,
-            string localEndpoint, int responseTime,
-            Dictionary<string, List<string>> responseHeaders)
+        private IQuasiHttpApplication CreateEndpointApplication(IEventLoopApi eventLoop, string endpoint,
+            int maxChunkSize, int processingDelay)
         {
-            var app = new TestQuasiHttpApplication((req, resCb) =>
+            var app = new ConfigurableQuasiHttpApplication
             {
-                SerializeRequest(eventLoop, req, (e, serializedReq) =>
+                ProcessRequestCallback = (req, resCb) =>
                 {
-                    Assert.Null(e);
+                    Func<byte, byte> selectedOp = null;
+                    if (req.Headers != null && req.Headers.ContainsKey("second") &&
+                        req.Headers.ContainsKey("op"))
+                    {
+                        int secondOperand = int.Parse(req.Headers["second"][0]);
+                        Func<byte, byte> subOp = b => (byte)(b - secondOperand);
+                        Func<byte, byte> divOp = b => (byte)(b / secondOperand);
+                        var opCode = req.Headers["op"][0];
+                        switch (opCode)
+                        {
+                            case "div":
+                                selectedOp = divOp;
+                                break;
+                            case "sub":
+                                selectedOp = subOp;
+                                break;
+                            default:
+                                break;
+                        }
+                    }
                     var res = new DefaultQuasiHttpResponse
                     {
-                        StatusIndicatesSuccess = true,
-                        StatusMessage = localEndpoint,
-                        Headers = responseHeaders,
-                        Body = new StringBody(serializedReq, null)
+                        Headers = new Dictionary<string, List<string>>()
                     };
-                    eventLoop.ScheduleTimeout(responseTime, _ =>
+                    res.Headers.Add("origin", new List<string> { endpoint });
+                    if (req.Path != null)
+                    {
+                        // test that path was received correctly.
+                        res.Headers.Add("path", new List<string> { req.Path });
+                    }
+                    if (selectedOp == null)
+                    {
+                        res.StatusIndicatesClientError = true;
+                        res.StatusMessage = "bad request";
+                    }
+                    else
+                    {
+                        res.StatusIndicatesSuccess = true;
+                        res.StatusMessage = "ok";
+                        if (req.Headers.ContainsKey("first"))
+                        {
+                            var answers = new List<string>();
+                            foreach (var opArgStr in req.Headers["first"])
+                            {
+                                var opArg = ByteUtils.ConvertHexToBytes(opArgStr);
+                                var answer = new byte[opArg.Length];
+                                for (int i = 0; i < opArg.Length; i++)
+                                {
+                                    answer[i] = selectedOp.Invoke(opArg[i]);
+                                }
+                                answers.Add(ByteUtils.ConvertBytesToHex(answer, 0, answer.Length));
+                            }
+                            res.Headers.Add("ans", answers);
+                        }
+                        if (req.Body != null)
+                        {
+                            TransportUtils.ReadBodyToEnd(req.Body, eventLoop, maxChunkSize, (e, reqBodyBytes) =>
+                            {
+                                Assert.Null(e);
+                                var resBodyBytes = new byte[reqBodyBytes.Length];
+                                for (int i = 0; i < reqBodyBytes.Length; i++)
+                                {
+                                    resBodyBytes[i] = selectedOp.Invoke(reqBodyBytes[i]);
+                                }
+                                res.Body = new ByteBufferBody(resBodyBytes, 0, resBodyBytes.Length, null);
+                                eventLoop.ScheduleTimeout(processingDelay, _ =>
+                                {
+                                    resCb.Invoke(null, res);
+                                }, null);
+                            });
+                            return;
+                        }
+                    }
+                    eventLoop.ScheduleTimeout(processingDelay, _ =>
                     {
                         resCb.Invoke(null, res);
                     }, null);
-                    // test handling of multiple callback invocations
-                    eventLoop.ScheduleTimeout(responseTime + 2, _ =>
-                    {
-                        resCb.Invoke(null, res);
-                    }, null);
-                });
-            });
+                }
+            };
             return app;
         }
-
-        private static void SerializeRequest(IMutexApi mutex, IQuasiHttpRequest req, Action<Exception, string> cb)
-        {
-            var s = new StringBuilder();
-            s.Append(req.Path);
-            if (req.Headers != null)
-            {
-                var keys = new List<string>(req.Headers.Keys);
-                keys.Sort();
-                foreach (var key in keys)
-                {
-                    s.Append(key);
-                    foreach (var value in req.Headers[key])
-                    {
-                        s.Append(value);
-                    }
-                }
-            }
-            if (req.Body != null)
-            {
-                TransportUtils.ReadBodyToEnd(req.Body, mutex, 10, (e, data) =>
-                {
-                    if (e != null)
-                    {
-                        cb.Invoke(e, null);
-                        return;
-                    }
-                    var dataStr = Encoding.UTF8.GetString(data, 0, data.Length);
-                    s.Append(dataStr);
-                    cb.Invoke(null, s.ToString());
-                });
-            }
-            else
-            {
-                cb.Invoke(null, s.ToString());
-            }
-        }
-
-        private static string SerializeResponse(IQuasiHttpResponse res)
-        {
-            var s = new StringBuilder();
-            s.Append(res.StatusIndicatesSuccess);
-            s.Append(res.StatusIndicatesClientError);
-            s.Append(res.StatusMessage);
-            if (res.Headers != null)
-            {
-                var keys = new List<string>(res.Headers.Keys);
-                keys.Sort();
-                foreach (var key in keys)
-                {
-                    s.Append(key);
-                    foreach (var value in res.Headers[key])
-                    {
-                        s.Append(value);
-                    }
-                }
-            }
-            return s.ToString();
-        }*/
     }
 }
