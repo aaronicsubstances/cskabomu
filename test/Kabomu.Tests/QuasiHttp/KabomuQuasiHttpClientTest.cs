@@ -155,6 +155,129 @@ namespace Kabomu.Tests.QuasiHttp
             return testData;
         }
 
+        [Fact]
+        public void TestResetOfTransfersWithoutConnections()
+        {
+            // arrange.
+            var eventLoop = new TestEventLoopApi
+            {
+                RunMutexApiThroughPostCallback = true
+            };
+            var transport = new ConfigurableQuasiHttpTransport();
+            var client = new KabomuQuasiHttpClient
+            {
+                DefaultTimeoutMillis = 20,
+                Application = new ConfigurableQuasiHttpApplication(),
+                EventLoop = eventLoop,
+                Transport = transport
+            };
+            var expectedErrors = new string[] { "send timeout", "send timeout",
+                "send timeout", "shutdown", "shutdown" };
+            var actualResponseErrors = new Exception[expectedErrors.Length];
+            for (int i = 0; i < expectedErrors.Length; i++)
+            {
+                eventLoop.ScheduleTimeout(i * 2, s =>
+                {
+                    var capturedIndex = (int)s;
+                    var options = new DefaultQuasiHttpSendOptions
+                    {
+                        TimeoutMillis = 5
+                    };
+                    transport.DirectSendRequestProcessingEnabled = capturedIndex == 0;
+                    client.Send(null, new DefaultQuasiHttpRequest(), options, (e, res) =>
+                    {
+                        actualResponseErrors[capturedIndex] = e;
+                    });
+                }, i);
+            }
+            var resetCbCalled = false;
+            eventLoop.ScheduleTimeout(10, _ =>
+            {
+                client.Reset(new Exception("shutdown"), e =>
+                {
+                    Assert.False(resetCbCalled);
+                    Assert.Null(e);
+                    resetCbCalled = true;
+                });
+            }, null);
+
+            // act.
+            eventLoop.AdvanceTimeTo(1000);
+
+            // assert.
+            Assert.True(resetCbCalled);
+            for (int i = 0; i < expectedErrors.Length; i++)
+            {
+                Assert.NotNull(actualResponseErrors[i]);
+                Assert.Equal(expectedErrors[i], actualResponseErrors[i].Message);
+            }
+        }
+
+        [Fact]
+        public void TestResetOfTransfersWithConnections()
+        {
+            // arrange.
+            var eventLoop = new TestEventLoopApi
+            {
+                RunMutexApiThroughPostCallback = true
+            };
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                MaxChunkSize = 100,
+                AllocateConnectionCallback = (remoteEndpoint, cb) =>
+                {
+                    cb.Invoke(null, new object());
+                }
+            };
+            var client = new KabomuQuasiHttpClient
+            {
+                DefaultTimeoutMillis = 20,
+                Application = new ConfigurableQuasiHttpApplication(),
+                EventLoop = eventLoop,
+                Transport = transport
+            };
+            var expectedErrors = new string[] { "send timeout", "send timeout",
+                "send timeout", "shutdown", "shutdown" };
+            var actualResponseErrors = new Exception[expectedErrors.Length];
+            for (int i = 0; i < expectedErrors.Length; i++)
+            {
+                eventLoop.ScheduleTimeout(i * 2, s =>
+                {
+                    var capturedIndex = (int)s;
+                    var options = new DefaultQuasiHttpSendOptions
+                    {
+                        TimeoutMillis = 5
+                    };
+                    transport.DirectSendRequestProcessingEnabled = capturedIndex == 0;
+                    client.Send(null, new DefaultQuasiHttpRequest(), options, (e, res) =>
+                    {
+                        actualResponseErrors[capturedIndex] = e;
+                    });
+                }, i);
+            }
+            var resetCbCalled = false;
+            eventLoop.ScheduleTimeout(10, _ =>
+            {
+                client.Reset(new Exception("shutdown"), e =>
+                {
+                    Assert.False(resetCbCalled);
+                    Assert.Null(e);
+                    resetCbCalled = true;
+                });
+            }, null);
+
+            // act.
+            eventLoop.AdvanceTimeTo(1000);
+
+            // assert.
+            Assert.True(resetCbCalled);
+            for (int i = 0; i < expectedErrors.Length; i++)
+            {
+                Assert.NotNull(actualResponseErrors[i]);
+                Assert.Equal(expectedErrors[i], actualResponseErrors[i].Message);
+            }
+        }
+
         [Theory]
         [MemberData(nameof(CreateTestNormalSendAndReceiveData))]
         public void TestNormalSendAndReceiveSeparately(int scheduledTime, string localEndpoint,
