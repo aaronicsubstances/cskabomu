@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace Tcp.FileClient
+namespace WindowsNamedPipe.FileClient
 {
     class Program
     {
@@ -16,12 +16,12 @@ namespace Tcp.FileClient
 
         public class Options
         {
-            [Option('s', "server-port", Required = false,
-                HelpText = "Server Port. Defaults to 5001")]
-            public int? ServerPort { get; set; }
-            [Option('p', "port", Required = false,
-                HelpText = "Client Port. Defaults to 5002")]
-            public int? Port { get; set; }
+            [Option('s', "server-path", Required = false,
+                HelpText = "Server Path. Defaults to 34dc4fb1-71e0-4682-a64f-52d2635df2f5")]
+            public string ServerPath { get; set; }
+            [Option('p', "path", Required = false,
+                HelpText = "Client Path. Defaults to 8e562101-d3cd-49a0-9d47-020a3ff97aa3")]
+            public string Path { get; set; }
             [Option('d', "upload-dir", Required = false,
                 HelpText = "Path to directory of files to upload. Defaults to current directory")]
             public string UploadDirPath { get; set; }
@@ -32,12 +32,13 @@ namespace Tcp.FileClient
             Parser.Default.ParseArguments<Options>(args)
                    .WithParsed<Options>(o =>
                    {
-                       RunMain(o.Port ?? 5002, o.ServerPort ?? 5001,
+                       RunMain(o.Path ?? "8e562101-d3cd-49a0-9d47-020a3ff97aa3", 
+                           o.ServerPath ?? "34dc4fb1-71e0-4682-a64f-52d2635df2f5",
                            o.UploadDirPath ?? ".").Wait();
                    });
         }
 
-        static async Task RunMain(int port, int serverPort, string uploadDirPath)
+        static async Task RunMain(string path, string serverPath, string uploadDirPath)
         {
             var eventLoop = new DefaultEventLoopApi
             {
@@ -46,11 +47,11 @@ namespace Tcp.FileClient
                     LOG.Error("Event Loop error! {0}: {1}", m, e);
                 }
             };
-            var tcpTransport = new LocalhostTcpTransport(port)
+            var tcpTransport = new WindowsNamedPipeTransport(path)
             {
                 ErrorHandler = (e, m) =>
                 {
-                    LOG.Warn(e, "TCP transport error: {0}", m);
+                    LOG.Warn(e, "WindowsNamedPipe transport error: {0}", m);
                 }
             };
             var instance = new KabomuQuasiHttpClient
@@ -68,9 +69,9 @@ namespace Tcp.FileClient
             try
             {
                 tcpTransport.Start();
-                LOG.Info("Started Tcp.FileClient at {0}", port);
+                LOG.Info("Started WindowsNamedPipe.FileClient at {0}", path);
 
-                await StartTransferringFiles(instance, serverPort, uploadDirPath);
+                await StartTransferringFiles(instance, serverPath, uploadDirPath);
             }
             catch (Exception e)
             {
@@ -78,12 +79,12 @@ namespace Tcp.FileClient
             }
             finally
             {
-                LOG.Debug("Stopping Tcp.FileClient...");
+                LOG.Debug("Stopping WindowsNamedPipe.FileClient...");
                 tcpTransport.Stop();
             }
         }
 
-        private static async Task StartTransferringFiles(KabomuQuasiHttpClient instance, object serverEndpoint, 
+        private static async Task StartTransferringFiles(KabomuQuasiHttpClient instance, object serverEndpoint,
             string uploadDirPath)
         {
             var directory = new DirectoryInfo(uploadDirPath);
