@@ -11,12 +11,14 @@ namespace Kabomu.QuasiHttp
 {
     public class KabomuQuasiHttpClient : IQuasiHttpClient
     {
-        private readonly Dictionary<object, ITransferProtocol> _transfers;
+        private readonly Dictionary<object, ITransferProtocol> _transfersWithConnections;
+        private readonly HashSet<ITransferProtocol> _transfersWithoutConnections;
         private readonly IParentTransferProtocol _representative;
 
         public KabomuQuasiHttpClient()
         {
-            _transfers = new Dictionary<object, ITransferProtocol>();
+            _transfersWithConnections = new Dictionary<object, ITransferProtocol>();
+            _transfersWithoutConnections = new HashSet<ITransferProtocol>();
             _representative = new ParentTransferProtocolImpl(this);
         }
 
@@ -48,18 +50,11 @@ namespace Kabomu.QuasiHttp
             IQuasiHttpSendOptions options,
             Action<Exception, IQuasiHttpResponse> cb)
         {
-            bool directSendRequestProcessingEnabled = Transport.DirectSendRequestProcessingEnabled;
-            ITransferProtocol transfer;
-            if (directSendRequestProcessingEnabled)
+            var transfer = new SendProtocol
             {
-                transfer = new DirectTransferProtocol();
-            }
-            else
-            {
-                transfer = new SendProtocol();
-            }
-            transfer.Parent = _representative;
-            transfer.SendCallback = cb;
+                Parent = _representative,
+                SendCallback = cb
+            };
             if (options != null)
             {
                 transfer.TimeoutMillis = options.TimeoutMillis;
@@ -68,12 +63,9 @@ namespace Kabomu.QuasiHttp
             {
                 transfer.TimeoutMillis = DefaultTimeoutMillis;
             }
-            transfer.TimeoutId = EventLoop.ScheduleTimeout(transfer.TimeoutMillis,
-               _ =>
-               {
-                   DisableTransfer(transfer, new Exception("send timeout"));
-               }, null);
-            if (directSendRequestProcessingEnabled)
+            _transfersWithoutConnections.Add(transfer);
+            ResetTimeout(transfer);
+            if (Transport.DirectSendRequestProcessingEnabled)
             {
                 ProcessSendRequestDirectly(remoteEndpoint, transfer, request);
             }
@@ -106,19 +98,19 @@ namespace Kabomu.QuasiHttp
         {
             if (e != null)
             {
-                DisableTransfer(transfer, e);
+                AbortTransfer(transfer, e);
                 return;
             }
 
             if (res == null)
             {
-                DisableTransfer(transfer, new Exception("no response"));
+                AbortTransfer(transfer, new Exception("no response"));
                 return;
             }
 
             transfer.SendCallback.Invoke(e, res);
             transfer.SendCallback = null;
-            DisableTransfer(transfer, null);
+            AbortTransfer(transfer, null);
         }
 
         private void AllocateConnection(object remoteEndpoint, ITransferProtocol transfer, IQuasiHttpRequest request)
@@ -144,18 +136,19 @@ namespace Kabomu.QuasiHttp
         {
             if (e != null)
             {
-                DisableTransfer(transfer, e);
+                AbortTransfer(transfer, e);
                 return;
             }
 
             if (connection == null)
             {
-                DisableTransfer(transfer, new Exception("no connection created"));
+                AbortTransfer(transfer, new Exception("no connection created"));
                 return;
             }
 
             transfer.Connection = connection;
-            _transfers.Add(connection, transfer);
+            _transfersWithConnections.Add(connection, transfer);
+            _transfersWithoutConnections.Remove(transfer);
             transfer.OnSend(request);
         }
 
@@ -167,12 +160,14 @@ namespace Kabomu.QuasiHttp
             }
             EventLoop.RunExclusively(_ =>
             {
-                ITransferProtocol transfer = new ReceiveProtocol();
-                transfer.Parent = _representative;
-                transfer.Connection = connection;
-                transfer.TimeoutMillis = DefaultTimeoutMillis;
+                var transfer = new ReceiveProtocol
+                {
+                    Parent = _representative,
+                    Connection = connection,
+                    TimeoutMillis = DefaultTimeoutMillis
+                };
+                _transfersWithConnections.Add(connection, transfer);
                 ResetTimeout(transfer);
-                _transfers.Add(connection, transfer);
                 transfer.OnReceive();
             }, null);
         }
@@ -205,20 +200,38 @@ namespace Kabomu.QuasiHttp
 
         private void AbortTransfer(ITransferProtocol transfer, Exception e)
         {
-            if (!_transfers.Remove(transfer.Connection))
+            if (transfer.Connection != null && _transfersWithConnections.Remove(transfer.Connection))
             {
+                DisableTransfer(transfer, e);
                 return;
             }
-            DisableTransfer(transfer, e);
+            if (_transfersWithoutConnections.Remove(transfer))
+            {
+                DisableTransfer(transfer, e);
+                return;
+            }
         }
 
         private void ProcessReset(Exception causeOfReset)
         {
-            foreach (var transfer in _transfers.Values)
+            foreach (var transfer in _transfersWithConnections.Values)
             {
-                DisableTransfer(transfer, causeOfReset);
+                try
+                {
+                    DisableTransfer(transfer, causeOfReset);
+                }
+                catch (Exception) { }
             }
-            _transfers.Clear();
+            foreach (var transfer in _transfersWithoutConnections)
+            {
+                try
+                {
+                    DisableTransfer(transfer, causeOfReset);
+                }
+                catch (Exception) { }
+            }
+            _transfersWithConnections.Clear();
+            _transfersWithoutConnections.Clear();
         }
 
         private void DisableTransfer(ITransferProtocol transfer, Exception e)
@@ -226,17 +239,23 @@ namespace Kabomu.QuasiHttp
             transfer.Cancel(e);
             EventLoop.CancelTimeout(transfer.TimeoutId);
             transfer.ProcessingCancellationIndicator?.Cancel();
-            transfer.SendCallback?.Invoke(e, null);
-            transfer.SendCallback = null;
 
-            if (transfer.Connection != null)
+            try
             {
-                Transport.ReleaseConnection(transfer.Connection);
+                if (e != null)
+                {
+                    ErrorHandler?.Invoke(e, "transfer error");
+                }
+
+                if (transfer.Connection != null)
+                {
+                    Transport.ReleaseConnection(transfer.Connection);
+                }
             }
-
-            if (e != null)
+            finally
             {
-                ErrorHandler?.Invoke(e, "transfer error");
+                transfer.SendCallback?.Invoke(e, null);
+                transfer.SendCallback = null;
             }
         }
 
