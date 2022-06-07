@@ -6,7 +6,7 @@ using NLog;
 using System;
 using System.Threading.Tasks;
 
-namespace Tcp.FileServer
+namespace WindowsNamedPipe.FileServer
 {
     class Program
     {
@@ -14,9 +14,9 @@ namespace Tcp.FileServer
 
         public class Options
         {
-            [Option('p', "port", Required = false,
-                HelpText = "Server Port. Defaults to 5001")]
-            public int? Port { get; set; }
+            [Option('p', "path", Required = false,
+                HelpText = "Server Path. Defaults to 34dc4fb1-71e0-4682-a64f-52d2635df2f5")]
+            public string Path { get; set; }
             [Option('d', "upload-dir", Required = false,
                 HelpText = "Path to directory for saving uploaded files. Defaults to current directory")]
             public string UploadDirPath { get; set; }
@@ -27,11 +27,11 @@ namespace Tcp.FileServer
             Parser.Default.ParseArguments<Options>(args)
                    .WithParsed<Options>(o =>
                    {
-                       RunMain(o.Port ?? 5001, o.UploadDirPath ?? ".").Wait();
+                       RunMain(o.Path ?? "34dc4fb1-71e0-4682-a64f-52d2635df2f5", o.UploadDirPath ?? ".").Wait();
                    });
         }
 
-        static async Task RunMain(int port, string uploadDirPath)
+        static async Task RunMain(string path, string uploadDirPath)
         {
             var eventLoop = new DefaultEventLoopApi
             {
@@ -40,7 +40,7 @@ namespace Tcp.FileServer
                     LOG.Error("Event Loop error! {0}: {1}", m, e);
                 }
             };
-            var tcpTransport = new LocalhostTcpTransport(port)
+            var windowsNamedPipeTransport = new WindowsNamedPipeTransport(path)
             {
                 ErrorHandler = (e, m) =>
                 {
@@ -56,15 +56,15 @@ namespace Tcp.FileServer
                     LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
                 }
             };
-            tcpTransport.Upstream = instance;
-            instance.Transport = tcpTransport;
+            windowsNamedPipeTransport.Upstream = instance;
+            instance.Transport = windowsNamedPipeTransport;
 
-            instance.Application = new FileReceiver(port, uploadDirPath, eventLoop);
+            instance.Application = new FileReceiver(path, uploadDirPath, eventLoop);
 
             try
             {
-                tcpTransport.Start();
-                LOG.Info("Started Tcp.FileServer at {0}", port);
+                windowsNamedPipeTransport.Start();
+                LOG.Info("Started WindowsNamedPipe.FileServer at {0}", path);
 
                 Console.ReadLine();
             }
@@ -74,8 +74,8 @@ namespace Tcp.FileServer
             }
             finally
             {
-                LOG.Debug("Stopping Tcp.FileServer...");
-                tcpTransport.Stop();
+                LOG.Debug("Stopping WindowsNamedPipe.FileServer...");
+                windowsNamedPipeTransport.Stop();
             }
         }
     }

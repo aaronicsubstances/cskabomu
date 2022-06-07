@@ -13,13 +13,13 @@ namespace Kabomu.Examples.Shared
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
-        private readonly int _port;
+        private readonly object _remoteEndpoint;
         private readonly string _uploadDirPath;
         private readonly IEventLoopApi _eventLoop;
 
-        public FileReceiver(int port, string uploadDirPath, IEventLoopApi eventLoop)
+        public FileReceiver(object remoteEndpoint, string uploadDirPath, IEventLoopApi eventLoop)
         {
-            _port = port;
+            _remoteEndpoint = remoteEndpoint;
             _uploadDirPath = uploadDirPath;
             _eventLoop = eventLoop;
         }
@@ -27,13 +27,13 @@ namespace Kabomu.Examples.Shared
         public async void ProcessRequest(IQuasiHttpRequest request, Action<Exception, IQuasiHttpResponse> cb)
         {
             var fileName = request.Headers["f"][0];
-            LOG.Debug("Starting receipt of file {0} from {1}...", fileName, _port);
+            LOG.Debug("Starting receipt of file {0} from {1}...", fileName, _remoteEndpoint);
 
             Exception transferError = null;
             try
             {
                 // ensure directory exists.
-                var directory = new DirectoryInfo(Path.Combine(_uploadDirPath, _port.ToString()));
+                var directory = new DirectoryInfo(Path.Combine(_uploadDirPath, _remoteEndpoint.ToString()));
                 directory.Create();
                 string p = Path.Combine(directory.Name, fileName);
                 using (var fileStream = new FileStream(p, FileMode.Create))
