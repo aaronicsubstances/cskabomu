@@ -23,9 +23,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Kabomu.Tests.Shared", "test
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Kabomu.Examples.Shared", "examples\Kabomu.Examples.Shared\Kabomu.Examples.Shared.csproj", "{E3B27033-917B-4D35-A938-CCAD40FC55D7}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsNamedPipe.FileServer", "examples\WindowsNamedPipe.FileServer\WindowsNamedPipe.FileServer.csproj", "{BF8E3B42-9628-46BF-AC8D-DF53037C423E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WindowsNamedPipe.FileServer", "examples\WindowsNamedPipe.FileServer\WindowsNamedPipe.FileServer.csproj", "{BF8E3B42-9628-46BF-AC8D-DF53037C423E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsNamedPipe.FileClient", "examples\WindowsNamedPipe.FileClient\WindowsNamedPipe.FileClient.csproj", "{B5EE4E75-A5BA-4D83-A2F7-DF236A406B30}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WindowsNamedPipe.FileClient", "examples\WindowsNamedPipe.FileClient\WindowsNamedPipe.FileClient.csproj", "{B5EE4E75-A5BA-4D83-A2F7-DF236A406B30}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnixDomainSocket.FileServer", "examples\UnixDomainSocket.FileServer\UnixDomainSocket.FileServer.csproj", "{A3F52D2F-4072-4925-977F-ACC8624E77E4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnixDomainSocket.FileClient", "examples\UnixDomainSocket.FileClient\UnixDomainSocket.FileClient.csproj", "{A7546758-C5CA-49EB-85FA-1F2B4328D6A4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -69,6 +73,14 @@ Global
 		{B5EE4E75-A5BA-4D83-A2F7-DF236A406B30}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B5EE4E75-A5BA-4D83-A2F7-DF236A406B30}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B5EE4E75-A5BA-4D83-A2F7-DF236A406B30}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A3F52D2F-4072-4925-977F-ACC8624E77E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A3F52D2F-4072-4925-977F-ACC8624E77E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A3F52D2F-4072-4925-977F-ACC8624E77E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A3F52D2F-4072-4925-977F-ACC8624E77E4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7546758-C5CA-49EB-85FA-1F2B4328D6A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7546758-C5CA-49EB-85FA-1F2B4328D6A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7546758-C5CA-49EB-85FA-1F2B4328D6A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7546758-C5CA-49EB-85FA-1F2B4328D6A4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -83,6 +95,8 @@ Global
 		{E3B27033-917B-4D35-A938-CCAD40FC55D7} = {2639FC39-6A20-4143-AF38-FF27E1446806}
 		{BF8E3B42-9628-46BF-AC8D-DF53037C423E} = {2639FC39-6A20-4143-AF38-FF27E1446806}
 		{B5EE4E75-A5BA-4D83-A2F7-DF236A406B30} = {2639FC39-6A20-4143-AF38-FF27E1446806}
+		{A3F52D2F-4072-4925-977F-ACC8624E77E4} = {2639FC39-6A20-4143-AF38-FF27E1446806}
+		{A7546758-C5CA-49EB-85FA-1F2B4328D6A4} = {2639FC39-6A20-4143-AF38-FF27E1446806}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8A1F9C5B-AAF0-473E-BB59-1979B0F53384}
