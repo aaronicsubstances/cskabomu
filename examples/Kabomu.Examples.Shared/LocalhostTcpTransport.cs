@@ -35,6 +35,7 @@ namespace Kabomu.Examples.Shared
                 try
                 {
                     var tcpClient = await _tcpServer.AcceptTcpClientAsync();
+                    tcpClient.NoDelay = true;
                     Upstream.OnReceive(tcpClient);
                 }
                 catch (Exception e)
@@ -66,6 +67,7 @@ namespace Kabomu.Examples.Shared
         {
             int port = (int)remoteEndpoint;
             var tcpClient = new TcpClient();
+            tcpClient.NoDelay = true;
             try
             {
                 await tcpClient.ConnectAsync("localhost", port);
