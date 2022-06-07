@@ -16,8 +16,8 @@ namespace Kabomu.Tests.Internals
         [Theory]
         [MemberData(nameof(CreateTestOnReceiveData))]
         public void TestOnReceive(object connection, int maxChunkSize,
-            IQuasiHttpRequest request, string requestBodyStr,
-            IQuasiHttpResponse expectedResponse, string expectedResponseBodyStr)
+            IQuasiHttpRequest request, byte[] requestBodyBytes,
+            IQuasiHttpResponse expectedResponse, byte[] expectedResponseBodyBytes)
         {
             // arrange.
             var eventLoop = new TestEventLoopApi();
@@ -45,9 +45,8 @@ namespace Kabomu.Tests.Internals
             var serializedReq = reqChunk.Serialize();
             MiscUtils.WriteChunk(serializedReq, (data, offset, length) =>
                 inputStream.Write(data, offset, length));
-            if (requestBodyStr != null)
+            if (requestBodyBytes != null)
             {
-                byte[] requestBodyBytes = Encoding.UTF8.GetBytes(requestBodyStr);
                 var reqBodyChunk = new SubsequentChunk
                 {
                     Version = LeadChunk.Version01,
@@ -123,7 +122,7 @@ namespace Kabomu.Tests.Internals
             // assert
             Assert.True(cbCalled);
             ComparisonUtils.CompareRequests(eventLoop, maxChunkSize, request, actualRequest,
-                requestBodyStr);
+                requestBodyBytes);
             Assert.True(((TestParentTransferProtocol)instance.Parent).AbortCalled);
             var actualRes = outputStream.ToArray();
             Assert.NotEmpty(actualRes);
@@ -131,7 +130,7 @@ namespace Kabomu.Tests.Internals
             var actualResChunk = LeadChunk.Deserialize(actualRes, 2, actualResChunkLength);
             LeadChunkTest.CompareChunks(expectedResChunk, actualResChunk);
             var actualResponseBodyLen = actualRes.Length - 2 - actualResChunkLength;
-            if (expectedResponseBodyStr == null)
+            if (expectedResponseBodyBytes == null)
             {
                 Assert.Equal(0, actualResponseBodyLen);
             }
@@ -139,9 +138,7 @@ namespace Kabomu.Tests.Internals
             {
                 var actualResBodyBytes = MiscUtils.ReadChunkedBody(actualRes, actualResChunkLength + 2,
                     actualResponseBodyLen);
-                var actualResponseBodyStr = Encoding.UTF8.GetString(actualResBodyBytes, 0,
-                    actualResBodyBytes.Length);
-                Assert.Equal(expectedResponseBodyStr, actualResponseBodyStr);
+                Assert.Equal(expectedResponseBodyBytes, actualResBodyBytes);
             }
         }
 
@@ -159,8 +156,7 @@ namespace Kabomu.Tests.Internals
                     { "variant", new List<string>{ "sea", "drive" } }
                 }
             };
-            var reqBodyStr = "this is our king";
-            var reqBodyBytes = Encoding.UTF8.GetBytes(reqBodyStr);
+            var reqBodyBytes = Encoding.UTF8.GetBytes("this is our king");
             request.Body = new ByteBufferBody(reqBodyBytes, 0, reqBodyBytes.Length,
                 "text/plain");
 
@@ -173,12 +169,11 @@ namespace Kabomu.Tests.Internals
                     { "dkt", new List<string>{ "bb" } }
                 },
             };
-            var expectedResBodyStr = "and this is our queen";
-            byte[] expectedResBodyBytes = Encoding.UTF8.GetBytes(expectedResBodyStr);
+            byte[] expectedResBodyBytes = Encoding.UTF8.GetBytes("and this is our queen");
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes, 0, expectedResBodyBytes.Length,
                 "image/png");
-            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyStr,
-                expectedResponse, expectedResBodyStr });
+            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
+                expectedResponse, expectedResBodyBytes });
 
             connection = 123;
             maxChunkSize = 95;
@@ -186,7 +181,7 @@ namespace Kabomu.Tests.Internals
             {
                 Path = "/p"
             };
-            reqBodyStr = null;
+            reqBodyBytes = null;
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -194,9 +189,9 @@ namespace Kabomu.Tests.Internals
                 StatusIndicatesClientError = true,
                 StatusMessage = "not found"
             };
-            expectedResBodyStr = null;
-            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyStr,
-                expectedResponse, expectedResBodyStr });
+            expectedResBodyBytes = null;
+            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
+                expectedResponse, expectedResBodyBytes });
 
             connection = null;
             maxChunkSize = 90;
@@ -204,8 +199,8 @@ namespace Kabomu.Tests.Internals
             {
                 Path = "/bread"
             };
-            reqBodyStr = "<a>this is news</a>";
-            request.Body = new StringBody(reqBodyStr, "application/xml");
+            reqBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
+            request.Body = new StringBody("<a>this is news</a>", "application/xml");
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -213,9 +208,9 @@ namespace Kabomu.Tests.Internals
                 StatusIndicatesClientError = false,
                 StatusMessage = "server error"
             };
-            expectedResBodyStr = null;
-            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyStr,
-                expectedResponse, expectedResBodyStr });
+            expectedResBodyBytes = null;
+            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
+                expectedResponse, expectedResBodyBytes });
 
             connection = new object();
             maxChunkSize = 150;
@@ -230,7 +225,7 @@ namespace Kabomu.Tests.Internals
                     { "ccc", new List<string>{ "C1", "C2", "C3" } }
                 }
             };
-            reqBodyStr = null;
+            reqBodyBytes = null;
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -243,10 +238,10 @@ namespace Kabomu.Tests.Internals
                     { "y", new List<string>{ "B1", "B2", "C1", "C2", "C3" } }
                 }
             };
-            expectedResBodyStr = "<a>this is news</a>";
-            expectedResponse.Body = new StringBody(expectedResBodyStr, "application/xml");
-            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyStr,
-                expectedResponse, expectedResBodyStr });
+            expectedResBodyBytes =  Encoding.UTF8.GetBytes("<a>this is news</a>");
+            expectedResponse.Body = new StringBody("<a>this is news</a>", "application/xml");
+            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
+                expectedResponse, expectedResBodyBytes });
 
             return testData;
         }
