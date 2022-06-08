@@ -9,5 +9,7 @@ namespace Kabomu.Common
         string Path { get; }
         Dictionary<string, List<string>> Headers { get; }
         IQuasiHttpBody Body { get; }
+        string HttpMethod { get; }
+        string HttpVersion { get; }
     }
 }

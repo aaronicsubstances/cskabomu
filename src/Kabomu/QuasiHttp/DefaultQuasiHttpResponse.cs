@@ -12,5 +12,7 @@ namespace Kabomu.QuasiHttp
         public string StatusMessage { get; set; }
         public Dictionary<string, List<string>> Headers { get; set; }
         public IQuasiHttpBody Body { get; set; }
+        public int HttpStatusCode { get; set; }
+        public string HttpVersion { get; set; }
     }
 }

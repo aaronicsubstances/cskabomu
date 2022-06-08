@@ -39,7 +39,9 @@ namespace Kabomu.Internals
             {
                 Version = LeadChunk.Version01,
                 Path = request.Path,
-                Headers = request.Headers
+                Headers = request.Headers,
+                HttpVersion = request.HttpVersion,
+                HttpMethod = request.HttpMethod
             };
             _requestBody = request.Body;
             if (request.Body != null)
@@ -141,7 +143,9 @@ namespace Kabomu.Internals
                 StatusIndicatesSuccess = chunk.StatusIndicatesSuccess,
                 StatusIndicatesClientError = chunk.StatusIndicatesClientError,
                 StatusMessage = chunk.StatusMessage,
-                Headers = chunk.Headers
+                Headers = chunk.Headers,
+                HttpVersion = chunk.HttpVersion,
+                HttpStatusCode = chunk.HttpStatusCode
             };
 
             if (chunk.HasContent)

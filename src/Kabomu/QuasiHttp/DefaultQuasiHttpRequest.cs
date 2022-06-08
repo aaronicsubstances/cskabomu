@@ -10,5 +10,7 @@ namespace Kabomu.QuasiHttp
         public string Path { get; set; }
         public Dictionary<string, List<string>> Headers { get; set; }
         public IQuasiHttpBody Body { get; set; }
+        public string HttpMethod { get; set; }
+        public string HttpVersion { get; set; }
     }
 }

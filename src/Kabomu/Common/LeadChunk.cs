@@ -16,6 +16,9 @@ namespace Kabomu.Common
         public string StatusMessage { get; set; }
         public bool HasContent { get; set; }
         public string ContentType { get; set; }
+        public string HttpMethod { get; set; }
+        public string HttpVersion { get; set; }
+        public int HttpStatusCode { get; set; }
         public Dictionary<string, List<string>> Headers { get; set; }
 
         public ByteBufferSlice[] Serialize()
@@ -31,15 +34,20 @@ namespace Kabomu.Common
 
             var csvData = new List<List<string>>();
             var specialHeaderRow = new List<string>();
-            specialHeaderRow.Add((Path != null).ToString());
+            specialHeaderRow.Add((Path != null ? 1 : 0).ToString());
             specialHeaderRow.Add(Path ?? "");
-            specialHeaderRow.Add(StatusIndicatesSuccess.ToString());
-            specialHeaderRow.Add(StatusIndicatesClientError.ToString());
-            specialHeaderRow.Add((StatusMessage != null).ToString());
+            specialHeaderRow.Add((StatusIndicatesSuccess ? 1 : 0).ToString());
+            specialHeaderRow.Add((StatusIndicatesClientError ? 1 : 0).ToString());
+            specialHeaderRow.Add((StatusMessage != null ? 1 : 0).ToString());
             specialHeaderRow.Add(StatusMessage ?? "");
-            specialHeaderRow.Add(HasContent.ToString());
-            specialHeaderRow.Add((ContentType != null).ToString());
+            specialHeaderRow.Add((HasContent ? 1 : 0).ToString());
+            specialHeaderRow.Add((ContentType != null ? 1 : 0).ToString());
             specialHeaderRow.Add(ContentType ?? "");
+            specialHeaderRow.Add((HttpMethod != null ? 1 : 0).ToString());
+            specialHeaderRow.Add(HttpMethod ?? "");
+            specialHeaderRow.Add((HttpVersion != null ? 1 : 0).ToString());
+            specialHeaderRow.Add(HttpVersion ?? "");
+            specialHeaderRow.Add(HttpStatusCode.ToString());
             csvData.Add(specialHeaderRow);
             if (Headers != null)
             {
@@ -82,25 +90,34 @@ namespace Kabomu.Common
                 throw new ArgumentException("invalid lead chunk");
             }
             var specialHeader = csvData[0];
-            if (specialHeader.Count < 9)
+            if (specialHeader.Count < 14)
             {
                 throw new ArgumentException("invalid special header");
             }
-            if (bool.Parse(specialHeader[0]))
+            if (specialHeader[0] != "0")
             {
                 instance.Path = specialHeader[1];
             }
-            instance.StatusIndicatesSuccess = bool.Parse(specialHeader[2]);
-            instance.StatusIndicatesClientError = bool.Parse(specialHeader[3]);
-            if (bool.Parse(specialHeader[4]))
+            instance.StatusIndicatesSuccess = specialHeader[2] != "0";
+            instance.StatusIndicatesClientError = specialHeader[3] != "0";
+            if (specialHeader[4] != "0")
             {
                 instance.StatusMessage = specialHeader[5];
             }
-            instance.HasContent = bool.Parse(specialHeader[6]);
-            if (bool.Parse(specialHeader[7]))
+            instance.HasContent = specialHeader[6] != "0";
+            if (specialHeader[7] != "0")
             {
                 instance.ContentType = specialHeader[8];
             }
+            if (specialHeader[9] != "0")
+            {
+                instance.HttpMethod = specialHeader[10];
+            }
+            if (specialHeader[11] != "0")
+            {
+                instance.HttpVersion = specialHeader[12];
+            }
+            instance.HttpStatusCode = int.Parse(specialHeader[13]);
             for (int i = 1; i < csvData.Count; i++)
             {
                 var headerRow = csvData[i];
