@@ -336,7 +336,7 @@ namespace Kabomu.Tests.QuasiHttp
                 LocalEndpoint = kumasiEndpoint,
                 Hub = hub,
                 Mutex = eventLoop,
-                MaxChunkSize = 120
+                MaxChunkSize = 150
             };
             kumasiClient.Transport = kumasiTransport;
             kumasiClient.Application = CreateEndpointApplication(eventLoop, kumasiEndpoint,
@@ -392,7 +392,9 @@ namespace Kabomu.Tests.QuasiHttp
                                     StatusIndicatesSuccess = res.StatusIndicatesSuccess,
                                     StatusIndicatesClientError = res.StatusIndicatesClientError,
                                     StatusMessage = res.StatusMessage,
-                                    Headers = res.Headers
+                                    Headers = res.Headers,
+                                    HttpStatusCode = res.HttpStatusCode,
+                                    HttpVersion = res.HttpVersion
                                 };
                                 equivalentRes.Body = new ByteBufferBody(d, 0, d.Length, res.Body.ContentType);
                                 actualResponses[testDataIndex] = equivalentRes;
@@ -441,7 +443,8 @@ namespace Kabomu.Tests.QuasiHttp
             var localEndpoint = accraEndpoint;
             var request = new DefaultQuasiHttpRequest
             {
-                
+                HttpMethod = "PUT",
+                HttpVersion = "1.0"
             };
             DefaultQuasiHttpSendOptions options = null;
             string responseError = null;
@@ -452,8 +455,11 @@ namespace Kabomu.Tests.QuasiHttp
                 StatusMessage = "bad request",
                 Headers = new Dictionary<string, List<string>>
                 {
-                    { "origin", new List<string>{ kumasiEndpoint } }
-                }
+                    { "origin", new List<string>{ kumasiEndpoint } },
+                    { "method", new List<string>{ "PUT" } },
+                    { "version", new List<string>{ "1.0" } }
+                },
+                HttpStatusCode = 400
             };
             byte[] responseBodyBytes = null;
             testData.Add(new object[] { scheduledTime, localEndpoint, request, options, 
@@ -485,7 +491,9 @@ namespace Kabomu.Tests.QuasiHttp
                     { "origin", new List<string>{ kumasiEndpoint } },
                     { "path", new List<string>{ "/" } },
                     { "ans", new List<string>{ "00", "014d" } }
-                }
+                },
+                HttpStatusCode = 200,
+                HttpVersion = "1.1"
             };
             responseBodyBytes = null;
             testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
@@ -515,7 +523,9 @@ namespace Kabomu.Tests.QuasiHttp
                     { "origin", new List<string>{ accraEndpoint } },
                     { "path", new List<string>{ "/compute" } },
                     { "ans", new List<string>{ "01", "0127" } }
-                }
+                },
+                HttpStatusCode = 200,
+                HttpVersion = "1.1"
             };
             response.Body = new ByteBufferBody(new byte[] { 0x09, 0x0a, 0x0a, 0x0b }, 0, 4, null);
             responseBodyBytes = new byte[] { 0x09, 0x0a, 0x0a, 0x0b };
@@ -546,7 +556,9 @@ namespace Kabomu.Tests.QuasiHttp
                     { "origin", new List<string>{ accraEndpoint } },
                     { "path", new List<string>{ "/grind" } },
                     { "ans", new List<string>{ "09" } }
-                }
+                },
+                HttpStatusCode = 200,
+                HttpVersion = "1.1"
             };
             response.Body = new ByteBufferBody(new byte[] { 0x25, 0 }, 0, 1, null);
             responseBodyBytes = new byte[] { 0x25 };
@@ -563,7 +575,9 @@ namespace Kabomu.Tests.QuasiHttp
                     { "op", new List<string>{ "div" } },
                     { "first", new List<string>{ "" } },
                     { "second", new List<string>{ "14000" } }
-                }
+                },
+                HttpVersion = "1.1",
+                HttpMethod = "GET"
             };
             request.Body = new ByteBufferBody(new byte[] { 0, 0x26, 0 }, 1, 0, null);
             options = null;
@@ -576,8 +590,12 @@ namespace Kabomu.Tests.QuasiHttp
                 {
                     { "origin", new List<string>{ kumasiEndpoint } },
                     { "path", new List<string>{ "/ping" } },
-                    { "ans", new List<string>{ "" } }
-                }
+                    { "ans", new List<string>{ "" } },
+                    { "version", new List<string>{ "1.1" } },
+                    { "method", new List<string>{ "GET" } }
+                },
+                HttpStatusCode = 200,
+                HttpVersion = "1.1"
             };
             response.Body = new ByteBufferBody(new byte[] { 0x25, 0 }, 1, 0, null);
             responseBodyBytes = new byte[0];
@@ -646,15 +664,28 @@ namespace Kabomu.Tests.QuasiHttp
                         // test that path was received correctly.
                         res.Headers.Add("path", new List<string> { req.Path });
                     }
+                    if (req.HttpVersion != null)
+                    {
+                        // test that version was received correctly.
+                        res.Headers.Add("version", new List<string> { req.HttpVersion });
+                    }
+                    if (req.HttpMethod != null)
+                    {
+                        // test that method was received correctly.
+                        res.Headers.Add("method", new List<string> { req.HttpMethod });
+                    }
                     if (selectedOp == null)
                     {
                         res.StatusIndicatesClientError = true;
                         res.StatusMessage = "bad request";
+                        res.HttpStatusCode = 400;
                     }
                     else
                     {
                         res.StatusIndicatesSuccess = true;
                         res.StatusMessage = "ok";
+                        res.HttpStatusCode = 200;
+                        res.HttpVersion = "1.1";
                         if (req.Headers.ContainsKey("first"))
                         {
                             var answers = new List<string>();

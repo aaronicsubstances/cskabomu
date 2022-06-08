@@ -36,6 +36,9 @@ namespace Kabomu.Tests.Common
             expected.StatusMessage = "ok";
             expected.HasContent = true;
             expected.ContentType = "text/plain";
+            expected.HttpStatusCode = 200;
+            expected.HttpVersion = "1.1";
+            expected.HttpMethod = "POST";
             expected.Headers = new Dictionary<string, List<string>>();
             expected.Headers.Add("accept", new List<string> { "text/plain", "text/xml" });
             expected.Headers.Add("a", new List<string>());
@@ -78,6 +81,9 @@ namespace Kabomu.Tests.Common
             Assert.Equal(expected.StatusMessage, actual.StatusMessage);
             Assert.Equal(expected.HasContent, actual.HasContent);
             Assert.Equal(expected.ContentType, actual.ContentType);
+            Assert.Equal(expected.HttpMethod, actual.HttpMethod);
+            Assert.Equal(expected.HttpVersion, actual.HttpVersion);
+            Assert.Equal(expected.HttpStatusCode, actual.HttpStatusCode);
             ComparisonUtils.CompareHeaders(expected.Headers, actual.Headers);
         }
     }

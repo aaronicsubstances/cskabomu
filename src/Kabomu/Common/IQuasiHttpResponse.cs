@@ -11,5 +11,7 @@ namespace Kabomu.Common
         string StatusMessage { get; }
         Dictionary<string, List<string>> Headers { get; }
         IQuasiHttpBody Body { get; }
+        int HttpStatusCode { get; }
+        string HttpVersion { get; }
     }
 }

@@ -28,6 +28,8 @@ namespace Kabomu.Tests.Internals
                 Headers = expectedRequest.Headers,
                 HasContent = expectedRequest.Body != null,
                 ContentType = expectedRequest.Body?.ContentType,
+                HttpVersion = expectedRequest.HttpVersion,
+                HttpMethod = expectedRequest.HttpMethod
             };
 
             var resChunk = new LeadChunk
@@ -38,7 +40,9 @@ namespace Kabomu.Tests.Internals
                 StatusMessage = response.StatusMessage,
                 Headers = response.Headers,
                 HasContent = response.Body != null,
-                ContentType = response.Body?.ContentType
+                ContentType = response.Body?.ContentType,
+                HttpVersion = response.HttpVersion,
+                HttpStatusCode = response.HttpStatusCode
             };
 
             var inputStream = new MemoryStream();
@@ -141,9 +145,10 @@ namespace Kabomu.Tests.Internals
             var testData = new List<object[]>();
 
             object connection = "vgh";
-            int maxChunkSize = 85;
+            int maxChunkSize = 115;
             var request = new DefaultQuasiHttpRequest
             {
+                HttpMethod = "POST",
                 Path = "/koobi",
                 Headers = new Dictionary<string, List<string>>
                 {
@@ -158,6 +163,7 @@ namespace Kabomu.Tests.Internals
             {
                 StatusIndicatesSuccess = true,
                 StatusMessage = "ok",
+                HttpStatusCode = 200,
                 Headers = new Dictionary<string, List<string>>
                 {
                     { "dkt", new List<string>{ "bb" } }
@@ -191,6 +197,7 @@ namespace Kabomu.Tests.Internals
             maxChunkSize = 95;
             request = new DefaultQuasiHttpRequest
             {
+                HttpVersion = "1.1",
                 Path = "/bread"
             };
             reqBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
@@ -198,6 +205,7 @@ namespace Kabomu.Tests.Internals
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
+                HttpVersion = "1.1",
                 StatusIndicatesSuccess = false,
                 StatusIndicatesClientError = false,
                 StatusMessage = "server error"

@@ -91,7 +91,9 @@ namespace Kabomu.Internals
             var request = new DefaultQuasiHttpRequest
             {
                 Path = chunk.Path,
-                Headers = chunk.Headers
+                Headers = chunk.Headers,
+                HttpVersion = chunk.HttpVersion,
+                HttpMethod = chunk.HttpMethod
             };
             if (chunk.HasContent)
             {
@@ -140,7 +142,9 @@ namespace Kabomu.Internals
                 StatusIndicatesSuccess = response.StatusIndicatesSuccess,
                 StatusIndicatesClientError = response.StatusIndicatesClientError,
                 StatusMessage = response.StatusMessage,
-                Headers = response.Headers
+                Headers = response.Headers,
+                HttpVersion = response.HttpVersion,
+                HttpStatusCode = response.HttpStatusCode
             };
 
             _responseBody = response.Body;
