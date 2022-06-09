@@ -2,28 +2,35 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Common
+namespace Kabomu.Common.Bodies
 {
-    public class StringBody : IQuasiHttpBody
+    public class SerializableObjectBody : IQuasiHttpBody
     {
         private IQuasiHttpBody _byteBufferBody;
         private Exception _srcEndError;
 
-        public StringBody(string content, string contentType)
+        public SerializableObjectBody(object content, Func<object, byte[]> serializationHandler, string contentType)
         {
             if (content == null)
             {
                 throw new ArgumentException("null content");
             }
+            if (serializationHandler == null)
+            {
+                throw new ArgumentException("null serialization handler");
+            }
             Content = content;
-            ContentType = contentType ?? "text/plain";
+            SerializationHandler = serializationHandler;
+            ContentType = contentType ?? TransportUtils.ContentTypeJson;
         }
 
-        public string Content { get; }
+        public object Content { get; }
 
         public string ContentType { get; }
 
-        public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead,
+        public Func<object, byte[]> SerializationHandler { get; }
+
+        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead,
             Action<Exception, int> cb)
         {
             if (mutex == null)
@@ -47,10 +54,18 @@ namespace Kabomu.Common
                 }
                 if (_byteBufferBody == null)
                 {
-                    var srcData = Encoding.UTF8.GetBytes(Content);
-                    _byteBufferBody = new ByteBufferBody(srcData, 0, srcData.Length, null);
+                    try
+                    {
+                        var srcData = SerializationHandler.Invoke(Content);
+                        _byteBufferBody = new ByteBufferBody(srcData, 0, srcData.Length, null);
+                    }
+                    catch (Exception e)
+                    {
+                        EndRead(mutex, cb, e);
+                        return;
+                    }
                 }
-                _byteBufferBody.OnDataRead(mutex, data, offset, bytesToRead, cb);
+                _byteBufferBody.ReadBytes(mutex, data, offset, bytesToRead, cb);
             }, null);
         }
 
@@ -66,9 +81,15 @@ namespace Kabomu.Common
                 {
                     return;
                 }
-                _srcEndError = e ?? new Exception("end of read");
-                _byteBufferBody?.OnEndRead(mutex, e);
+                EndRead(mutex, null, e);
             }, null);
+        }
+
+        private void EndRead(IMutexApi mutex, Action<Exception, int> cb, Exception e)
+        {
+            _srcEndError = e ?? new Exception("end of read");
+            _byteBufferBody?.OnEndRead(mutex, e);
+            cb?.Invoke(_srcEndError, 0);
         }
     }
 }

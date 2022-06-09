@@ -1,22 +1,22 @@
-﻿using Kabomu.Common;
+﻿using Kabomu.Common.Bodies;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.Common
+namespace Kabomu.Tests.Common.Bodies
 {
-    public class ByteBufferBodyTest
+    public class StringBodyTest
     {
         [Fact]
         public void TestEmptyRead()
         {
             // arrange.
-            var instance = new ByteBufferBody(new byte[0], 0, 0, "text/plain");
+            var instance = new StringBody("", "text/csv");
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(0, instance, "text/plain",
+            CommonBodyTestRunner.RunCommonBodyTest(0, instance, "text/csv",
                 new int[0], null, new byte[0]);
         }
 
@@ -24,11 +24,11 @@ namespace Kabomu.Tests.Common
         public void TestNonEmptyRead()
         {
             // arrange.
-            var instance = new ByteBufferBody(new byte[] { (byte)'A', (byte)'b', (byte)'2' }, 0, 3, null);
+            var instance = new StringBody("Ab2", null);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(2, instance, "application/octet-stream",
-                new int[] { 2, 1 }, null, instance.Buffer);
+            CommonBodyTestRunner.RunCommonBodyTest(2, instance, "text/plain",
+                new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
         }
 
         [Fact]
@@ -36,9 +36,9 @@ namespace Kabomu.Tests.Common
         {
             Assert.Throws<ArgumentException>(() =>
             {
-                new ByteBufferBody(new byte[] { 0, 0 }, 1, 2, null);
+                new StringBody(null, null);
             });
-            var instance = new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2, null);
+            var instance = new StringBody("c2", null);
             CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }

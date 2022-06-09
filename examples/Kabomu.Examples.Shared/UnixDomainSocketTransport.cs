@@ -88,7 +88,7 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        public void ReleaseConnection(object connection)
+        public void OnReleaseConnection(object connection)
         {
             var socket = (Socket)connection;
             socket.Dispose();

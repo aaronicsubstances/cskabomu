@@ -1,11 +1,12 @@
 ﻿using Kabomu.Common;
+using Kabomu.Common.Bodies;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.Common
+namespace Kabomu.Tests.Common.Bodies
 {
     public class ChunkEncodingBodyTest
     {
@@ -45,7 +46,7 @@ namespace Kabomu.Tests.Common
             Assert.Throws<ArgumentException>(() =>
             {
                 var instance = new ChunkEncodingBody(new StringBody("3", "text/html"));
-                instance.OnDataRead(new TestEventLoopApi(), new byte[4], 0, 4, (e, len) => { });
+                instance.ReadBytes(new TestEventLoopApi(), new byte[4], 0, 4, (e, len) => { });
             });
             var instance = new ChunkEncodingBody(new StringBody("", null));
             CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);

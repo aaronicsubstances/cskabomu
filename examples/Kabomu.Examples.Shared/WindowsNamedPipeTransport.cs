@@ -83,7 +83,7 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        public void ReleaseConnection(object connection)
+        public void OnReleaseConnection(object connection)
         {
             var pipeStream = (PipeStream)connection;
             pipeStream.Dispose();

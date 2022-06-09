@@ -31,7 +31,7 @@ namespace Kabomu.Tests.Shared
             AllocateConnectionCallback?.Invoke(remoteEndpoint, cb);
         }
 
-        public void ReleaseConnection(object connection)
+        public void OnReleaseConnection(object connection)
         {
             ReleaseConnectionCallback?.Invoke(connection);
         }

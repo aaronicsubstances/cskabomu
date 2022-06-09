@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Common
+namespace Kabomu.Common.Bodies
 {
     public class ChunkDecodingBody : IQuasiHttpBody
     {
@@ -28,7 +28,7 @@ namespace Kabomu.Common
 
         public string ContentType { get; }
 
-        public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
             if (mutex == null)
             {
@@ -49,6 +49,7 @@ namespace Kabomu.Common
                     cb.Invoke(_srcEndError, 0);
                     return;
                 }
+                // once empty data chunk is seen, return 0 for all subsequent reads.
                 if (_lastChunk != null && (_lastChunk.DataLength == 0 || _lastChunkUsedBytes < _lastChunk.DataLength))
                 {
                     SupplyFromLastChunk(data, offset, bytesToRead, cb);

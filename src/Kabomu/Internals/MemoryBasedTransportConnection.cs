@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Common.Bodies;
 using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
@@ -8,158 +9,105 @@ namespace Kabomu.Internals
 {
     internal class MemoryBasedTransportConnection
     {
-        private readonly Dictionary<object, ReadWriteRequest> _readRequests;
-        private readonly Dictionary<object, List<ReadWriteRequest>> _writeRequests;
+        private readonly WritableBackedBody[] _readWriteRequestProcessors;
+        private object _initiatingParticipant;
         private Exception _releaseError;
 
         public MemoryBasedTransportConnection(object remoteEndpoint)
         {
-            // Rely on transport code's validation of arguments.
+            if (remoteEndpoint == null)
+            {
+                throw new ArgumentException("null remote endpoint");
+            }
             RemoteEndpoint = remoteEndpoint;
-            _readRequests = new Dictionary<object, ReadWriteRequest>();
-            _writeRequests = new Dictionary<object, List<ReadWriteRequest>>();
+            _readWriteRequestProcessors = new WritableBackedBody[2];
         }
 
         public object RemoteEndpoint { get; private set; }
 
         public bool IsConnectionEstablished => RemoteEndpoint == null;
 
-        public void MarkConnectionAsEstablished()
+        public void MarkConnectionAsEstablished(object initiatingParticipant)
         {
             RemoteEndpoint = null;
+            _initiatingParticipant = initiatingParticipant;
         }
 
-        public void ProcessReadRequest(object localEndpoint, byte[] data, int offset, int length, Action<Exception, int> cb)
+        public void ProcessReadRequest(IMutexApi mutex, object participant, 
+            byte[] data, int offset, int length, Action<Exception, int> cb)
         {
-            // Rely on Transport code's validation of arguments except for localEndpoint.
-            if (localEndpoint == null)
+            // Rely on underlying backing body code's validation of arguments except for participant.
+            if (participant == null)
             {
-                throw new ArgumentException("null local endpoint");
+                throw new ArgumentException("null participating transport");
             }
-            if (_releaseError != null || length == 0)
+            if (_releaseError != null)
             {
                 cb.Invoke(_releaseError, 0);
                 return;
             }
-            var readRequest = new ReadWriteRequest
+            // pick body at index for other participant for processing read request.
+            int readReqProcessorIndex;
+            if (participant == _initiatingParticipant)
             {
-                LocalEndpoint = localEndpoint,
-                Data = data,
-                Offset = offset,
-                Length = length,
-                ReadCallback = cb
-            };
-            _readRequests.Add(localEndpoint, readRequest);
-
-            object remoteEndpoint = null;
-            foreach (var key in _writeRequests.Keys)
-            {
-                if (key != localEndpoint)
-                {
-                    remoteEndpoint = key;
-                    break;
-                }
+                readReqProcessorIndex = 1;
             }
-            if (remoteEndpoint != null && _writeRequests[remoteEndpoint].Count > 0)
+            else
             {
-                var earliestPendingWriteRequest = _writeRequests[remoteEndpoint][0];
-                MatchPendingWriteAndRead(earliestPendingWriteRequest, readRequest);
+                readReqProcessorIndex = 0;
             }
+            if (_readWriteRequestProcessors[readReqProcessorIndex] == null)
+            {
+                _readWriteRequestProcessors[readReqProcessorIndex] = new WritableBackedBody(null);
+            }
+            var readProcessor = _readWriteRequestProcessors[readReqProcessorIndex];
+            readProcessor.ReadBytes(mutex, data, offset, length, cb);
         }
 
-        public void ProcessWriteRequest(object localEndpoint, byte[] data, int offset, int length, Action<Exception> cb)
+        public void ProcessWriteRequest(IMutexApi mutex, object participant,
+            byte[] data, int offset, int length, Action<Exception> cb)
         {
-            // Rely on Transport code's validation of arguments except for localEndpoint.
-            if (localEndpoint == null)
+            // Rely on underlying backing body code's validation of arguments except for participant.
+            if (participant == null)
             {
-                throw new ArgumentException("null local endpoint");
+                throw new ArgumentException("null participating transport");
             }
-            if (_releaseError != null || length == 0)
+            if (_releaseError != null)
             {
                 cb.Invoke(_releaseError);
                 return;
             }
-            var writeRequest = new ReadWriteRequest
+            // pick body at index for participant for processing write request.
+            int writeReqProcessorIndex;
+            if (participant == _initiatingParticipant)
             {
-                LocalEndpoint = localEndpoint,
-                Data = data,
-                Offset = offset,
-                Length = length,
-                WriteCallback = cb
-            };
-            if (!_writeRequests.ContainsKey(localEndpoint))
-            {
-                _writeRequests.Add(localEndpoint, new List<ReadWriteRequest>());
-            }
-            _writeRequests[localEndpoint].Add(writeRequest);
-
-            ReadWriteRequest earliestPendingReadRequest = null;
-            foreach (var entry in _readRequests.Values)
-            {
-                if (entry.LocalEndpoint != localEndpoint)
-                {
-                    earliestPendingReadRequest = entry;
-                    break;
-                }
-            }
-            if (earliestPendingReadRequest == null)
-            {
-                return;
-            }
-
-            var earliestPendingWriteRequest = _writeRequests[localEndpoint][0];
-            MatchPendingWriteAndRead(earliestPendingWriteRequest, earliestPendingReadRequest);
-        }
-
-        private void MatchPendingWriteAndRead(ReadWriteRequest pendingWrite, ReadWriteRequest pendingRead)
-        {
-            var bytesToReturn = Math.Min(pendingWrite.Length, pendingRead.Length);
-            Array.Copy(pendingWrite.Data, pendingWrite.Offset,
-                pendingRead.Data, pendingRead.Offset, bytesToReturn);
-            _readRequests.Remove(pendingRead.LocalEndpoint);
-            pendingRead.ReadCallback.Invoke(null, bytesToReturn);
-            if (bytesToReturn < pendingWrite.Length)
-            {
-                pendingWrite.Offset += bytesToReturn;
-                pendingWrite.Length -= bytesToReturn;
+                writeReqProcessorIndex = 0;
             }
             else
             {
-                _writeRequests.Remove(pendingWrite.LocalEndpoint);
-                pendingWrite.WriteCallback.Invoke(null);
+                writeReqProcessorIndex = 1;
             }
+            if (_readWriteRequestProcessors[writeReqProcessorIndex] == null)
+            {
+                _readWriteRequestProcessors[writeReqProcessorIndex] = new WritableBackedBody(null);
+            }
+            var writeProcessor = _readWriteRequestProcessors[writeReqProcessorIndex];
+            // assumption of write occuring in chunks removes need to ever call
+            // writeProcessor.WriteLastBytes()
+            writeProcessor.WriteBytes(mutex, data, offset, length, cb);
         }
 
-        public void Release()
+        public void Release(IMutexApi mutex)
         {
             if (_releaseError != null)
             {
                 return;
             }
             _releaseError = new Exception("connection reset");
-            foreach (var entry in _readRequests.Values)
+            foreach (var processor in _readWriteRequestProcessors)
             {
-                entry.ReadCallback.Invoke(_releaseError, 0);
+                processor?.OnEndRead(mutex, _releaseError);
             }
-            foreach (var entry in _writeRequests.Values)
-            {
-                foreach (var value in entry)
-                {
-                    value.WriteCallback.Invoke(_releaseError);
-                }
-            }
-            _readRequests.Clear();
-            _writeRequests.Clear();
-        }
-
-        private class ReadWriteRequest
-        {
-            public object LocalEndpoint { get; set; }
-            public byte[] Data { get; set; }
-            public int Offset { get; set; }
-            public int Length { get; set; }
-            public Action<Exception> WriteCallback { get; set; }
-            public Action<Exception, int> ReadCallback { get; set; }
         }
     }
 }

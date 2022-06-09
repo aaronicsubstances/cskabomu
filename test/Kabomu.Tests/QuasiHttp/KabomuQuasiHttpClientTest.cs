@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Common.Bodies;
 using Kabomu.QuasiHttp;
 using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
@@ -323,7 +324,6 @@ namespace Kabomu.Tests.QuasiHttp
 
             var accraTransport = new MemoryBasedTransport
             {
-                LocalEndpoint = accraEndpoint,
                 Hub = hub,
                 Mutex = eventLoop,
                 MaxChunkSize = 150
@@ -333,7 +333,6 @@ namespace Kabomu.Tests.QuasiHttp
                 accraTransport.MaxChunkSize, 7);
             var kumasiTransport = new MemoryBasedTransport
             {
-                LocalEndpoint = kumasiEndpoint,
                 Hub = hub,
                 Mutex = eventLoop,
                 MaxChunkSize = 150

@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Common.Bodies;
 using NLog;
 using System;
 using System.IO;
@@ -9,45 +10,28 @@ namespace Kabomu.Examples.Shared
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
+        private readonly IQuasiHttpBody _backingBody;
         private readonly string _fileName;
-        private readonly FileStream _fileStream;
 
         public FileBody(string uploadDirPath, string fileName)
         {
-            _fileName = fileName;
             FileInfo f = new FileInfo(Path.Combine(uploadDirPath, fileName));
-            _fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
+            var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                     FileShare.Read);
+            _backingBody = new StreamBackedBody(fileStream, null);
+            _fileName = fileName;
         }
 
-        public string ContentType => "application/octet-stream";
+        public string ContentType => _backingBody.ContentType;
 
-        public async void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
-            try
-            {
-                int bytesRead = await _fileStream.ReadAsync(data, offset, bytesToRead);
-                cb.Invoke(null, bytesRead);
-            }
-            catch (Exception e)
-            {
-                cb.Invoke(e, 0);
-            }
+            _backingBody.ReadBytes(mutex, data, offset, bytesToRead, cb);
         }
 
-        public async void OnEndRead(IMutexApi mutex, Exception e)
+        public void OnEndRead(IMutexApi mutex, Exception e)
         {
-            try
-            {
-                if (_fileStream != null)
-                {
-                    await _fileStream.DisposeAsync();
-                }
-            }
-            catch (Exception)
-            {
-                // ignore
-            }
+            _backingBody.OnEndRead(mutex, e);
             LOG.Info(e, "File {0} sent {1}", _fileName, e == null ? "successfully" : "with error");
         }
     }
