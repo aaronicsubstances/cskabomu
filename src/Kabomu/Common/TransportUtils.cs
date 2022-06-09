@@ -10,6 +10,11 @@ namespace Kabomu.Common
     {
         public static readonly int MaxChunkSize = 65_535; // ie max unsigned 16-bit integer value.
 
+        public static readonly string ContentTypePlainText = "text/plain";
+        public static readonly string ContentTypeByteStream = "application/octet-stream";
+        public static readonly string ContentTypeJson = "application/json";
+        public static readonly string ContentTypeHtmlFormUrlEncoded = "application/x-www-form-urlencoded";
+
         public static void ReadBytesFully(IQuasiHttpTransport transport,
             object connection, byte[] data, int offset, int bytesToRead, Action<Exception> cb)
         {
@@ -48,7 +53,7 @@ namespace Kabomu.Common
         {
             int effectiveChunkSize = Math.Min(transport.MaxChunkSize, MaxChunkSize);
             byte[] buffer = new byte[effectiveChunkSize];
-            body.OnDataRead(mutex, buffer, 0, buffer.Length, (e, bytesRead) =>
+            body.ReadBytes(mutex, buffer, 0, buffer.Length, (e, bytesRead) =>
                 HandleReadOutcome(transport, connection, body, mutex, buffer, e, bytesRead, cb));
         }
 
@@ -79,7 +84,7 @@ namespace Kabomu.Common
                 cb.Invoke(e);
                 return;
             }
-            body.OnDataRead(mutex, buffer, 0, buffer.Length, (e, bytesRead) =>
+            body.ReadBytes(mutex, buffer, 0, buffer.Length, (e, bytesRead) =>
                 HandleReadOutcome(transport, connection, body, mutex, buffer, e, bytesRead, cb));
         }
 
@@ -88,7 +93,7 @@ namespace Kabomu.Common
         {
             var readBuffer = new byte[maxChunkSize];
             var byteStream = new MemoryStream();
-            body.OnDataRead(mutex, readBuffer, 0, readBuffer.Length, (e, i) =>
+            body.ReadBytes(mutex, readBuffer, 0, readBuffer.Length, (e, i) =>
                 HandleReadOutcome2(body, mutex, readBuffer, byteStream, e, i, cb));
         }
 
@@ -103,7 +108,7 @@ namespace Kabomu.Common
             if (bytesRead > 0)
             {
                 byteStream.Write(readBuffer, 0, bytesRead);
-                body.OnDataRead(mutex, readBuffer, 0, readBuffer.Length, (e, i) =>
+                body.ReadBytes(mutex, readBuffer, 0, readBuffer.Length, (e, i) =>
                     HandleReadOutcome2(body, mutex, readBuffer, byteStream, e, i, cb));
             }
             else

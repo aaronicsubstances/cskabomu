@@ -8,7 +8,7 @@ namespace Kabomu.Common
     {
         int MaxChunkSize { get; }
         void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb);
-        void ReleaseConnection(object connection);
+        void OnReleaseConnection(object connection);
         void WriteBytes(object connection, byte[] data, int offset, int length,
             Action<Exception> cb);
         void ReadBytes(object connection, byte[] data, int offset, int length, 

@@ -16,7 +16,9 @@ namespace Kabomu.Tests.Shared
         {
             // arrange.
             var mutex = new TestEventLoopApi();
-            var buffer = new byte[maxByteRead];
+            // ensure mininum buffer size of 1, so that unexpected no-op
+            // reads do not occur.
+            var buffer = new byte[Math.Max(maxByteRead, 1)];
 
             // act and assert.
             Assert.Equal(expectedContentType, instance.ContentType);
@@ -30,7 +32,7 @@ namespace Kabomu.Tests.Shared
                     Assert.Equal(expectedBytesRead, bytesRead);
                     readAccumulator.Write(buffer, 0, bytesRead);
                 };
-                instance.OnDataRead(mutex, buffer, 0, buffer.Length, cb);
+                instance.ReadBytes(mutex, buffer, 0, buffer.Length, cb);
             }
 
             if (expectedError != null)
@@ -42,7 +44,7 @@ namespace Kabomu.Tests.Shared
                     Assert.Equal(expectedError, e.Message);
                     cbCalled = true;
                 };
-                instance.OnDataRead(mutex, buffer, 0, buffer.Length, cb2);
+                instance.ReadBytes(mutex, buffer, 0, buffer.Length, cb2);
                 Assert.True(cbCalled);
             }
             else
@@ -54,7 +56,7 @@ namespace Kabomu.Tests.Shared
                     Assert.Equal(0, bytesRead);
                     cbCalled = true;
                 };
-                instance.OnDataRead(mutex, buffer, 0, buffer.Length, cb2);
+                instance.ReadBytes(mutex, buffer, 0, buffer.Length, cb2);
                 Assert.True(cbCalled);
                 Assert.Equal(expectedSuccessData, readAccumulator.ToArray());
 
@@ -68,7 +70,7 @@ namespace Kabomu.Tests.Shared
                     Assert.Equal("end of read", e.Message);
                     cbCalled = true;
                 };
-                instance.OnDataRead(mutex, buffer, 0, buffer.Length, endCb);
+                instance.ReadBytes(mutex, buffer, 0, buffer.Length, endCb);
                 Assert.True(cbCalled);
             }
         }
@@ -77,7 +79,11 @@ namespace Kabomu.Tests.Shared
         {
             Assert.Throws<ArgumentException>(() =>
             {
-                instance.OnDataRead(null, new byte[] { 0, 0, 0 }, 1, 2, (e, len) => { });
+                instance.ReadBytes(null, new byte[] { 0, 0, 0 }, 1, 2, (e, len) => { });
+                if (instance != null)
+                {
+                    int a = 1 + 3;
+                }
             });
             Assert.Throws<ArgumentException>(() =>
             {
@@ -85,11 +91,11 @@ namespace Kabomu.Tests.Shared
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                instance.OnDataRead(new TestEventLoopApi(), new byte[] { 0, 0 }, 1, 2, (e, len) => { });
+                instance.ReadBytes(new TestEventLoopApi(), new byte[] { 0, 0 }, 1, 2, (e, len) => { });
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                instance.OnDataRead(new TestEventLoopApi(), new byte[] { 0, 0, 0 }, 1, 2, null);
+                instance.ReadBytes(new TestEventLoopApi(), new byte[] { 0, 0, 0 }, 1, 2, null);
             });
         }
     }

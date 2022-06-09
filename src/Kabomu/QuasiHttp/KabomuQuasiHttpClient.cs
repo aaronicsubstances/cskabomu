@@ -249,7 +249,7 @@ namespace Kabomu.QuasiHttp
 
                 if (transfer.Connection != null)
                 {
-                    Transport.ReleaseConnection(transfer.Connection);
+                    Transport.OnReleaseConnection(transfer.Connection);
                 }
             }
             finally

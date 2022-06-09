@@ -4,9 +4,9 @@ remaining
 default transports
 ------------------
 MemoryBasedTransport - done
-TcpBasedTransport - making it async may require use of third party library
-UnixSocketBasedTransport - availability and making it async may require use of third party library
-WindowsNamedPipes - availability and making it async may require use of third party library
+LocalhostTcpTransport - making it async may require use of third party library
+UnixSocketDomainTransport - availability and making it async may require use of third party library
+WindowsNamedPipeTransport - availability and making it async may require use of third party library
 
 default middleware
 ------------------
@@ -14,15 +14,6 @@ default middleware
 -csv
 -string
 -byte buffer
-
-default bodies
----------------
--bytebufferbody - done.
--stringbody - done.
--jsonbody - depends on third party JSON serialization library.
--formbody
-*filebody - making it async may require use of third party library
-*streambody - making it async may require use of third pary library
 
 Optimization
 ------------
@@ -34,9 +25,8 @@ Optimization
 
 Examples
 --------
--add demos each for tcp, unix domain socket, windows named pipe, and memory
+-add demos for memory transport
 --based on file server/client
---copy over command line parsing
 
 Release
 -------

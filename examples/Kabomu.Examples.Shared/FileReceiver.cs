@@ -78,7 +78,7 @@ namespace Kabomu.Examples.Shared
             public Task<int> DataReadAsync(IMutexApi mutex, byte[] data, int offset, int bytesToRead)
             {
                 var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-                _body.OnDataRead(mutex, data, offset, bytesToRead, (e, bytesRead) =>
+                _body.ReadBytes(mutex, data, offset, bytesToRead, (e, bytesRead) =>
                 {
                     if (e != null)
                     {

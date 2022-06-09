@@ -9,7 +9,6 @@ namespace Kabomu.Common
     {
         private readonly Random _randGen = new Random();
 
-        public object LocalEndpoint { get; set; }
         public MemoryBasedTransportHub Hub { get; set; }
         public double DirectSendRequestProcessingProbability { get; set; }
 
@@ -71,12 +70,12 @@ namespace Kabomu.Common
             }, null);
         }
 
-        public void ReleaseConnection(object connection)
+        public void OnReleaseConnection(object connection)
         {
             Mutex.RunExclusively(_ =>
             {
                 var typedConnection = connection as MemoryBasedTransportConnection;
-                typedConnection?.Release();
+                typedConnection?.Release(Mutex);
             }, null);
         }
 
@@ -99,7 +98,7 @@ namespace Kabomu.Common
             {
                 try
                 {
-                    typedConnection.ProcessReadRequest(LocalEndpoint, data, offset, length, cb);
+                    typedConnection.ProcessReadRequest(Mutex, this, data, offset, length, cb);
                 }
                 catch (Exception e)
                 {
@@ -127,13 +126,13 @@ namespace Kabomu.Common
             {
                 try
                 {
-                    typedConnection.ProcessWriteRequest(LocalEndpoint, data, offset, length, cb);
                     if (!typedConnection.IsConnectionEstablished)
                     {
                         var remoteClient = Hub.Clients[typedConnection.RemoteEndpoint];
-                        typedConnection.MarkConnectionAsEstablished();
+                        typedConnection.MarkConnectionAsEstablished(this);
                         remoteClient.OnReceive(connection);
                     }
+                    typedConnection.ProcessWriteRequest(Mutex, this, data, offset, length, cb);
                 }
                 catch (Exception e)
                 {

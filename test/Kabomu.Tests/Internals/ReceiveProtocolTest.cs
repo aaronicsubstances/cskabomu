@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Common.Bodies;
 using Kabomu.Internals;
 using Kabomu.QuasiHttp;
 using Kabomu.Tests.Common;

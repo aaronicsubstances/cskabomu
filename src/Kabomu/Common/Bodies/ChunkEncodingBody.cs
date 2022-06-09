@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Common
+namespace Kabomu.Common.Bodies
 {
     public class ChunkEncodingBody : IQuasiHttpBody
     {
@@ -21,7 +21,7 @@ namespace Kabomu.Common
 
         public string ContentType => _wrappedBody.ContentType;
 
-        public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
             var chunkPrefix = new SubsequentChunk
             {
@@ -34,7 +34,7 @@ namespace Kabomu.Common
                 throw new ArgumentException("invalid bytes to read");
             }
             bytesToRead = Math.Min(bytesToRead, TransportUtils.MaxChunkSize);
-            _wrappedBody.OnDataRead(mutex, data, offset + reservedBytesToUse,
+            _wrappedBody.ReadBytes(mutex, data, offset + reservedBytesToUse,
                 bytesToRead - reservedBytesToUse, (e, bytesRead) =>
                 {
                     if (e != null)

@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Common.Bodies;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -7,7 +8,7 @@ using System.Linq;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.Common
+namespace Kabomu.Tests.Common.Bodies
 {
     public class ChunkDecodingBodyTest
     {

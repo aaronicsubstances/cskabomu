@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Common
+namespace Kabomu.Common.Bodies
 {
     public class ByteBufferBody : IQuasiHttpBody
     {
@@ -19,7 +19,7 @@ namespace Kabomu.Common
             Buffer = data;
             Offset = offset;
             Length = length;
-            ContentType = contentType ?? "application/octet-stream";
+            ContentType = contentType ?? TransportUtils.ContentTypeByteStream;
         }
 
         public byte[] Buffer { get; }
@@ -27,7 +27,7 @@ namespace Kabomu.Common
         public int Length { get; }
         public string ContentType { get; }
 
-        public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int length, Action<Exception, int> cb)
+        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int length, Action<Exception, int> cb)
         {
             if (mutex == null)
             {

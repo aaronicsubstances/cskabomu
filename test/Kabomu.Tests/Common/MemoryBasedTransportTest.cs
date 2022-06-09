@@ -45,21 +45,19 @@ namespace Kabomu.Tests.Common
             {
                 londonTranslations.Add(entry.Value, entry.Key);
             }
-            var londonClient = new TestQuasiHttpClient(logger, londonTranslations);
-            var kumasiClient = new TestQuasiHttpClient(logger, kumasiTranslations);
+            var londonClient = new TestQuasiHttpClient(londonEndpoint ,logger, londonTranslations);
+            var kumasiClient = new TestQuasiHttpClient(kumasiEndpoint, logger, kumasiTranslations);
             hub.Clients.Add(londonEndpoint, londonClient);
             hub.Clients.Add(kumasiEndpoint, kumasiClient);
 
             var londonInstance = new MemoryBasedTransport
             {
-                LocalEndpoint = londonEndpoint,
                 Hub = hub,
                 Mutex = eventLoop,
                 MaxChunkSize = 50
             };
             var kumasiInstance = new MemoryBasedTransport
             {
-                LocalEndpoint = kumasiEndpoint,
                 Hub = hub,
                 Mutex = eventLoop,
                 MaxChunkSize = 30
@@ -214,14 +212,14 @@ namespace Kabomu.Tests.Common
             Assert.True(cbCalled);
 
             // test that releasing invalid connections causes no problems.
-            kumasiInstance.ReleaseConnection(null);
-            londonInstance.ReleaseConnection("meet");
+            kumasiInstance.OnReleaseConnection(null);
+            londonInstance.OnReleaseConnection("meet");
 
             // assert expected connection usage.
             var expectedLogs = new List<string>();
             expectedLogs.Add($"{londonEndpoint}.connect(,true)");
-            expectedLogs.Add($"{londonEndpoint}.write(,)");
             expectedLogs.Add($"{kumasiEndpoint}.accept(true)");
+            expectedLogs.Add($"{londonEndpoint}.write(,)");
             expectedLogs.Add($"{kumasiEndpoint}.read(,o)");
             expectedLogs.Add($"{londonEndpoint}.write(,o)");
             expectedLogs.Add($"{kumasiEndpoint}.read(,ne)");
@@ -329,33 +327,34 @@ namespace Kabomu.Tests.Common
             private readonly OutputEventLogger _logger;
             private readonly Dictionary<string, string> _translations;
 
-            public TestQuasiHttpClient(OutputEventLogger logger, Dictionary<string, string> translations)
+            public TestQuasiHttpClient(object localEndpoint, OutputEventLogger logger, Dictionary<string, string> translations)
             {
+                LocalEndpoint = localEndpoint;
                 _logger = logger;
                 _translations = translations;
             }
 
+            public object LocalEndpoint { get; }
             public int DefaultTimeoutMillis { get; set; }
             public IQuasiHttpApplication Application { get; set; }
             public IQuasiHttpTransport Transport { get; set; }
 
             public void IssueQueries(object connection, List<string> queries, int index)
             {
-                var endpoint = ((MemoryBasedTransport)Transport).LocalEndpoint;
                 if (index >= queries.Count)
                 {
                     Transport.WriteBytes(connection, new byte[] { (byte)'x' }, 0, 1, e =>
                     {
-                        _logger.Logs.Add($"{endpoint}.write({e?.Message},x)");
+                        _logger.Logs.Add($"{LocalEndpoint}.write({e?.Message},x)");
                         if (e != null)
                         {
                             return;
                         }
-                        Transport.ReleaseConnection(connection);
+                        Transport.OnReleaseConnection(connection);
                         // test write error after release connection.
                         Transport.WriteBytes(connection, new byte[0], 0, 0, e =>
                         {
-                            _logger.Logs.Add($"{endpoint}.write({e?.Message},)");
+                            _logger.Logs.Add($"{LocalEndpoint}.write({e?.Message},)");
                         });
                     });
                     return;
@@ -364,7 +363,7 @@ namespace Kabomu.Tests.Common
                 var data = Encoding.UTF8.GetBytes(dataStrPrefix);
                 Transport.WriteBytes(connection, data, 0, data.Length, e =>
                 {
-                    _logger.Logs.Add($"{endpoint}.write({e?.Message},{dataStrPrefix})");
+                    _logger.Logs.Add($"{LocalEndpoint}.write({e?.Message},{dataStrPrefix})");
                     if (e != null)
                     {
                         return;
@@ -373,7 +372,7 @@ namespace Kabomu.Tests.Common
                     var data = Encoding.UTF8.GetBytes(dataStrSuffix);
                     Transport.WriteBytes(connection, data, 0, data.Length, e =>
                     {
-                        _logger.Logs.Add($"{endpoint}.write({e?.Message},{dataStrSuffix})");
+                        _logger.Logs.Add($"{LocalEndpoint}.write({e?.Message},{dataStrSuffix})");
                         if (e != null)
                         {
                             return;
@@ -382,7 +381,7 @@ namespace Kabomu.Tests.Common
                         Transport.ReadBytes(connection, data, 0, 1, (e, len) =>
                         {
                             var dataStr = Encoding.UTF8.GetString(data, 0, len);
-                            _logger.Logs.Add($"{endpoint}.read({e?.Message},{dataStr})");
+                            _logger.Logs.Add($"{LocalEndpoint}.read({e?.Message},{dataStr})");
                             if (e != null)
                             {
                                 return;
@@ -390,7 +389,7 @@ namespace Kabomu.Tests.Common
                             Transport.ReadBytes(connection, data, 1, data.Length-1, (e, len) =>
                             {
                                 var dataStr = Encoding.UTF8.GetString(data, 1, len);
-                                _logger.Logs.Add($"{endpoint}.read({e?.Message},{dataStr})");
+                                _logger.Logs.Add($"{LocalEndpoint}.read({e?.Message},{dataStr})");
                                 if (e != null)
                                 {
                                     return;
@@ -404,15 +403,13 @@ namespace Kabomu.Tests.Common
 
             public void OnReceive(object connection)
             {
-                var endpoint = ((MemoryBasedTransport)Transport).LocalEndpoint;
-                _logger.Logs.Add($"{endpoint}.accept({(connection != null).ToString().ToLower()})");
+                _logger.Logs.Add($"{LocalEndpoint}.accept({(connection != null).ToString().ToLower()})");
                 MakeNextRead(connection);
             }
 
             private void MakeNextRead(object connection)
             {
                 var data = new byte[Transport.MaxChunkSize];
-                var endpoint = ((MemoryBasedTransport)Transport).LocalEndpoint;
                 Transport.ReadBytes(connection, data, 0, data.Length, (e, bytesRead) =>
                 {
                     string readMsg = null;
@@ -420,18 +417,18 @@ namespace Kabomu.Tests.Common
                     {
                         readMsg = Encoding.UTF8.GetString(data, 0, bytesRead);
                     }
-                    _logger.Logs.Add($"{endpoint}.read({e?.Message},{readMsg})");
+                    _logger.Logs.Add($"{LocalEndpoint}.read({e?.Message},{readMsg})");
                     if (e != null)
                     {
                         return;
                     }
                     if (readMsg == "x")
                     {
-                        Transport.ReleaseConnection(connection);
+                        Transport.OnReleaseConnection(connection);
                         // test read error after release connection.
                         Transport.ReadBytes(connection, data, 0, 0, (e, len) =>
                         {
-                            _logger.Logs.Add($"{endpoint}.read({e?.Message},)");
+                            _logger.Logs.Add($"{LocalEndpoint}.read({e?.Message},)");
                         });
                         return;
                     }
@@ -442,7 +439,7 @@ namespace Kabomu.Tests.Common
                         {
                             readMsg2 = Encoding.UTF8.GetString(data, 0, bytesRead);
                         }
-                        _logger.Logs.Add($"{endpoint}.read({e?.Message},{readMsg2})");
+                        _logger.Logs.Add($"{LocalEndpoint}.read({e?.Message},{readMsg2})");
                         if (e != null)
                         {
                             return;
@@ -451,7 +448,7 @@ namespace Kabomu.Tests.Common
                         data = Encoding.UTF8.GetBytes(translation);
                         Transport.WriteBytes(connection, data, 0, data.Length, e =>
                         {
-                            _logger.Logs.Add($"{endpoint}.write({e?.Message},{translation})");
+                            _logger.Logs.Add($"{LocalEndpoint}.write({e?.Message},{translation})");
                             if (e != null)
                             {
                                 return;

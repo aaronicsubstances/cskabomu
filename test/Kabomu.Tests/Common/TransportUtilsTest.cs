@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Common.Bodies;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -265,7 +266,7 @@ namespace Kabomu.Tests.Common
                     var actualData = Encoding.UTF8.GetString(data);
                     Assert.Equal(expectedData, actualData);
                     Exception eofError = null;
-                    body.OnDataRead(new TestEventLoopApi(), new byte[1], 0, 1, (e, i) =>
+                    body.ReadBytes(new TestEventLoopApi(), new byte[1], 0, 1, (e, i) =>
                     {
                         eofError = e;
                     });
@@ -314,7 +315,7 @@ namespace Kabomu.Tests.Common
 
             public string ContentType => throw new NotImplementedException();
 
-            public void OnDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+            public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
             {
                 cb.Invoke(new Exception(_errorMessage), 0);
             }

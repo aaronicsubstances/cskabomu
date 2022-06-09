@@ -80,7 +80,7 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        public void ReleaseConnection(object connection)
+        public void OnReleaseConnection(object connection)
         {
             var tcpClient = (TcpClient)connection;
             tcpClient.Dispose();
