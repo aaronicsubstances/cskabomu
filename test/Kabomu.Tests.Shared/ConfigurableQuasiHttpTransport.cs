@@ -9,6 +9,8 @@ namespace Kabomu.Tests.Shared
     {
         public int MaxChunkSize { get; set; }
 
+        public UncaughtErrorCallback ErrorHandler { get; set; }
+
         public bool DirectSendRequestProcessingEnabled { get; set; }
 
         public Action<object, IQuasiHttpRequest, Action<Exception, IQuasiHttpResponse>> ProcessSendRequestCallback { get; set; }

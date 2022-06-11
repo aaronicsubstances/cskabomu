@@ -134,12 +134,17 @@ namespace Kabomu.Common.Bodies
             var bytesToReturn = Math.Min(pendingWrite.Length, pendingRead.Length);
             Array.Copy(pendingWrite.Data, pendingWrite.Offset,
                 pendingRead.Data, pendingRead.Offset, bytesToReturn);
+
+            // do not invoke callbacks until state of this body is updated,
+            // to prevent error of re-entrant read byte requests
+            // matching previous writes.
             _readRequest = null;
-            pendingRead.ReadCallback.Invoke(null, bytesToReturn);
+            List<ReadWriteRequest> writesToFail = null;
             if (bytesToReturn < pendingWrite.Length)
             {
                 pendingWrite.Offset += bytesToReturn;
                 pendingWrite.Length -= bytesToReturn;
+                pendingWrite = null;
             }
             else
             {
@@ -147,16 +152,32 @@ namespace Kabomu.Common.Bodies
                 if (pendingWrite.IsLastWrite)
                 {
                     _endOfWriteSeen = true;
-                }
-                pendingWrite.WriteCallback.Invoke(null);
-                if (_endOfWriteSeen)
-                {
-                    var writeError = new Exception("end of write");
-                    foreach (var writeReq in _writeRequests)
-                    {
-                        writeReq.WriteCallback.Invoke(writeError);
-                    }
+                    writesToFail = new List<ReadWriteRequest>(_writeRequests);
                     _writeRequests.Clear();
+                }
+            }
+
+            // now we can invoke callbacks.
+            // but depend only on local variables due to re-entrancy
+            // reason stated above.
+            InvokeCallbacksForPendingWriteAndRead(bytesToReturn, pendingRead, pendingWrite, writesToFail);
+        }
+
+        private static void InvokeCallbacksForPendingWriteAndRead(int bytesToReturn, 
+            ReadWriteRequest pendingRead, ReadWriteRequest pendingWrite, List<ReadWriteRequest> writesToFail)
+        {
+            pendingRead.ReadCallback.Invoke(null, bytesToReturn);
+            if (pendingWrite == null)
+            {
+                return;
+            }
+            pendingWrite.WriteCallback.Invoke(null);
+            if (writesToFail != null)
+            {
+                var writeError = new Exception("end of write");
+                foreach (var writeReq in writesToFail)
+                {
+                    writeReq.WriteCallback.Invoke(writeError);
                 }
             }
         }

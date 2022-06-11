@@ -20,7 +20,7 @@ namespace Kabomu.Tests.Common
         }
 
         [Fact]
-        public void TestOperation()
+        public void TestOperationIncludingDirectSend()
         {
             // arrange.
             var eventLoop = new TestEventLoopApi
@@ -74,6 +74,11 @@ namespace Kabomu.Tests.Common
             {
                 ProcessRequestCallback = (req, resCb) =>
                 {
+                    if (!directRequestProcessingMapForLondon.ContainsKey(req))
+                    {
+                        resCb.Invoke(new Exception("not found"), null);
+                        return;
+                    }
                     var res = directRequestProcessingMapForLondon[req];
                     resCb.Invoke(null, res);
                 }
@@ -87,6 +92,11 @@ namespace Kabomu.Tests.Common
             {
                 ProcessRequestCallback = (req, resCb) =>
                 {
+                    if (!directRequestProcessingMapForKumasi.ContainsKey(req))
+                    {
+                        resCb.Invoke(new Exception("not found"), null);
+                        return;
+                    }
                     var res = directRequestProcessingMapForKumasi[req];
                     resCb.Invoke(null, res);
                 }
@@ -178,6 +188,7 @@ namespace Kabomu.Tests.Common
             {
                 Assert.False(cbCalled);
                 Assert.NotNull(e);
+                Assert.Equal("not found", e.Message);
                 cbCalled = true;
             });
             Assert.True(cbCalled);
@@ -207,6 +218,7 @@ namespace Kabomu.Tests.Common
             {
                 Assert.False(cbCalled);
                 Assert.NotNull(e);
+                Assert.Equal("not found", e.Message);
                 cbCalled = true;
             });
             Assert.True(cbCalled);
@@ -217,8 +229,8 @@ namespace Kabomu.Tests.Common
 
             // assert expected connection usage.
             var expectedLogs = new List<string>();
-            expectedLogs.Add($"{londonEndpoint}.connect(,true)");
             expectedLogs.Add($"{kumasiEndpoint}.accept(true)");
+            expectedLogs.Add($"{londonEndpoint}.connect(,true)");
             expectedLogs.Add($"{londonEndpoint}.write(,)");
             expectedLogs.Add($"{kumasiEndpoint}.read(,o)");
             expectedLogs.Add($"{londonEndpoint}.write(,o)");
@@ -239,9 +251,9 @@ namespace Kabomu.Tests.Common
             expectedLogs.Add($"{kumasiEndpoint}.read(connection reset,)");
             expectedLogs.Add($"{londonEndpoint}.write(connection reset,)");
 
+            expectedLogs.Add($"{londonEndpoint}.accept(true)");
             expectedLogs.Add($"{kumasiEndpoint}.connect(,true)");
             expectedLogs.Add($"{kumasiEndpoint}.read(,)");
-            expectedLogs.Add($"{londonEndpoint}.accept(true)");
             expectedLogs.Add($"{londonEndpoint}.read(,b)");
             expectedLogs.Add($"{kumasiEndpoint}.write(,b)");
             expectedLogs.Add($"{londonEndpoint}.read(,aako)");
@@ -260,6 +272,103 @@ namespace Kabomu.Tests.Common
             expectedLogs.Add($"{kumasiEndpoint}.write(,x)");
             expectedLogs.Add($"{londonEndpoint}.read(connection reset,)");
             expectedLogs.Add($"{kumasiEndpoint}.write(connection reset,)");
+
+            logger.AssertEqual(expectedLogs, _outputHelper);
+        }
+
+        [Fact]
+        public void TestOperationForReentrancy()
+        {
+            // arrange.
+            var eventLoop = new TestEventLoopApi
+            {
+                RunMutexApiThroughPostCallback = false
+            };
+            var logger = new OutputEventLogger
+            {
+                Logs = new List<string>()
+            };
+            var hub = new MemoryBasedTransportHub();
+
+            object londonEndpoint = "london";
+            object kumasiEndpoint = "kumasi";
+            var kumasiTranslations = new Dictionary<string, string>
+            {
+                { "one", "baako" }, { "two", "mmienu" }, { "three", "mmi\u025Bnsa" },
+                { "four", "nnan" }, { "five", "nnum" }
+            };
+            var londonTranslations = new Dictionary<string, string>();
+            foreach (var entry in kumasiTranslations)
+            {
+                londonTranslations.Add(entry.Value, entry.Key);
+            }
+            var londonClient = new TestQuasiHttpClient(londonEndpoint, logger, londonTranslations);
+            var kumasiClient = new TestQuasiHttpClient(kumasiEndpoint, logger, kumasiTranslations);
+            hub.Clients.Add(londonEndpoint, londonClient);
+            hub.Clients.Add(kumasiEndpoint, kumasiClient);
+
+            var londonInstance = new MemoryBasedTransport
+            {
+                Hub = hub,
+                Mutex = eventLoop,
+                MaxChunkSize = 50
+            };
+            var kumasiInstance = new MemoryBasedTransport
+            {
+                Hub = hub,
+                Mutex = eventLoop,
+                MaxChunkSize = 30
+            };
+            londonClient.Transport = londonInstance;
+            kumasiClient.Transport = kumasiInstance;
+
+            // act.
+            londonInstance.AllocateConnection(kumasiEndpoint, (e, conn) =>
+            {
+                logger.Logs.Add($"{londonEndpoint}.connect({e?.Message},{(conn != null).ToString().ToLower()})");
+                if (e != null)
+                {
+                    return;
+                }
+                // test that empty writes succeed even without pending reads.
+                londonInstance.WriteBytes(conn, new byte[0], 0, 0, e =>
+                {
+                    logger.Logs.Add($"{londonEndpoint}.write({e?.Message},)");
+                    if (e != null)
+                    {
+                        return;
+                    }
+                    var queries = new List<string>
+                    {
+                        "one", "five"
+                    };
+                    londonClient.IssueQueries(conn, queries, 0);
+                });
+            });
+
+            // assert
+            var expectedLogs = new List<string>();
+            expectedLogs.Add($"{kumasiEndpoint}.accept(true)");
+            expectedLogs.Add($"{londonEndpoint}.connect(,true)");
+            expectedLogs.Add($"{londonEndpoint}.write(,)");
+            expectedLogs.Add($"{kumasiEndpoint}.read(,o)");
+            expectedLogs.Add($"{londonEndpoint}.write(,o)");
+            expectedLogs.Add($"{kumasiEndpoint}.read(,ne)");
+            expectedLogs.Add($"{londonEndpoint}.write(,ne)");
+            expectedLogs.Add($"{londonEndpoint}.read(,b)");
+            expectedLogs.Add($"{londonEndpoint}.read(,aako)");
+            expectedLogs.Add($"{kumasiEndpoint}.write(,baako)");
+            expectedLogs.Add($"{kumasiEndpoint}.read(,f)");
+            expectedLogs.Add($"{londonEndpoint}.write(,f)");
+            expectedLogs.Add($"{kumasiEndpoint}.read(,ive)");
+            expectedLogs.Add($"{londonEndpoint}.write(,ive)");
+            expectedLogs.Add($"{londonEndpoint}.read(,n)");
+            expectedLogs.Add($"{londonEndpoint}.read(,num)");
+            expectedLogs.Add($"{kumasiEndpoint}.write(,nnum)");
+            expectedLogs.Add($"{kumasiEndpoint}.read(,x)");
+            expectedLogs.Add($"{kumasiEndpoint}.read(connection reset,)");
+            expectedLogs.Add($"{londonEndpoint}.write(,x)");
+            expectedLogs.Add($"{londonEndpoint}.write(connection reset,)");
 
             logger.AssertEqual(expectedLogs, _outputHelper);
         }

@@ -41,6 +41,10 @@ namespace Kabomu.Common
             }
             var instance = new SubsequentChunk();
             instance.Version = data[offset];
+            if (instance.Version == 0)
+            {
+                throw new ArgumentException("version not set");
+            }
             instance.Flags = data[offset + 1];
             instance.Data = data;
             instance.DataOffset = offset + 2;

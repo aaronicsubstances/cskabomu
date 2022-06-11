@@ -1,6 +1,5 @@
 ﻿using Kabomu.Common;
 using Kabomu.Common.Bodies;
-using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -10,27 +9,13 @@ namespace Kabomu.Internals
     internal class MemoryBasedTransportConnection
     {
         private readonly WritableBackedBody[] _readWriteRequestProcessors;
-        private object _initiatingParticipant;
+        private readonly object _initiatingParticipant;
         private Exception _releaseError;
 
-        public MemoryBasedTransportConnection(object remoteEndpoint)
+        public MemoryBasedTransportConnection(object initiatingParticipant)
         {
-            if (remoteEndpoint == null)
-            {
-                throw new ArgumentException("null remote endpoint");
-            }
-            RemoteEndpoint = remoteEndpoint;
-            _readWriteRequestProcessors = new WritableBackedBody[2];
-        }
-
-        public object RemoteEndpoint { get; private set; }
-
-        public bool IsConnectionEstablished => RemoteEndpoint == null;
-
-        public void MarkConnectionAsEstablished(object initiatingParticipant)
-        {
-            RemoteEndpoint = null;
             _initiatingParticipant = initiatingParticipant;
+            _readWriteRequestProcessors = new WritableBackedBody[2];
         }
 
         public void ProcessReadRequest(IMutexApi mutex, object participant, 

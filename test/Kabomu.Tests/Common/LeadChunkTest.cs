@@ -13,7 +13,10 @@ namespace Kabomu.Tests.Common
         [Fact]
         public void TestRecoveryWithDefaultValues()
         {
-            var expected = new LeadChunk();
+            var expected = new LeadChunk
+            {
+                Version = LeadChunk.Version01
+            };
             var serialized = expected.Serialize();
             var inputStream = new MemoryStream();
             foreach (var item in serialized)
@@ -69,6 +72,16 @@ namespace Kabomu.Tests.Common
             {
                 LeadChunk.Deserialize(new byte[] { 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 9 }, 0, 11);
             });
+            var ex = Assert.Throws<ArgumentException>(() =>
+            {
+                var data = new byte[] { 0, 0, (byte)'1', (byte)',', (byte)'1', (byte)',',
+                    (byte)'1', (byte)',',(byte)'1', (byte)',',(byte)'1', (byte)',',(byte)'1', (byte)',',
+                    (byte)'1', (byte)',', (byte)'1', (byte)',', (byte)'1', (byte)',',
+                    (byte)'1', (byte)',', (byte)'1', (byte)',', (byte)'1', (byte)',',
+                    (byte)'1', (byte)',', (byte)'1', (byte)'\n' };
+                LeadChunk.Deserialize(data, 0, data.Length);
+            });
+            Assert.Contains("version", ex.Message);
         }
 
         internal static void CompareChunks(LeadChunk expected, LeadChunk actual)

@@ -64,7 +64,7 @@ namespace Kabomu.QuasiHttp
                 transfer.TimeoutMillis = DefaultTimeoutMillis;
             }
             _transfersWithoutConnections.Add(transfer);
-            ResetTimeout(transfer);
+            ResetTimeout(transfer, true);
             if (Transport.DirectSendRequestProcessingEnabled)
             {
                 ProcessSendRequestDirectly(remoteEndpoint, transfer, request);
@@ -167,7 +167,7 @@ namespace Kabomu.QuasiHttp
                     TimeoutMillis = DefaultTimeoutMillis
                 };
                 _transfersWithConnections.Add(connection, transfer);
-                ResetTimeout(transfer);
+                ResetTimeout(transfer, false);
                 transfer.OnReceive();
             }, null);
         }
@@ -188,13 +188,13 @@ namespace Kabomu.QuasiHttp
             }, null);
         }
 
-        private void ResetTimeout(ITransferProtocol transfer)
+        private void ResetTimeout(ITransferProtocol transfer, bool forSend)
         {
             EventLoop.CancelTimeout(transfer.TimeoutId);
             transfer.TimeoutId = EventLoop.ScheduleTimeout(transfer.TimeoutMillis,
                 _ =>
                 {
-                    AbortTransfer(transfer, new Exception("send timeout"));
+                    AbortTransfer(transfer, new Exception((forSend ? "send" : "receive") + " timeout"));
                 }, null);
         }
 

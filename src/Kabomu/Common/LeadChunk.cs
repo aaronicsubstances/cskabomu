@@ -81,6 +81,10 @@ namespace Kabomu.Common
 
             var instance = new LeadChunk();
             instance.Version = data[offset];
+            if (instance.Version == 0)
+            {
+                throw new ArgumentException("version not set");
+            }
             instance.Flags = data[offset + 1];
 
             var csv = ByteUtils.BytesToString(data, offset + 2, length - 2);
