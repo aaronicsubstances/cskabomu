@@ -79,13 +79,14 @@ namespace Kabomu.Examples.Shared
             {
                 path = Path.Combine(Path.GetTempPath(), path);
                 await socket.ConnectAsync(new UnixDomainSocketEndPoint(path));
-                cb.Invoke(null, socket);
             }
             catch (Exception e)
             {
                 socket.Dispose();
                 cb.Invoke(e, null);
+                return;
             }
+            cb.Invoke(null, socket);
         }
 
         public void OnReleaseConnection(object connection)
@@ -106,27 +107,30 @@ namespace Kabomu.Examples.Shared
                         new ReadOnlyMemory<byte>(data, offset + totalBytesSent, length - totalBytesSent), SocketFlags.None);
                     totalBytesSent += bytesSent;
                 }
-                cb.Invoke(null);
             }
             catch (Exception e)
             {
                 cb.Invoke(e);
+                return;
             }
+            cb.Invoke(null);
         }
 
         public async void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
         {
             var networkStream = (Socket)connection;
+            int bytesRead;
             try
             {
-                int bytesRead = await networkStream.ReceiveAsync(
+                bytesRead = await networkStream.ReceiveAsync(
                     new Memory<byte>(data, offset, length), SocketFlags.None);
-                cb.Invoke(null, bytesRead);
             }
             catch (Exception e)
             {
                 cb.Invoke(e, 0);
+                return;
             }
+            cb.Invoke(null, bytesRead);
         }
     }
 }

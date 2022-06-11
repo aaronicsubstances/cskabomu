@@ -102,11 +102,7 @@ namespace Kabomu.Internals
                     chunk.ContentType, Parent.Transport, Connection, null);
             }
             _requestBody = request.Body;
-            BeginApplicationPipelineProcessing(request);
-        }
 
-        private void BeginApplicationPipelineProcessing(IQuasiHttpRequest request)
-        {
             var cancellationIndicator = new STCancellationIndicator();
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception, IQuasiHttpResponse> cb = (e, res) =>

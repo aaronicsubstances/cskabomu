@@ -13,7 +13,10 @@ namespace Kabomu.Tests.Common
         [Fact]
         public void TestRecoveryWithDefaultValues()
         {
-            var expected = new SubsequentChunk();
+            var expected = new SubsequentChunk
+            {
+                Version = LeadChunk.Version01
+            };
             var serialized = expected.Serialize();
             var inputStream = new MemoryStream();
             foreach (var item in serialized)
@@ -49,7 +52,7 @@ namespace Kabomu.Tests.Common
         [Fact]
         public void TestForErrors()
         {
-            Assert.Throws<ArgumentException>(() =>
+             Assert.Throws<ArgumentException>(() =>
             {
                 SubsequentChunk.Deserialize(new byte[10], 0, 0);
             });
@@ -57,6 +60,11 @@ namespace Kabomu.Tests.Common
             {
                 SubsequentChunk.Deserialize(new byte[7], 0, 1);
             });
+            var ex = Assert.Throws<ArgumentException>(() =>
+            {
+                SubsequentChunk.Deserialize(new byte[10], 3, 6);
+            });
+            Assert.Contains("version", ex.Message);
         }
 
         internal static void CompareChunks(SubsequentChunk expected, SubsequentChunk actual)

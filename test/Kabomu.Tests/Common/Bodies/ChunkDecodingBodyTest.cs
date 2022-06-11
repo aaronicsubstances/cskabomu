@@ -20,6 +20,7 @@ namespace Kabomu.Tests.Common.Bodies
                 var bytes = Encoding.UTF8.GetBytes(s);
                 var chunk = new SubsequentChunk
                 {
+                    Version = LeadChunk.Version01,
                     Data = bytes,
                     DataLength = bytes.Length
                 };
@@ -35,9 +36,9 @@ namespace Kabomu.Tests.Common.Bodies
                 }
             }
 
-            // end with terminator empty chunk.
+            // end with terminator empty chunk.            
             inputStream.Write(new byte[] { 0, 2 });
-            inputStream.Write(new byte[2]);
+            inputStream.Write(new byte[] { LeadChunk.Version01, 0 });
 
             inputStream.Position = 0; // rewind position for reads.
 
@@ -136,7 +137,7 @@ namespace Kabomu.Tests.Common.Bodies
                             bytesRead = 2;
                             break;
                         case 1:
-                            data[offset] = 0;
+                            data[offset] = LeadChunk.Version01;
                             data[offset + 1] = 0;
                             data[offset + 2] = (byte)'d';
                             data[offset + 3] = (byte)'e';
@@ -148,7 +149,7 @@ namespace Kabomu.Tests.Common.Bodies
                             bytesRead = 2;
                             break;
                         case 3:
-                            data[offset] = 0;
+                            data[offset] = LeadChunk.Version01;
                             data[offset + 1] = 0;
                             data[offset + 2] = (byte)'a';
                             bytesRead = 3;

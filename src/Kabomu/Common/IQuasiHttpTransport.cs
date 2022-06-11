@@ -7,6 +7,7 @@ namespace Kabomu.Common
     public interface IQuasiHttpTransport
     {
         int MaxChunkSize { get; }
+        public UncaughtErrorCallback ErrorHandler { get; set; }
         void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb);
         void OnReleaseConnection(object connection);
         void WriteBytes(object connection, byte[] data, int offset, int length,

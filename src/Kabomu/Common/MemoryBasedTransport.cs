@@ -17,6 +17,7 @@ namespace Kabomu.Common
         public bool DirectSendRequestProcessingEnabled => _randGen.NextDouble() < DirectSendRequestProcessingProbability;
 
         public IMutexApi Mutex { get; set; }
+        public UncaughtErrorCallback ErrorHandler { get; set; }
 
         public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request, Action<Exception, IQuasiHttpResponse> cb)
         {
@@ -34,15 +35,17 @@ namespace Kabomu.Common
             }
             Mutex.RunExclusively(_ =>
             {
+                IQuasiHttpClient remoteClient;
                 try
                 {
-                    var remoteClient = Hub.Clients[remoteEndpoint];
-                    remoteClient.Application.ProcessRequest(request, cb);
+                    remoteClient = Hub.Clients[remoteEndpoint];
                 }
                 catch (Exception e)
                 {
                     cb.Invoke(e, null);
+                    return;
                 }
+                remoteClient.Application.ProcessRequest(request, cb);
             }, null);
         }
 
@@ -58,15 +61,19 @@ namespace Kabomu.Common
             }
             Mutex.RunExclusively(_ =>
             {
+                IQuasiHttpClient remoteClient;
                 try
                 {
-                    var connection = new MemoryBasedTransportConnection(remoteEndpoint);
-                    cb.Invoke(null, connection);
+                    remoteClient = Hub.Clients[remoteEndpoint];
                 }
                 catch (Exception e)
                 {
                     cb.Invoke(e, null);
+                    return;
                 }
+                var connection = new MemoryBasedTransportConnection(this);
+                remoteClient.OnReceive(connection);
+                cb.Invoke(null, connection);
             }, null);
         }
 
@@ -96,14 +103,7 @@ namespace Kabomu.Common
             }
             Mutex.RunExclusively(_ =>
             {
-                try
-                {
-                    typedConnection.ProcessReadRequest(Mutex, this, data, offset, length, cb);
-                }
-                catch (Exception e)
-                {
-                    cb.Invoke(e, 0);
-                }
+                typedConnection.ProcessReadRequest(Mutex, this, data, offset, length, cb);
             }, null);
         }
 
@@ -124,20 +124,7 @@ namespace Kabomu.Common
             }
             Mutex.RunExclusively(_ =>
             {
-                try
-                {
-                    if (!typedConnection.IsConnectionEstablished)
-                    {
-                        var remoteClient = Hub.Clients[typedConnection.RemoteEndpoint];
-                        typedConnection.MarkConnectionAsEstablished(this);
-                        remoteClient.OnReceive(connection);
-                    }
-                    typedConnection.ProcessWriteRequest(Mutex, this, data, offset, length, cb);
-                }
-                catch (Exception e)
-                {
-                    cb.Invoke(e);
-                }
+                typedConnection.ProcessWriteRequest(Mutex, this, data, offset, length, cb);
             }, null);
         }
     }

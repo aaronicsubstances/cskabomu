@@ -71,13 +71,14 @@ namespace Kabomu.Examples.Shared
             try
             {
                 await tcpClient.ConnectAsync("localhost", port);
-                cb.Invoke(null, tcpClient);
             }
             catch (Exception e)
             {
                 tcpClient.Dispose();
                 cb.Invoke(e, null);
+                return;
             }
+            cb.Invoke(null, tcpClient);
         }
 
         public void OnReleaseConnection(object connection)
@@ -93,27 +94,30 @@ namespace Kabomu.Examples.Shared
             try
             {
                 await networkStream.WriteAsync(data, offset, length);
-                cb.Invoke(null);
             }
             catch (Exception e)
             {
                 cb.Invoke(e);
+                return;
             }
+            cb.Invoke(null);
         }
 
         public async void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
         {
             var tcpClient = (TcpClient)connection;
             Stream networkStream = tcpClient.GetStream();
+            int bytesRead;
             try
             {
-                int bytesRead = await networkStream.ReadAsync(data, offset, length);
-                cb.Invoke(null, bytesRead);
+                bytesRead = await networkStream.ReadAsync(data, offset, length);
             }
             catch (Exception e)
             {
                 cb.Invoke(e, 0);
+                return;
             }
+            cb.Invoke(null, bytesRead);
         }
     }
 }
