@@ -25,6 +25,7 @@ namespace Memory.FileExchange
             };
             var memTransport = new MemoryBasedTransport
             {
+                MaxChunkSize = 512,
                 Mutex = eventLoop,
                 ErrorHandler = (e, m) =>
                 {
