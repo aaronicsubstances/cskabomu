@@ -1,22 +1,10 @@
 remaining
 ==========
 
-default application pipeline 
-- let path and simple middleware be handled by default middleware
-- support adding middlewares in batches (router in ExpressJS terminology) to 
-  support selected use of json() middleware, 
-  provide equivalent of expressjs.next("router"), such that if called,
-  skip to next batch rather than process remaining middlewares in the batch
-  
-create default middleware
-------------------
--path
--method+path
--json. set req.body and transform resCb before sending to application.
--csv
--string
--byte buffer
+default application pipeline - switch role model from ExpressJS to Ratpack
+(https://ratpack.io/manual/current/handlers.html)
 
+Before release....convert to Promises ie C# Tasks.
 
 default transports - create new project. Kabomu.StandardAddons
 ------------------
@@ -25,7 +13,14 @@ LocalhostTcpTransport - making it async may require use of third party library
 UnixSocketDomainTransport - availability and making it async may require use of third party library
 WindowsNamedPipeTransport - availability and making it async may require use of third party library
 
-Before release....convert to Promises ie C# Tasks.
+create default middleware
+------------------
+-path
+-method+path
+-json
+-csv
+-string
+-byte buffer
 
 
 Release
