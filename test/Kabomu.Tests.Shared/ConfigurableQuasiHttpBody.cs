@@ -9,6 +9,7 @@ namespace Kabomu.Tests.Shared
     {
         public Action<IMutexApi, byte[], int, int, Action<Exception, int>> ReadBytesCallback { get; set; }
 
+        public long ContentLength { get; set; }
         public string ContentType { get; set; }
 
         public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)

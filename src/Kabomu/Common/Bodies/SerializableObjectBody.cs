@@ -26,6 +26,8 @@ namespace Kabomu.Common.Bodies
 
         public object Content { get; }
 
+        public long ContentLength => -1;
+
         public string ContentType { get; }
 
         public Func<object, byte[]> SerializationHandler { get; }

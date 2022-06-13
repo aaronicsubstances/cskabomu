@@ -11,8 +11,8 @@ namespace Kabomu.Tests.Shared
     public class CommonBodyTestRunner
     {
         public static void RunCommonBodyTest(int maxByteRead, IQuasiHttpBody instance,
-            string expectedContentType, int[] expectedByteReads, string expectedError,
-            byte[] expectedSuccessData)
+            long expectedContentLength, string expectedContentType, 
+            int[] expectedByteReads, string expectedError, byte[] expectedSuccessData)
         {
             // arrange.
             var mutex = new TestEventLoopApi();
@@ -21,6 +21,7 @@ namespace Kabomu.Tests.Shared
             var buffer = new byte[Math.Max(maxByteRead, 1)];
 
             // act and assert.
+            Assert.Equal(expectedContentLength, instance.ContentLength);
             Assert.Equal(expectedContentType, instance.ContentType);
 
             var readAccumulator = new MemoryStream();

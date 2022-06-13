@@ -19,7 +19,7 @@ namespace Kabomu.Tests.Common.Bodies
             var expectedSuccessData = new byte[] { 0, 2, 1, 0 };
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(5, instance, "text/csv",
+            CommonBodyTestRunner.RunCommonBodyTest(5, instance, -1, "text/csv",
                 new int[] { 4 }, null, expectedSuccessData);
         }
 
@@ -32,7 +32,7 @@ namespace Kabomu.Tests.Common.Bodies
             var expectedSuccessData = new byte[] { 0, 5, 1, 0, 4, 5, 6, 0, 3, 1, 0, 7, 0, 2, 1, 0 };
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(7, instance, "image/gif",
+            CommonBodyTestRunner.RunCommonBodyTest(7, instance, -1, "image/gif",
                 new int[] { 7, 5, 4 }, null, expectedSuccessData);
         }
 

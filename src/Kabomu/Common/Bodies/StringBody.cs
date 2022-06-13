@@ -8,7 +8,7 @@ namespace Kabomu.Common.Bodies
     {
         private readonly SerializableObjectBody _backingBody;
 
-        public StringBody(string content,string contentType)
+        public StringBody(string content, string contentType)
         {
             _backingBody = new SerializableObjectBody(content,
                 SerializeContent, contentType ?? TransportUtils.ContentTypePlainText);
@@ -22,6 +22,8 @@ namespace Kabomu.Common.Bodies
         }
 
         public string Content => (string)_backingBody.Content;
+
+        public long ContentLength => _backingBody.ContentLength;
 
         public string ContentType => _backingBody.ContentType;
 

@@ -53,7 +53,7 @@ namespace Kabomu.Common.Bodies
                     {
                         var fileStream = new FileStream(FileName, FileMode.Open, FileAccess.Read,
                                 FileShare.Read);
-                        _backingBody = new StreamBackedBody(fileStream, null);
+                        _backingBody = new StreamBackedBody(fileStream, ContentLength,  null);
                     }
                     catch (Exception e)
                     {

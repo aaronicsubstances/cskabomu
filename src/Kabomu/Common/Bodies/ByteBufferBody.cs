@@ -25,6 +25,7 @@ namespace Kabomu.Common.Bodies
         public byte[] Buffer { get; }
         public int Offset { get; }
         public int Length { get; }
+        public long ContentLength => Length;
         public string ContentType { get; }
 
         public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int length, Action<Exception, int> cb)

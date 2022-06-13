@@ -24,7 +24,7 @@ namespace Kabomu.Common.Bodies
 
         public string ContentType { get; internal set; }
 
-        public Action CloseCallback { get; internal set; }
+        internal Action CloseCallback { get; set; }
 
         public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, 
             Action<Exception, int> cb)

@@ -18,7 +18,7 @@ namespace Kabomu.Tests.Common.Bodies
             var instance = new SerializableObjectBody("", serializationHandler, "text/csv");
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(0, instance, "text/csv",
+            CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "text/csv",
                 new int[0], null, new byte[0]);
         }
 
@@ -30,7 +30,7 @@ namespace Kabomu.Tests.Common.Bodies
             var instance = new SerializableObjectBody("Ab2", serializationHandler, null);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(2, instance, "application/json",
+            CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "application/json",
                 new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
         }
 

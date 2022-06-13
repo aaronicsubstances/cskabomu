@@ -24,7 +24,7 @@ namespace Kabomu.Tests.Common.Bodies
             });
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(0, instance, null,
+            CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, null,
                 new int[0], null, new byte[0]);
             Assert.True(cbCalled);
         }
@@ -49,7 +49,7 @@ namespace Kabomu.Tests.Common.Bodies
             });
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(2, instance, "text/csv",
+            CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/csv",
                 new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
             Assert.True(cbCalls[0]);
             Assert.True(cbCalls[1]);
@@ -86,7 +86,7 @@ namespace Kabomu.Tests.Common.Bodies
             }
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(1, instance, "text/xml",
+            CommonBodyTestRunner.RunCommonBodyTest(1, instance, -1, "text/xml",
                 new int[] { 1, 1, 1, 1, 1, 1, 1, 1 }, null, expectedData);
             for (int i = 0; i < cbCalls.Length; i++)
             {
