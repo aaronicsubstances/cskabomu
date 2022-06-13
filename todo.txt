@@ -1,7 +1,6 @@
 remaining
 ==========
-Restore content length as Int64 to bodies. Remove HasContent.
-test transportbackedbody.
+test transportbackedbody
 test filebody
 
 Before release....convert to Promises ie C# Tasks.
