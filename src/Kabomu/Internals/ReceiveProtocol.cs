@@ -98,10 +98,18 @@ namespace Kabomu.Internals
                 HttpVersion = chunk.HttpVersion,
                 HttpMethod = chunk.HttpMethod
             };
-            if (chunk.HasContent)
+            if (chunk.ContentLength != 0)
             {
+                _transportBody.ContentLength = chunk.ContentLength;
                 _transportBody.ContentType = chunk.ContentType;
-                request.Body = new ChunkDecodingBody(_transportBody, null);
+                if (chunk.ContentLength < 0)
+                {
+                    request.Body = new ChunkDecodingBody(_transportBody, null);
+                }
+                else
+                {
+                    request.Body = _transportBody;
+                }
             }
             _requestBody = request.Body;
 
@@ -149,7 +157,7 @@ namespace Kabomu.Internals
             _responseBody = response.Body;
             if (response.Body != null)
             {
-                chunk.HasContent = true;
+                chunk.ContentLength = response.Body.ContentLength;
                 chunk.ContentType = response.Body.ContentType;
             }
 

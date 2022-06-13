@@ -48,7 +48,7 @@ namespace Kabomu.Internals
             _requestBody = request.Body;
             if (request.Body != null)
             {
-                chunk.HasContent = true;
+                chunk.ContentLength = chunk.ContentLength;
                 chunk.ContentType = request.Body.ContentType;
             }
             var cancellationIndicator = new STCancellationIndicator();
@@ -150,7 +150,7 @@ namespace Kabomu.Internals
                 HttpStatusCode = chunk.HttpStatusCode
             };
 
-            if (chunk.HasContent)
+            if (chunk.ContentLength != 0)
             {
                 var cancellationIndicator = new STCancellationIndicator();
                 ProcessingCancellationIndicator = cancellationIndicator;
@@ -165,8 +165,17 @@ namespace Kabomu.Internals
                         }
                     }, null);
                 };
+                _transportBody.ContentLength = chunk.ContentLength;
                 _transportBody.ContentType = chunk.ContentType;
-                response.Body = new ChunkDecodingBody(_transportBody, closeCb);
+                if (chunk.ContentLength < 0)
+                {
+                    response.Body = new ChunkDecodingBody(_transportBody, closeCb);
+                }
+                else
+                {
+                    _transportBody.CloseCallback = closeCb;
+                    response.Body = _transportBody;
+                }
             }
             _responseBody = response.Body;
 
