@@ -1,8 +1,9 @@
 remaining
 ==========
-
-default application pipeline - switch role model from ExpressJS to Ratpack
-(https://ratpack.io/manual/current/handlers.html)
+Move writeslices to transport utils
+Restore content length as Int64 to bodies. Remove HasContent.
+Make chunk decoding wrap a body. Add transportbackedbody.
+Add filebody.
 
 Before release....convert to Promises ie C# Tasks.
 
@@ -13,6 +14,9 @@ LocalhostTcpTransport - making it async may require use of third party library
 UnixSocketDomainTransport - availability and making it async may require use of third party library
 WindowsNamedPipeTransport - availability and making it async may require use of third party library
 
+default application pipeline - switch role model from ExpressJS to Ratpack
+(https://ratpack.io/manual/current/handlers.html)
+
 create default middleware
 ------------------
 -path
@@ -22,7 +26,17 @@ create default middleware
 -string
 -byte buffer
 
-
+Optimize - reduce zero byte copy - v1.1.0
+-----------------------------------------
+Created ExtendedTransport interface
+-Add writeslices and readfully methods
+-Add canTransferBody and transferBody - to support any  future sendfile/transmitfile
+Create ExtendedBody interface
+-Add canreadslices and readslices - takes a maxchunksize param, and returns slices.
+  - of interest to extended transport and chunk encoding body.
+TransportUtils
+-Add counterparts for writeslices and readFully: readSlices from body, transferBody to transport.
+  
 Release
 -------
 copyright
