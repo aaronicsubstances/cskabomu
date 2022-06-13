@@ -1,5 +1,6 @@
 ﻿using CommandLine;
 using Kabomu.Common;
+using Kabomu.Common.Bodies;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using NLog;
@@ -112,7 +113,7 @@ namespace UnixDomainSocket.FileClient
             var request = new DefaultQuasiHttpRequest
             {
                 Headers = new Dictionary<string, List<string>>(),
-                Body = new FileBody(f.DirectoryName, f.Name)
+                Body = new FileBody(f.FullName, f.Length, null)
             };
             request.Headers.Add("f", new List<string> { f.Name });
             var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -121,6 +122,7 @@ namespace UnixDomainSocket.FileClient
                 {
                     if (ex != null)
                     {
+                        LOG.Info(ex, "File {0} sent {1}", f.FullName, ex == null ? "successfully" : "with error");
                         tcs.SetException(ex);
                     }
                     else

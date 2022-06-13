@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Kabomu.Common.Bodies
 {
-    public class FileBody
+    public class FileBody : IQuasiHttpBody
     {
         private IQuasiHttpBody _backingBody;
         private Exception _srcEndError;
