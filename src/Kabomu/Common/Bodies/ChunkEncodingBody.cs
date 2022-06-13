@@ -19,6 +19,8 @@ namespace Kabomu.Common.Bodies
             _wrappedBody = wrappedBody;
         }
 
+        public long ContentLength => -1;
+
         public string ContentType => _wrappedBody.ContentType;
 
         public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)

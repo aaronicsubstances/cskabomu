@@ -79,7 +79,7 @@ namespace Kabomu.Tests.Common.Bodies
             var instance = new ChunkDecodingBody(wrappedBody, closeCb);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(0, instance, null,
+            CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, null,
                 new int[0], null, new byte[0]);
             Assert.True(closed);
         }
@@ -95,7 +95,7 @@ namespace Kabomu.Tests.Common.Bodies
             var instance = new ChunkDecodingBody(wrappedBody, closeCb);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(4, instance, "text/xml",
+            CommonBodyTestRunner.RunCommonBodyTest(4, instance, -1, "text/xml",
                 new int[] { 3, 1, 4 }, null, Encoding.UTF8.GetBytes("car seat"));
             Assert.True(closed);
         }
@@ -111,7 +111,7 @@ namespace Kabomu.Tests.Common.Bodies
             var instance = new ChunkDecodingBody(wrappedBody, closeCb);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(1, instance, "text/csv",
+            CommonBodyTestRunner.RunCommonBodyTest(1, instance, -1, "text/csv",
                 new int[] { 1, 1, 1, 1, 1, 1, 1, 1 }, null, Encoding.UTF8.GetBytes("car seat"));
             Assert.True(closed);
         }
@@ -165,7 +165,7 @@ namespace Kabomu.Tests.Common.Bodies
             var instance = new ChunkDecodingBody(wrappedBody, null);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(2, instance, "image/gif",
+            CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "image/gif",
                 new int[] { 2, 1 }, "END", null);
         }
 

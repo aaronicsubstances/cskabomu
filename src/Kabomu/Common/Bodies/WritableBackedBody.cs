@@ -17,6 +17,8 @@ namespace Kabomu.Common.Bodies
             _writeRequests = new LinkedList<ReadWriteRequest>();
         }
 
+        public long ContentLength => -1;
+
         public string ContentType { get; }
 
         public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)

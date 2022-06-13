@@ -32,6 +32,9 @@ namespace Kabomu.Common.Bodies
 
         public Dictionary<string, List<string>> Content => (Dictionary<string, List<string>>)_backingBody.Content;
 
+
+        public long ContentLength => _backingBody.ContentLength;
+
         public string ContentType => _backingBody.ContentType;
 
         public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)

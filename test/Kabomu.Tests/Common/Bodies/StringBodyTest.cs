@@ -16,7 +16,7 @@ namespace Kabomu.Tests.Common.Bodies
             var instance = new StringBody("", "text/csv");
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(0, instance, "text/csv",
+            CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "text/csv",
                 new int[0], null, new byte[0]);
         }
 
@@ -27,7 +27,7 @@ namespace Kabomu.Tests.Common.Bodies
             var instance = new StringBody("Ab2", null);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(2, instance, "text/plain",
+            CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/plain",
                 new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
         }
 

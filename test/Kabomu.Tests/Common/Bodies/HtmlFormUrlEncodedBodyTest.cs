@@ -17,7 +17,7 @@ namespace Kabomu.Tests.Common.Bodies
             var instance = new HtmlFormUrlEncodedBody(content);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(0, instance, "application/x-www-form-urlencoded",
+            CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "application/x-www-form-urlencoded",
                 new int[0], null, new byte[0]);
         }
 
@@ -35,7 +35,7 @@ namespace Kabomu.Tests.Common.Bodies
             var instance = new HtmlFormUrlEncodedBody(content);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(16, instance, "application/x-www-form-urlencoded",
+            CommonBodyTestRunner.RunCommonBodyTest(16, instance, -1, "application/x-www-form-urlencoded",
                 new int[] { 16, 3 }, null, Encoding.UTF8.GetBytes("A,b,2\nB,2\nC\nD,Fire\n"));
         }
 
