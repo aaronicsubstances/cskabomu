@@ -1,6 +1,5 @@
 ﻿using Kabomu.Common;
 using Kabomu.Common.Bodies;
-using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -21,22 +20,12 @@ namespace Kabomu.Tests.Internals
                 writeCallback.Invoke(slice.Data, slice.Offset, slice.Length);
             }
         }
+
         public static byte[] ReadChunkedBody(byte[] data, int offset, int length)
         {
-            var inputStream = new MemoryStream();
-            inputStream.Write(data, offset, length);
-            inputStream.Position = 0; // rewind.
-            var transport = new ConfigurableQuasiHttpTransport
-            {
-                ReadBytesCallback = (connection, data, offset, length, cb) =>
-                {
-                    int bytesRead = inputStream.Read(data, offset, length);
-                    cb.Invoke(null, bytesRead);
-                }
-            };
-            var body = new ChunkDecodingBody(null, transport, null, null);
+            var body = new ChunkDecodingBody(new ByteBufferBody(data, offset, length, null), null);
             byte[] result = null;
-            TransportUtils.ReadBodyToEnd(body, new TestEventLoopApi(), 100, (e, d) =>
+            TransportUtils.ReadBodyToEnd(new TestEventLoopApi(), body, 100, (e, d) =>
             {
                 Assert.Null(e);
                 result = d;

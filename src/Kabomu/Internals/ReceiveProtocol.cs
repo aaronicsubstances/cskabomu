@@ -9,6 +9,7 @@ namespace Kabomu.Internals
 {
     internal class ReceiveProtocol : ITransferProtocol
     {
+        private TransportBackedBody _transportBody;
         private IQuasiHttpBody _requestBody, _responseBody;
 
         public IParentTransferProtocol Parent { get; set; }
@@ -50,7 +51,8 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            TransportUtils.ReadBytesFully(Parent.Transport, Connection, encodedLength, 0, encodedLength.Length, cb);
+            _transportBody = new TransportBackedBody(Parent.Transport, Connection);
+            TransportUtils.ReadBytesFully(Parent.Mutex, _transportBody, encodedLength, 0, encodedLength.Length, cb);
         }
 
         private void HandleRequestLeadChunkLength(Exception e, byte[] encodedLength)
@@ -77,7 +79,7 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            TransportUtils.ReadBytesFully(Parent.Transport, Connection, chunkBytes, 0, chunkBytes.Length, cb);
+            TransportUtils.ReadBytesFully(Parent.Mutex, _transportBody, chunkBytes, 0, chunkBytes.Length, cb);
         }
 
         private void HandleRequestLeadChunk(Exception e, byte[] chunkBytes)
@@ -98,8 +100,8 @@ namespace Kabomu.Internals
             };
             if (chunk.HasContent)
             {
-                request.Body = new ChunkDecodingBody(
-                    chunk.ContentType, Parent.Transport, Connection, null);
+                _transportBody.ContentType = chunk.ContentType;
+                request.Body = new ChunkDecodingBody(_transportBody, null);
             }
             _requestBody = request.Body;
 
@@ -191,7 +193,7 @@ namespace Kabomu.Internals
                     }, null);
                 };
                 var chunkBody = new ChunkEncodingBody(response.Body);
-                TransportUtils.TransferBodyToTransport(Parent.Transport, Connection, chunkBody, Parent.Mutex, cb);
+                TransportUtils.TransferBodyToTransport(Parent.Mutex, Parent.Transport, Connection, chunkBody, cb);
             }
             else
             {

@@ -9,6 +9,7 @@ namespace Kabomu.Internals
 {
     internal class SendProtocol : ITransferProtocol
     {
+        private TransportBackedBody _transportBody;
         private IQuasiHttpBody _requestBody, _responseBody;
 
         public IParentTransferProtocol Parent { get; set; }
@@ -77,7 +78,7 @@ namespace Kabomu.Internals
             if (request.Body != null)
             {
                 var chunkBody = new ChunkEncodingBody(request.Body);
-                TransportUtils.TransferBodyToTransport(Parent.Transport, Connection, chunkBody, Parent.Mutex, e => { });
+                TransportUtils.TransferBodyToTransport(Parent.Mutex, Parent.Transport, Connection, chunkBody, e => { });
             }
             StartFetchingResponse();
         }
@@ -98,7 +99,8 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            TransportUtils.ReadBytesFully(Parent.Transport, Connection, encodedLength, 0, encodedLength.Length, cb);
+            _transportBody = new TransportBackedBody(Parent.Transport, Connection);
+            TransportUtils.ReadBytesFully(Parent.Mutex, _transportBody, encodedLength, 0, encodedLength.Length, cb);
         }
 
         private void HandleResponseLeadChunkLength(Exception e, byte[] encodedLength)
@@ -125,7 +127,7 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            TransportUtils.ReadBytesFully(Parent.Transport, Connection, chunkBytes, 0, chunkBytes.Length, cb);
+            TransportUtils.ReadBytesFully(Parent.Mutex, _transportBody, chunkBytes, 0, chunkBytes.Length, cb);
         }
 
         private void HandleResponseLeadChunk(Exception e, byte[] chunkBytes)
@@ -163,8 +165,8 @@ namespace Kabomu.Internals
                         }
                     }, null);
                 };
-                response.Body = new ChunkDecodingBody(
-                    chunk.ContentType, Parent.Transport, Connection, closeCb);
+                _transportBody.ContentType = chunk.ContentType;
+                response.Body = new ChunkDecodingBody(_transportBody, closeCb);
             }
             _responseBody = response.Body;
 

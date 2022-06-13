@@ -12,7 +12,7 @@ namespace Kabomu.Tests.Common.Bodies
 {
     public class ChunkDecodingBodyTest
     {
-        private static IQuasiHttpTransport CreateTransport(object connection, string[] strings)
+        private static ConfigurableQuasiHttpBody CreateWrappedBody(string contentType, string[] strings)
         {
             var inputStream = new MemoryStream();
             foreach (var s in strings)
@@ -43,11 +43,11 @@ namespace Kabomu.Tests.Common.Bodies
             inputStream.Position = 0; // rewind position for reads.
 
             var endOfInputSeen = false;
-            var transport = new ConfigurableQuasiHttpTransport
+            var body = new ConfigurableQuasiHttpBody
             {
-                ReadBytesCallback = (actualConnection, data, offset, length, cb) =>
+                ContentType = contentType,
+                ReadBytesCallback = (mutex, data, offset, length, cb) =>
                 {
-                    Assert.Equal(connection, actualConnection);
                     int bytesRead = 0;
                     Exception e = null;
                     if (endOfInputSeen)
@@ -65,7 +65,7 @@ namespace Kabomu.Tests.Common.Bodies
                     cb.Invoke(e, bytesRead);
                 }
             };
-            return transport;
+            return body;
         }
 
         [Fact]
@@ -73,10 +73,10 @@ namespace Kabomu.Tests.Common.Bodies
         {
             // arrange.
             var dataList = new string[0];
-            var transport = CreateTransport("lo", dataList);
+            var wrappedBody = CreateWrappedBody(null, dataList);
             var closed = false;
             Action closeCb = () => closed = true;
-            var instance = new ChunkDecodingBody(null, transport, "lo", closeCb);
+            var instance = new ChunkDecodingBody(wrappedBody, closeCb);
 
             // act and assert.
             CommonBodyTestRunner.RunCommonBodyTest(0, instance, null,
@@ -89,10 +89,10 @@ namespace Kabomu.Tests.Common.Bodies
         {
             // arrange.
             var dataList = new string[] { "car", " ", "seat" };
-            var transport = CreateTransport(null, dataList);
+            var wrappedBody = CreateWrappedBody("text/xml", dataList);
             var closed = false;
             Action closeCb = () => closed = true;
-            var instance = new ChunkDecodingBody("text/xml", transport, null, closeCb);
+            var instance = new ChunkDecodingBody(wrappedBody, closeCb);
 
             // act and assert.
             CommonBodyTestRunner.RunCommonBodyTest(4, instance, "text/xml",
@@ -105,13 +105,13 @@ namespace Kabomu.Tests.Common.Bodies
         {
             // arrange.
             var dataList = new string[] { "car", " ", "seat" };
-            var transport = CreateTransport(null, dataList);
+            var wrappedBody = CreateWrappedBody("text/csv", dataList);
             var closed = false;
             Action closeCb = () => closed = true;
-            var instance = new ChunkDecodingBody("text/xml", transport, null, closeCb);
+            var instance = new ChunkDecodingBody(wrappedBody, closeCb);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(1, instance, "text/xml",
+            CommonBodyTestRunner.RunCommonBodyTest(1, instance, "text/csv",
                 new int[] { 1, 1, 1, 1, 1, 1, 1, 1 }, null, Encoding.UTF8.GetBytes("car seat"));
             Assert.True(closed);
         }
@@ -122,11 +122,11 @@ namespace Kabomu.Tests.Common.Bodies
             // arrange.
             var dataList = new string[] { "de", "a" };
             int readIndex = 0;
-            var transport = new ConfigurableQuasiHttpTransport
+            var wrappedBody = new ConfigurableQuasiHttpBody
             {
-                ReadBytesCallback = (connection, data, offset, length, cb) =>
+                ContentType = "image/gif",
+                ReadBytesCallback = (mutex, data, offset, length, cb) =>
                 {
-                    Assert.Equal(1786, connection);
                     Exception e = null;
                     int bytesRead = 0;
                     switch (readIndex)
@@ -162,7 +162,7 @@ namespace Kabomu.Tests.Common.Bodies
                     cb.Invoke(e, bytesRead);
                 }
             };
-            var instance = new ChunkDecodingBody("image/gif", transport, 1786, null);
+            var instance = new ChunkDecodingBody(wrappedBody, null);
 
             // act and assert.
             CommonBodyTestRunner.RunCommonBodyTest(2, instance, "image/gif",
@@ -174,10 +174,9 @@ namespace Kabomu.Tests.Common.Bodies
         {
             Assert.Throws<ArgumentException>(() =>
             {
-                new ChunkDecodingBody(null, null, null, () => { });
+                new ChunkDecodingBody(null, () => { });
             });
-            var instance = new ChunkDecodingBody(null,
-                CreateTransport(null, new string[0]), null, () => { });
+            var instance = new ChunkDecodingBody(CreateWrappedBody(null, new string[0]), () => { });
             CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }
