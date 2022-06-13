@@ -14,7 +14,7 @@ namespace Kabomu.Common
         public bool StatusIndicatesSuccess { get; set; }
         public bool StatusIndicatesClientError { get; set; }
         public string StatusMessage { get; set; }
-        public bool HasContent { get; set; }
+        public long ContentLength { get; set; }
         public string ContentType { get; set; }
         public string HttpMethod { get; set; }
         public string HttpVersion { get; set; }
@@ -40,7 +40,7 @@ namespace Kabomu.Common
             specialHeaderRow.Add((StatusIndicatesClientError ? 1 : 0).ToString());
             specialHeaderRow.Add((StatusMessage != null ? 1 : 0).ToString());
             specialHeaderRow.Add(StatusMessage ?? "");
-            specialHeaderRow.Add((HasContent ? 1 : 0).ToString());
+            specialHeaderRow.Add(ContentLength.ToString());
             specialHeaderRow.Add((ContentType != null ? 1 : 0).ToString());
             specialHeaderRow.Add(ContentType ?? "");
             specialHeaderRow.Add((HttpMethod != null ? 1 : 0).ToString());
@@ -108,7 +108,7 @@ namespace Kabomu.Common
             {
                 instance.StatusMessage = specialHeader[5];
             }
-            instance.HasContent = specialHeader[6] != "0";
+            instance.ContentLength = long.Parse(specialHeader[6]);
             if (specialHeader[7] != "0")
             {
                 instance.ContentType = specialHeader[8];

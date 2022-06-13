@@ -27,7 +27,7 @@ namespace Kabomu.Tests.Internals
                 Version = LeadChunk.Version01,
                 Path = expectedRequest.Path,
                 Headers = expectedRequest.Headers,
-                HasContent = expectedRequest.Body != null,
+                ContentLength = expectedRequest.Body?.ContentLength ?? 0,
                 ContentType = expectedRequest.Body?.ContentType,
                 HttpVersion = expectedRequest.HttpVersion,
                 HttpMethod = expectedRequest.HttpMethod
@@ -40,7 +40,7 @@ namespace Kabomu.Tests.Internals
                 StatusIndicatesClientError = response.StatusIndicatesClientError,
                 StatusMessage = response.StatusMessage,
                 Headers = response.Headers,
-                HasContent = response.Body != null,
+                ContentLength = response.Body?.ContentLength ?? 0,
                 ContentType = response.Body?.ContentType,
                 HttpVersion = response.HttpVersion,
                 HttpStatusCode = response.HttpStatusCode

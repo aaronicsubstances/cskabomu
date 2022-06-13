@@ -37,7 +37,7 @@ namespace Kabomu.Tests.Common
             expected.Path = "/detail";
             expected.StatusIndicatesSuccess = true;
             expected.StatusMessage = "ok";
-            expected.HasContent = true;
+            expected.ContentLength = 20;
             expected.ContentType = "text/plain";
             expected.HttpStatusCode = 200;
             expected.HttpVersion = "1.1";
@@ -92,7 +92,7 @@ namespace Kabomu.Tests.Common
             Assert.Equal(expected.StatusIndicatesSuccess, actual.StatusIndicatesSuccess);
             Assert.Equal(expected.StatusIndicatesClientError, actual.StatusIndicatesClientError);
             Assert.Equal(expected.StatusMessage, actual.StatusMessage);
-            Assert.Equal(expected.HasContent, actual.HasContent);
+            Assert.Equal(expected.ContentLength, actual.ContentLength);
             Assert.Equal(expected.ContentType, actual.ContentType);
             Assert.Equal(expected.HttpMethod, actual.HttpMethod);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
