@@ -94,10 +94,10 @@ namespace Kabomu.Common
             var readBuffer = new byte[maxChunkSize];
             var byteStream = new MemoryStream();
             body.ReadBytes(mutex, readBuffer, 0, readBuffer.Length, (e, i) =>
-                HandleReadOutcome2(body, mutex, readBuffer, byteStream, e, i, cb));
+                HandleReadBodyToEndOutcome(body, mutex, readBuffer, byteStream, e, i, cb));
         }
 
-        private static void HandleReadOutcome2(IQuasiHttpBody body, IMutexApi mutex, byte[] readBuffer,
+        private static void HandleReadBodyToEndOutcome(IQuasiHttpBody body, IMutexApi mutex, byte[] readBuffer,
             MemoryStream byteStream, Exception e, int bytesRead, Action<Exception, byte[]> cb)
         {
             if (e != null)
@@ -109,7 +109,7 @@ namespace Kabomu.Common
             {
                 byteStream.Write(readBuffer, 0, bytesRead);
                 body.ReadBytes(mutex, readBuffer, 0, readBuffer.Length, (e, i) =>
-                    HandleReadOutcome2(body, mutex, readBuffer, byteStream, e, i, cb));
+                    HandleReadBodyToEndOutcome(body, mutex, readBuffer, byteStream, e, i, cb));
             }
             else
             {
