@@ -1,9 +1,10 @@
 remaining
 ==========
-Move writeslices to transport utils
+readfully from transport. - transportbackedbody to apply to body.
 Restore content length as Int64 to bodies. Remove HasContent.
-Make chunk decoding wrap a body. Add transportbackedbody.
-Add filebody.
+let chunkdecoding wrap a body. - meaning readfully remains util.
+test transportbackedbody.
+test filebody
 
 Before release....convert to Promises ie C# Tasks.
 
@@ -29,14 +30,18 @@ create default middleware
 Optimize - reduce zero byte copy - v1.1.0
 -----------------------------------------
 Created ExtendedTransport interface
--Add writeslices and readfully methods
 -Add canTransferBody and transferBody - to support any  future sendfile/transmitfile
 Create ExtendedBody interface
 -Add canreadslices and readslices - takes a maxchunksize param, and returns slices.
   - of interest to extended transport and chunk encoding body.
-TransportUtils
--Add counterparts for writeslices and readFully: readSlices from body, transferBody to transport.
-  
+-Have to still support readbytes and give ExtendedTransport the option to choose.
+
+transport utils
+-transfer body to transport
+-writeslices to transport
+-read body to end - transportbackedbody to apply to transport
+-read fully from body - transportbackedbody to apply to transport
+
 Release
 -------
 copyright

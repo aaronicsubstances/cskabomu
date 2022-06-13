@@ -117,5 +117,42 @@ namespace Kabomu.Common
                 cb.Invoke(null, byteStream.ToArray());
             }
         }
+        public static void WriteByteSlices(IQuasiHttpTransport transport, object connection,
+            ByteBufferSlice[] slices, Action<Exception> cb)
+        {
+            if (transport == null)
+            {
+                throw new ArgumentException("null transport");
+            }
+            if (slices == null)
+            {
+                throw new ArgumentException("null byte slices");
+            }
+            if (cb == null)
+            {
+                throw new ArgumentException("null callback");
+            }
+            WriteSlice(transport, connection, slices, 0, cb);
+        }
+
+        private static void WriteSlice(IQuasiHttpTransport transport, object connection,
+            ByteBufferSlice[] slices, int index, Action<Exception> cb)
+        {
+            if (index >= slices.Length)
+            {
+                cb.Invoke(null);
+                return;
+            }
+            var nextSlice = slices[index];
+            transport.WriteBytes(connection, nextSlice.Data, nextSlice.Offset, nextSlice.Length, e =>
+            {
+                if (e != null)
+                {
+                    cb.Invoke(e);
+                    return;
+                }
+                WriteSlice(transport, connection, slices, index + 1, cb);
+            });
+        }
     }
 }

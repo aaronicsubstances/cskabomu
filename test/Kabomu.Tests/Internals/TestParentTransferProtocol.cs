@@ -34,35 +34,5 @@ namespace Kabomu.Tests.Internals
             Assert.Null(e);
             AbortCalled = true;
         }
-
-        public void ReadBytesFullyFromTransport(object connection, byte[] data, int offset, int length, Action<Exception> cb)
-        {
-            TransportUtils.ReadBytesFully(Transport, connection, data, offset, length, e =>
-            {
-                cb.Invoke(e);
-                // test handling of repeated callback invocations
-                cb.Invoke(e);
-            });
-        }
-
-        public void TransferBodyToTransport(object connection, IQuasiHttpBody body, Action<Exception> cb)
-        {
-            TransportUtils.TransferBodyToTransport(Transport, connection, body, Mutex, e =>
-            {
-                cb.Invoke(e);
-                // test handling of repeated callback invocations
-                cb.Invoke(e);
-            });
-        }
-
-        public void WriteByteSlices(object connection, ByteBufferSlice[] slices, Action<Exception> cb)
-        {
-            ProtocolUtils.WriteByteSlices(Transport, connection, slices, e =>
-            {
-                cb.Invoke(e);
-                // test handling of repeated callback invocations
-                cb.Invoke(e);
-            });
-        }
     }
 }

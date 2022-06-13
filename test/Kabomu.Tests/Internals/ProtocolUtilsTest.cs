@@ -12,40 +12,7 @@ namespace Kabomu.Tests.Internals
     public class ProtocolUtilsTest
     {
         [Fact]
-        public void TestWriteEmpty()
-        {
-            // arrange.
-            object connection = null;
-            var destStream = new MemoryStream();
-            var transport = new ConfigurableQuasiHttpTransport
-            {
-                MaxChunkSize = 100,
-                WriteBytesCallback = (actualConnection, data, offset, length, cb) =>
-                {
-                    Assert.Equal(connection, actualConnection);
-                    destStream.Write(data, offset, length);
-                    cb.Invoke(null);
-                }
-            };
-            var slices = new ByteBufferSlice[0];
-            var expectedStreamContents = new byte[] { 0, 0 };
-
-            // act.
-            var cbCalled = false;
-            ProtocolUtils.WriteByteSlices(transport, connection, slices, e =>
-            {
-                Assert.False(cbCalled);
-                Assert.Null(e);
-                cbCalled = true;
-            });
-
-            // assert.
-            Assert.True(cbCalled);
-            Assert.Equal(expectedStreamContents, destStream.ToArray());
-        }
-
-        [Fact]
-        public void TestWriteByteSlices()
+        public void TestWriteLeadChunk()
         {
             // arrange.
             object connection = "dk";
@@ -60,41 +27,18 @@ namespace Kabomu.Tests.Internals
                     cb.Invoke(null);
                 }
             };
-            var slices = new ByteBufferSlice[]
-            {
-                new ByteBufferSlice
-                {
-                    Data = new byte[]{ 0 },
-                    Length = 1
-                },
-                new ByteBufferSlice
-                {
-                    Data = new byte[]{ 0, 2, 1 },
-                    Offset = 1,
-                    Length = 2
-                },
-                new ByteBufferSlice
-                {
-                    Data = new byte[]{ 7, 8, 9, 10 },
-                    Length = 3
-                },
-                new ByteBufferSlice
-                {
-                    Data = new byte[]{ 7, 8, 9, 10 },
-                    Length = 0
-                },
-                new ByteBufferSlice
-                {
-                    Data = new byte[]{ 7, 8, 9, 10, 11 },
-                    Offset = 3,
-                    Length = 1
-                }
-            };
-            var expectedStreamContents = new byte[] { 0, 7, 0, 2, 1, 7, 8, 9, 10 };
+            var leadChunk = new LeadChunk();
+            var leadChunkSlices = leadChunk.Serialize();
+            var expectedStreamContents = new byte[2 + leadChunkSlices[0].Length + leadChunkSlices[1].Length];
+            expectedStreamContents[1] = (byte)(leadChunkSlices[0].Length + leadChunkSlices[1].Length);
+            Array.Copy(leadChunkSlices[0].Data, leadChunkSlices[0].Offset, expectedStreamContents,
+                2, leadChunkSlices[0].Length);
+            Array.Copy(leadChunkSlices[1].Data, leadChunkSlices[1].Offset, expectedStreamContents,
+                2 + leadChunkSlices[0].Length, leadChunkSlices[1].Length);
 
             // act.
             var cbCalled = false;
-            ProtocolUtils.WriteByteSlices(transport, connection, slices, e =>
+            ProtocolUtils.WriteLeadChunk(transport, connection, leadChunk, e =>
             {
                 Assert.False(cbCalled);
                 Assert.Null(e);
@@ -107,24 +51,19 @@ namespace Kabomu.Tests.Internals
         }
 
         [Fact]
-        public void TestWriteByteSlicesForArgumentErrors()
+        public void TestWriteLeadChunkForArgumentErrors()
         {
             Assert.Throws<ArgumentException>(() =>
             {
-                ProtocolUtils.WriteByteSlices(null, null, new ByteBufferSlice[0], e => { });
+                ProtocolUtils.WriteLeadChunk(null, null, new LeadChunk(), e => { });
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                ProtocolUtils.WriteByteSlices(new ConfigurableQuasiHttpTransport(), null, null, e => { });
+                ProtocolUtils.WriteLeadChunk(new ConfigurableQuasiHttpTransport(), null, null, e => { });
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                ProtocolUtils.WriteByteSlices(new ConfigurableQuasiHttpTransport(), null, new ByteBufferSlice[0], null);
-            });
-            Assert.ThrowsAny<Exception>(() =>
-            {
-                ProtocolUtils.WriteByteSlices(new ConfigurableQuasiHttpTransport(), null, new ByteBufferSlice[] { null },
-                    e => { });
+                ProtocolUtils.WriteLeadChunk(new ConfigurableQuasiHttpTransport(), null, new LeadChunk(), null);
             });
         }
     }

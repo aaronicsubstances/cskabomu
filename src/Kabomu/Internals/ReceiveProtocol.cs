@@ -50,7 +50,7 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            Parent.ReadBytesFullyFromTransport(Connection, encodedLength, 0, encodedLength.Length, cb);
+            TransportUtils.ReadBytesFully(Parent.Transport, Connection, encodedLength, 0, encodedLength.Length, cb);
         }
 
         private void HandleRequestLeadChunkLength(Exception e, byte[] encodedLength)
@@ -77,7 +77,7 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            Parent.ReadBytesFullyFromTransport(Connection, chunkBytes, 0, chunkBytes.Length, cb);
+            TransportUtils.ReadBytesFully(Parent.Transport, Connection, chunkBytes, 0, chunkBytes.Length, cb);
         }
 
         private void HandleRequestLeadChunk(Exception e, byte[] chunkBytes)
@@ -164,8 +164,7 @@ namespace Kabomu.Internals
                     }
                 }, null);
             };
-            var serializedChunk = chunk.Serialize();
-            Parent.WriteByteSlices(Connection, serializedChunk, cb);
+            ProtocolUtils.WriteLeadChunk(Parent.Transport, Connection, chunk, cb);
         }
 
         private void HandleSendResponseLeadChunkOutcome(Exception e, IQuasiHttpResponse response)
@@ -192,7 +191,7 @@ namespace Kabomu.Internals
                     }, null);
                 };
                 var chunkBody = new ChunkEncodingBody(response.Body);
-                Parent.TransferBodyToTransport(Connection, chunkBody, cb);
+                TransportUtils.TransferBodyToTransport(Parent.Transport, Connection, chunkBody, Parent.Mutex, cb);
             }
             else
             {

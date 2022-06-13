@@ -5,21 +5,22 @@ namespace Kabomu.Internals
 {
     internal class ProtocolUtils
     {
-        public static void WriteByteSlices(IQuasiHttpTransport transport, object connection, 
-            ByteBufferSlice[] slices, Action<Exception> cb)
+        public static void WriteLeadChunk(IQuasiHttpTransport transport, object connection, 
+            LeadChunk chunk, Action<Exception> cb)
         {
             if (transport == null)
             {
                 throw new ArgumentException("null transport");
             }
-            if (slices == null)
+            if (chunk == null)
             {
-                throw new ArgumentException("null byte slices");
+                throw new ArgumentException("null chunk");
             }
             if (cb == null)
             {
                 throw new ArgumentException("null callback");
             }
+            var slices = chunk.Serialize();
             WriteSizeOfSlices(transport, connection, slices, cb);
         }
 
@@ -51,27 +52,7 @@ namespace Kabomu.Internals
                     cb.Invoke(e);
                     return;
                 }
-                WriteSlice(transport, connection, slices, 0, cb);
-            });
-        }
-
-        private static void WriteSlice(IQuasiHttpTransport transport, object connection, 
-            ByteBufferSlice[] slices, int index, Action<Exception> cb)
-        {
-            if (index >= slices.Length)
-            {
-                cb.Invoke(null);
-                return;
-            }
-            var nextSlice = slices[index];
-            transport.WriteBytes(connection, nextSlice.Data, nextSlice.Offset, nextSlice.Length, e =>
-            {
-                if (e != null)
-                {
-                    cb.Invoke(e);
-                    return;
-                }
-                WriteSlice(transport, connection, slices, index + 1, cb);
+                TransportUtils.WriteByteSlices(transport, connection, slices, cb);
             });
         }
     }
