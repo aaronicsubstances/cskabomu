@@ -15,15 +15,15 @@ namespace Kabomu.Common
         public static readonly string ContentTypeJson = "application/json";
         public static readonly string ContentTypeHtmlFormUrlEncoded = "application/x-www-form-urlencoded";
 
-        public static void ReadBytesFully(IQuasiHttpTransport transport,
-            object connection, byte[] data, int offset, int bytesToRead, Action<Exception> cb)
+        public static void ReadBytesFully(IMutexApi mutex, IQuasiHttpBody body,
+            byte[] data, int offset, int bytesToRead, Action<Exception> cb)
         {
-            transport.ReadBytes(connection, data, offset, bytesToRead, (e, bytesRead) =>
-                HandlePartialReadOutcome(transport, connection, data, offset, bytesToRead, e, bytesRead, cb));
+            body.ReadBytes(mutex, data, offset, bytesToRead, (e, bytesRead) =>
+                HandlePartialReadOutcome(mutex, body, data, offset, bytesToRead, e, bytesRead, cb));
         }
 
-        private static void HandlePartialReadOutcome(IQuasiHttpTransport transport,
-           object connection, byte[] data, int offset, int bytesToRead, Exception e, int bytesRead, Action<Exception> cb)
+        private static void HandlePartialReadOutcome(IMutexApi mutex, IQuasiHttpBody body,
+           byte[] data, int offset, int bytesToRead, Exception e, int bytesRead, Action<Exception> cb)
         {
             if (e != null)
             {
@@ -39,8 +39,8 @@ namespace Kabomu.Common
                 }
                 int newOffset = offset + bytesRead;
                 int newBytesToRead = bytesToRead - bytesRead;
-                transport.ReadBytes(connection, data, newOffset, newBytesToRead, (e, bytesRead) =>
-                   HandlePartialReadOutcome(transport, connection, data, newOffset, newBytesToRead, e, bytesRead, cb));
+                body.ReadBytes(mutex, data, newOffset, newBytesToRead, (e, bytesRead) =>
+                   HandlePartialReadOutcome(mutex, body, data, newOffset, newBytesToRead, e, bytesRead, cb));
             }
             else
             {
@@ -48,17 +48,17 @@ namespace Kabomu.Common
             }
         }
 
-        public static void TransferBodyToTransport(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
-            IMutexApi mutex, Action<Exception> cb)
+        public static void TransferBodyToTransport(IMutexApi mutex, IQuasiHttpTransport transport, 
+            object connection, IQuasiHttpBody body, Action<Exception> cb)
         {
             int effectiveChunkSize = Math.Min(transport.MaxChunkSize, MaxChunkSize);
             byte[] buffer = new byte[effectiveChunkSize];
             body.ReadBytes(mutex, buffer, 0, buffer.Length, (e, bytesRead) =>
-                HandleReadOutcome(transport, connection, body, mutex, buffer, e, bytesRead, cb));
+                HandleReadOutcome(mutex, transport, connection, body, buffer, e, bytesRead, cb));
         }
 
-        private static void HandleReadOutcome(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
-            IMutexApi mutex, byte[] buffer, Exception e, int bytesRead, Action<Exception> cb)
+        private static void HandleReadOutcome(IMutexApi mutex, IQuasiHttpTransport transport, object connection, 
+            IQuasiHttpBody body, byte[] buffer, Exception e, int bytesRead, Action<Exception> cb)
         {
             if (e != null)
             {
@@ -68,7 +68,7 @@ namespace Kabomu.Common
             if (bytesRead > 0)
             {
                 transport.WriteBytes(connection, buffer, 0, bytesRead, e =>
-                    HandleWriteOutcome(transport, connection, body, mutex, buffer, e, cb));
+                    HandleWriteOutcome(mutex, transport, connection, body, buffer, e, cb));
             }
             else
             {
@@ -76,8 +76,8 @@ namespace Kabomu.Common
             }
         }
 
-        private static void HandleWriteOutcome(IQuasiHttpTransport transport, object connection, IQuasiHttpBody body,
-            IMutexApi mutex, byte[] buffer, Exception e, Action<Exception> cb)
+        private static void HandleWriteOutcome(IMutexApi mutex, IQuasiHttpTransport transport, object connection,
+            IQuasiHttpBody body, byte[] buffer, Exception e, Action<Exception> cb)
         {
             if (e != null)
             {
@@ -85,19 +85,19 @@ namespace Kabomu.Common
                 return;
             }
             body.ReadBytes(mutex, buffer, 0, buffer.Length, (e, bytesRead) =>
-                HandleReadOutcome(transport, connection, body, mutex, buffer, e, bytesRead, cb));
+                HandleReadOutcome(mutex, transport, connection, body, buffer, e, bytesRead, cb));
         }
 
-        public static void ReadBodyToEnd(IQuasiHttpBody body, IMutexApi mutex, int maxChunkSize,
+        public static void ReadBodyToEnd(IMutexApi mutex, IQuasiHttpBody body, int maxChunkSize,
             Action<Exception, byte[]> cb)
         {
             var readBuffer = new byte[maxChunkSize];
             var byteStream = new MemoryStream();
             body.ReadBytes(mutex, readBuffer, 0, readBuffer.Length, (e, i) =>
-                HandleReadBodyToEndOutcome(body, mutex, readBuffer, byteStream, e, i, cb));
+                HandleReadBodyToEndOutcome(mutex, body, readBuffer, byteStream, e, i, cb));
         }
 
-        private static void HandleReadBodyToEndOutcome(IQuasiHttpBody body, IMutexApi mutex, byte[] readBuffer,
+        private static void HandleReadBodyToEndOutcome(IMutexApi mutex, IQuasiHttpBody body, byte[] readBuffer,
             MemoryStream byteStream, Exception e, int bytesRead, Action<Exception, byte[]> cb)
         {
             if (e != null)
@@ -109,7 +109,7 @@ namespace Kabomu.Common
             {
                 byteStream.Write(readBuffer, 0, bytesRead);
                 body.ReadBytes(mutex, readBuffer, 0, readBuffer.Length, (e, i) =>
-                    HandleReadBodyToEndOutcome(body, mutex, readBuffer, byteStream, e, i, cb));
+                    HandleReadBodyToEndOutcome(mutex, body, readBuffer, byteStream, e, i, cb));
             }
             else
             {
@@ -117,6 +117,7 @@ namespace Kabomu.Common
                 cb.Invoke(null, byteStream.ToArray());
             }
         }
+
         public static void WriteByteSlices(IQuasiHttpTransport transport, object connection,
             ByteBufferSlice[] slices, Action<Exception> cb)
         {

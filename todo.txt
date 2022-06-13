@@ -1,8 +1,6 @@
 remaining
 ==========
-readfully from transport. - transportbackedbody to apply to body.
 Restore content length as Int64 to bodies. Remove HasContent.
-let chunkdecoding wrap a body. - meaning readfully remains util.
 test transportbackedbody.
 test filebody
 

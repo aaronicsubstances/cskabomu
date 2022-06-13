@@ -26,7 +26,7 @@ namespace Kabomu.Tests.Shared
                 Assert.Equal(expected.Body.ContentType, actual.Body.ContentType);
                 byte[] actualReqBodyBytes = null;
                 var cbCalled = false;
-                TransportUtils.ReadBodyToEnd(actual.Body, mutex, maxChunkSize, (e, data) =>
+                TransportUtils.ReadBodyToEnd(mutex, actual.Body, maxChunkSize, (e, data) =>
                 {
                     Assert.False(cbCalled);
                     Assert.Null(e);
@@ -58,7 +58,7 @@ namespace Kabomu.Tests.Shared
                 Assert.Equal(expected.Body.ContentType, actual.Body.ContentType);
                 byte[] actualResBodyBytes = null;
                 var cbCalled = false;
-                TransportUtils.ReadBodyToEnd(actual.Body, mutex, maxChunkSize, (e, data) =>
+                TransportUtils.ReadBodyToEnd(mutex, actual.Body, maxChunkSize, (e, data) =>
                 {
                     Assert.False(cbCalled);
                     Assert.Null(e);

@@ -8,26 +8,23 @@ namespace Kabomu.Common.Bodies
     {
         private readonly IQuasiHttpTransport _transport;
         private readonly object _connection;
-        private readonly Action _closeCallback;
         private Exception _srcEndError;
 
-        public TransportBackedBody(long contentLength, string contentType,
-            IQuasiHttpTransport transport, object connection, Action closeCallback)
+        public TransportBackedBody(IQuasiHttpTransport transport, object connection)
         {
             if (transport == null)
             {
                 throw new ArgumentException("null transport");
             }
-            ContentLength = contentLength;
-            ContentType = contentType;
             _transport = transport;
             _connection = connection;
-            _closeCallback = closeCallback;
         }
 
-        public long ContentLength { get; }
+        public long ContentLength { get; internal set; }
 
-        public string ContentType { get; }
+        public string ContentType { get; internal set; }
+
+        public Action CloseCallback { get; internal set; }
 
         public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, 
             Action<Exception, int> cb)
@@ -88,7 +85,7 @@ namespace Kabomu.Common.Bodies
         {
             _srcEndError = e ?? new Exception("end of read");
             cb?.Invoke(_srcEndError, 0);
-            _closeCallback?.Invoke();
+            CloseCallback?.Invoke();
         }
     }
 }

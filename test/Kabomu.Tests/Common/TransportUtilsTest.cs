@@ -12,37 +12,7 @@ namespace Kabomu.Tests.Common
 {
     public class TransportUtilsTest
     {
-        private static IQuasiHttpTransport CreateTransportForReadBytesFully(object connection, string[] dataChunks)
-        {
-            int readIndex = 0;
-            var transport = new ConfigurableQuasiHttpTransport
-            {
-                ReadBytesCallback = (actualConnection, data, offset, length, cb) =>
-                {
-                    Assert.Equal(connection, actualConnection);
-                    int nextBytesRead = 0;
-                    Exception e = null;
-                    if (readIndex < dataChunks.Length)
-                    {
-                        var nextReadChunk = Encoding.UTF8.GetBytes(dataChunks[readIndex++]);
-                        nextBytesRead = nextReadChunk.Length;
-                        Array.Copy(nextReadChunk, 0, data, offset, nextBytesRead);
-                    }
-                    else if (readIndex == dataChunks.Length)
-                    {
-                        readIndex++;
-                    }
-                    else
-                    {
-                        e = new Exception("END");
-                    }
-                    cb.Invoke(e, nextBytesRead);
-                }
-            };
-            return transport;
-        }
-
-        private static IQuasiHttpTransport CreateTransportForWriteBytesFully(object connection, int maxChunkSize,
+        private static IQuasiHttpTransport CreateTransportForBodyTransfer(object connection, int maxChunkSize,
             StringBuilder savedWrites, int maxWriteCount)
         {
             int writeCount = 0;
@@ -72,13 +42,36 @@ namespace Kabomu.Tests.Common
         [Theory]
         [MemberData(nameof(CreateTestReadBytesFullyData))]
         public async Task TestReadBytesFully(
-            string[] dataChunks, object connection,
+            string[] dataChunks,
             byte[] data, int offset, int bytesToRead,
             string expectedError)
         {
-            var transport = CreateTransportForReadBytesFully(connection, dataChunks);
+            var readIndex = 0;
+            var body = new ConfigurableQuasiHttpBody
+            {
+                ReadBytesCallback = (mutex, data, offset, length, cb) =>
+                {
+                    int nextBytesRead = 0;
+                    Exception e = null;
+                    if (readIndex < dataChunks.Length)
+                    {
+                        var nextReadChunk = Encoding.UTF8.GetBytes(dataChunks[readIndex++]);
+                        nextBytesRead = nextReadChunk.Length;
+                        Array.Copy(nextReadChunk, 0, data, offset, nextBytesRead);
+                    }
+                    else if (readIndex == dataChunks.Length)
+                    {
+                        readIndex++;
+                    }
+                    else
+                    {
+                        e = new Exception("END");
+                    }
+                    cb.Invoke(e, nextBytesRead);
+                }
+            };
             var tcs = new TaskCompletionSource<int>();
-            TransportUtils.ReadBytesFully(transport, connection, data, offset, bytesToRead,
+            TransportUtils.ReadBytesFully(new TestEventLoopApi(), body, data, offset, bytesToRead,
                 e =>
                 {
                     if (e != null)
@@ -117,49 +110,44 @@ namespace Kabomu.Tests.Common
         {
             var testData = new List<object[]>();
 
-            object connection = "tea";
             var dataChunks = new string[] { "car", "e" };
             byte[] data = new byte[4];
             int offset = 0;
             int bytesToRead = data.Length;
             string expectedError = null;
-            testData.Add(new object[] { dataChunks, connection,
+            testData.Add(new object[] { dataChunks,
                 data, offset, bytesToRead, expectedError });
 
-            connection = null;
             dataChunks = new string[] { "are" };
             data = new byte[4];
             offset = 1;
             bytesToRead = 3;
             expectedError = null;
-            testData.Add(new object[] { dataChunks, connection,
+            testData.Add(new object[] { dataChunks,
                 data, offset, bytesToRead, expectedError });
 
-            connection = 5;
             dataChunks = new string[] { "sen", "der", "s" };
             data = new byte[10];
             offset = 2;
             bytesToRead = 7;
             expectedError = null;
-            testData.Add(new object[] { dataChunks, connection,
+            testData.Add(new object[] { dataChunks,
                 data, offset, bytesToRead, expectedError });
 
-            connection = 5;
             dataChunks = new string[] { "123", "der", "." };
             data = new byte[10];
             offset = 2;
             bytesToRead = 8;
             expectedError = "end of read";
-            testData.Add(new object[] { dataChunks, connection,
+            testData.Add(new object[] { dataChunks,
                 data, offset, bytesToRead, expectedError });
 
-            connection = 5;
             dataChunks = new string[0];
             data = new byte[10];
             offset = 7;
             bytesToRead = 0;
             expectedError = null;
-            testData.Add(new object[] { dataChunks, connection,
+            testData.Add(new object[] { dataChunks,
                 data, offset, bytesToRead, expectedError });
 
             return testData;
@@ -172,10 +160,10 @@ namespace Kabomu.Tests.Common
         {
             var tcs = new TaskCompletionSource<int>();
             var savedWrites = new StringBuilder();
-            var transport = CreateTransportForWriteBytesFully(connection, chunkSize, savedWrites, maxWriteCount);
+            var transport = CreateTransportForBodyTransfer(connection, chunkSize, savedWrites, maxWriteCount);
             var bodyBytes = Encoding.UTF8.GetBytes(bodyData);
             var body = new ByteBufferBody(bodyBytes, 0, bodyBytes.Length, null);
-            TransportUtils.TransferBodyToTransport(transport, connection, body, new TestEventLoopApi(),
+            TransportUtils.TransferBodyToTransport(new TestEventLoopApi(), transport, connection, body,
                 e =>
                 {
                     if (e != null)
@@ -252,7 +240,7 @@ namespace Kabomu.Tests.Common
         public void TestReadBodyToEnd(IQuasiHttpBody body, int maxChunkSize, string expectedError, string expectedData)
         {
             var cbCalled = false;
-            TransportUtils.ReadBodyToEnd(body, new TestEventLoopApi(), maxChunkSize, (e, data) =>
+            TransportUtils.ReadBodyToEnd(new TestEventLoopApi(), body, maxChunkSize, (e, data) =>
             {
                 Assert.False(cbCalled);
                 if (expectedError != null)
@@ -297,7 +285,14 @@ namespace Kabomu.Tests.Common
 
             data = null;
             expectedError = "test read error";
-            body = new ErrorQuasiHttpBody(expectedError);
+            var capturedError = expectedError;
+            body = new ConfigurableQuasiHttpBody
+            {
+                ReadBytesCallback = (mutex, data, offset, length, cb) =>
+                {
+                    cb.Invoke(new Exception(capturedError), 0);
+                }
+            };
             maxChunkSize = 10;
             testData.Add(new object[] { body, maxChunkSize, expectedError, data });
 
@@ -419,28 +414,6 @@ namespace Kabomu.Tests.Common
                 TransportUtils.WriteByteSlices(new ConfigurableQuasiHttpTransport(), null, new ByteBufferSlice[] { null },
                     e => { });
             });
-        }
-
-        private class ErrorQuasiHttpBody : IQuasiHttpBody
-        {
-            private readonly string _errorMessage;
-
-            public ErrorQuasiHttpBody(string errorMessage)
-            {
-                _errorMessage = errorMessage;
-            }
-
-            public string ContentType => throw new NotImplementedException();
-
-            public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
-            {
-                cb.Invoke(new Exception(_errorMessage), 0);
-            }
-
-            public void OnEndRead(IMutexApi mutex, Exception e)
-            {
-                throw new NotImplementedException();
-            }
         }
     }
 }

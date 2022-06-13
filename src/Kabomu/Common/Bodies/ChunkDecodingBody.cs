@@ -6,27 +6,23 @@ namespace Kabomu.Common.Bodies
 {
     public class ChunkDecodingBody : IQuasiHttpBody
     {
-        private readonly IQuasiHttpTransport _transport;
-        private readonly object _connection;
+        private readonly IQuasiHttpBody _wrappedBody;
         private readonly Action _closeCallback;
         private SubsequentChunk _lastChunk;
         private int _lastChunkUsedBytes;
         private Exception _srcEndError;
 
-        public ChunkDecodingBody(string contentType,
-            IQuasiHttpTransport transport, object connection, Action closeCallback)
+        public ChunkDecodingBody(IQuasiHttpBody wrappedBody, Action closeCallback)
         {
-            if (transport == null)
+            if (wrappedBody == null)
             {
-                throw new ArgumentException("null transport");
+                throw new ArgumentException("null wrapped body");
             }
-            ContentType = contentType;
-            _transport = transport;
-            _connection = connection;
+            _wrappedBody = wrappedBody;
             _closeCallback = closeCallback;
         }
 
-        public string ContentType { get; }
+        public string ContentType => _wrappedBody.ContentType;
 
         public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
         {
@@ -56,7 +52,7 @@ namespace Kabomu.Common.Bodies
                     return;
                 }
                 var encodedLength = new byte[2];
-                TransportUtils.ReadBytesFully(_transport, _connection,
+                TransportUtils.ReadBytesFully(mutex, _wrappedBody,
                     encodedLength, 0, encodedLength.Length, e =>
                     {
                         mutex.RunExclusively(_ =>
@@ -74,7 +70,7 @@ namespace Kabomu.Common.Bodies
                             int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                                 encodedLength.Length);
                             var chunkBytes = new byte[chunkLen];
-                            TransportUtils.ReadBytesFully(_transport, _connection,
+                            TransportUtils.ReadBytesFully(mutex, _wrappedBody,
                                 chunkBytes, 0, chunkBytes.Length, e =>
                                 {
                                     mutex.RunExclusively(_ =>

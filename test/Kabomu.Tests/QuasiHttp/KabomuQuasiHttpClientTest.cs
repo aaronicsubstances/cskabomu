@@ -382,7 +382,7 @@ namespace Kabomu.Tests.QuasiHttp
                         {
                             // read response body before assertion to prevent timeout during
                             // event loop advance.
-                            TransportUtils.ReadBodyToEnd(res.Body, eventLoop,
+                            TransportUtils.ReadBodyToEnd(eventLoop, res.Body,
                                 maxChunkSizes[testDataIndex], (e, d) =>
                             {
                                 Assert.Null(e);
@@ -702,7 +702,7 @@ namespace Kabomu.Tests.QuasiHttp
                         }
                         if (req.Body != null)
                         {
-                            TransportUtils.ReadBodyToEnd(req.Body, eventLoop, maxChunkSize, (e, reqBodyBytes) =>
+                            TransportUtils.ReadBodyToEnd(eventLoop, req.Body, maxChunkSize, (e, reqBodyBytes) =>
                             {
                                 Assert.Null(e);
                                 var resBodyBytes = new byte[reqBodyBytes.Length];
