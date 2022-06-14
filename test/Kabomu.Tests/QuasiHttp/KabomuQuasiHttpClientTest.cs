@@ -5,6 +5,7 @@ using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using Xunit;
 
@@ -395,7 +396,14 @@ namespace Kabomu.Tests.QuasiHttp
                                     HttpStatusCode = res.HttpStatusCode,
                                     HttpVersion = res.HttpVersion
                                 };
-                                equivalentRes.Body = new ByteBufferBody(d, 0, d.Length, res.Body.ContentType);
+                                if (res.Body.ContentLength < 0)
+                                {
+                                    equivalentRes.Body = new StreamBackedBody(new MemoryStream(d), res.Body.ContentType);
+                                }
+                                else
+                                {
+                                    equivalentRes.Body = new ByteBufferBody(d, 0, d.Length, res.Body.ContentType);
+                                }
                                 actualResponses[testDataIndex] = equivalentRes;
                             });
                         }
@@ -464,7 +472,7 @@ namespace Kabomu.Tests.QuasiHttp
             testData.Add(new object[] { scheduledTime, localEndpoint, request, options, 
                 responseError, response, responseBodyBytes });
 
-            scheduledTime = 5;
+            scheduledTime = 4;
             localEndpoint = accraEndpoint;
             request = new DefaultQuasiHttpRequest
             {
@@ -531,7 +539,7 @@ namespace Kabomu.Tests.QuasiHttp
             testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
                 responseError, response, responseBodyBytes });
 
-            scheduledTime = 11;
+            scheduledTime = 10;
             localEndpoint = kumasiEndpoint;
             request = new DefaultQuasiHttpRequest
             {
@@ -543,7 +551,7 @@ namespace Kabomu.Tests.QuasiHttp
                     { "second", new List<string>{ "1" } }
                 }
             };
-            request.Body = new ByteBufferBody(new byte[] { 0, 0x26, 0 }, 1, 1, null);
+            request.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0, 0x26, 0 }, 1, 1), null);
             options = null;
             responseError = null;
             response = new DefaultQuasiHttpResponse
@@ -559,7 +567,7 @@ namespace Kabomu.Tests.QuasiHttp
                 HttpStatusCode = 200,
                 HttpVersion = "1.1"
             };
-            response.Body = new ByteBufferBody(new byte[] { 0x25, 0 }, 0, 1, null);
+            response.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0x25, 0 }, 0, 1), null);
             responseBodyBytes = new byte[] { 0x25 };
             testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
                 responseError, response, responseBodyBytes });
@@ -596,12 +604,45 @@ namespace Kabomu.Tests.QuasiHttp
                 HttpStatusCode = 200,
                 HttpVersion = "1.1"
             };
-            response.Body = new ByteBufferBody(new byte[] { 0x25, 0 }, 1, 0, null);
+            response.Body = null;
+            responseBodyBytes = null;
+            testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
+                responseError, response, responseBodyBytes });
+
+            scheduledTime = 15;
+            localEndpoint = kumasiEndpoint;
+            request = new DefaultQuasiHttpRequest
+            {
+                Path = "/pong",
+                Headers = new Dictionary<string, List<string>>
+                {
+                    { "op", new List<string>{ "sub" } },
+                    { "first", new List<string>{ "" } },
+                    { "second", new List<string>{ "14000" } }
+                }
+            };
+            request.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0, 0x26, 0 }, 1, 0), null);
+            options = null;
+            responseError = null;
+            response = new DefaultQuasiHttpResponse
+            {
+                StatusIndicatesSuccess = true,
+                StatusMessage = "ok",
+                Headers = new Dictionary<string, List<string>>
+                {
+                    { "origin", new List<string>{ accraEndpoint } },
+                    { "path", new List<string>{ "/pong" } },
+                    { "ans", new List<string>{ "" } }
+                },
+                HttpStatusCode = 200,
+                HttpVersion = "1.1"
+            };
+            response.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0x25, 0 }, 1, 0), null);
             responseBodyBytes = new byte[0];
             testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
                 responseError, response, responseBodyBytes });
 
-            scheduledTime = 12;
+            scheduledTime = 17;
             localEndpoint = accraEndpoint;
             request = new DefaultQuasiHttpRequest
             {
@@ -710,7 +751,14 @@ namespace Kabomu.Tests.QuasiHttp
                                 {
                                     resBodyBytes[i] = selectedOp.Invoke(reqBodyBytes[i]);
                                 }
-                                res.Body = new ByteBufferBody(resBodyBytes, 0, resBodyBytes.Length, null);
+                                if (req.Body.ContentLength < 0)
+                                {
+                                    res.Body = new StreamBackedBody(new MemoryStream(resBodyBytes), null);
+                                }
+                                else
+                                {
+                                    res.Body = new ByteBufferBody(resBodyBytes, 0, resBodyBytes.Length, null);
+                                }
                                 eventLoop.ScheduleTimeout(processingDelay, _ =>
                                 {
                                     resCb.Invoke(null, res);

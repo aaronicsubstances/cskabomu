@@ -52,6 +52,7 @@ namespace Kabomu.Internals
                 }, null);
             };
             _transportBody = new TransportBackedBody(Parent.Transport, Connection);
+            _transportBody.ContentLength = -1;
             TransportUtils.ReadBytesFully(Parent.Mutex, _transportBody, encodedLength, 0, encodedLength.Length, cb);
         }
 

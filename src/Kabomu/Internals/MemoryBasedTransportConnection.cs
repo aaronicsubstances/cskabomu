@@ -77,7 +77,7 @@ namespace Kabomu.Internals
                 _readWriteRequestProcessors[writeReqProcessorIndex] = new WritableBackedBody(null);
             }
             var writeProcessor = _readWriteRequestProcessors[writeReqProcessorIndex];
-            // assumption of write occuring in chunks removes need to ever call
+            // assumptions of write occuring in chunks or with an overall content length remove need to ever call
             // writeProcessor.WriteLastBytes()
             writeProcessor.WriteBytes(mutex, data, offset, length, cb);
         }
