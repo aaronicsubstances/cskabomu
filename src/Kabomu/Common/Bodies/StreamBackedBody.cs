@@ -11,18 +11,17 @@ namespace Kabomu.Common.Bodies
     {
         private Exception _srcEndError;
 
-        public StreamBackedBody(Stream backingStream, long contentLength, string contentType)
+        public StreamBackedBody(Stream backingStream, string contentType)
         {
             if (backingStream == null)
             {
                 throw new ArgumentException("null backing stream");
             }
             BackingStream = backingStream;
-            ContentLength = contentLength;
             ContentType = contentType ?? TransportUtils.ContentTypeByteStream;
         }
 
-        public long ContentLength { get; }
+        public long ContentLength => -1;
 
         public string ContentType { get; }
 
