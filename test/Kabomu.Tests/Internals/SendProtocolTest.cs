@@ -52,21 +52,28 @@ namespace Kabomu.Tests.Internals
                 inputStream.Write(data, offset, length));
             if (responseBodyBytes != null)
             {
-                var resBodyChunk = new SubsequentChunk
+                if (response.Body.ContentLength < 0)
                 {
-                    Version = LeadChunk.Version01,
-                    Data = responseBodyBytes,
-                    DataLength = responseBodyBytes.Length
-                }.Serialize();
-                MiscUtils.WriteChunk(resBodyChunk, (data, offset, length) =>
-                    inputStream.Write(data, offset, length));
-                // write trailing empty chunk.
-                var emptyBodyChunk = new SubsequentChunk
+                    var resBodyChunk = new SubsequentChunk
+                    {
+                        Version = LeadChunk.Version01,
+                        Data = responseBodyBytes,
+                        DataLength = responseBodyBytes.Length
+                    }.Serialize();
+                    MiscUtils.WriteChunk(resBodyChunk, (data, offset, length) =>
+                        inputStream.Write(data, offset, length));
+                    // write trailing empty chunk.
+                    var emptyBodyChunk = new SubsequentChunk
+                    {
+                        Version = LeadChunk.Version01
+                    }.Serialize();
+                    MiscUtils.WriteChunk(emptyBodyChunk, (data, offset, length) =>
+                        inputStream.Write(data, offset, length));
+                }
+                else
                 {
-                    Version = LeadChunk.Version01
-                }.Serialize();
-                MiscUtils.WriteChunk(emptyBodyChunk, (data, offset, length) =>
-                    inputStream.Write(data, offset, length));
+                    inputStream.Write(responseBodyBytes);
+                }
             }
             inputStream.Position = 0; // rewind read pointer.
             var outputStream = new MemoryStream();
@@ -135,8 +142,17 @@ namespace Kabomu.Tests.Internals
             }
             else
             {
-                var actualReqBodyBytes = MiscUtils.ReadChunkedBody(actualReq, actualReqChunkLength + 2,
-                    actualRequestBodyLen);
+                byte[] actualReqBodyBytes;
+                if (actualReqChunk.ContentLength < 0)
+                {
+                    actualReqBodyBytes = MiscUtils.ReadChunkedBody(actualReq, actualReqChunkLength + 2,
+                        actualRequestBodyLen);
+                }
+                else
+                {
+                    actualReqBodyBytes = new byte[actualRequestBodyLen];
+                    Array.Copy(actualReq, actualReqChunkLength + 2, actualReqBodyBytes, 0, actualRequestBodyLen);
+                }
                 Assert.Equal(expectedRequestBodyBytes, actualReqBodyBytes);
             }
         }

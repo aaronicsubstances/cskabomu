@@ -48,7 +48,7 @@ namespace Kabomu.Internals
             _requestBody = request.Body;
             if (request.Body != null)
             {
-                chunk.ContentLength = chunk.ContentLength;
+                chunk.ContentLength = request.Body.ContentLength;
                 chunk.ContentType = request.Body.ContentType;
             }
             var cancellationIndicator = new STCancellationIndicator();
@@ -77,8 +77,11 @@ namespace Kabomu.Internals
 
             if (request.Body != null)
             {
-                var chunkBody = new ChunkEncodingBody(request.Body);
-                TransportUtils.TransferBodyToTransport(Parent.Mutex, Parent.Transport, Connection, chunkBody, e => { });
+                if (request.Body.ContentLength < 0)
+                {
+                    _requestBody = new ChunkEncodingBody(request.Body);
+                }
+                TransportUtils.TransferBodyToTransport(Parent.Mutex, Parent.Transport, Connection, _requestBody, e => { });
             }
             StartFetchingResponse();
         }
