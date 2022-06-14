@@ -200,8 +200,11 @@ namespace Kabomu.Internals
                         }
                     }, null);
                 };
-                var chunkBody = new ChunkEncodingBody(response.Body);
-                TransportUtils.TransferBodyToTransport(Parent.Mutex, Parent.Transport, Connection, chunkBody, cb);
+                if (response.Body.ContentLength < 0)
+                {
+                    _responseBody = new ChunkEncodingBody(response.Body);
+                }
+                TransportUtils.TransferBodyToTransport(Parent.Mutex, Parent.Transport, Connection, _responseBody, cb);
             }
             else
             {
