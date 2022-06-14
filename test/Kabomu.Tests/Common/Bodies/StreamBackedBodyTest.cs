@@ -15,7 +15,7 @@ namespace Kabomu.Tests.Common.Bodies
         {
             // arrange.
             var backingStream = new MemoryStream();
-            var instance = new StreamBackedBody(backingStream, -1, "text/csv");
+            var instance = new StreamBackedBody(backingStream, "text/csv");
 
             // act and assert.
             CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "text/csv",
@@ -27,10 +27,10 @@ namespace Kabomu.Tests.Common.Bodies
         {
             // arrange.
             var backingStream = new MemoryStream(new byte[] { (byte)'A', (byte)'b', (byte)'2' });
-            var instance = new StreamBackedBody(backingStream, 3, null);
+            var instance = new StreamBackedBody(backingStream, null);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "application/octet-stream",
+            CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "application/octet-stream",
                 new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
         }
 
@@ -39,10 +39,10 @@ namespace Kabomu.Tests.Common.Bodies
         {
             Assert.Throws<ArgumentException>(() =>
             {
-                new StreamBackedBody(null, 0, null);
+                new StreamBackedBody(null, null);
             });
             var backingStream = new MemoryStream(new byte[] { (byte)'c', (byte)'2' });
-            var instance = new StreamBackedBody(backingStream, -1, null);
+            var instance = new StreamBackedBody(backingStream, null);
             CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }
