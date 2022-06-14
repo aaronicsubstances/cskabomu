@@ -30,12 +30,6 @@ Create ExtendedBody interface
   - of interest to extended transport and chunk encoding body.
 -Have to still support readbytes and give ExtendedTransport the option to choose.
 
-transport utils
--transfer body to transport
--writeslices to transport
--read body to end - transportbackedbody to apply to transport
--read fully from body - transportbackedbody to apply to transport
-
 Release
 -------
 copyright

@@ -82,6 +82,62 @@ namespace Kabomu.Tests.Common.Bodies
         }
 
         [Fact]
+        public void TestWithEmptyTransportWhichDoesNotCompleteReadsAfterSatisfyingContentLength()
+        {
+            // arrange.
+            var transport = new ConfigurableQuasiHttpTransport();
+            var instance = new TransportBackedBody(transport, "hn");
+            var cbCalled = false;
+            instance.CloseCallback = () =>
+            {
+                Assert.False(cbCalled);
+                cbCalled = true;
+            };
+
+            // act and assert.
+            CommonBodyTestRunner.RunCommonBodyTest(2, instance, 0, null,
+                new int[0], null, new byte[0]);
+            Assert.True(cbCalled);
+        }
+
+        [Fact]
+        public void TestWithTransportWhichDoesNotCompleteReadsAfterSatisfyingContentLength()
+        {
+            // arrange.
+            object connection = null;
+            var dataList = new string[] { "Ab", "cD", "2" };
+            var readIndex = 0;
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = (actualConnection, data, offset, length, cb) =>
+                {
+                    Assert.Null(actualConnection);
+                    if (readIndex >= dataList.Length)
+                    {
+                        return;
+                    }
+                    var srcBytes = Encoding.UTF8.GetBytes(dataList[readIndex++]);
+                    Array.Copy(srcBytes, 0, data, offset, srcBytes.Length);
+                    cb.Invoke(null, srcBytes.Length);
+                }
+            };
+            var instance = new TransportBackedBody(transport, connection);
+            instance.ContentType = null;
+            instance.ContentLength = 5;
+            var cbCalled = false;
+            instance.CloseCallback = () =>
+            {
+                Assert.False(cbCalled);
+                cbCalled = true;
+            };
+
+            // act and assert.
+            CommonBodyTestRunner.RunCommonBodyTest(2, instance, 5, null,
+                new int[] { 2, 2, 1 }, null, Encoding.UTF8.GetBytes("AbcD2"));
+            Assert.True(cbCalled);
+        }
+
+        [Fact]
         public void TestForArgumentErrors()
         {
             Assert.Throws<ArgumentException>(() =>
