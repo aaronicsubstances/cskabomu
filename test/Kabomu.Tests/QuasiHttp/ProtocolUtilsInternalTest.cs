@@ -1,5 +1,5 @@
 ﻿using Kabomu.Common;
-using Kabomu.Internals;
+using Kabomu.QuasiHttp;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -7,9 +7,9 @@ using System.IO;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.Internals
+namespace Kabomu.Tests.QuasiHttp
 {
-    public class ProtocolUtilsTest
+    public class ProtocolUtilsInternalTest
     {
         [Fact]
         public void TestWriteLeadChunk()

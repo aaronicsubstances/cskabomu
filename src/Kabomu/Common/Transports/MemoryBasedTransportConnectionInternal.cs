@@ -1,18 +1,17 @@
-﻿using Kabomu.Common;
-using Kabomu.Common.Bodies;
+﻿using Kabomu.Common.Bodies;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Internals
+namespace Kabomu.Common.Transports
 {
-    internal class MemoryBasedTransportConnection
+    internal class MemoryBasedTransportConnectionInternal
     {
         private readonly WritableBackedBody[] _readWriteRequestProcessors;
         private readonly object _initiatingParticipant;
         private Exception _releaseError;
 
-        public MemoryBasedTransportConnection(object initiatingParticipant)
+        public MemoryBasedTransportConnectionInternal(object initiatingParticipant)
         {
             _initiatingParticipant = initiatingParticipant;
             _readWriteRequestProcessors = new WritableBackedBody[2];

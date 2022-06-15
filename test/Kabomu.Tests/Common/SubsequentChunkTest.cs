@@ -25,7 +25,7 @@ namespace Kabomu.Tests.Common
             }
             var bytes = inputStream.ToArray();
             var actual = SubsequentChunk.Deserialize(bytes, 0, bytes.Length);
-            CompareChunks(expected, actual);
+            ComparisonUtils.CompareSubsequentChunks(expected, actual);
         }
 
         [Fact]
@@ -46,7 +46,7 @@ namespace Kabomu.Tests.Common
             }
             var bytes = inputStream.ToArray();
             var actual = SubsequentChunk.Deserialize(bytes, 0, bytes.Length);
-            CompareChunks(expected, actual);
+            ComparisonUtils.CompareSubsequentChunks(expected, actual);
         }
 
         [Fact]
@@ -65,14 +65,6 @@ namespace Kabomu.Tests.Common
                 SubsequentChunk.Deserialize(new byte[10], 3, 6);
             });
             Assert.Contains("version", ex.Message);
-        }
-
-        internal static void CompareChunks(SubsequentChunk expected, SubsequentChunk actual)
-        {
-            Assert.Equal(expected.Version, actual.Version);
-            Assert.Equal(expected.Flags, actual.Flags);
-            ComparisonUtils.CompareData(expected.Data, expected.DataOffset, expected.DataLength, actual.Data,
-                actual.DataOffset, actual.DataLength);
         }
     }
 }

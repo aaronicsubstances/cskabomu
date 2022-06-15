@@ -1,12 +1,11 @@
-﻿using Kabomu.Common;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 
-namespace Kabomu.Internals
+namespace Kabomu.QuasiHttp
 {
-    internal class STCancellationIndicator
+    internal class STCancellationIndicatorInternal
     {
         public void Cancel()
         {

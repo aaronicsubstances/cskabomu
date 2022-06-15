@@ -1,5 +1,4 @@
-﻿using Kabomu.Internals;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
@@ -15,11 +14,11 @@ namespace Kabomu.Common
         [ThreadStatic]
         private static Thread _postCallbackExecutionThread;
 
-        private readonly LimitedConcurrencyLevelTaskScheduler _throttledTaskScheduler;
+        private readonly LimitedConcurrencyLevelTaskSchedulerInternal _throttledTaskScheduler;
 
         public DefaultEventLoopApi()
         {
-            _throttledTaskScheduler = new LimitedConcurrencyLevelTaskScheduler(1);
+            _throttledTaskScheduler = new LimitedConcurrencyLevelTaskSchedulerInternal(1);
         }
 
         public long CurrentTimestamp => DateTimeUtils.UnixTimeMillis;

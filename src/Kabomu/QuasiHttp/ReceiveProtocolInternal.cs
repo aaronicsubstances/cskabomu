@@ -1,20 +1,19 @@
 ﻿using Kabomu.Common;
 using Kabomu.Common.Bodies;
-using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Internals
+namespace Kabomu.QuasiHttp
 {
-    internal class ReceiveProtocol : ITransferProtocol
+    internal class ReceiveProtocolInternal : ITransferProtocolInternal
     {
         private TransportBackedBody _transportBody;
         private IQuasiHttpBody _requestBody, _responseBody;
 
-        public IParentTransferProtocol Parent { get; set; }
+        public IParentTransferProtocolInternal Parent { get; set; }
         public object Connection { get; set; }
-        public STCancellationIndicator ProcessingCancellationIndicator { get; set; }
+        public STCancellationIndicatorInternal ProcessingCancellationIndicator { get; set; }
         public int TimeoutMillis { get; set; }
         public object TimeoutId { get; set; }
         public Action<Exception, IQuasiHttpResponse> SendCallback { get; set; }
@@ -38,7 +37,7 @@ namespace Kabomu.Internals
         private void ReadRequestLeadChunk()
         {
             byte[] encodedLength = new byte[2];
-            var cancellationIndicator = new STCancellationIndicator();
+            var cancellationIndicator = new STCancellationIndicatorInternal();
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
@@ -67,7 +66,7 @@ namespace Kabomu.Internals
             int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                 encodedLength.Length);
             var chunkBytes = new byte[chunkLen];
-            var cancellationIndicator = new STCancellationIndicator();
+            var cancellationIndicator = new STCancellationIndicatorInternal();
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
@@ -114,7 +113,7 @@ namespace Kabomu.Internals
             }
             _requestBody = request.Body;
 
-            var cancellationIndicator = new STCancellationIndicator();
+            var cancellationIndicator = new STCancellationIndicatorInternal();
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception, IQuasiHttpResponse> cb = (e, res) =>
             {
@@ -162,7 +161,7 @@ namespace Kabomu.Internals
                 chunk.ContentType = response.Body.ContentType;
             }
 
-            var cancellationIndicator = new STCancellationIndicator();
+            var cancellationIndicator = new STCancellationIndicatorInternal();
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
@@ -188,7 +187,7 @@ namespace Kabomu.Internals
 
             if (response.Body != null)
             {
-                var cancellationIndicator = new STCancellationIndicator();
+                var cancellationIndicator = new STCancellationIndicatorInternal();
                 ProcessingCancellationIndicator = cancellationIndicator;
                 Action<Exception> cb = e2 =>
                 {

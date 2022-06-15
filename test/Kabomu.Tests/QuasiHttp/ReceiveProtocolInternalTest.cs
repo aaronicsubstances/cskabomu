@@ -1,8 +1,8 @@
 ﻿using Kabomu.Common;
 using Kabomu.Common.Bodies;
-using Kabomu.Internals;
 using Kabomu.QuasiHttp;
 using Kabomu.Tests.Common;
+using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -10,9 +10,9 @@ using System.IO;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.Internals
+namespace Kabomu.Tests.QuasiHttp
 {
-    public class ReceiveProtocolTest
+    public class ReceiveProtocolInternalTest
     {
         [Theory]
         [MemberData(nameof(CreateTestOnReceiveData))]
@@ -105,7 +105,7 @@ namespace Kabomu.Tests.Internals
                     cb.Invoke(null);
                 }
             };
-            var instance = new ReceiveProtocol();
+            var instance = new ReceiveProtocolInternal();
             instance.Connection = connection;
             IQuasiHttpRequest actualRequest = null;
             var cbCalled = false;
@@ -140,7 +140,7 @@ namespace Kabomu.Tests.Internals
             Assert.NotEmpty(actualRes);
             int actualResChunkLength = ByteUtils.DeserializeInt16BigEndian(actualRes, 0);
             var actualResChunk = LeadChunk.Deserialize(actualRes, 2, actualResChunkLength);
-            LeadChunkTest.CompareChunks(expectedResChunk, actualResChunk);
+            ComparisonUtils.CompareLeadChunks(expectedResChunk, actualResChunk);
             var actualResponseBodyLen = actualRes.Length - 2 - actualResChunkLength;
             if (expectedResponseBodyBytes == null)
             {

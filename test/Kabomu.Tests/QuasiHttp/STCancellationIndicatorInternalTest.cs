@@ -1,17 +1,17 @@
-﻿using Kabomu.Internals;
+﻿using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp.Internals
+namespace Kabomu.Tests.QuasiHttp
 {
-    public class STCancellationIndicatorTest
+    public class STCancellationIndicatorInternalTest
     {
         [Fact]
         public void TestCancel()
         {
-            var cancellationHandle = new STCancellationIndicator();
+            var cancellationHandle = new STCancellationIndicatorInternal();
 
             Assert.False(cancellationHandle.Cancelled);
             cancellationHandle.Cancel();

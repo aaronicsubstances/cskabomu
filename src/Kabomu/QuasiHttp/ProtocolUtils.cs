@@ -1,7 +1,7 @@
 ﻿using Kabomu.Common;
 using System;
 
-namespace Kabomu.Internals
+namespace Kabomu.QuasiHttp
 {
     internal class ProtocolUtils
     {

@@ -4,14 +4,14 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu.Internals
+namespace Kabomu.Common
 {
     // Taken from https://docs.microsoft.com/en-us/dotnet/api/system.threading.tasks.taskscheduler?view=netcore-3.1
     // on 2021-06-28
 
     // Provides a task scheduler that ensures a maximum concurrency level while
     // running on top of the thread pool.
-    internal class LimitedConcurrencyLevelTaskScheduler : TaskScheduler
+    internal class LimitedConcurrencyLevelTaskSchedulerInternal : TaskScheduler
     {
         // Indicates whether the current thread is processing work items.
         [ThreadStatic]
@@ -27,7 +27,7 @@ namespace Kabomu.Internals
         private int _delegatesQueuedOrRunning = 0;
 
         // Creates a new instance with the specified degree of parallelism.
-        public LimitedConcurrencyLevelTaskScheduler(int maxDegreeOfParallelism)
+        public LimitedConcurrencyLevelTaskSchedulerInternal(int maxDegreeOfParallelism)
         {
             if (maxDegreeOfParallelism < 1) throw new ArgumentOutOfRangeException("maxDegreeOfParallelism");
             _maxDegreeOfParallelism = maxDegreeOfParallelism;
