@@ -1,9 +1,8 @@
-﻿using Kabomu.QuasiHttp;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Common
+namespace Kabomu.Common.Transports
 {
     public class MemoryBasedTransportHub
     {

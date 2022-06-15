@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Common.Transports;
 using Kabomu.Internals;
 using Kabomu.QuasiHttp;
 using Kabomu.Tests.Shared;
@@ -8,7 +9,7 @@ using System.Text;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Kabomu.Tests.Common
+namespace Kabomu.Tests.Common.Transports
 {
     public class MemoryBasedTransportTest
     {

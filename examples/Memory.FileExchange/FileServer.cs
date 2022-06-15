@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Common.Transports;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using NLog;
