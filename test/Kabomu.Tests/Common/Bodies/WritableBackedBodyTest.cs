@@ -16,7 +16,7 @@ namespace Kabomu.Tests.Common.Bodies
             // arrange.
             var instance = new WritableBackedBody(null);
             var cbCalled = false;
-            instance.WriteLastBytes(new TestEventLoopApi(), new byte[0], 0, 0, e =>
+            instance.WriteLastBytes(new TestEventLoopApiPrev(), new byte[0], 0, 0, e =>
             {
                 Assert.False(cbCalled);
                 Assert.Null(e);
@@ -35,13 +35,13 @@ namespace Kabomu.Tests.Common.Bodies
             // arrange.
             var instance = new WritableBackedBody("text/csv");
             var cbCalls = new bool[2];
-            instance.WriteBytes(new TestEventLoopApi(), new byte[] { (byte)'A', (byte)'b' }, 0, 2, e =>
+            instance.WriteBytes(new TestEventLoopApiPrev(), new byte[] { (byte)'A', (byte)'b' }, 0, 2, e =>
             {
                 Assert.False(cbCalls[0]);
                 Assert.Null(e);
                 cbCalls[0] = true;
             });
-            instance.WriteLastBytes(new TestEventLoopApi(), new byte[] { (byte)'2' }, 0, 1, e =>
+            instance.WriteLastBytes(new TestEventLoopApiPrev(), new byte[] { (byte)'2' }, 0, 1, e =>
             {
                 Assert.False(cbCalls[1]);
                 Assert.Null(e);
@@ -67,7 +67,7 @@ namespace Kabomu.Tests.Common.Bodies
                 var capturedIndex = i;
                 if (i == expectedData.Length - 1)
                 {
-                    instance.WriteLastBytes(new TestEventLoopApi(), expectedData, capturedIndex, 1, e =>
+                    instance.WriteLastBytes(new TestEventLoopApiPrev(), expectedData, capturedIndex, 1, e =>
                     {
                         Assert.False(cbCalls[capturedIndex]);
                         Assert.Null(e);
@@ -76,7 +76,7 @@ namespace Kabomu.Tests.Common.Bodies
                 }
                 else
                 {
-                    instance.WriteBytes(new TestEventLoopApi(), expectedData, capturedIndex, 1, e =>
+                    instance.WriteBytes(new TestEventLoopApiPrev(), expectedData, capturedIndex, 1, e =>
                     {
                         Assert.False(cbCalls[capturedIndex]);
                         Assert.Null(e);
@@ -98,7 +98,7 @@ namespace Kabomu.Tests.Common.Bodies
         public void TestForArgumentErrors()
         {
             var instance = new WritableBackedBody(null);
-            var mutex = new TestEventLoopApi();
+            var mutex = new TestEventLoopApiPrev();
             instance.WriteLastBytes(mutex, new byte[] { (byte)'c', (byte)'2' }, 0, 2, 
                 e => { });
             CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);

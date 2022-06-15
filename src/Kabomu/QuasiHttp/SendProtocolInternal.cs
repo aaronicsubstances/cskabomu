@@ -3,6 +3,8 @@ using Kabomu.Common.Bodies;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
 {
@@ -13,28 +15,38 @@ namespace Kabomu.QuasiHttp
 
         public IParentTransferProtocolInternal Parent { get; set; }
         public object Connection { get; set; }
-        public STCancellationIndicatorInternal ProcessingCancellationIndicator { get; set; }
+        public bool IsAborted { get; set; }
         public int TimeoutMillis { get; set; }
-        public object TimeoutId { get; set; }
-        public Action<Exception, IQuasiHttpResponse> SendCallback { get; set; }
+        public CancellationTokenSource TimeoutCancellationHandle { get; set; }
+        public TaskCompletionSource<IQuasiHttpResponse> SendCallback { get; set; }
 
-        public void Cancel(Exception e)
+        public async Task CancelAsync(Exception e)
         {
-            _requestBody?.OnEndRead(Parent.Mutex, e);
-            _responseBody?.OnEndRead(Parent.Mutex, e);
+            if (Parent.EventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            if (_requestBody != null)
+            {
+                await _requestBody.EndReadAsync(Parent.EventLoop, e);
+            }
+            if (_responseBody != null)
+            {
+                await _responseBody.EndReadAsync(Parent.EventLoop, e);
+            }
         }
 
-        public void OnReceive()
+        public Task ReceiveAsync()
         {
             throw new NotImplementedException("implementation error");
         }
 
-        public void OnSend(IQuasiHttpRequest request)
+        public async Task<IQuasiHttpResponse> SendAsync(IQuasiHttpRequest request)
         {
-            SendRequestLeadChunk(request);
+            if (Parent.EventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            return await SendRequestLeadChunkAsync(request);
         }
 
-        private void SendRequestLeadChunk(IQuasiHttpRequest request)
+        private async Task<IQuasiHttpResponse> SendRequestLeadChunkAsync(IQuasiHttpRequest request)
         {
             var chunk = new LeadChunk
             {
@@ -50,95 +62,97 @@ namespace Kabomu.QuasiHttp
                 chunk.ContentLength = request.Body.ContentLength;
                 chunk.ContentType = request.Body.ContentType;
             }
-            var cancellationIndicator = new STCancellationIndicatorInternal();
-            ProcessingCancellationIndicator = cancellationIndicator;
-            Action<Exception> cb = e =>
+            Exception writeError = null;
+            try
             {
-                Parent.Mutex.RunExclusively(_ =>
-                {
-                    if (!cancellationIndicator.Cancelled)
-                    {
-                        cancellationIndicator.Cancel();
-                        HandleSendRequestLeadChunkOutcome(e, request);
-                    }
-                }, null);
-            };
-            ProtocolUtils.WriteLeadChunk(Parent.Transport, Connection, chunk, cb);
-        }
-
-        private void HandleSendRequestLeadChunkOutcome(Exception e, IQuasiHttpRequest request)
-        {
-            if (e != null)
+                await Parent.EventLoop.MutexWrap(ProtocolUtils.WriteLeadChunkAsync(Parent.Transport, Connection, chunk));
+            }
+            catch (Exception e)
             {
-                Parent.AbortTransfer(this, e);
-                return;
+                writeError = e;
             }
 
-            if (request.Body != null)
+            if (IsAborted)
             {
-                if (request.Body.ContentLength < 0)
-                {
-                    _requestBody = new ChunkEncodingBody(request.Body);
-                }
-                TransportUtils.TransferBodyToTransport(Parent.Mutex, Parent.Transport, Connection, _requestBody, e => { });
+                return null;
             }
-            StartFetchingResponse();
+
+            if (writeError != null)
+            {
+                return await Parent.AbortTransferAsync(this, writeError);
+            }
+
+            var responseFetchTask = StartFetchingResponseAsync();
+            if (request.Body == null)
+            {
+                return await responseFetchTask;
+            }
+
+            if (request.Body.ContentLength < 0)
+            {
+                _requestBody = new ChunkEncodingBody(request.Body);
+            }
+            var transferTask = TransportUtils.TransferBodyToTransportAsync(Parent.EventLoop, Parent.Transport, 
+                Connection, _requestBody);
+
+            // Run a race for pending tasks to obtain the first success or error.
+            // if any task finishes first and was successful, then return the result of the send callback regardless of 
+            // any subsequent errors.
+            var firstCompletedTask = await Task.WhenAny(SendCallback.Task, transferTask, responseFetchTask);
+            await firstCompletedTask;
+            return await SendCallback.Task;
         }
 
-        private void StartFetchingResponse()
+        private async Task<IQuasiHttpResponse> StartFetchingResponseAsync()
         {
-            byte[] encodedLength = new byte[2];
-            var cancellationIndicator = new STCancellationIndicatorInternal();
-            ProcessingCancellationIndicator = cancellationIndicator;
-            Action<Exception> cb = e =>
-            {
-                Parent.Mutex.RunExclusively(_ =>
-                {
-                    if (!cancellationIndicator.Cancelled)
-                    {
-                        cancellationIndicator.Cancel();
-                        HandleResponseLeadChunkLength(e, encodedLength);
-                    }
-                }, null);
-            };
             _transportBody = new TransportBackedBody(Parent.Transport, Connection);
             _transportBody.ContentLength = -1;
-            TransportUtils.ReadBytesFully(Parent.Mutex, _transportBody, encodedLength, 0, encodedLength.Length, cb);
-        }
 
-        private void HandleResponseLeadChunkLength(Exception e, byte[] encodedLength)
-        {
-            if (e != null)
+            byte[] encodedLength = new byte[2];
+            Exception readError = null;
+            try
             {
-                Parent.AbortTransfer(this, e);
-                return;
+                await Parent.EventLoop.MutexWrap(TransportUtils.ReadBytesFullyAsync(Parent.EventLoop, _transportBody, 
+                    encodedLength, 0, encodedLength.Length));
+            }
+            catch (Exception e)
+            {
+                readError = e;
+            }
+
+            if (IsAborted)
+            {
+                return null;
+            }
+
+            if (readError != null)
+            {
+                return await Parent.AbortTransferAsync(this, readError);
             }
 
             int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                 encodedLength.Length);
             var chunkBytes = new byte[chunkLen];
-            var cancellationIndicator = new STCancellationIndicatorInternal();
-            ProcessingCancellationIndicator = cancellationIndicator;
-            Action<Exception> cb = e =>
-            {
-                Parent.Mutex.RunExclusively(_ =>
-                {
-                    if (!cancellationIndicator.Cancelled)
-                    {
-                        cancellationIndicator.Cancel();
-                        HandleResponseLeadChunk(e, chunkBytes);
-                    }
-                }, null);
-            };
-            TransportUtils.ReadBytesFully(Parent.Mutex, _transportBody, chunkBytes, 0, chunkBytes.Length, cb);
-        }
 
-        private void HandleResponseLeadChunk(Exception e, byte[] chunkBytes)
-        {
-            if (e != null)
+            readError = null;
+            try
             {
-                Parent.AbortTransfer(this, e);
-                return;
+                await Parent.EventLoop.MutexWrap(TransportUtils.ReadBytesFullyAsync(Parent.EventLoop, _transportBody,
+                    chunkBytes, 0, chunkBytes.Length));
+            }
+            catch (Exception e)
+            {
+                readError = e;
+            }
+
+            if (IsAborted)
+            {
+                return null;
+            }
+
+            if (readError != null)
+            {
+                return await Parent.AbortTransferAsync(this, readError);
             }
 
             var chunk = LeadChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
@@ -155,18 +169,14 @@ namespace Kabomu.QuasiHttp
 
             if (chunk.ContentLength != 0)
             {
-                var cancellationIndicator = new STCancellationIndicatorInternal();
-                ProcessingCancellationIndicator = cancellationIndicator;
-                Action closeCb = () =>
+                Func<Task> closeCb = async () =>
                 {
-                    Parent.Mutex.RunExclusively(_ =>
+                    if (Parent.EventLoop.IsMutexRequired(out Task mt)) await mt;
+
+                    if (!IsAborted)
                     {
-                        if (!cancellationIndicator.Cancelled)
-                        {
-                            cancellationIndicator.Cancel();
-                            Parent.AbortTransfer(this, null);
-                        }
-                    }, null);
+                        await Parent.AbortTransferAsync(this, null);
+                    }
                 };
                 _transportBody.ContentLength = chunk.ContentLength;
                 _transportBody.ContentType = chunk.ContentType;
@@ -182,12 +192,15 @@ namespace Kabomu.QuasiHttp
             }
             _responseBody = response.Body;
 
-            SendCallback.Invoke(null, response);
-            SendCallback = null;
+            SendCallback.SetResult(response);
 
             if (response.Body == null)
             {
-                Parent.AbortTransfer(this, null);
+                return await Parent.AbortTransferAsync(this, null);
+            }
+            else
+            {
+                return await SendCallback.Task;
             }
         }
     }

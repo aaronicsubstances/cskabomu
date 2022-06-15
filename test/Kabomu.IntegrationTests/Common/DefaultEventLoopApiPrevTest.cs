@@ -10,7 +10,7 @@ using Xunit;
 namespace Kabomu.IntegrationTests.Common
 {
     //[Collection("SequentialTests")]
-    public class DefaultEventLoopApiTest
+    public class DefaultEventLoopApiPrevTest
     {
         [Fact]
         public async Task TestForThreadInteferenceErrors()

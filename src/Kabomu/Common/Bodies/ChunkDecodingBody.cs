@@ -1,18 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common.Bodies
 {
     public class ChunkDecodingBody : IQuasiHttpBody
     {
         private readonly IQuasiHttpBody _wrappedBody;
-        private readonly Action _closeCallback;
+        private readonly Func<Task> _closeCallback;
         private SubsequentChunk _lastChunk;
         private int _lastChunkUsedBytes;
         private Exception _srcEndError;
 
-        public ChunkDecodingBody(IQuasiHttpBody wrappedBody, Action closeCallback)
+        public ChunkDecodingBody(IQuasiHttpBody wrappedBody, Func<Task> closeCallback)
         {
             if (wrappedBody == null)
             {
@@ -26,9 +27,9 @@ namespace Kabomu.Common.Bodies
 
         public string ContentType => _wrappedBody.ContentType;
 
-        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public async Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
         {
-            if (mutex == null)
+            if (eventLoop == null)
             {
                 throw new ArgumentException("null mutex api");
             }
@@ -36,96 +37,97 @@ namespace Kabomu.Common.Bodies
             {
                 throw new ArgumentException("invalid destination buffer");
             }
-            if (cb == null)
+
+            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            if (_srcEndError != null)
             {
-                throw new ArgumentException("null callback");
+                throw _srcEndError;
             }
-            mutex.RunExclusively(_ =>
+
+            // once empty data chunk is seen, return 0 for all subsequent reads.
+            if (_lastChunk != null && (_lastChunk.DataLength == 0 || _lastChunkUsedBytes < _lastChunk.DataLength))
+            {
+                return SupplyFromLastChunk(data, offset, bytesToRead);
+            }
+            
+            var encodedLength = new byte[2];
+            try
+            {
+                await eventLoop.MutexWrap(TransportUtils.ReadBytesFullyAsync(eventLoop, _wrappedBody,
+                    encodedLength, 0, encodedLength.Length));
+                if (_srcEndError != null)
+                {
+                    throw _srcEndError;
+                }
+            }
+            catch (Exception e)
             {
                 if (_srcEndError != null)
                 {
-                    cb.Invoke(_srcEndError, 0);
-                    return;
+                    throw _srcEndError;
                 }
-                // once empty data chunk is seen, return 0 for all subsequent reads.
-                if (_lastChunk != null && (_lastChunk.DataLength == 0 || _lastChunkUsedBytes < _lastChunk.DataLength))
+                await EndReadInternally(e);
+                throw;
+            }
+            int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
+                encodedLength.Length);
+            var chunkBytes = new byte[chunkLen];
+            try
+            {
+                await eventLoop.MutexWrap(TransportUtils.ReadBytesFullyAsync(eventLoop, _wrappedBody,
+                    chunkBytes, 0, chunkBytes.Length));
+                if (_srcEndError != null)
                 {
-                    SupplyFromLastChunk(data, offset, bytesToRead, cb);
-                    return;
+                    throw _srcEndError;
                 }
-                var encodedLength = new byte[2];
-                TransportUtils.ReadBytesFully(mutex, _wrappedBody,
-                    encodedLength, 0, encodedLength.Length, e =>
-                    {
-                        mutex.RunExclusively(_ =>
-                        {
-                            if (_srcEndError != null)
-                            {
-                                cb.Invoke(_srcEndError, 0);
-                                return;
-                            }
-                            if (e != null)
-                            {
-                                EndRead(cb, e);
-                                return;
-                            }
-                            int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
-                                encodedLength.Length);
-                            var chunkBytes = new byte[chunkLen];
-                            TransportUtils.ReadBytesFully(mutex, _wrappedBody,
-                                chunkBytes, 0, chunkBytes.Length, e =>
-                                {
-                                    mutex.RunExclusively(_ =>
-                                    {
-                                        if (_srcEndError != null)
-                                        {
-                                            cb.Invoke(_srcEndError, 0);
-                                            return;
-                                        }
-                                        if (e != null)
-                                        {
-                                            EndRead(cb, e);
-                                            return;
-                                        }
-                                        _lastChunk = SubsequentChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
-                                        _lastChunkUsedBytes = 0;
-                                        SupplyFromLastChunk(data, offset, bytesToRead, cb);
-                                    }, null);
-                                });
-                        }, null);
-                    });
-            }, null);
+            }
+            catch (Exception e)
+            {
+                if (_srcEndError != null)
+                {
+                    throw _srcEndError;
+                }
+                await EndReadInternally(e);
+                throw;
+            }                    
+
+            _lastChunk = SubsequentChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
+            _lastChunkUsedBytes = 0;
+            return SupplyFromLastChunk(data, offset, bytesToRead);
         }
 
-        private void SupplyFromLastChunk(byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        private int SupplyFromLastChunk(byte[] data, int offset, int bytesToRead)
         {
             int lengthToUse = Math.Min(_lastChunk.DataLength - _lastChunkUsedBytes, bytesToRead);
             Array.Copy(_lastChunk.Data, _lastChunk.DataOffset + _lastChunkUsedBytes, data, offset, lengthToUse);
             _lastChunkUsedBytes += lengthToUse;
-            cb.Invoke(null, lengthToUse);
+            return lengthToUse;
         }
 
-        public void OnEndRead(IMutexApi mutex, Exception e)
+        public async Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
         {
-            if (mutex == null)
+            if (eventLoop == null)
             {
-                throw new ArgumentException("null mutex api");
+                throw new ArgumentException("null event loop");
             }
-            mutex.RunExclusively(_ =>
+
+            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            if (_srcEndError != null)
             {
-                if (_srcEndError != null)
-                {
-                    return;
-                }
-                EndRead(null, e);
-            }, null);
+                return;
+            }
+            await EndReadInternally(e);
         }
 
-        private void EndRead(Action<Exception, int> cb, Exception e)
+        private async Task EndReadInternally(Exception e)
         {
             _srcEndError = e ?? new Exception("end of read");
-            cb?.Invoke(_srcEndError, 0);
-            _closeCallback?.Invoke();
+            if (_closeCallback != null)
+            {
+                await _closeCallback.Invoke();
+            }
         }
     }
 }

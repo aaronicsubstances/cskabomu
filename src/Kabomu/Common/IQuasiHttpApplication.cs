@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common
 {
     public interface IQuasiHttpApplication
     {
-        void ProcessRequest(IQuasiHttpRequest request, Action<Exception, IQuasiHttpResponse> cb);
+        Task<IQuasiHttpResponse> ProcessRequestAsync(IQuasiHttpRequest request);
     }
 }

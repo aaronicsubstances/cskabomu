@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common.Bodies
 {
@@ -27,14 +28,14 @@ namespace Kabomu.Common.Bodies
 
         public string ContentType => _backingBody.ContentType;
 
-        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
         {
-            _backingBody.ReadBytes(mutex, data, offset, bytesToRead, cb);
+            return _backingBody.ReadBytesAsync(eventLoop, data, offset, bytesToRead);
         }
 
-        public void OnEndRead(IMutexApi mutex, Exception e)
+        public Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
         {
-            _backingBody.OnEndRead(mutex, e);
+            return _backingBody.EndReadAsync(eventLoop, e);
         }
     }
 }

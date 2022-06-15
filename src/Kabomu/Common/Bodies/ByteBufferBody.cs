@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common.Bodies
 {
@@ -28,48 +29,43 @@ namespace Kabomu.Common.Bodies
         public long ContentLength => Length;
         public string ContentType { get; }
 
-        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int length, Action<Exception, int> cb)
+        public async Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int length)
         {
-            if (mutex == null)
+            if (eventLoop == null)
             {
-                throw new ArgumentException("null mutex api");
+                throw new ArgumentException("null event loop");
             }
             if (!ByteUtils.IsValidMessagePayload(data, offset, length))
             {
                 throw new ArgumentException("invalid destination buffer");
             }
-            if (cb == null)
+
+            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            if (_srcEndError != null)
             {
-                throw new ArgumentException("null callback");
+                throw _srcEndError;
             }
-            mutex.RunExclusively(_ =>
-            {
-                if (_srcEndError != null)
-                {
-                    cb.Invoke(_srcEndError, 0);
-                    return;
-                }
-                var lengthToUse = Math.Min(Length - _bytesRead, length);
-                Array.Copy(Buffer, Offset + _bytesRead, data, offset, lengthToUse);
-                _bytesRead += lengthToUse;
-                cb.Invoke(null, lengthToUse);
-            }, null);
+            var lengthToUse = Math.Min(Length - _bytesRead, length);
+            Array.Copy(Buffer, Offset + _bytesRead, data, offset, lengthToUse);
+            _bytesRead += lengthToUse;
+            return lengthToUse;
         }
 
-        public void OnEndRead(IMutexApi mutex, Exception e)
+        public async Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
         {
-            if (mutex == null)
+            if (eventLoop == null)
             {
-                throw new ArgumentException("null mutex api");
+                throw new ArgumentException("null event loop");
             }
-            mutex.RunExclusively(_ =>
+
+            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            if (_srcEndError != null)
             {
-                if (_srcEndError != null)
-                {
-                    return;
-                }
-                _srcEndError = e ?? new Exception("end of read");
-            }, null);
+                return;
+            }
+            _srcEndError = e ?? new Exception("end of read");
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common.Bodies
 {
@@ -32,10 +33,9 @@ namespace Kabomu.Common.Bodies
 
         public Func<object, byte[]> SerializationHandler { get; }
 
-        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead,
-            Action<Exception, int> cb)
+        public async Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
         {
-            if (mutex == null)
+            if (eventLoop == null)
             {
                 throw new ArgumentException("null mutex api");
             }
@@ -43,55 +43,52 @@ namespace Kabomu.Common.Bodies
             {
                 throw new ArgumentException("invalid destination buffer");
             }
-            if (cb == null)
+
+            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            if (_srcEndError != null)
             {
-                throw new ArgumentException("null callback");
+                throw _srcEndError;
             }
-            mutex.RunExclusively(_ =>
+            if (_byteBufferBody == null)
             {
-                if (_srcEndError != null)
+                try
                 {
-                    cb.Invoke(_srcEndError, 0);
-                    return;
+                    var srcData = SerializationHandler.Invoke(Content);
+                    _byteBufferBody = new ByteBufferBody(srcData, 0, srcData.Length, null);
                 }
-                if (_byteBufferBody == null)
+                catch (Exception e)
                 {
-                    try
-                    {
-                        var srcData = SerializationHandler.Invoke(Content);
-                        _byteBufferBody = new ByteBufferBody(srcData, 0, srcData.Length, null);
-                    }
-                    catch (Exception e)
-                    {
-                        EndRead(mutex, cb, e);
-                        return;
-                    }
+                    await EndReadInternally(eventLoop, e);
+                    throw;
                 }
-                _byteBufferBody.ReadBytes(mutex, data, offset, bytesToRead, cb);
-            }, null);
+            }
+            return await _byteBufferBody.ReadBytesAsync(eventLoop, data, offset, bytesToRead);
         }
 
-        public void OnEndRead(IMutexApi mutex, Exception e)
+        public async Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
         {
-            if (mutex == null)
+            if (eventLoop == null)
             {
-                throw new ArgumentException("null mutex api");
+                throw new ArgumentException("null event loop");
             }
-            mutex.RunExclusively(_ =>
+
+            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            if (_srcEndError != null)
             {
-                if (_srcEndError != null)
-                {
-                    return;
-                }
-                EndRead(mutex, null, e);
-            }, null);
+                return;
+            }
+            await EndReadInternally(eventLoop, e);
         }
 
-        private void EndRead(IMutexApi mutex, Action<Exception, int> cb, Exception e)
+        private async Task EndReadInternally(IEventLoopApi eventLoop, Exception e)
         {
             _srcEndError = e ?? new Exception("end of read");
-            _byteBufferBody?.OnEndRead(mutex, e);
-            cb?.Invoke(_srcEndError, 0);
+            if (_byteBufferBody != null)
+            {
+                await _byteBufferBody.EndReadAsync(eventLoop, _srcEndError);
+            }
         }
     }
 }

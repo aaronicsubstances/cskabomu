@@ -20,7 +20,7 @@ namespace Kabomu.Tests.QuasiHttp
             IQuasiHttpResponse expectedResponse)
         {
             // arrange.
-            var eventLoop = new TestEventLoopApi
+            var eventLoop = new TestEventLoopApiPrev
             {
                 RunMutexApiThroughPostCallback = true
             };
@@ -55,7 +55,7 @@ namespace Kabomu.Tests.QuasiHttp
 
             // act.
             var cbCalled = false;
-            eventLoop.PostCallback(_ =>
+            eventLoop.RunExclusively(_ =>
             {
                 instance.Send(remoteEndpoint, request, options, (e, res) =>
                 {
@@ -161,7 +161,7 @@ namespace Kabomu.Tests.QuasiHttp
         public void TestResetOfTransfersWithoutConnections()
         {
             // arrange.
-            var eventLoop = new TestEventLoopApi
+            var eventLoop = new TestEventLoopApiPrev
             {
                 RunMutexApiThroughPostCallback = true
             };
@@ -219,7 +219,7 @@ namespace Kabomu.Tests.QuasiHttp
         public void TestResetOfTransfersWithConnections()
         {
             // arrange.
-            var eventLoop = new TestEventLoopApi
+            var eventLoop = new TestEventLoopApiPrev
             {
                 RunMutexApiThroughPostCallback = true
             };
@@ -302,7 +302,7 @@ namespace Kabomu.Tests.QuasiHttp
         private void RunTestNormalSendAndReceive(List<object[]> testDataList)
         {
             // arrange.
-            var eventLoop = new TestEventLoopApi
+            var eventLoop = new TestEventLoopApiPrev
             {
                 RunMutexApiThroughPostCallback = true
             };

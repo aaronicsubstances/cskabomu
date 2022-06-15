@@ -23,7 +23,7 @@ namespace Kabomu.Tests.Common.Transports
         public void TestOperationIncludingDirectSend()
         {
             // arrange.
-            var eventLoop = new TestEventLoopApi
+            var eventLoop = new TestEventLoopApiPrev
             {
                 RunMutexApiThroughPostCallback = true
             };
@@ -280,7 +280,7 @@ namespace Kabomu.Tests.Common.Transports
         public void TestOperationForReentrancy()
         {
             // arrange.
-            var eventLoop = new TestEventLoopApi
+            var eventLoop = new TestEventLoopApiPrev
             {
                 RunMutexApiThroughPostCallback = false
             };

@@ -46,7 +46,7 @@ namespace Kabomu.Tests.Common.Bodies
             Assert.Throws<ArgumentException>(() =>
             {
                 var instance = new ChunkEncodingBody(new StringBody("3", "text/html"));
-                instance.ReadBytes(new TestEventLoopApi(), new byte[4], 0, 4, (e, len) => { });
+                instance.ReadBytes(new TestEventLoopApiPrev(), new byte[4], 0, 4, (e, len) => { });
             });
             var instance = new ChunkEncodingBody(new StringBody("", null));
             CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);

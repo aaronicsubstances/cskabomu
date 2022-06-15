@@ -1,12 +1,13 @@
 ﻿using Kabomu.Common;
 using System;
+using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
 {
     internal class ProtocolUtils
     {
-        public static void WriteLeadChunk(IQuasiHttpTransport transport, object connection, 
-            LeadChunk chunk, Action<Exception> cb)
+        public static Task WriteLeadChunkAsync(IQuasiHttpTransport transport, object connection, 
+            LeadChunk chunk)
         {
             if (transport == null)
             {
@@ -16,16 +17,12 @@ namespace Kabomu.QuasiHttp
             {
                 throw new ArgumentException("null chunk");
             }
-            if (cb == null)
-            {
-                throw new ArgumentException("null callback");
-            }
             var slices = chunk.Serialize();
-            WriteSizeOfSlices(transport, connection, slices, cb);
+            return WriteSizeOfSlicesAsync(transport, connection, slices);
         }
 
-        private static void WriteSizeOfSlices(IQuasiHttpTransport transport, object connection,
-            ByteBufferSlice[] slices, Action<Exception> cb)
+        private static async Task WriteSizeOfSlicesAsync(IQuasiHttpTransport transport, object connection,
+            ByteBufferSlice[] slices)
         {
             int byteCount = 0;
             foreach (var slice in slices)
@@ -34,26 +31,17 @@ namespace Kabomu.QuasiHttp
             }
             if (byteCount > transport.MaxChunkSize)
             {
-                cb.Invoke(new Exception("larger than max chunk size of transport"));
-                return;
+                throw new Exception("larger than max chunk size of transport");
             }
             if (byteCount > TransportUtils.MaxChunkSize)
             {
-                cb.Invoke(new Exception("size cannot fit in 16-bit unsigned integer"));
-                return;
+                throw new Exception("size cannot fit in 16-bit unsigned integer");
             }
             var encodedLength = new byte[2];
             ByteUtils.SerializeUpToInt64BigEndian(byteCount, encodedLength, 0,
                 encodedLength.Length);
-            transport.WriteBytes(connection, encodedLength, 0, encodedLength.Length, e =>
-            {
-                if (e != null)
-                {
-                    cb.Invoke(e);
-                    return;
-                }
-                TransportUtils.WriteByteSlices(transport, connection, slices, cb);
-            });
+            await transport.WriteBytesAsync(connection, encodedLength, 0, encodedLength.Length);
+            await TransportUtils.WriteByteSlicesAsync(transport, connection, slices);
         }
     }
 }

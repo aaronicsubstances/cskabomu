@@ -8,7 +8,7 @@ namespace Kabomu.Common
     /// Event loop implementation which doesn't use real time.
     /// Useful for testing main components of library.
     /// </summary>
-    public class TestEventLoopApi : IEventLoopApi
+    public class TestEventLoopApiPrev : IEventLoopApiPrev
     {
         private class TaskDescriptor
         {
@@ -33,6 +33,11 @@ namespace Kabomu.Common
         private readonly List<TaskDescriptor> _taskQueue = new List<TaskDescriptor>();
         private int _cancelledTaskCount = 0;
         private int _idSeq = 0;
+
+        public TestEventLoopApiPrev()
+        {
+
+        }
 
         public void AdvanceTimeBy(long delay)
         {

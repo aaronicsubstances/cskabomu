@@ -27,95 +27,63 @@ namespace Kabomu.Common.Bodies
 
         public Stream BackingStream { get; }
 
-        private Task AcquireExclusiveAccess(IMutexApi mutex)
+        public async Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
         {
-            var tcs = new TaskCompletionSource<object>();
-            mutex.RunExclusively(_ =>
+            if (eventLoop == null)
             {
-                tcs.SetResult(null);
-            }, null);
-            return tcs.Task;
-        }
-
-        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
-        {
-            if (mutex == null)
-            {
-                throw new ArgumentException("null mutex api");
+                throw new ArgumentException("null event loop");
             }
             if (!ByteUtils.IsValidMessagePayload(data, offset, bytesToRead))
             {
                 throw new ArgumentException("invalid destination buffer");
             }
-            if (cb == null)
-            {
-                throw new ArgumentException("null callback");
-            }
-            // this split is for the purpose of getting CLR to bubble up the above validation exceptions,
-            // and at the same time be able to use async await in async void methods.
-            OnContinueDataRead(mutex, data, offset, bytesToRead, cb);
-        }
 
-        private async void OnContinueDataRead(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
-        {
-            await AcquireExclusiveAccess(mutex);
+            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+
             if (_srcEndError != null)
             {
-                cb.Invoke(_srcEndError, 0);
-                return;
+                throw _srcEndError;
             }
-            int bytesRead = 0;
-            Exception readError = null;
+
             try
             {
-                bytesRead = await BackingStream.ReadAsync(data, offset, bytesToRead);
+                int bytesRead = await eventLoop.MutexWrap(BackingStream.ReadAsync(data, offset, bytesToRead));
+                if (_srcEndError != null)
+                {
+                    throw _srcEndError;
+                }
+                return bytesRead;
             }
             catch (Exception e)
             {
-                readError = e;
+                if (_srcEndError != null)
+                {
+                    throw _srcEndError;
+                }
+                await EndReadInternally(e);
+                throw;
             }
-            await AcquireExclusiveAccess(mutex);
-            if (_srcEndError != null)
-            {
-                cb.Invoke(_srcEndError, 0);
-                return;
-            }
-            if (readError != null)
-            {
-                await EndRead(cb, readError);
-                return;
-            }
-            cb.Invoke(null, bytesRead);
         }
 
-        public void OnEndRead(IMutexApi mutex, Exception e)
+        public async Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
         {
-            if (mutex == null)
+            if (eventLoop == null)
             {
-                throw new ArgumentException("null mutex api");
+                throw new ArgumentException("null event loop");
             }
-            // this split is for the purpose of getting CLR to bubble up the above validation exceptions,
-            // and at the same time be able to use async await in async void methods.
-            OnContinueEndRead(mutex, e);
-        }
 
-        private async void OnContinueEndRead(IMutexApi mutex, Exception e)
-        {
-            await AcquireExclusiveAccess(mutex);
+            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+
             if (_srcEndError != null)
             {
                 return;
             }
-            await EndRead(null, e);
+            await EndReadInternally(e);
         }
 
-        private async Task EndRead(Action<Exception, int> cb, Exception e)
+        private async Task EndReadInternally(Exception e)
         {
-            if (e == null)
-            {
-                e = new Exception("end of read");
-            }
-            _srcEndError = e;
+            _srcEndError = e ?? new Exception("end of read");
             try
             {
                 await BackingStream.DisposeAsync();
@@ -124,8 +92,6 @@ namespace Kabomu.Common.Bodies
             {
                 // ignore
             }
-            // use e rather than _srcEndError to skip need to acquire exclusive access.
-            cb?.Invoke(e, 0);
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common.Bodies
 {
@@ -41,87 +42,87 @@ namespace Kabomu.Common.Bodies
 
         public string ContentType { get; internal set; }
 
-        internal Action CloseCallback { get; set; }
+        internal Func<Task> CloseCallback { get; set; }
 
-        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, 
-            Action<Exception, int> cb)
+        public async Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
         {
-            if (mutex == null)
+            if (eventLoop == null)
             {
-                throw new ArgumentException("null mutex api");
+                throw new ArgumentException("null event loop");
             }
             if (!ByteUtils.IsValidMessagePayload(data, offset, bytesToRead))
             {
                 throw new ArgumentException("invalid destination buffer");
             }
-            if (cb == null)
+
+            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            if (_srcEndError != null)
             {
-                throw new ArgumentException("null callback");
+                throw _srcEndError;
             }
-            mutex.RunExclusively(_ =>
+            if (bytesToRead == 0 || _bytesRemaining == 0)
             {
+                return 0;
+            }
+            if (_bytesRemaining > 0)
+            {
+                bytesToRead = (int)Math.Min(bytesToRead, _bytesRemaining);
+            }
+            try
+            {
+                int bytesRead = await eventLoop.MutexWrap(_transport.ReadBytesAsync(_connection, data, offset, bytesToRead));
                 if (_srcEndError != null)
                 {
-                    cb.Invoke(_srcEndError, 0);
-                    return;
-                }
-                if (_bytesRemaining == 0)
-                {
-                    cb.Invoke(null, 0);
-                    return;
+                    throw _srcEndError;
                 }
                 if (_bytesRemaining > 0)
                 {
-                    bytesToRead = (int)Math.Min(bytesToRead, _bytesRemaining);
+                    if (bytesRead == 0)
+                    {
+                        var e = new Exception($"could not read remaining {_bytesRemaining} " +
+                            $"bytes before end of read");
+                        await EndReadInternally(e);
+                        throw e;
+                    }
+                    _bytesRemaining -= bytesRead;
                 }
-                _transport.ReadBytes(_connection, data, offset, bytesToRead, (e, bytesRead) =>
-                {
-                    if (_srcEndError != null)
-                    {
-                        cb.Invoke(_srcEndError, 0);
-                        return;
-                    }
-                    if (e != null)
-                    {
-                        EndRead(cb, e);
-                        return;
-                    }
-                    if (_bytesRemaining > 0)
-                    {
-                        if (bytesRead == 0)
-                        {
-                            EndRead(cb, new Exception($"could not read remaining {_bytesRemaining} " +
-                                $"bytes before end of read"));
-                            return;
-                        }
-                        _bytesRemaining -= bytesRead;
-                    }
-                    cb.Invoke(null, bytesRead);
-                });
-            }, null);
-        }
-
-        public void OnEndRead(IMutexApi mutex, Exception e)
-        {
-            if (mutex == null)
-            {
-                throw new ArgumentException("null mutex api");
+                return bytesRead;
             }
-            mutex.RunExclusively(_ =>
+            catch (Exception e)
             {
                 if (_srcEndError != null)
                 {
-                    return;
+                    throw _srcEndError;
                 }
-                EndRead(null, e);
-            }, null);
+                await EndReadInternally(e);
+                throw;
+            }
         }
 
-        private void EndRead(Action<Exception, int> cb, Exception e)
+        public async Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
+        {
+            if (eventLoop == null)
+            {
+                throw new ArgumentException("null event loop");
+            }
+
+            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            if (_srcEndError != null)
+            {
+                return;
+            }
+            await EndReadInternally(e);
+        }
+
+        private async Task EndReadInternally(Exception e)
         {
             _srcEndError = e ?? new Exception("end of read");
-            cb?.Invoke(_srcEndError, 0);
-            CloseCallback?.Invoke();
+            if (CloseCallback != null)
+            {
+                await CloseCallback.Invoke();
+            }
         }
     }
 }
