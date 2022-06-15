@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
 {
@@ -10,8 +11,8 @@ namespace Kabomu.QuasiHttp
         int DefaultTimeoutMillis { get; }
         IQuasiHttpApplication Application { get; }
         IQuasiHttpTransport Transport { get; }
-        public IMutexApi Mutex { get; }
-        public UncaughtErrorCallback ErrorHandler { get; }
-        void AbortTransfer(ITransferProtocolInternal transfer, Exception e);
+        IEventLoopApi EventLoop { get; }
+        UncaughtErrorCallback ErrorHandler { get; }
+        Task<IQuasiHttpResponse> AbortTransferAsync(ITransferProtocolInternal transfer, Exception e);
     }
 }

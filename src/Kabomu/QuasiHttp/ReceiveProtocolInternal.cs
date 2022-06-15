@@ -3,6 +3,8 @@ using Kabomu.Common.Bodies;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
 {
@@ -13,80 +15,87 @@ namespace Kabomu.QuasiHttp
 
         public IParentTransferProtocolInternal Parent { get; set; }
         public object Connection { get; set; }
-        public STCancellationIndicatorInternal ProcessingCancellationIndicator { get; set; }
+        public bool IsAborted { get; set; }
         public int TimeoutMillis { get; set; }
-        public object TimeoutId { get; set; }
-        public Action<Exception, IQuasiHttpResponse> SendCallback { get; set; }
+        public CancellationTokenSource TimeoutCancellationHandle { get; set; }
+        public TaskCompletionSource<IQuasiHttpResponse> SendCallback { get; set; }
 
-        public void Cancel(Exception e)
+        public async Task CancelAsync(Exception e)
         {
-            _requestBody?.OnEndRead(Parent.Mutex, e);
-            _responseBody?.OnEndRead(Parent.Mutex, e);
+            if (Parent.EventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            if (_requestBody != null)
+            {
+                await _requestBody.EndReadAsync(Parent.EventLoop, e);
+            }
+            if (_responseBody != null)
+            {
+                await _responseBody.EndReadAsync(Parent.EventLoop, e);
+            }
         }
 
-        public void OnSend(IQuasiHttpRequest request)
+        public Task<IQuasiHttpResponse> SendAsync(IQuasiHttpRequest request)
         {
             throw new NotImplementedException("implementation error");
         }
 
-        public void OnReceive()
+        public async Task ReceiveAsync()
         {
-            ReadRequestLeadChunk();
+            if (Parent.EventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            await ReadRequestLeadChunkAsync();
         }
 
-        private void ReadRequestLeadChunk()
+        private async Task ReadRequestLeadChunkAsync()
         {
-            byte[] encodedLength = new byte[2];
-            var cancellationIndicator = new STCancellationIndicatorInternal();
-            ProcessingCancellationIndicator = cancellationIndicator;
-            Action<Exception> cb = e =>
-            {
-                Parent.Mutex.RunExclusively(_ =>
-                {
-                    if (!cancellationIndicator.Cancelled)
-                    {
-                        cancellationIndicator.Cancel();
-                        HandleRequestLeadChunkLength(e, encodedLength);
-                    }
-                }, null);
-            };
             _transportBody = new TransportBackedBody(Parent.Transport, Connection);
             _transportBody.ContentLength = -1;
-            TransportUtils.ReadBytesFully(Parent.Mutex, _transportBody, encodedLength, 0, encodedLength.Length, cb);
-        }
 
-        private void HandleRequestLeadChunkLength(Exception e, byte[] encodedLength)
-        {
-            if (e != null)
+            byte[] encodedLength = new byte[2];
+            Exception readError = null;
+            try
             {
-                Parent.AbortTransfer(this, e);
+                await Parent.EventLoop.MutexWrap(TransportUtils.ReadBytesFullyAsync(Parent.EventLoop, _transportBody, 
+                    encodedLength, 0, encodedLength.Length));
+            }
+            catch (Exception e)
+            {
+                readError = e;
+            }
+
+            if (IsAborted)
+            {
+                return;
+            }
+
+            if (readError != null)
+            {
+                await Parent.AbortTransferAsync(this, readError);
                 return;
             }
 
             int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                 encodedLength.Length);
             var chunkBytes = new byte[chunkLen];
-            var cancellationIndicator = new STCancellationIndicatorInternal();
-            ProcessingCancellationIndicator = cancellationIndicator;
-            Action<Exception> cb = e =>
+            readError = null;
+            try
             {
-                Parent.Mutex.RunExclusively(_ =>
-                {
-                    if (!cancellationIndicator.Cancelled)
-                    {
-                        cancellationIndicator.Cancel();
-                        HandleRequestLeadChunk(e, chunkBytes);
-                    }
-                }, null);
-            };
-            TransportUtils.ReadBytesFully(Parent.Mutex, _transportBody, chunkBytes, 0, chunkBytes.Length, cb);
-        }
+                await Parent.EventLoop.MutexWrap(TransportUtils.ReadBytesFullyAsync(Parent.EventLoop, _transportBody,
+                    chunkBytes, 0, chunkBytes.Length));
+            }
+            catch (Exception e)
+            {
+                readError = e;
+            }
 
-        private void HandleRequestLeadChunk(Exception e, byte[] chunkBytes)
-        {
-            if (e != null)
+            if (IsAborted)
             {
-                Parent.AbortTransfer(this, e);
+                return;
+            }
+
+            if (readError != null)
+            {
+                await Parent.AbortTransferAsync(this, readError);
                 return;
             }
 
@@ -113,33 +122,31 @@ namespace Kabomu.QuasiHttp
             }
             _requestBody = request.Body;
 
-            var cancellationIndicator = new STCancellationIndicatorInternal();
-            ProcessingCancellationIndicator = cancellationIndicator;
-            Action<Exception, IQuasiHttpResponse> cb = (e, res) =>
+            
+            // Begin Application processing.
+            try
             {
-                Parent.Mutex.RunExclusively(_ =>
+                var res = await Parent.EventLoop.MutexWrap(Parent.Application.ProcessRequestAsync(request));
+                if (!IsAborted)
                 {
-                    if (!cancellationIndicator.Cancelled)
-                    {
-                        cancellationIndicator.Cancel();
-                        HandleApplicationProcessingOutcome(e, res);
-                    }
-                }, null);
-            };
-            Parent.Application.ProcessRequest(request, cb);
-        }
-
-        private void HandleApplicationProcessingOutcome(Exception e, IQuasiHttpResponse response)
-        {
-            if (e != null)
-            {
-                Parent.AbortTransfer(this, e);
+                    await SendResponseLeadChunkAsync(res);
+                }
                 return;
             }
+            catch (Exception e)
+            {
+                if (!IsAborted)
+                {
+                    await Parent.AbortTransferAsync(this, e);
+                }
+            }
+        }
 
+        private async Task SendResponseLeadChunkAsync(IQuasiHttpResponse response)
+        {
             if (response == null)
             {
-                Parent.AbortTransfer(this, new Exception("no response"));
+                await Parent.AbortTransferAsync(this, new Exception("no response"));
                 return;
             }
 
@@ -160,55 +167,40 @@ namespace Kabomu.QuasiHttp
                 chunk.ContentLength = response.Body.ContentLength;
                 chunk.ContentType = response.Body.ContentType;
             }
-
-            var cancellationIndicator = new STCancellationIndicatorInternal();
-            ProcessingCancellationIndicator = cancellationIndicator;
-            Action<Exception> cb = e =>
+            
+            Exception writeError = null;
+            try
             {
-                Parent.Mutex.RunExclusively(_ =>
-                {
-                    if (!cancellationIndicator.Cancelled)
-                    {
-                        cancellationIndicator.Cancel();
-                        HandleSendResponseLeadChunkOutcome(e, response);
-                    }
-                }, null);
-            };
-            ProtocolUtils.WriteLeadChunk(Parent.Transport, Connection, chunk, cb);
-        }
-
-        private void HandleSendResponseLeadChunkOutcome(Exception e, IQuasiHttpResponse response)
-        {
-            if (e != null)
+                await Parent.EventLoop.MutexWrap(ProtocolUtils.WriteLeadChunkAsync(Parent.Transport, Connection, chunk));
+            }
+            catch (Exception e)
             {
-                Parent.AbortTransfer(this, e);
+                writeError = e;
+            }
+
+            if (IsAborted)
+            {
+                return;
+            }
+
+            if (writeError != null)
+            {
+                await Parent.AbortTransferAsync(this, writeError);
                 return;
             }
 
             if (response.Body != null)
             {
-                var cancellationIndicator = new STCancellationIndicatorInternal();
-                ProcessingCancellationIndicator = cancellationIndicator;
-                Action<Exception> cb = e2 =>
+                await Parent.EventLoop.MutexWrap(TransportUtils.TransferBodyToTransportAsync(Parent.EventLoop, Parent.Transport,
+                    Connection, _responseBody));
+                if (!IsAborted)
                 {
-                    Parent.Mutex.RunExclusively(_ =>
-                    {
-                        if (!cancellationIndicator.Cancelled)
-                        {
-                            cancellationIndicator.Cancel();
-                            Parent.AbortTransfer(this, e2);
-                        }
-                    }, null);
-                };
-                if (response.Body.ContentLength < 0)
-                {
-                    _responseBody = new ChunkEncodingBody(response.Body);
+                    await Parent.AbortTransferAsync(this, null);
                 }
-                TransportUtils.TransferBodyToTransport(Parent.Mutex, Parent.Transport, Connection, _responseBody, cb);
             }
             else
             {
-                Parent.AbortTransfer(this, null);
+                await Parent.AbortTransferAsync(this, null);
             }
         }
     }

@@ -51,7 +51,7 @@ namespace Kabomu.Tests.Common.Bodies
             serializationHandler = obj => null;
             instance = new SerializableObjectBody("d", serializationHandler, null);
             var cbCalled = false;
-            instance.ReadBytes(new TestEventLoopApi(), new byte[1], 0, 1, (e, len) =>
+            instance.ReadBytes(new TestEventLoopApiPrev(), new byte[1], 0, 1, (e, len) =>
             {
                 Assert.False(cbCalled);
                 Assert.NotNull(e);
@@ -61,7 +61,7 @@ namespace Kabomu.Tests.Common.Bodies
             serializationHandler = obj => throw new Exception("se err");
             instance = new SerializableObjectBody("d", serializationHandler, null);
             cbCalled = false;
-            instance.ReadBytes(new TestEventLoopApi(), new byte[1], 0, 1, (e, len) =>
+            instance.ReadBytes(new TestEventLoopApiPrev(), new byte[1], 0, 1, (e, len) =>
             {
                 Assert.False(cbCalled);
                 Assert.NotNull(e);

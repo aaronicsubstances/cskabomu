@@ -71,7 +71,7 @@ namespace Kabomu.Tests.Common
                 }
             };
             var tcs = new TaskCompletionSource<int>();
-            TransportUtils.ReadBytesFully(new TestEventLoopApi(), body, data, offset, bytesToRead,
+            TransportUtils.ReadBytesFully(new TestEventLoopApiPrev(), body, data, offset, bytesToRead,
                 e =>
                 {
                     if (e != null)
@@ -163,7 +163,7 @@ namespace Kabomu.Tests.Common
             var transport = CreateTransportForBodyTransfer(connection, chunkSize, savedWrites, maxWriteCount);
             var bodyBytes = Encoding.UTF8.GetBytes(bodyData);
             var body = new ByteBufferBody(bodyBytes, 0, bodyBytes.Length, null);
-            TransportUtils.TransferBodyToTransport(new TestEventLoopApi(), transport, connection, body,
+            TransportUtils.TransferBodyToTransport(new TestEventLoopApiPrev(), transport, connection, body,
                 e =>
                 {
                     if (e != null)
@@ -240,7 +240,7 @@ namespace Kabomu.Tests.Common
         public void TestReadBodyToEnd(IQuasiHttpBody body, int maxChunkSize, string expectedError, string expectedData)
         {
             var cbCalled = false;
-            TransportUtils.ReadBodyToEnd(new TestEventLoopApi(), body, maxChunkSize, (e, data) =>
+            TransportUtils.ReadBodyToEnd(new TestEventLoopApiPrev(), body, maxChunkSize, (e, data) =>
             {
                 Assert.False(cbCalled);
                 if (expectedError != null)
@@ -254,7 +254,7 @@ namespace Kabomu.Tests.Common
                     var actualData = Encoding.UTF8.GetString(data);
                     Assert.Equal(expectedData, actualData);
                     Exception eofError = null;
-                    body.ReadBytes(new TestEventLoopApi(), new byte[1], 0, 1, (e, i) =>
+                    body.ReadBytes(new TestEventLoopApiPrev(), new byte[1], 0, 1, (e, i) =>
                     {
                         eofError = e;
                     });

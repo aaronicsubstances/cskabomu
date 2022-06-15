@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kabomu.Common
 {
-    public interface IMutexApi
+    public interface IMutexApiPrev
     {
         /// <summary>
         /// This method will characterize the means of writing thread-safe client code

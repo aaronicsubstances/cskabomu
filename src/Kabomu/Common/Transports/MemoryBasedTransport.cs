@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common.Transports
 {
@@ -15,10 +16,10 @@ namespace Kabomu.Common.Transports
 
         public bool DirectSendRequestProcessingEnabled => _randGen.NextDouble() < DirectSendRequestProcessingProbability;
 
-        public IMutexApi Mutex { get; set; }
+        public IEventLoopApi EventLoop { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
-        public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request, Action<Exception, IQuasiHttpResponse> cb)
+        public async Task<IQuasiHttpResponse> ProcessSendRequestAsync(object remoteEndpoint, IQuasiHttpRequest request)
         {
             if (remoteEndpoint == null)
             {
@@ -28,64 +29,39 @@ namespace Kabomu.Common.Transports
             {
                 throw new ArgumentException("null request");
             }
-            if (cb == null)
-            {
-                throw new ArgumentException("null callback");
-            }
-            Mutex.RunExclusively(_ =>
-            {
-                IQuasiHttpClient remoteClient;
-                try
-                {
-                    remoteClient = Hub.Clients[remoteEndpoint];
-                }
-                catch (Exception e)
-                {
-                    cb.Invoke(e, null);
-                    return;
-                }
-                remoteClient.Application.ProcessRequest(request, cb);
-            }, null);
+
+            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            var remoteClient = Hub.Clients[remoteEndpoint];
+            return await remoteClient.Application.ProcessRequestAsync(request);
         }
 
-        public void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb)
+        public async Task<object> AllocateConnectionAsync(object remoteEndpoint)
         {
             if (remoteEndpoint == null)
             {
                 throw new ArgumentException("null remote endpoint");
             }
-            if (cb == null)
-            {
-                throw new ArgumentException("null callback");
-            }
-            Mutex.RunExclusively(_ =>
-            {
-                IQuasiHttpClient remoteClient;
-                try
-                {
-                    remoteClient = Hub.Clients[remoteEndpoint];
-                }
-                catch (Exception e)
-                {
-                    cb.Invoke(e, null);
-                    return;
-                }
-                var connection = new MemoryBasedTransportConnectionInternal(this);
-                remoteClient.OnReceive(connection);
-                cb.Invoke(null, connection);
-            }, null);
+
+            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            var remoteClient = Hub.Clients[remoteEndpoint];
+            var connection = new MemoryBasedTransportConnectionInternal(this);
+            await remoteClient.ReceiveAsync(connection);
+            return connection;
         }
 
-        public void OnReleaseConnection(object connection)
+        public async Task ReleaseConnectionAsync(object connection)
         {
-            Mutex.RunExclusively(_ =>
+            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            if (connection is MemoryBasedTransportConnectionInternal typedConnection)
             {
-                var typedConnection = connection as MemoryBasedTransportConnectionInternal;
-                typedConnection?.Release(Mutex);
-            }, null);
+                await typedConnection.ReleaseAsync(EventLoop);
+            }
         }
 
-        public void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
+        public async Task<int> ReadBytesAsync(object connection, byte[] data, int offset, int length)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
             if (typedConnection == null)
@@ -96,17 +72,13 @@ namespace Kabomu.Common.Transports
             {
                 throw new ArgumentException("invalid payload");
             }
-            if (cb == null)
-            {
-                throw new ArgumentException("null callback");
-            }
-            Mutex.RunExclusively(_ =>
-            {
-                typedConnection.ProcessReadRequest(Mutex, this, data, offset, length, cb);
-            }, null);
+
+            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            return await typedConnection.ProcessReadRequestAsync(EventLoop, this, data, offset, length);
         }
 
-        public void WriteBytes(object connection, byte[] data, int offset, int length, Action<Exception> cb)
+        public async Task WriteBytesAsync(object connection, byte[] data, int offset, int length)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
             if (typedConnection == null)
@@ -117,14 +89,10 @@ namespace Kabomu.Common.Transports
             {
                 throw new ArgumentException("invalid payload");
             }
-            if (cb == null)
-            {
-                throw new ArgumentException("null callback");
-            }
-            Mutex.RunExclusively(_ =>
-            {
-                typedConnection.ProcessWriteRequest(Mutex, this, data, offset, length, cb);
-            }, null);
+
+            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
+
+            await typedConnection.ProcessWriteRequestAsync(EventLoop, this, data, offset, length);
         }
     }
 }

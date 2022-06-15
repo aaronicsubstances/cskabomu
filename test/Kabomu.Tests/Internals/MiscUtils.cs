@@ -25,7 +25,7 @@ namespace Kabomu.Tests.Internals
         {
             var body = new ChunkDecodingBody(new ByteBufferBody(data, offset, length, null), null);
             byte[] result = null;
-            TransportUtils.ReadBodyToEnd(new TestEventLoopApi(), body, 100, (e, d) =>
+            TransportUtils.ReadBodyToEnd(new TestEventLoopApiPrev(), body, 100, (e, d) =>
             {
                 Assert.Null(e);
                 result = d;

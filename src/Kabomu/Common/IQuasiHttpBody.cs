@@ -1,7 +1,7 @@
-﻿using Kabomu.Common;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common
 {
@@ -9,7 +9,7 @@ namespace Kabomu.Common
     {
         long ContentLength { get; }
         string ContentType { get; }
-        void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb);
-        void OnEndRead(IMutexApi mutex, Exception e);
+        Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead);
+        Task EndReadAsync(IEventLoopApi eventLoop, Exception e);
     }
 }

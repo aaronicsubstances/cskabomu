@@ -1,19 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common
 {
     public interface IQuasiHttpTransport
     {
         int MaxChunkSize { get; }
-        public UncaughtErrorCallback ErrorHandler { get; set; }
-        void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb);
-        void OnReleaseConnection(object connection);
-        void WriteBytes(object connection, byte[] data, int offset, int length,
-            Action<Exception> cb);
-        void ReadBytes(object connection, byte[] data, int offset, int length, 
-            Action<Exception, int> cb);
+        UncaughtErrorCallback ErrorHandler { get; set; }
+        Task<object> AllocateConnectionAsync(object remoteEndpoint);
+        Task ReleaseConnectionAsync(object connection);
+        Task WriteBytesAsync(object connection, byte[] data, int offset, int length);
+        Task<int> ReadBytesAsync(object connection, byte[] data, int offset, int length);
 
         /// <summary>
         /// Memory-based transports return true with a probability between 0 and 1,
@@ -23,7 +22,6 @@ namespace Kabomu.Common
         /// </summary>
         bool DirectSendRequestProcessingEnabled { get; }
 
-        void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request,
-            Action<Exception, IQuasiHttpResponse> cb);
+        Task<IQuasiHttpResponse> ProcessSendRequestAsync(object remoteEndpoint, IQuasiHttpRequest request);
     }
 }

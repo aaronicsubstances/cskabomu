@@ -21,7 +21,7 @@ namespace Kabomu.Tests.QuasiHttp
             IQuasiHttpResponse expectedResponse, byte[] expectedResponseBodyBytes)
         {
             // arrange.
-            var eventLoop = new TestEventLoopApi();
+            var eventLoop = new TestEventLoopApiPrev();
             var reqChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,

@@ -15,7 +15,7 @@ namespace Kabomu.Tests.Shared
             int[] expectedByteReads, string expectedError, byte[] expectedSuccessData)
         {
             // arrange.
-            var mutex = new TestEventLoopApi();
+            var mutex = new TestEventLoopApiPrev();
             // ensure mininum buffer size of 1, so that unexpected no-op
             // reads do not occur.
             var buffer = new byte[Math.Max(maxByteRead, 1)];
@@ -92,11 +92,11 @@ namespace Kabomu.Tests.Shared
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                instance.ReadBytes(new TestEventLoopApi(), new byte[] { 0, 0 }, 1, 2, (e, len) => { });
+                instance.ReadBytes(new TestEventLoopApiPrev(), new byte[] { 0, 0 }, 1, 2, (e, len) => { });
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                instance.ReadBytes(new TestEventLoopApi(), new byte[] { 0, 0, 0 }, 1, 2, null);
+                instance.ReadBytes(new TestEventLoopApiPrev(), new byte[] { 0, 0, 0 }, 1, 2, null);
             });
         }
     }

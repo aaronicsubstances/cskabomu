@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common.Bodies
 {
@@ -22,7 +23,7 @@ namespace Kabomu.Common.Bodies
 
         public string ContentType => _wrappedBody.ContentType;
 
-        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public async Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
         {
             var chunkPrefix = new SubsequentChunk
             {
@@ -35,40 +36,37 @@ namespace Kabomu.Common.Bodies
                 throw new ArgumentException("invalid bytes to read");
             }
             bytesToRead = Math.Min(bytesToRead, TransportUtils.MaxChunkSize);
-            _wrappedBody.ReadBytes(mutex, data, offset + reservedBytesToUse,
-                bytesToRead - reservedBytesToUse, (e, bytesRead) =>
+
+            if (eventLoop == null)
+            {
+                throw new ArgumentException("null event loop");
+            }
+            int bytesRead = await eventLoop.MutexWrap(_wrappedBody.ReadBytesAsync(eventLoop, data,
+                offset + reservedBytesToUse, bytesToRead - reservedBytesToUse));
+            if (bytesRead == 0)
+            {
+                if (_endOfReadSeen)
                 {
-                    if (e != null)
-                    {
-                        cb.Invoke(e, 0);
-                        return;
-                    }
-                    if (bytesRead == 0)
-                    {
-                        if (_endOfReadSeen)
-                        {
-                            cb.Invoke(null, 0);
-                            return;
-                        }
-                        else
-                        {
-                            _endOfReadSeen = true;
-                        }
-                    }
-                    ByteUtils.SerializeUpToInt64BigEndian(bytesRead + chunkPrefixLength, data, offset, 2);
-                    int sliceBytesWritten = 0;
-                    foreach (var slice in chunkPrefix)
-                    {
-                        Array.Copy(slice.Data, slice.Offset, data, offset + 2 + sliceBytesWritten, slice.Length);
-                        sliceBytesWritten += slice.Length;
-                    }
-                    cb.Invoke(null, bytesRead + reservedBytesToUse);
-                });
+                    return 0;
+                }
+                else
+                {
+                    _endOfReadSeen = true;
+                }
+            }
+            ByteUtils.SerializeUpToInt64BigEndian(bytesRead + chunkPrefixLength, data, offset, 2);
+            int sliceBytesWritten = 0;
+            foreach (var slice in chunkPrefix)
+            {
+                Array.Copy(slice.Data, slice.Offset, data, offset + 2 + sliceBytesWritten, slice.Length);
+                sliceBytesWritten += slice.Length;
+            }
+            return bytesRead + reservedBytesToUse;
         }
 
-        public void OnEndRead(IMutexApi mutex, Exception e)
+        public Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
         {
-            _wrappedBody.OnEndRead(mutex, e);
+            return _wrappedBody.EndReadAsync(eventLoop, e);
         }
     }
 }

@@ -1,7 +1,7 @@
-﻿using Kabomu.Common;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common
 {
@@ -10,9 +10,9 @@ namespace Kabomu.Common
         int DefaultTimeoutMillis { get; set; }
         IQuasiHttpApplication Application { get; set; }
         IQuasiHttpTransport Transport { get; set; }
-        void Send(object remoteEndpoint, IQuasiHttpRequest request,
-            IQuasiHttpSendOptions options, Action<Exception, IQuasiHttpResponse> cb);
-        void OnReceive(object connection);
-        void Reset(Exception cause, Action<Exception> cb);
+        Task<IQuasiHttpResponse> SendAsync(object remoteEndpoint, IQuasiHttpRequest request,
+            IQuasiHttpSendOptions options);
+        Task ReceiveAsync(object connection);
+        Task ResetAsync(Exception cause);
     }
 }

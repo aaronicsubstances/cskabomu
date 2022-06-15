@@ -11,9 +11,6 @@ namespace Kabomu.Common
     /// </summary>
     public class DefaultEventLoopApi : IEventLoopApi
     {
-        [ThreadStatic]
-        private static Thread _postCallbackExecutionThread;
-
         private readonly LimitedConcurrencyLevelTaskSchedulerInternal _throttledTaskScheduler;
 
         public DefaultEventLoopApi()
@@ -21,69 +18,59 @@ namespace Kabomu.Common
             _throttledTaskScheduler = new LimitedConcurrencyLevelTaskSchedulerInternal(1);
         }
 
-        public long CurrentTimestamp => DateTimeUtils.UnixTimeMillis;
-
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
-        public void RunExclusively(Action<object> cb, object cbState)
+        public Task SetImmediateAsync()
+    {
+            return Task.CompletedTask.ContinueWith(t => { }, CancellationToken.None, TaskContinuationOptions.DenyChildAttach,
+                _throttledTaskScheduler);
+        }
+
+        public Task SetImmediateAsync(CancellationToken cancellationToken)
         {
-            if (Thread.CurrentThread == _postCallbackExecutionThread)
+            // As long as cancellation is triggered from within event loop, swallow any TaskCanceledExceptions.
+            // Else let cancellations triggered during run of continuation task lead to TaskCanceledExceptions.
+            return Task.Factory.StartNew(() => { }, cancellationToken, TaskCreationOptions.DenyChildAttach,
+                    _throttledTaskScheduler)
+                .ContinueWith(t => t, cancellationToken, TaskContinuationOptions.OnlyOnRanToCompletion,
+                    _throttledTaskScheduler).Unwrap();
+        }
+
+        public Task SetTimeoutAsync(int millis)
+        {
+            return Task.Delay(millis).ContinueWith(t => { }, CancellationToken.None, TaskContinuationOptions.DenyChildAttach,
+                _throttledTaskScheduler);
+        }
+
+        public Task SetTimeoutAsync(int millis, CancellationToken cancellationToken)
+        {
+            return Task.Delay(millis, cancellationToken)
+                .ContinueWith(t => SetImmediateAsync(cancellationToken),
+                    TaskContinuationOptions.OnlyOnRanToCompletion)
+                .Unwrap();
+        }
+
+        public bool IsMutexRequired(out Task t)
+        {
+            if (LimitedConcurrencyLevelTaskSchedulerInternal.CurrentThreadIsProcessingItems)
             {
-                cb.Invoke(cbState);
+                t = null;
+                return false;
             }
-            else
-            {
-                PostCallback(cb, cbState);
-            }
+            t = SetImmediateAsync(CancellationToken.None);
+            return true;
         }
 
-        public void PostCallback(Action<object> cb, object cbState)
+        public Task MutexWrap(Task taskToWrap)
         {
-            PostCallback(cb, cbState, CancellationToken.None);
+            return taskToWrap.ContinueWith(t => t, CancellationToken.None, TaskContinuationOptions.DenyChildAttach,
+                _throttledTaskScheduler).Unwrap();
         }
 
-        private void PostCallback(Action<object> cb, object cbState, CancellationToken cancellationToken)
+        public Task<T> MutexWrap<T>(Task<T> taskToWrap)
         {
-            Task.Factory.StartNew(() => {
-                _postCallbackExecutionThread = Thread.CurrentThread;
-                try
-                {
-                    cb.Invoke(cbState);
-                }
-                catch (Exception ex)
-                {
-                    if (ErrorHandler == null)
-                    {
-                        throw;
-                    }
-                    else
-                    {
-                        ErrorHandler.Invoke(ex, "Error encountered in callback execution");
-                    }
-                }
-                finally
-                {
-                    _postCallbackExecutionThread = null;
-                }
-            }, cancellationToken, TaskCreationOptions.None, _throttledTaskScheduler);
-        }
-
-        public object ScheduleTimeout(int millis, Action<object> cb, object cbState)
-        {
-            var cts = new CancellationTokenSource();
-            Task.Delay(millis, cts.Token).ContinueWith(t =>
-            {
-                PostCallback(cb, cbState, cts.Token);
-            }, TaskContinuationOptions.OnlyOnRanToCompletion);
-            return cts;
-        }
-
-        public void CancelTimeout(object id)
-        {
-            if (id is CancellationTokenSource source)
-            {
-                source.Cancel();
-            }
+            return taskToWrap.ContinueWith(t => t, CancellationToken.None, TaskContinuationOptions.DenyChildAttach,
+                _throttledTaskScheduler).Unwrap();
         }
     }
 }

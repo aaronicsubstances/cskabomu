@@ -1,38 +1,33 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common
 {
-    public interface IEventLoopApi : IMutexApi
+    public interface IEventLoopApi
     {
-        long CurrentTimestamp { get; }
-
         /// <summary>
-        /// Equivalent to non-cancellalable setImmediate() in NodeJS
+        /// Equivalent to setImmediate() and clearImmediate() in NodeJS
         /// </summary>
-        /// <param name="cb"></param>
-        /// <param name="cbState"></param>
-        void PostCallback(Action<object> cb, object cbState);
+        /// <param name="cancellationToken">handle which can be used to clear immediate execution request</param>
+        Task SetImmediateAsync(CancellationToken cancellationToken);
 
         /// <summary>
-        /// Equivalent to setTimeout() in NodeJS
+        /// Equivalent to combined setTimeout() and clearTimeout() in NodeJS
         /// </summary>
         /// <param name="millis"></param>
-        /// <param name="cb"></param>
-        /// <param name="cbState"></param>
-        /// <returns>a handle with which timeout can be cancelled</returns>
-        object ScheduleTimeout(int millis, Action<object> cb, object cbState);
+        /// <param name="cancellationToken">handle which can be used to clear timeout request</param>
+        Task SetTimeoutAsync(int millis, CancellationToken cancellationToken);
 
         /// <summary>
-        /// Equivalent to clearTimeout() in NodeJS
-        /// </summary>
-        /// <param name="id"></param>
-        void CancelTimeout(object id);
-
-        /// <summary>
-        /// Used to report callback execution errors.
+        /// Used to report task execution errors.
         /// </summary>
         UncaughtErrorCallback ErrorHandler { get; set; }
+
+        bool IsMutexRequired(out Task taskToWrap);
+        Task MutexWrap(Task t);
+        Task<T> MutexWrap<T>(Task<T> taskToWrap);
     }
 }

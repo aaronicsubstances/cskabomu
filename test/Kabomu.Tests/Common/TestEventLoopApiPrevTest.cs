@@ -6,12 +6,12 @@ using Xunit;
 
 namespace Kabomu.Tests.Common
 {
-    public class TestEventLoopApiTest
+    public class TestEventLoopApiPrevTest
     {
         [Fact]
         public void TestAdvanceTimeBy()
         {
-            var instance = new TestEventLoopApi();
+            var instance = new TestEventLoopApiPrev();
             Assert.Equal(0, instance.CurrentTimestamp);
 
             var callbackLogs = new List<string>();
@@ -194,7 +194,7 @@ namespace Kabomu.Tests.Common
         [Fact]
         public void TestAdvanceTimeTo()
         {
-            var instance = new TestEventLoopApi();
+            var instance = new TestEventLoopApiPrev();
             Assert.Equal(0, instance.CurrentTimestamp);
 
             var callbackLogs = new List<string>();
@@ -377,7 +377,7 @@ namespace Kabomu.Tests.Common
         [Fact]
         public void TestNestedCallbackPosts()
         {
-            var instance = new TestEventLoopApi();
+            var instance = new TestEventLoopApiPrev();
             Assert.Equal(0, instance.CurrentTimestamp);
 
             var callbackLogs = new List<string>();
@@ -454,7 +454,7 @@ namespace Kabomu.Tests.Common
         [Fact]
         public void TestMutualExclusion()
         {
-            var instance = new TestEventLoopApi();
+            var instance = new TestEventLoopApiPrev();
             var actualAnswer = 0;
             Action<object> doublingCb = num =>
             {
@@ -479,7 +479,7 @@ namespace Kabomu.Tests.Common
         [Fact]
         public void TestErrorUsage()
         {
-            var instance = new TestEventLoopApi();
+            var instance = new TestEventLoopApiPrev();
             Assert.ThrowsAny<Exception>(() =>
             {
                 instance.AdvanceTimeBy(-1);

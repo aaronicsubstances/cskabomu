@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common.Transports
 {
@@ -17,8 +18,8 @@ namespace Kabomu.Common.Transports
             _readWriteRequestProcessors = new WritableBackedBody[2];
         }
 
-        public void ProcessReadRequest(IMutexApi mutex, object participant, 
-            byte[] data, int offset, int length, Action<Exception, int> cb)
+        public async Task<int> ProcessReadRequestAsync(IEventLoopApi eventLoop, object participant, 
+            byte[] data, int offset, int length)
         {
             // Rely on underlying backing body code's validation of arguments except for participant.
             if (participant == null)
@@ -27,8 +28,7 @@ namespace Kabomu.Common.Transports
             }
             if (_releaseError != null)
             {
-                cb.Invoke(_releaseError, 0);
-                return;
+                throw _releaseError;
             }
             // pick body at index for other participant for processing read request.
             int readReqProcessorIndex;
@@ -45,11 +45,11 @@ namespace Kabomu.Common.Transports
                 _readWriteRequestProcessors[readReqProcessorIndex] = new WritableBackedBody(null);
             }
             var readProcessor = _readWriteRequestProcessors[readReqProcessorIndex];
-            readProcessor.ReadBytes(mutex, data, offset, length, cb);
+            return await readProcessor.ReadBytesAsync(eventLoop, data, offset, length);
         }
 
-        public void ProcessWriteRequest(IMutexApi mutex, object participant,
-            byte[] data, int offset, int length, Action<Exception> cb)
+        public async Task ProcessWriteRequestAsync(IEventLoopApi eventLoop, object participant,
+            byte[] data, int offset, int length)
         {
             // Rely on underlying backing body code's validation of arguments except for participant.
             if (participant == null)
@@ -58,8 +58,7 @@ namespace Kabomu.Common.Transports
             }
             if (_releaseError != null)
             {
-                cb.Invoke(_releaseError);
-                return;
+                throw _releaseError;
             }
             // pick body at index for participant for processing write request.
             int writeReqProcessorIndex;
@@ -78,10 +77,10 @@ namespace Kabomu.Common.Transports
             var writeProcessor = _readWriteRequestProcessors[writeReqProcessorIndex];
             // assumptions of write occuring in chunks or with an overall content length remove need to ever call
             // writeProcessor.WriteLastBytes()
-            writeProcessor.WriteBytes(mutex, data, offset, length, cb);
+            await writeProcessor.WriteBytesAsync(eventLoop, data, offset, length);
         }
 
-        public void Release(IMutexApi mutex)
+        public async Task ReleaseAsync(IEventLoopApi eventLoop)
         {
             if (_releaseError != null)
             {
@@ -90,7 +89,10 @@ namespace Kabomu.Common.Transports
             _releaseError = new Exception("connection reset");
             foreach (var processor in _readWriteRequestProcessors)
             {
-                processor?.OnEndRead(mutex, _releaseError);
+                if (processor != null)
+                {
+                    await processor.EndReadAsync(eventLoop, _releaseError);
+                }
             }
         }
     }

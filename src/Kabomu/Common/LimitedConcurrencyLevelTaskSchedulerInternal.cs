@@ -33,6 +33,11 @@ namespace Kabomu.Common
             _maxDegreeOfParallelism = maxDegreeOfParallelism;
         }
 
+        /// <summary>
+        /// Additional method.
+        /// </summary>
+        public static bool CurrentThreadIsProcessingItems => _currentThreadIsProcessingItems;
+
         // Queues a task to the scheduler.
         protected sealed override void QueueTask(Task task)
         {
