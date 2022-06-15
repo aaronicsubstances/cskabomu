@@ -3,13 +3,13 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Internals
+namespace Kabomu.QuasiHttp
 {
-    internal interface ITransferProtocol
+    internal interface ITransferProtocolInternal
     {
-        IParentTransferProtocol Parent { get; set; }
+        IParentTransferProtocolInternal Parent { get; set; }
         object Connection { get; set; }
-        STCancellationIndicator ProcessingCancellationIndicator { get; set; }
+        STCancellationIndicatorInternal ProcessingCancellationIndicator { get; set; }
         int TimeoutMillis { get; set; }
         object TimeoutId { get; set; }
         Action<Exception, IQuasiHttpResponse> SendCallback { get; set; }

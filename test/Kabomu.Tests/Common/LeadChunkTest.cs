@@ -25,7 +25,7 @@ namespace Kabomu.Tests.Common
             }
             var bytes = inputStream.ToArray();
             var actual = LeadChunk.Deserialize(bytes, 0, bytes.Length);
-            CompareChunks(expected, actual);
+            ComparisonUtils.CompareLeadChunks(expected, actual);
         }
 
         [Fact]
@@ -54,7 +54,7 @@ namespace Kabomu.Tests.Common
             }
             var bytes = inputStream.ToArray();
             var actual = LeadChunk.Deserialize(bytes, 0, bytes.Length);
-            CompareChunks(expected, actual);
+            ComparisonUtils.CompareLeadChunks(expected, actual);
         }
 
         [Fact]
@@ -82,22 +82,6 @@ namespace Kabomu.Tests.Common
                 LeadChunk.Deserialize(data, 0, data.Length);
             });
             Assert.Contains("version", ex.Message);
-        }
-
-        internal static void CompareChunks(LeadChunk expected, LeadChunk actual)
-        {
-            Assert.Equal(expected.Version, actual.Version);
-            Assert.Equal(expected.Flags, actual.Flags);
-            Assert.Equal(expected.Path, actual.Path);
-            Assert.Equal(expected.StatusIndicatesSuccess, actual.StatusIndicatesSuccess);
-            Assert.Equal(expected.StatusIndicatesClientError, actual.StatusIndicatesClientError);
-            Assert.Equal(expected.StatusMessage, actual.StatusMessage);
-            Assert.Equal(expected.ContentLength, actual.ContentLength);
-            Assert.Equal(expected.ContentType, actual.ContentType);
-            Assert.Equal(expected.HttpMethod, actual.HttpMethod);
-            Assert.Equal(expected.HttpVersion, actual.HttpVersion);
-            Assert.Equal(expected.HttpStatusCode, actual.HttpStatusCode);
-            ComparisonUtils.CompareHeaders(expected.Headers, actual.Headers);
         }
     }
 }

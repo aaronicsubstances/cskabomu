@@ -1,6 +1,5 @@
 ﻿using Kabomu.Common;
 using Kabomu.Common.Transports;
-using Kabomu.Internals;
 using Kabomu.QuasiHttp;
 using Kabomu.Tests.Shared;
 using System;
@@ -408,11 +407,11 @@ namespace Kabomu.Tests.Common.Transports
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                instance.ReadBytes(new MemoryBasedTransportConnection(4), new byte[1], 1, 1, (e, len) => { });
+                instance.ReadBytes(new MemoryBasedTransportConnectionInternal(4), new byte[1], 1, 1, (e, len) => { });
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                instance.ReadBytes(new MemoryBasedTransportConnection(4), new byte[1], 0, 1, null);
+                instance.ReadBytes(new MemoryBasedTransportConnectionInternal(4), new byte[1], 0, 1, null);
             });
             Assert.Throws<ArgumentException>(() =>
             {
@@ -424,11 +423,11 @@ namespace Kabomu.Tests.Common.Transports
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                instance.WriteBytes(new MemoryBasedTransportConnection(4), new byte[1], 1, 1, e => { });
+                instance.WriteBytes(new MemoryBasedTransportConnectionInternal(4), new byte[1], 1, 1, e => { });
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                instance.WriteBytes(new MemoryBasedTransportConnection(4), new byte[1], 0, 1, null);
+                instance.WriteBytes(new MemoryBasedTransportConnectionInternal(4), new byte[1], 0, 1, null);
             });
         }
 

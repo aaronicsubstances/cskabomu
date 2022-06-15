@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Internals;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -11,14 +10,14 @@ namespace Kabomu.QuasiHttp
 {
     public class KabomuQuasiHttpClient : IQuasiHttpClient
     {
-        private readonly Dictionary<object, ITransferProtocol> _transfersWithConnections;
-        private readonly HashSet<ITransferProtocol> _transfersWithoutConnections;
-        private readonly IParentTransferProtocol _representative;
+        private readonly Dictionary<object, ITransferProtocolInternal> _transfersWithConnections;
+        private readonly HashSet<ITransferProtocolInternal> _transfersWithoutConnections;
+        private readonly IParentTransferProtocolInternal _representative;
 
         public KabomuQuasiHttpClient()
         {
-            _transfersWithConnections = new Dictionary<object, ITransferProtocol>();
-            _transfersWithoutConnections = new HashSet<ITransferProtocol>();
+            _transfersWithConnections = new Dictionary<object, ITransferProtocolInternal>();
+            _transfersWithoutConnections = new HashSet<ITransferProtocolInternal>();
             _representative = new ParentTransferProtocolImpl(this);
         }
 
@@ -50,7 +49,7 @@ namespace Kabomu.QuasiHttp
             IQuasiHttpSendOptions options,
             Action<Exception, IQuasiHttpResponse> cb)
         {
-            var transfer = new SendProtocol
+            var transfer = new SendProtocolInternal
             {
                 Parent = _representative,
                 SendCallback = cb
@@ -75,9 +74,9 @@ namespace Kabomu.QuasiHttp
             }
         }
 
-        private void ProcessSendRequestDirectly(object remoteEndpoint, ITransferProtocol transfer, IQuasiHttpRequest request)
+        private void ProcessSendRequestDirectly(object remoteEndpoint, ITransferProtocolInternal transfer, IQuasiHttpRequest request)
         {
-            var cancellationIndicator = new STCancellationIndicator();
+            var cancellationIndicator = new STCancellationIndicatorInternal();
             transfer.ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception, IQuasiHttpResponse> cb = (e, res) =>
             {
@@ -94,7 +93,7 @@ namespace Kabomu.QuasiHttp
         }
 
         private void HandleDirectSendRequestProcessingOutcome(Exception e, IQuasiHttpResponse res,
-            ITransferProtocol transfer)
+            ITransferProtocolInternal transfer)
         {
             if (e != null)
             {
@@ -113,9 +112,9 @@ namespace Kabomu.QuasiHttp
             AbortTransfer(transfer, null);
         }
 
-        private void AllocateConnection(object remoteEndpoint, ITransferProtocol transfer, IQuasiHttpRequest request)
+        private void AllocateConnection(object remoteEndpoint, ITransferProtocolInternal transfer, IQuasiHttpRequest request)
         {
-            var cancellationIndicator = new STCancellationIndicator();
+            var cancellationIndicator = new STCancellationIndicatorInternal();
             transfer.ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception, object> cb = (e, connection) =>
             {
@@ -131,7 +130,7 @@ namespace Kabomu.QuasiHttp
             Transport.AllocateConnection(remoteEndpoint, cb);
         }
 
-        private void HandleConnectionAllocationOutcome(Exception e, object connection, ITransferProtocol transfer,
+        private void HandleConnectionAllocationOutcome(Exception e, object connection, ITransferProtocolInternal transfer,
             IQuasiHttpRequest request)
         {
             if (e != null)
@@ -160,7 +159,7 @@ namespace Kabomu.QuasiHttp
             }
             EventLoop.RunExclusively(_ =>
             {
-                var transfer = new ReceiveProtocol
+                var transfer = new ReceiveProtocolInternal
                 {
                     Parent = _representative,
                     Connection = connection,
@@ -188,7 +187,7 @@ namespace Kabomu.QuasiHttp
             }, null);
         }
 
-        private void ResetTimeout(ITransferProtocol transfer, bool forSend)
+        private void ResetTimeout(ITransferProtocolInternal transfer, bool forSend)
         {
             EventLoop.CancelTimeout(transfer.TimeoutId);
             transfer.TimeoutId = EventLoop.ScheduleTimeout(transfer.TimeoutMillis,
@@ -198,7 +197,7 @@ namespace Kabomu.QuasiHttp
                 }, null);
         }
 
-        private void AbortTransfer(ITransferProtocol transfer, Exception e)
+        private void AbortTransfer(ITransferProtocolInternal transfer, Exception e)
         {
             if (transfer.Connection != null && _transfersWithConnections.Remove(transfer.Connection))
             {
@@ -234,7 +233,7 @@ namespace Kabomu.QuasiHttp
             _transfersWithoutConnections.Clear();
         }
 
-        private void DisableTransfer(ITransferProtocol transfer, Exception e)
+        private void DisableTransfer(ITransferProtocolInternal transfer, Exception e)
         {
             transfer.Cancel(e);
             EventLoop.CancelTimeout(transfer.TimeoutId);
@@ -259,7 +258,7 @@ namespace Kabomu.QuasiHttp
             }
         }
 
-        private class ParentTransferProtocolImpl : IParentTransferProtocol
+        private class ParentTransferProtocolImpl : IParentTransferProtocolInternal
         {
             private readonly KabomuQuasiHttpClient _delegate;
 
@@ -278,7 +277,7 @@ namespace Kabomu.QuasiHttp
 
             public UncaughtErrorCallback ErrorHandler => _delegate.ErrorHandler;
 
-            public void AbortTransfer(ITransferProtocol transfer, Exception e)
+            public void AbortTransfer(ITransferProtocolInternal transfer, Exception e)
             {
                 _delegate.AbortTransfer(transfer, e);
             }

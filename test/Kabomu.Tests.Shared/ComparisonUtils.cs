@@ -8,6 +8,30 @@ namespace Kabomu.Tests.Shared
 {
     public static class ComparisonUtils
     {
+        public static void CompareLeadChunks(LeadChunk expected, LeadChunk actual)
+        {
+            Assert.Equal(expected.Version, actual.Version);
+            Assert.Equal(expected.Flags, actual.Flags);
+            Assert.Equal(expected.Path, actual.Path);
+            Assert.Equal(expected.StatusIndicatesSuccess, actual.StatusIndicatesSuccess);
+            Assert.Equal(expected.StatusIndicatesClientError, actual.StatusIndicatesClientError);
+            Assert.Equal(expected.StatusMessage, actual.StatusMessage);
+            Assert.Equal(expected.ContentLength, actual.ContentLength);
+            Assert.Equal(expected.ContentType, actual.ContentType);
+            Assert.Equal(expected.HttpMethod, actual.HttpMethod);
+            Assert.Equal(expected.HttpVersion, actual.HttpVersion);
+            Assert.Equal(expected.HttpStatusCode, actual.HttpStatusCode);
+            CompareHeaders(expected.Headers, actual.Headers);
+        }
+
+        public static void CompareSubsequentChunks(SubsequentChunk expected, SubsequentChunk actual)
+        {
+            Assert.Equal(expected.Version, actual.Version);
+            Assert.Equal(expected.Flags, actual.Flags);
+            CompareData(expected.Data, expected.DataOffset, expected.DataLength, actual.Data,
+                actual.DataOffset, actual.DataLength);
+        }
+
         public static void CompareRequests(IMutexApi mutex, int maxChunkSize,
             IQuasiHttpRequest expected, IQuasiHttpRequest actual,
             byte[] expectedReqBodyBytes)

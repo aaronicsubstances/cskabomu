@@ -1,5 +1,5 @@
 ﻿using Kabomu.Common;
-using Kabomu.Internals;
+using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,11 +7,11 @@ using Xunit;
 
 namespace Kabomu.Tests.Internals
 {
-    internal class TestParentTransferProtocol : IParentTransferProtocol
+    internal class TestParentTransferProtocol : IParentTransferProtocolInternal
     {
-        private readonly ITransferProtocol _expectedTransfer;
+        private readonly ITransferProtocolInternal _expectedTransfer;
 
-        public TestParentTransferProtocol(ITransferProtocol expectedTransfer)
+        public TestParentTransferProtocol(ITransferProtocolInternal expectedTransfer)
         {
             _expectedTransfer = expectedTransfer;
         }
@@ -27,7 +27,7 @@ namespace Kabomu.Tests.Internals
         public UncaughtErrorCallback ErrorHandler { get; set; }
         public bool AbortCalled { get; private set; }
 
-        public void AbortTransfer(ITransferProtocol transfer, Exception e)
+        public void AbortTransfer(ITransferProtocolInternal transfer, Exception e)
         {
             Assert.False(AbortCalled);
             Assert.Equal(_expectedTransfer, transfer);

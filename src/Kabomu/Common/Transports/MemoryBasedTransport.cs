@@ -1,5 +1,4 @@
-﻿using Kabomu.Internals;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -71,7 +70,7 @@ namespace Kabomu.Common.Transports
                     cb.Invoke(e, null);
                     return;
                 }
-                var connection = new MemoryBasedTransportConnection(this);
+                var connection = new MemoryBasedTransportConnectionInternal(this);
                 remoteClient.OnReceive(connection);
                 cb.Invoke(null, connection);
             }, null);
@@ -81,14 +80,14 @@ namespace Kabomu.Common.Transports
         {
             Mutex.RunExclusively(_ =>
             {
-                var typedConnection = connection as MemoryBasedTransportConnection;
+                var typedConnection = connection as MemoryBasedTransportConnectionInternal;
                 typedConnection?.Release(Mutex);
             }, null);
         }
 
         public void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
         {
-            var typedConnection = (MemoryBasedTransportConnection)connection;
+            var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
             if (typedConnection == null)
             {
                 throw new ArgumentException("null connection");
@@ -109,7 +108,7 @@ namespace Kabomu.Common.Transports
 
         public void WriteBytes(object connection, byte[] data, int offset, int length, Action<Exception> cb)
         {
-            var typedConnection = (MemoryBasedTransportConnection)connection;
+            var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
             if (typedConnection == null)
             {
                 throw new ArgumentException("null connection");

@@ -1,20 +1,19 @@
 ﻿using Kabomu.Common;
 using Kabomu.Common.Bodies;
-using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Internals
+namespace Kabomu.QuasiHttp
 {
-    internal class SendProtocol : ITransferProtocol
+    internal class SendProtocolInternal : ITransferProtocolInternal
     {
         private TransportBackedBody _transportBody;
         private IQuasiHttpBody _requestBody, _responseBody;
 
-        public IParentTransferProtocol Parent { get; set; }
+        public IParentTransferProtocolInternal Parent { get; set; }
         public object Connection { get; set; }
-        public STCancellationIndicator ProcessingCancellationIndicator { get; set; }
+        public STCancellationIndicatorInternal ProcessingCancellationIndicator { get; set; }
         public int TimeoutMillis { get; set; }
         public object TimeoutId { get; set; }
         public Action<Exception, IQuasiHttpResponse> SendCallback { get; set; }
@@ -51,7 +50,7 @@ namespace Kabomu.Internals
                 chunk.ContentLength = request.Body.ContentLength;
                 chunk.ContentType = request.Body.ContentType;
             }
-            var cancellationIndicator = new STCancellationIndicator();
+            var cancellationIndicator = new STCancellationIndicatorInternal();
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
@@ -89,7 +88,7 @@ namespace Kabomu.Internals
         private void StartFetchingResponse()
         {
             byte[] encodedLength = new byte[2];
-            var cancellationIndicator = new STCancellationIndicator();
+            var cancellationIndicator = new STCancellationIndicatorInternal();
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
@@ -118,7 +117,7 @@ namespace Kabomu.Internals
             int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                 encodedLength.Length);
             var chunkBytes = new byte[chunkLen];
-            var cancellationIndicator = new STCancellationIndicator();
+            var cancellationIndicator = new STCancellationIndicatorInternal();
             ProcessingCancellationIndicator = cancellationIndicator;
             Action<Exception> cb = e =>
             {
@@ -156,7 +155,7 @@ namespace Kabomu.Internals
 
             if (chunk.ContentLength != 0)
             {
-                var cancellationIndicator = new STCancellationIndicator();
+                var cancellationIndicator = new STCancellationIndicatorInternal();
                 ProcessingCancellationIndicator = cancellationIndicator;
                 Action closeCb = () =>
                 {
