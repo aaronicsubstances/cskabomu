@@ -1,5 +1,5 @@
 ﻿using CommandLine;
-using Kabomu.Common;
+using Kabomu.Common.Transports;
 using System;
 using System.Threading.Tasks;
 

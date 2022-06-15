@@ -1,7 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.Common.Bodies;
+using Kabomu.Common.Transports;
 using Kabomu.QuasiHttp;
-using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
