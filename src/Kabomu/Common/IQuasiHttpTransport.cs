@@ -9,10 +9,10 @@ namespace Kabomu.Common
     {
         int MaxChunkSize { get; }
         UncaughtErrorCallback ErrorHandler { get; set; }
-        Task<object> AllocateConnectionAsync(object remoteEndpoint);
-        Task ReleaseConnectionAsync(object connection);
-        Task WriteBytesAsync(object connection, byte[] data, int offset, int length);
-        Task<int> ReadBytesAsync(object connection, byte[] data, int offset, int length);
+        Task<object> AllocateConnection(object remoteEndpoint);
+        Task ReleaseConnection(object connection);
+        Task WriteBytes(object connection, byte[] data, int offset, int length);
+        Task<int> ReadBytes(object connection, byte[] data, int offset, int length);
 
         /// <summary>
         /// Memory-based transports return true with a probability between 0 and 1,
@@ -22,6 +22,6 @@ namespace Kabomu.Common
         /// </summary>
         bool DirectSendRequestProcessingEnabled { get; }
 
-        Task<IQuasiHttpResponse> ProcessSendRequestAsync(object remoteEndpoint, IQuasiHttpRequest request);
+        Task<IQuasiHttpResponse> ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request);
     }
 }

@@ -10,9 +10,9 @@ namespace Kabomu.Common
         int DefaultTimeoutMillis { get; set; }
         IQuasiHttpApplication Application { get; set; }
         IQuasiHttpTransport Transport { get; set; }
-        Task<IQuasiHttpResponse> SendAsync(object remoteEndpoint, IQuasiHttpRequest request,
+        Task<IQuasiHttpResponse> Send(object remoteEndpoint, IQuasiHttpRequest request,
             IQuasiHttpSendOptions options);
-        Task ReceiveAsync(object connection);
-        Task ResetAsync(Exception cause);
+        Task Receive(object connection);
+        Task Reset(Exception cause);
     }
 }

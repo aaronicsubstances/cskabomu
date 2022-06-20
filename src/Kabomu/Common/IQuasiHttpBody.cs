@@ -9,7 +9,7 @@ namespace Kabomu.Common
     {
         long ContentLength { get; }
         string ContentType { get; }
-        Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead);
-        Task EndReadAsync(IEventLoopApi eventLoop, Exception e);
+        Task<int> ReadBytes(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead);
+        Task EndRead(IEventLoopApi eventLoop, Exception e);
     }
 }
