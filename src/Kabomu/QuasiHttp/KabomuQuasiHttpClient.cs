@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,9 +28,8 @@ namespace Kabomu.QuasiHttp
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public IEventLoopApi EventLoop { get; set; }
-        public UncaughtErrorCallback ErrorHandler { get; set; }
 
-        public async Task<IQuasiHttpResponse> SendAsync(object remoteEndpoint,
+        public Task<IQuasiHttpResponse> Send(object remoteEndpoint,
             IQuasiHttpRequest request, IQuasiHttpSendOptions options)
         {
             if (request == null)
@@ -37,211 +37,234 @@ namespace Kabomu.QuasiHttp
                 throw new ArgumentException("null request");
             }
 
-            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            return await ProcessSendAsync(remoteEndpoint, request, options);
+            return ProcessSend(remoteEndpoint, request, options);
         }
 
-        private async Task<IQuasiHttpResponse> ProcessSendAsync(object remoteEndpoint,
+        private async Task<IQuasiHttpResponse> ProcessSend(object remoteEndpoint,
             IQuasiHttpRequest request, IQuasiHttpSendOptions options)
         {
-            var transfer = new SendProtocolInternal
-            {
-                Parent = _representative,
-                SendCallback = new TaskCompletionSource<IQuasiHttpResponse>(TaskCreationOptions.RunContinuationsAsynchronously)
-            };
-            if (options != null)
-            {
-                transfer.TimeoutMillis = options.TimeoutMillis;
-            }
-            if (transfer.TimeoutMillis <= 0)
-            {
-                transfer.TimeoutMillis = DefaultTimeoutMillis;
-            }
-            _transfersWithoutConnections.Add(transfer);
-            var timeoutTask = SetResponseTimeoutAsync(transfer, true);
             Task<IQuasiHttpResponse> workTask;
-            if (Transport.DirectSendRequestProcessingEnabled)
+            Task timeoutTask;
+            SendProtocolInternal transfer;
+            lock (EventLoop)
             {
-                workTask = ProcessSendRequestDirectlyAsync(remoteEndpoint, transfer, request);
+                transfer = new SendProtocolInternal
+                {
+                    Parent = _representative
+                };
+                if (options != null)
+                {
+                    transfer.TimeoutMillis = options.TimeoutMillis;
+                }
+                if (transfer.TimeoutMillis <= 0)
+                {
+                    transfer.TimeoutMillis = DefaultTimeoutMillis;
+                }
+                _transfersWithoutConnections.Add(transfer);
+                timeoutTask = SetResponseTimeout(transfer, true);
+                if (Transport.DirectSendRequestProcessingEnabled)
+                {
+                    workTask = ProcessSendRequestDirectly(remoteEndpoint, transfer, request);
+                }
+                else
+                {
+                    workTask = AllocateConnection(remoteEndpoint, transfer, request);
+                }
             }
-            else
-            {
-                workTask = AllocateConnectionAsync(remoteEndpoint, transfer, request);
-            }
-            var firstCompletedTask = await Task.WhenAny(transfer.SendCallback.Task, timeoutTask, workTask);
-            await firstCompletedTask;
-            return await transfer.SendCallback.Task;
-        }
-
-        private async Task<IQuasiHttpResponse> ProcessSendRequestDirectlyAsync(object remoteEndpoint,
-            ITransferProtocolInternal transfer, IQuasiHttpRequest request)
-        {
-            IQuasiHttpResponse res = null;
-            Exception readError = null;
+            ExceptionDispatchInfo capturedError = null;
+            var firstCompletedTask = await Task.WhenAny(timeoutTask, workTask);
             try
             {
-                res = await EventLoop.MutexWrap(Transport.ProcessSendRequestAsync(remoteEndpoint, request));
+                await firstCompletedTask;
             }
             catch (Exception e)
             {
-                readError = e;
+                capturedError = ExceptionDispatchInfo.Capture(e);
             }
 
-            if (transfer.IsAborted)
+            Task abortTask = null;
+            lock (EventLoop)
             {
-                return null;
+                if (transfer.IsAborted)
+                {
+                    return null;
+                }
+                if (capturedError != null)
+                {
+                    abortTask = AbortTransfer(transfer, capturedError.SourceException);
+                }
+            }
+            if (abortTask != null)
+            {
+                await abortTask;
+            }
+            capturedError?.Throw();
+            return await workTask;
+        }
+
+        private async Task<IQuasiHttpResponse> ProcessSendRequestDirectly(object remoteEndpoint,
+            ITransferProtocolInternal transfer, IQuasiHttpRequest request)
+        {
+            IQuasiHttpResponse res = await Transport.ProcessSendRequest(remoteEndpoint, request);
+
+            Task abortTask;
+            lock (EventLoop)
+            {
+                if (transfer.IsAborted)
+                {
+                    return null;
+                }
+                abortTask = AbortTransfer(transfer, null);
             }
 
-            if (readError != null)
-            {
-                return await AbortTransferAsync(transfer, readError);
-            }
+            await abortTask;
 
             if (res == null)
             {
-                return await AbortTransferAsync(transfer, new Exception("no response"));
+                throw new Exception("no response");
             }
 
-            transfer.SendCallback.SetResult(res);
-            return await AbortTransferAsync(transfer, null);
+            return res;
         }
 
-        private async Task<IQuasiHttpResponse> AllocateConnectionAsync(object remoteEndpoint,
-            ITransferProtocolInternal transfer, IQuasiHttpRequest request)
+        private async Task<IQuasiHttpResponse> AllocateConnection(object remoteEndpoint,
+            SendProtocolInternal transfer, IQuasiHttpRequest request)
         {
-            object connection = null;
-            Exception connectError = null;
-            try
+            object connection = await Transport.AllocateConnection(remoteEndpoint);
+
+            lock (EventLoop)
             {
-                connection = EventLoop.MutexWrap(Transport.AllocateConnectionAsync(remoteEndpoint));
-            }
-            catch (Exception e)
-            {
-                connectError = e;
+                if (transfer.IsAborted)
+                {
+                    return null;
+                }
+
+                if (connection == null)
+                {
+                    throw new Exception("no connection created");
+                }
+
+                transfer.Connection = connection;
+                _transfersWithConnections.Add(connection, transfer);
+                _transfersWithoutConnections.Remove(transfer);
             }
 
-            if (transfer.IsAborted)
-            {
-                return null;
-            }
-
-            if (connectError != null)
-            {
-                return await AbortTransferAsync(transfer, connectError);
-            }
-
-            if (connection == null)
-            {
-                return await AbortTransferAsync(transfer, new Exception("no connection created"));
-            }
-
-            transfer.Connection = connection;
-            _transfersWithConnections.Add(connection, transfer);
-            _transfersWithoutConnections.Remove(transfer);
-            return await transfer.SendAsync(request);
+            return await transfer.Send(request);
         }
 
-        public async Task ReceiveAsync(object connection)
+        public async Task Receive(object connection)
         {
             if (connection == null)
             {
                 throw new ArgumentException("null connection");
             }
 
-            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            var transfer = new ReceiveProtocolInternal
+            ReceiveProtocolInternal transfer;
+            Task timeoutTask, workTask;
+            lock (EventLoop)
             {
-                Parent = _representative,
-                Connection = connection,
-                TimeoutMillis = DefaultTimeoutMillis
-            };
-            _transfersWithConnections.Add(connection, transfer);
-            var timeoutTask = SetResponseTimeoutAsync(transfer, false);
-            var workTask = transfer.ReceiveAsync();
+                transfer = new ReceiveProtocolInternal
+                {
+                    Parent = _representative,
+                    Connection = connection,
+                    TimeoutMillis = DefaultTimeoutMillis
+                };
+                _transfersWithConnections.Add(connection, transfer);
+                timeoutTask = SetResponseTimeout(transfer, false);
+                workTask = transfer.Receive();
+            }
+            ExceptionDispatchInfo capturedError = null;
             var firstCompletedTask = await Task.WhenAny(timeoutTask, workTask);
-            await firstCompletedTask;
+            try
+            {
+                await firstCompletedTask;
+            }
+            catch (Exception e)
+            {
+                capturedError = ExceptionDispatchInfo.Capture(e);
+            }
+
+            Task abortTask = null;
+            lock (EventLoop)
+            {
+                if (transfer.IsAborted)
+                {
+                    return;
+                }
+                if (capturedError != null)
+                {
+                    abortTask = AbortTransfer(transfer, capturedError.SourceException);
+                }
+            }
+            if (abortTask != null)
+            {
+                await abortTask;
+            }
+            capturedError?.Throw();
+            await workTask;
         }
 
-        public async Task ResetAsync(Exception cause)
+        public async Task Reset(Exception cause)
         {
-            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
-
             cause = cause ?? new Exception("reset");
 
-            foreach (var transfer in _transfersWithConnections.Values)
+            var tasks = new List<Task>();
+            lock (EventLoop)
             {
-                try
+                foreach (var transfer in _transfersWithConnections.Values)
                 {
-                    await EventLoop.MutexWrap(DisableTransferAsync(transfer, cause));
+                    tasks.Add(DisableTransfer(transfer, cause));
                 }
-                catch (Exception) { }
-            }
-            foreach (var transfer in _transfersWithoutConnections)
-            {
-                try
+                foreach (var transfer in _transfersWithoutConnections)
                 {
-                    await EventLoop.MutexWrap(DisableTransferAsync(transfer, cause));
+                    tasks.Add(DisableTransfer(transfer, cause));
                 }
-                catch (Exception) { }
+                _transfersWithConnections.Clear();
+                _transfersWithoutConnections.Clear();
             }
-            _transfersWithConnections.Clear();
-            _transfersWithoutConnections.Clear();
+
+            await Task.WhenAll(tasks);
         }
 
-        private async Task<IQuasiHttpResponse> SetResponseTimeoutAsync(ITransferProtocolInternal transfer, bool forSend)
+        private Task SetResponseTimeout(ITransferProtocolInternal transfer, bool forSend)
         {
             transfer.TimeoutCancellationHandle = new CancellationTokenSource();
-            await EventLoop.SetTimeoutAsync(transfer.TimeoutMillis, transfer.TimeoutCancellationHandle.Token);
-            return await AbortTransferAsync(transfer, new Exception((forSend ? "send" : "receive") + " timeout"));
+            return EventLoop.SetTimeout<Task>(transfer.TimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
+                throw new Exception((forSend ? "send" : "receive") + " timeout"));
         }
 
-        private async Task<IQuasiHttpResponse> AbortTransferAsync(ITransferProtocolInternal transfer, Exception e)
+        private async Task AbortTransfer(ITransferProtocolInternal transfer, Exception e)
         {
             if (transfer.IsAborted)
             {
-                return null;
+                return;
             }
             _transfersWithoutConnections.Remove(transfer);
             if (transfer.Connection != null)
             {
                 _transfersWithConnections.Remove(transfer.Connection);
             }
-            await EventLoop.MutexWrap(DisableTransferAsync(transfer, e));
-            if (transfer.SendCallback != null)
-            {
-                return await transfer.SendCallback.Task;
-            }
-            else
-            {
-                return null;
-            }
+            await DisableTransfer(transfer, e);
         }
 
-        private async Task DisableTransferAsync(ITransferProtocolInternal transfer, Exception e)
+        private async Task DisableTransfer(ITransferProtocolInternal transfer, Exception e)
         {
-            await EventLoop.MutexWrap(transfer.Cancel(e));
-            transfer.TimeoutCancellationHandle?.Cancel();
-            transfer.IsAborted = true;
+            await transfer.Cancel(e);
 
-            if (e != null)
+            Task releaseTask = null;
+            lock (EventLoop)
             {
-                transfer.SendCallback?.SetException(e);
-            }
+                transfer.TimeoutCancellationHandle?.Cancel();
+                transfer.IsAborted = true;
 
-            try
-            {
                 if (transfer.Connection != null)
                 {
-                    await EventLoop.MutexWrap(Transport.ReleaseConnectionAsync(transfer.Connection));
+                    releaseTask = Transport.ReleaseConnection(transfer.Connection);
                 }
             }
-            catch { }
-
-            if (e != null)
+            if (releaseTask != null)
             {
-                ErrorHandler?.Invoke(e, "transfer error");
+                await releaseTask;
             }
         }
 
@@ -264,7 +287,7 @@ namespace Kabomu.QuasiHttp
 
             public Task AbortTransfer(ITransferProtocolInternal transfer, Exception e)
             {
-                return _delegate.AbortTransferAsync(transfer, e);
+                return _delegate.AbortTransfer(transfer, e);
             }
         }
     }

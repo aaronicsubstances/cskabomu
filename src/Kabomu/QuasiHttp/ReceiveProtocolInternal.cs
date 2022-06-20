@@ -45,113 +45,95 @@ namespace Kabomu.QuasiHttp
 
         public Task Receive()
         {
-            return ReadRequestLeadChunkAsync();
+            return ReadRequestLeadChunk();
         }
 
-        private async Task ReadRequestLeadChunkAsync()
+        private async Task ReadRequestLeadChunk()
         {
-            _transportBody = new TransportBackedBody(Parent.Transport, Connection);
-            _transportBody.ContentLength = -1;
-
+            Task readTask;
             byte[] encodedLength = new byte[2];
-            Exception readError = null;
-            try
+            lock (Parent.EventLoop)
             {
-                await Parent.EventLoop.MutexWrap(TransportUtils.ReadBytesFullyAsync(Parent.EventLoop, _transportBody, 
-                    encodedLength, 0, encodedLength.Length));
-            }
-            catch (Exception e)
-            {
-                readError = e;
+                _transportBody = new TransportBackedBody(Parent.Transport, Connection);
+                _transportBody.ContentLength = -1;
+                readTask = TransportUtils.ReadBytesFully(Parent.EventLoop, _transportBody,
+                    encodedLength, 0, encodedLength.Length);
             }
 
-            if (IsAborted)
-            {
-                return;
-            }
+            await readTask;
 
-            if (readError != null)
+            byte[] chunkBytes;
+            lock (Parent.EventLoop)
             {
-                await Parent.AbortTransfer(this, readError);
-                return;
-            }
 
-            int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
-                encodedLength.Length);
-            var chunkBytes = new byte[chunkLen];
-            readError = null;
-            try
-            {
-                await Parent.EventLoop.MutexWrap(TransportUtils.ReadBytesFullyAsync(Parent.EventLoop, _transportBody,
-                    chunkBytes, 0, chunkBytes.Length));
-            }
-            catch (Exception e)
-            {
-                readError = e;
-            }
-
-            if (IsAborted)
-            {
-                return;
-            }
-
-            if (readError != null)
-            {
-                await Parent.AbortTransfer(this, readError);
-                return;
-            }
-
-            var chunk = LeadChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
-            var request = new DefaultQuasiHttpRequest
-            {
-                Path = chunk.Path,
-                Headers = chunk.Headers,
-                HttpVersion = chunk.HttpVersion,
-                HttpMethod = chunk.HttpMethod
-            };
-            if (chunk.ContentLength != 0)
-            {
-                _transportBody.ContentLength = chunk.ContentLength;
-                _transportBody.ContentType = chunk.ContentType;
-                if (chunk.ContentLength < 0)
+                if (IsAborted)
                 {
-                    request.Body = new ChunkDecodingBody(_transportBody, null);
+                    return;
                 }
-                else
-                {
-                    request.Body = _transportBody;
-                }
-            }
-            _requestBody = request.Body;
 
-            
-            // Begin Application processing.
-            try
-            {
-                var res = await Parent.EventLoop.MutexWrap(Parent.Application.ProcessRequestAsync(request));
-                if (!IsAborted)
-                {
-                    await SendResponseLeadChunkAsync(res);
-                }
-                return;
+                int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
+                    encodedLength.Length);
+                chunkBytes = new byte[chunkLen];
+                readTask = TransportUtils.ReadBytesFully(Parent.EventLoop, _transportBody,
+                    chunkBytes, 0, chunkBytes.Length);
             }
-            catch (Exception e)
+
+            await readTask;
+
+            Task<IQuasiHttpResponse> appTask;
+            lock (Parent.EventLoop)
             {
-                if (!IsAborted)
+                if (IsAborted)
                 {
-                    await Parent.AbortTransfer(this, e);
+                    return;
                 }
+
+                var chunk = LeadChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
+                var request = new DefaultQuasiHttpRequest
+                {
+                    Path = chunk.Path,
+                    Headers = chunk.Headers,
+                    HttpVersion = chunk.HttpVersion,
+                    HttpMethod = chunk.HttpMethod
+                };
+                if (chunk.ContentLength != 0)
+                {
+                    _transportBody.ContentLength = chunk.ContentLength;
+                    _transportBody.ContentType = chunk.ContentType;
+                    if (chunk.ContentLength < 0)
+                    {
+                        request.Body = new ChunkDecodingBody(_transportBody, null);
+                    }
+                    else
+                    {
+                        request.Body = _transportBody;
+                    }
+                }
+                _requestBody = request.Body;
+                appTask = Parent.Application.ProcessRequest(request);
             }
+
+            var response = await appTask;
+
+            Task sendTask;
+            lock (Parent.EventLoop)
+            {
+                if (IsAborted)
+                {
+                    return;
+                }
+                if (response == null)
+                {
+                    throw new Exception("no response");
+                }
+                sendTask = SendResponseLeadChunk(response);
+            }
+
+            await sendTask;
         }
 
-        private async Task SendResponseLeadChunkAsync(IQuasiHttpResponse response)
+        private async Task SendResponseLeadChunk(IQuasiHttpResponse response)
         {
-            if (response == null)
-            {
-                await Parent.AbortTransfer(this, new Exception("no response"));
-                return;
-            }
-
             var chunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
@@ -169,40 +151,35 @@ namespace Kabomu.QuasiHttp
                 chunk.ContentLength = response.Body.ContentLength;
                 chunk.ContentType = response.Body.ContentType;
             }
-            
-            Exception writeError = null;
-            try
-            {
-                await Parent.EventLoop.MutexWrap(ProtocolUtils.WriteLeadChunk(Parent.Transport, Connection, chunk));
-            }
-            catch (Exception e)
-            {
-                writeError = e;
-            }
 
-            if (IsAborted)
-            {
-                return;
-            }
+            await ProtocolUtils.WriteLeadChunk(Parent.Transport, Connection, chunk);
 
-            if (writeError != null)
+            Task bodyTransferTask = null, abortTask = null;
+            lock (Parent.EventLoop)
             {
-                await Parent.AbortTransfer(this, writeError);
-                return;
-            }
-
-            if (response.Body != null)
-            {
-                await Parent.EventLoop.MutexWrap(TransportUtils.TransferBodyToTransportAsync(Parent.EventLoop, Parent.Transport,
-                    Connection, _responseBody));
-                if (!IsAborted)
+                if (IsAborted)
                 {
-                    await Parent.AbortTransfer(this, null);
+                    return;
+                }
+                if (response.Body != null)
+                {
+                    bodyTransferTask = TransportUtils.TransferBodyToTransport(Parent.EventLoop, Parent.Transport,
+                        Connection, _responseBody);
+                }
+                else
+                {
+                    abortTask = Parent.AbortTransfer(this, null);
                 }
             }
-            else
+
+            if (bodyTransferTask != null)
             {
-                await Parent.AbortTransfer(this, null);
+                await bodyTransferTask;
+            }
+
+            if (abortTask != null)
+            {
+                await abortTask;
             }
         }
     }

@@ -45,165 +45,147 @@ namespace Kabomu.QuasiHttp
 
         public Task<IQuasiHttpResponse> Send(IQuasiHttpRequest request)
         {
-            return SendRequestLeadChunkAsync(request);
+            return SendRequestLeadChunk(request);
         }
 
-        private async Task<IQuasiHttpResponse> SendRequestLeadChunkAsync(IQuasiHttpRequest request)
+        private async Task<IQuasiHttpResponse> SendRequestLeadChunk(IQuasiHttpRequest request)
         {
-            var chunk = new LeadChunk
+            Task writeTask;
+            lock (Parent.EventLoop)
             {
-                Version = LeadChunk.Version01,
-                Path = request.Path,
-                Headers = request.Headers,
-                HttpVersion = request.HttpVersion,
-                HttpMethod = request.HttpMethod
-            };
-            _requestBody = request.Body;
-            if (request.Body != null)
-            {
-                chunk.ContentLength = request.Body.ContentLength;
-                chunk.ContentType = request.Body.ContentType;
-            }
-            Exception writeError = null;
-            try
-            {
-                await Parent.EventLoop.MutexWrap(ProtocolUtils.WriteLeadChunk(Parent.Transport, Connection, chunk));
-            }
-            catch (Exception e)
-            {
-                writeError = e;
+                var chunk = new LeadChunk
+                {
+                    Version = LeadChunk.Version01,
+                    Path = request.Path,
+                    Headers = request.Headers,
+                    HttpVersion = request.HttpVersion,
+                    HttpMethod = request.HttpMethod
+                };
+                _requestBody = request.Body;
+                if (request.Body != null)
+                {
+                    chunk.ContentLength = request.Body.ContentLength;
+                    chunk.ContentType = request.Body.ContentType;
+                }
+                writeTask = ProtocolUtils.WriteLeadChunk(Parent.Transport, Connection, chunk);
             }
 
-            if (IsAborted)
+            await writeTask;
+
+            Task <IQuasiHttpResponse> responseFetchTask = null;
+            Task transferTask = null;
+            lock (Parent.EventLoop)
             {
-                return null;
+                if (IsAborted)
+                {
+                    return null;
+                }
+
+                responseFetchTask = StartFetchingResponse();
+
+                if (request.Body.ContentLength < 0)
+                {
+                    _requestBody = new ChunkEncodingBody(request.Body);
+                }
+                transferTask = TransportUtils.TransferBodyToTransport(Parent.EventLoop, Parent.Transport,
+                    Connection, _requestBody);
             }
 
-            if (writeError != null)
-            {
-                return await Parent.AbortTransfer(this, writeError);
-            }
-
-            var responseFetchTask = StartFetchingResponseAsync();
-            if (request.Body == null)
-            {
-                return await responseFetchTask;
-            }
-
-            if (request.Body.ContentLength < 0)
-            {
-                _requestBody = new ChunkEncodingBody(request.Body);
-            }
-            var transferTask = TransportUtils.TransferBodyToTransportAsync(Parent.EventLoop, Parent.Transport, 
-                Connection, _requestBody);
-
-            // Run a race for pending tasks to obtain the first success or error.
-            // if any task finishes first and was successful, then return the result of the send callback regardless of 
+            // Run a race for pending tasks to obtain any error.
+            // if any task finishes first and was successful, then return the result of the response fetch regardless of 
             // any subsequent errors.
-            var firstCompletedTask = await Task.WhenAny(SendCallback.Task, transferTask, responseFetchTask);
+            var firstCompletedTask = await Task.WhenAny(transferTask, responseFetchTask);
             await firstCompletedTask;
-            return await SendCallback.Task;
+            return await responseFetchTask;
         }
 
-        private async Task<IQuasiHttpResponse> StartFetchingResponseAsync()
+        private async Task<IQuasiHttpResponse> StartFetchingResponse()
         {
             _transportBody = new TransportBackedBody(Parent.Transport, Connection);
             _transportBody.ContentLength = -1;
 
             byte[] encodedLength = new byte[2];
-            Exception readError = null;
-            try
-            {
-                await Parent.EventLoop.MutexWrap(TransportUtils.ReadBytesFullyAsync(Parent.EventLoop, _transportBody, 
-                    encodedLength, 0, encodedLength.Length));
-            }
-            catch (Exception e)
-            {
-                readError = e;
-            }
+            await TransportUtils.ReadBytesFully(Parent.EventLoop, _transportBody,
+                    encodedLength, 0, encodedLength.Length);
 
-            if (IsAborted)
+            Task readTask;
+            byte[] chunkBytes;
+            lock (Parent.EventLoop)
             {
-                return null;
-            }
-
-            if (readError != null)
-            {
-                return await Parent.AbortTransfer(this, readError);
-            }
-
-            int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
+                if (IsAborted)
+                {
+                    return null;
+                }
+                int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                 encodedLength.Length);
-            var chunkBytes = new byte[chunkLen];
-
-            readError = null;
-            try
-            {
-                await Parent.EventLoop.MutexWrap(TransportUtils.ReadBytesFullyAsync(Parent.EventLoop, _transportBody,
-                    chunkBytes, 0, chunkBytes.Length));
-            }
-            catch (Exception e)
-            {
-                readError = e;
+                chunkBytes = new byte[chunkLen];
+                readTask = TransportUtils.ReadBytesFully(Parent.EventLoop, _transportBody,
+                    chunkBytes, 0, chunkBytes.Length);
             }
 
-            if (IsAborted)
-            {
-                return null;
-            }
+            await readTask;
 
-            if (readError != null)
+            Task abortTask = null;
+            DefaultQuasiHttpResponse response;
+            lock (Parent.EventLoop)
             {
-                return await Parent.AbortTransfer(this, readError);
-            }
-
-            var chunk = LeadChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
-
-            var response = new DefaultQuasiHttpResponse
-            {
-                StatusIndicatesSuccess = chunk.StatusIndicatesSuccess,
-                StatusIndicatesClientError = chunk.StatusIndicatesClientError,
-                StatusMessage = chunk.StatusMessage,
-                Headers = chunk.Headers,
-                HttpVersion = chunk.HttpVersion,
-                HttpStatusCode = chunk.HttpStatusCode
-            };
-
-            if (chunk.ContentLength != 0)
-            {
-                Func<Task> closeCb = async () =>
+                if (IsAborted)
                 {
-                    if (Parent.EventLoop.IsMutexRequired(out Task mt)) await mt;
+                    return null;
+                }
 
-                    if (!IsAborted)
-                    {
-                        await Parent.AbortTransfer(this, null);
-                    }
+                var chunk = LeadChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
+
+                response = new DefaultQuasiHttpResponse
+                {
+                    StatusIndicatesSuccess = chunk.StatusIndicatesSuccess,
+                    StatusIndicatesClientError = chunk.StatusIndicatesClientError,
+                    StatusMessage = chunk.StatusMessage,
+                    Headers = chunk.Headers,
+                    HttpVersion = chunk.HttpVersion,
+                    HttpStatusCode = chunk.HttpStatusCode
                 };
-                _transportBody.ContentLength = chunk.ContentLength;
-                _transportBody.ContentType = chunk.ContentType;
-                if (chunk.ContentLength < 0)
+
+                if (chunk.ContentLength != 0)
                 {
-                    response.Body = new ChunkDecodingBody(_transportBody, closeCb);
+                    Func<Task> closeCb = async () =>
+                    {
+                        Task abortTask;
+                        lock (Parent.EventLoop)
+                        {
+                            if (IsAborted)
+                            {
+                                return;
+                            }
+                            abortTask = Parent.AbortTransfer(this, null);
+                        }
+                        await abortTask;
+                    };
+                    _transportBody.ContentLength = chunk.ContentLength;
+                    _transportBody.ContentType = chunk.ContentType;
+                    if (chunk.ContentLength < 0)
+                    {
+                        response.Body = new ChunkDecodingBody(_transportBody, closeCb);
+                    }
+                    else
+                    {
+                        _transportBody.CloseCallback = closeCb;
+                        response.Body = _transportBody;
+                    }
+                    _responseBody = response.Body;
                 }
                 else
                 {
-                    _transportBody.CloseCallback = closeCb;
-                    response.Body = _transportBody;
+                    abortTask = Parent.AbortTransfer(this, null);
                 }
             }
-            _responseBody = response.Body;
 
-            SendCallback.SetResult(response);
+            if (abortTask != null)
+            {
+                await abortTask;
+            }
 
-            if (response.Body == null)
-            {
-                return await Parent.AbortTransfer(this, null);
-            }
-            else
-            {
-                return await SendCallback.Task;
-            }
+            return response;
         }
     }
 }

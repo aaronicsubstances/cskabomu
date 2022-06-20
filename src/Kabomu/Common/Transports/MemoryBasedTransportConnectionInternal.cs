@@ -87,13 +87,15 @@ namespace Kabomu.Common.Transports
                 return;
             }
             _releaseError = new Exception("connection reset");
+            var tasks = new List<Task>();
             foreach (var processor in _readWriteRequestProcessors)
             {
                 if (processor != null)
                 {
-                    await processor.EndRead(eventLoop, _releaseError);
+                    tasks.Add(processor.EndRead(eventLoop, _releaseError));
                 }
             }
+            await Task.WhenAll(tasks);
         }
     }
 }
