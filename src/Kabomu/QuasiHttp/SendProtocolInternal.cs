@@ -18,32 +18,34 @@ namespace Kabomu.QuasiHttp
         public bool IsAborted { get; set; }
         public int TimeoutMillis { get; set; }
         public CancellationTokenSource TimeoutCancellationHandle { get; set; }
-        public TaskCompletionSource<IQuasiHttpResponse> SendCallback { get; set; }
 
-        public async Task CancelAsync(Exception e)
+        public async Task Cancel(Exception e)
         {
-            if (Parent.EventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            if (_requestBody != null)
+            Task reqBodyEndTask = null, resBodyEndTask = null;
+            lock (Parent.EventLoop)
             {
-                await _requestBody.EndReadAsync(Parent.EventLoop, e);
+                if (_requestBody != null)
+                {
+                    reqBodyEndTask = _requestBody.EndRead(Parent.EventLoop, e);
+                }
+                if (_responseBody != null)
+                {
+                    resBodyEndTask = _responseBody.EndRead(Parent.EventLoop, e);
+                }
             }
-            if (_responseBody != null)
+            if (reqBodyEndTask != null)
             {
-                await _responseBody.EndReadAsync(Parent.EventLoop, e);
+                await reqBodyEndTask;
+            }
+            if (resBodyEndTask != null)
+            {
+                await resBodyEndTask;
             }
         }
 
-        public Task ReceiveAsync()
+        public Task<IQuasiHttpResponse> Send(IQuasiHttpRequest request)
         {
-            throw new NotImplementedException("implementation error");
-        }
-
-        public async Task<IQuasiHttpResponse> SendAsync(IQuasiHttpRequest request)
-        {
-            if (Parent.EventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            return await SendRequestLeadChunkAsync(request);
+            return SendRequestLeadChunkAsync(request);
         }
 
         private async Task<IQuasiHttpResponse> SendRequestLeadChunkAsync(IQuasiHttpRequest request)
@@ -65,7 +67,7 @@ namespace Kabomu.QuasiHttp
             Exception writeError = null;
             try
             {
-                await Parent.EventLoop.MutexWrap(ProtocolUtils.WriteLeadChunkAsync(Parent.Transport, Connection, chunk));
+                await Parent.EventLoop.MutexWrap(ProtocolUtils.WriteLeadChunk(Parent.Transport, Connection, chunk));
             }
             catch (Exception e)
             {
@@ -79,7 +81,7 @@ namespace Kabomu.QuasiHttp
 
             if (writeError != null)
             {
-                return await Parent.AbortTransferAsync(this, writeError);
+                return await Parent.AbortTransfer(this, writeError);
             }
 
             var responseFetchTask = StartFetchingResponseAsync();
@@ -127,7 +129,7 @@ namespace Kabomu.QuasiHttp
 
             if (readError != null)
             {
-                return await Parent.AbortTransferAsync(this, readError);
+                return await Parent.AbortTransfer(this, readError);
             }
 
             int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
@@ -152,7 +154,7 @@ namespace Kabomu.QuasiHttp
 
             if (readError != null)
             {
-                return await Parent.AbortTransferAsync(this, readError);
+                return await Parent.AbortTransfer(this, readError);
             }
 
             var chunk = LeadChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
@@ -175,7 +177,7 @@ namespace Kabomu.QuasiHttp
 
                     if (!IsAborted)
                     {
-                        await Parent.AbortTransferAsync(this, null);
+                        await Parent.AbortTransfer(this, null);
                     }
                 };
                 _transportBody.ContentLength = chunk.ContentLength;
@@ -196,7 +198,7 @@ namespace Kabomu.QuasiHttp
 
             if (response.Body == null)
             {
-                return await Parent.AbortTransferAsync(this, null);
+                return await Parent.AbortTransfer(this, null);
             }
             else
             {

@@ -14,11 +14,11 @@ namespace Kabomu.Common
         [ThreadStatic]
         private static Thread _postCallbackExecutionThread;
 
-        private readonly LimitedConcurrencyLevelTaskSchedulerInternal _throttledTaskScheduler;
+        private readonly LimitedConcurrencyLevelTaskScheduler _throttledTaskScheduler;
 
         public DefaultEventLoopApiPrev()
         {
-            _throttledTaskScheduler = new LimitedConcurrencyLevelTaskSchedulerInternal(1);
+            _throttledTaskScheduler = new LimitedConcurrencyLevelTaskScheduler(1);
         }
 
         public long CurrentTimestamp => DateTimeUtils.UnixTimeMillis;

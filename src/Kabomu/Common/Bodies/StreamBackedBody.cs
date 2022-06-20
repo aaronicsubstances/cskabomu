@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,7 +28,7 @@ namespace Kabomu.Common.Bodies
 
         public Stream BackingStream { get; }
 
-        public async Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
+        public async Task<int> ReadBytes(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
         {
             if (eventLoop == null)
             {
@@ -38,60 +39,40 @@ namespace Kabomu.Common.Bodies
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            if (_srcEndError != null)
-            {
-                throw _srcEndError;
-            }
-
-            try
-            {
-                int bytesRead = await eventLoop.MutexWrap(BackingStream.ReadAsync(data, offset, bytesToRead));
-                if (_srcEndError != null)
-                {
-                    throw _srcEndError;
-                }
-                return bytesRead;
-            }
-            catch (Exception e)
+            Task<int> readTask;
+            lock (eventLoop)
             {
                 if (_srcEndError != null)
                 {
                     throw _srcEndError;
                 }
-                await EndReadInternally(e);
-                throw;
+                readTask = BackingStream.ReadAsync(data, offset, bytesToRead);
             }
+
+            int bytesRead = await readTask;
+            return bytesRead;
         }
 
-        public async Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
+        public async Task EndRead(IEventLoopApi eventLoop, Exception e)
         {
             if (eventLoop == null)
             {
                 throw new ArgumentException("null event loop");
             }
 
-            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+            ValueTask disposeTask;
+            lock (eventLoop)
+            {
+                if (_srcEndError != null)
+                {
+                    return;
+                }
 
-            if (_srcEndError != null)
-            {
-                return;
+                _srcEndError = e ?? new Exception("end of read");
+                disposeTask = BackingStream.DisposeAsync();
             }
-            await EndReadInternally(e);
-        }
 
-        private async Task EndReadInternally(Exception e)
-        {
-            _srcEndError = e ?? new Exception("end of read");
-            try
-            {
-                await BackingStream.DisposeAsync();
-            }
-            catch (Exception)
-            {
-                // ignore
-            }
+            await disposeTask;
         }
     }
 }

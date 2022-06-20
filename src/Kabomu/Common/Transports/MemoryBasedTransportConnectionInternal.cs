@@ -18,7 +18,7 @@ namespace Kabomu.Common.Transports
             _readWriteRequestProcessors = new WritableBackedBody[2];
         }
 
-        public async Task<int> ProcessReadRequestAsync(IEventLoopApi eventLoop, object participant, 
+        public async Task<int> ProcessReadRequest(IEventLoopApi eventLoop, object participant, 
             byte[] data, int offset, int length)
         {
             // Rely on underlying backing body code's validation of arguments except for participant.
@@ -45,10 +45,10 @@ namespace Kabomu.Common.Transports
                 _readWriteRequestProcessors[readReqProcessorIndex] = new WritableBackedBody(null);
             }
             var readProcessor = _readWriteRequestProcessors[readReqProcessorIndex];
-            return await readProcessor.ReadBytesAsync(eventLoop, data, offset, length);
+            return await readProcessor.ReadBytes(eventLoop, data, offset, length);
         }
 
-        public async Task ProcessWriteRequestAsync(IEventLoopApi eventLoop, object participant,
+        public async Task ProcessWriteRequest(IEventLoopApi eventLoop, object participant,
             byte[] data, int offset, int length)
         {
             // Rely on underlying backing body code's validation of arguments except for participant.
@@ -77,10 +77,10 @@ namespace Kabomu.Common.Transports
             var writeProcessor = _readWriteRequestProcessors[writeReqProcessorIndex];
             // assumptions of write occuring in chunks or with an overall content length remove need to ever call
             // writeProcessor.WriteLastBytes()
-            await writeProcessor.WriteBytesAsync(eventLoop, data, offset, length);
+            await writeProcessor.WriteBytes(eventLoop, data, offset, length);
         }
 
-        public async Task ReleaseAsync(IEventLoopApi eventLoop)
+        public async Task Release(IEventLoopApi eventLoop)
         {
             if (_releaseError != null)
             {
@@ -91,7 +91,7 @@ namespace Kabomu.Common.Transports
             {
                 if (processor != null)
                 {
-                    await processor.EndReadAsync(eventLoop, _releaseError);
+                    await processor.EndRead(eventLoop, _releaseError);
                 }
             }
         }

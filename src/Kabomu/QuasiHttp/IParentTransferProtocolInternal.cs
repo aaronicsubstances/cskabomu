@@ -12,7 +12,6 @@ namespace Kabomu.QuasiHttp
         IQuasiHttpApplication Application { get; }
         IQuasiHttpTransport Transport { get; }
         IEventLoopApi EventLoop { get; }
-        UncaughtErrorCallback ErrorHandler { get; }
-        Task<IQuasiHttpResponse> AbortTransferAsync(ITransferProtocolInternal transfer, Exception e);
+        Task AbortTransfer(ITransferProtocolInternal transfer, Exception e);
     }
 }

@@ -14,10 +14,6 @@ namespace Kabomu.QuasiHttp
         bool IsAborted { get; set; }
         int TimeoutMillis { get; set; }
         CancellationTokenSource TimeoutCancellationHandle { get; set; }
-        TaskCompletionSource<IQuasiHttpResponse> SendCallback { get; set; }
-
-        Task CancelAsync(Exception e);
-        Task<IQuasiHttpResponse> SendAsync(IQuasiHttpRequest request);
-        Task ReceiveAsync();
+        Task Cancel(Exception e);
     }
 }

@@ -22,7 +22,7 @@ namespace Kabomu.Common.Bodies
 
         public string ContentType { get; }
 
-        public async Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
+        public async Task<int> ReadBytes(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
         {
             if (eventLoop == null)
             {
@@ -33,43 +33,46 @@ namespace Kabomu.Common.Bodies
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+            Task<int> readTask;
+            lock (eventLoop)
+            {
+                if (_srcEndError != null)
+                {
+                    throw _srcEndError;
+                }
+                if (_readRequest != null)
+                {
+                    throw new Exception("pending read exists");
+                }
+                // respond immediately if writes have ended, or if any zero-byte read request is seen.
+                if (_endOfWriteSeen || bytesToRead == 0)
+                {
+                    return 0;
+                }
+                _readRequest = new ReadWriteRequest
+                {
+                    Data = data,
+                    Offset = offset,
+                    Length = bytesToRead,
+                    ReadCallback = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously)
+                };
+                readTask = _readRequest.ReadCallback.Task;
 
-            if (_srcEndError != null)
-            {
-                throw _srcEndError;
-            }
-            if (_readRequest != null)
-            {
-                throw new Exception("pending read exists");
-            }
-            // respond immediately if writes have ended, or if any zero-byte read request is seen.
-            if (_endOfWriteSeen || bytesToRead == 0)
-            {
-                return 0;
-            }
-            _readRequest = new ReadWriteRequest
-            {
-                Data = data,
-                Offset = offset,
-                Length = bytesToRead,
-                ReadCallback = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously)
-            };
-
-            if (_writeRequests.Count > 0)
-            {
-                MatchPendingWriteAndRead();
+                if (_writeRequests.Count > 0)
+                {
+                    MatchPendingWriteAndRead();
+                }
             }
 
-            return await _readRequest.ReadCallback.Task;
+            return await readTask;
         }
 
-        public Task WriteBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int length)
+        public Task WriteBytes(IEventLoopApi eventLoop, byte[] data, int offset, int length)
         {
             return WritePossiblyLastBytes(eventLoop, false, data, offset, length);
         }
 
-        public Task WriteLastBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int length)
+        public Task WriteLastBytes(IEventLoopApi eventLoop, byte[] data, int offset, int length)
         {
             return WritePossiblyLastBytes(eventLoop, true, data, offset, length);
         }
@@ -85,37 +88,40 @@ namespace Kabomu.Common.Bodies
                 throw new ArgumentException("invalid source buffer");
             }
 
-            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
+            Task writeTask;
+            lock (eventLoop)
+            {
+                if (_srcEndError != null)
+                {
+                    throw _srcEndError;
+                }
+                if (_endOfWriteSeen)
+                {
+                    throw new Exception("end of write");
+                }
+                // respond immediately to any zero-byte write except if it is a last write.
+                if (length == 0 && !isLastBytes)
+                {
+                    return;
+                }
+                var writeRequest = new ReadWriteRequest
+                {
+                    Data = data,
+                    Offset = offset,
+                    Length = length,
+                    IsLastWrite = isLastBytes,
+                    WriteCallback = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+                };
+                _writeRequests.AddLast(writeRequest);
+                writeTask = writeRequest.WriteCallback.Task;
 
-            if (_srcEndError != null)
-            {
-                throw _srcEndError;
-            }
-            if (_endOfWriteSeen)
-            {
-                throw new Exception("end of write");
-            }
-            // respond immediately to any zero-byte write except if it is a last write.
-            if (length == 0 && !isLastBytes)
-            {
-                return;
-            }
-            var writeRequest = new ReadWriteRequest
-            {
-                Data = data,
-                Offset = offset,
-                Length = length,
-                IsLastWrite = isLastBytes,
-                WriteCallback = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
-            };
-            _writeRequests.AddLast(writeRequest);
-
-            if (_readRequest != null)
-            {
-                MatchPendingWriteAndRead();
+                if (_readRequest != null)
+                {
+                    MatchPendingWriteAndRead();
+                }
             }
 
-            await writeRequest.WriteCallback.Task;
+            await writeTask;
         }
 
         private void MatchPendingWriteAndRead()
@@ -173,27 +179,28 @@ namespace Kabomu.Common.Bodies
             }
         }
 
-        public async Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
+        public async Task EndRead(IEventLoopApi eventLoop, Exception e)
         {
             if (eventLoop == null)
             {
                 throw new ArgumentException("null event loop");
             }
 
-            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            if (_srcEndError != null)
+            lock (eventLoop)
             {
-                return;
+                if (_srcEndError != null)
+                {
+                    return;
+                }
+                _srcEndError = e ?? new Exception("end of read");
+                _readRequest?.ReadCallback.SetException(_srcEndError);
+                foreach (var writeReq in _writeRequests)
+                {
+                    writeReq.WriteCallback.SetException(_srcEndError);
+                }
+                _readRequest = null;
+                _writeRequests.Clear();
             }
-            _srcEndError = e ?? new Exception("end of read");
-            _readRequest?.ReadCallback.SetException(_srcEndError);
-            foreach (var writeReq in _writeRequests)
-            {
-                writeReq.WriteCallback.SetException(_srcEndError);
-            }
-            _readRequest = null;
-            _writeRequests.Clear();
         }
 
         private class ReadWriteRequest

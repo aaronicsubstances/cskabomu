@@ -11,7 +11,7 @@ namespace Kabomu.Common
 
     // Provides a task scheduler that ensures a maximum concurrency level while
     // running on top of the thread pool.
-    internal class LimitedConcurrencyLevelTaskSchedulerInternal : TaskScheduler
+    internal class LimitedConcurrencyLevelTaskScheduler : TaskScheduler
     {
         // Indicates whether the current thread is processing work items.
         [ThreadStatic]
@@ -27,16 +27,11 @@ namespace Kabomu.Common
         private int _delegatesQueuedOrRunning = 0;
 
         // Creates a new instance with the specified degree of parallelism.
-        public LimitedConcurrencyLevelTaskSchedulerInternal(int maxDegreeOfParallelism)
+        public LimitedConcurrencyLevelTaskScheduler(int maxDegreeOfParallelism)
         {
             if (maxDegreeOfParallelism < 1) throw new ArgumentOutOfRangeException("maxDegreeOfParallelism");
             _maxDegreeOfParallelism = maxDegreeOfParallelism;
         }
-
-        /// <summary>
-        /// Additional method.
-        /// </summary>
-        public static bool CurrentThreadIsProcessingItems => _currentThreadIsProcessingItems;
 
         // Queues a task to the scheduler.
         protected sealed override void QueueTask(Task task)

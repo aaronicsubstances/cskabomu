@@ -23,7 +23,7 @@ namespace Kabomu.Common.Bodies
 
         public string ContentType => _wrappedBody.ContentType;
 
-        public async Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
+        public async Task<int> ReadBytes(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
         {
             var chunkPrefix = new SubsequentChunk
             {
@@ -41,32 +41,36 @@ namespace Kabomu.Common.Bodies
             {
                 throw new ArgumentException("null event loop");
             }
-            int bytesRead = await eventLoop.MutexWrap(_wrappedBody.ReadBytesAsync(eventLoop, data,
-                offset + reservedBytesToUse, bytesToRead - reservedBytesToUse));
-            if (bytesRead == 0)
+            int bytesRead = await _wrappedBody.ReadBytes(eventLoop, data,
+                offset + reservedBytesToUse, bytesToRead - reservedBytesToUse);
+
+            lock (eventLoop)
             {
-                if (_endOfReadSeen)
+                if (bytesRead == 0)
                 {
-                    return 0;
+                    if (_endOfReadSeen)
+                    {
+                        return 0;
+                    }
+                    else
+                    {
+                        _endOfReadSeen = true;
+                    }
                 }
-                else
+                ByteUtils.SerializeUpToInt64BigEndian(bytesRead + chunkPrefixLength, data, offset, 2);
+                int sliceBytesWritten = 0;
+                foreach (var slice in chunkPrefix)
                 {
-                    _endOfReadSeen = true;
+                    Array.Copy(slice.Data, slice.Offset, data, offset + 2 + sliceBytesWritten, slice.Length);
+                    sliceBytesWritten += slice.Length;
                 }
+                return bytesRead + reservedBytesToUse;
             }
-            ByteUtils.SerializeUpToInt64BigEndian(bytesRead + chunkPrefixLength, data, offset, 2);
-            int sliceBytesWritten = 0;
-            foreach (var slice in chunkPrefix)
-            {
-                Array.Copy(slice.Data, slice.Offset, data, offset + 2 + sliceBytesWritten, slice.Length);
-                sliceBytesWritten += slice.Length;
-            }
-            return bytesRead + reservedBytesToUse;
         }
 
-        public Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
+        public Task EndRead(IEventLoopApi eventLoop, Exception e)
         {
-            return _wrappedBody.EndReadAsync(eventLoop, e);
+            return _wrappedBody.EndRead(eventLoop, e);
         }
     }
 }

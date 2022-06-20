@@ -18,32 +18,34 @@ namespace Kabomu.QuasiHttp
         public bool IsAborted { get; set; }
         public int TimeoutMillis { get; set; }
         public CancellationTokenSource TimeoutCancellationHandle { get; set; }
-        public TaskCompletionSource<IQuasiHttpResponse> SendCallback { get; set; }
 
-        public async Task CancelAsync(Exception e)
+        public async Task Cancel(Exception e)
         {
-            if (Parent.EventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            if (_requestBody != null)
+            Task reqBodyEndTask = null, resBodyEndTask = null;
+            lock (Parent.EventLoop)
             {
-                await _requestBody.EndReadAsync(Parent.EventLoop, e);
+                if (_requestBody != null)
+                {
+                    reqBodyEndTask = _requestBody.EndRead(Parent.EventLoop, e);
+                }
+                if (_responseBody != null)
+                {
+                    resBodyEndTask = _responseBody.EndRead(Parent.EventLoop, e);
+                }
             }
-            if (_responseBody != null)
+            if (reqBodyEndTask != null)
             {
-                await _responseBody.EndReadAsync(Parent.EventLoop, e);
+                await reqBodyEndTask;
+            }
+            if (resBodyEndTask != null)
+            {
+                await resBodyEndTask;
             }
         }
 
-        public Task<IQuasiHttpResponse> SendAsync(IQuasiHttpRequest request)
+        public Task Receive()
         {
-            throw new NotImplementedException("implementation error");
-        }
-
-        public async Task ReceiveAsync()
-        {
-            if (Parent.EventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            await ReadRequestLeadChunkAsync();
+            return ReadRequestLeadChunkAsync();
         }
 
         private async Task ReadRequestLeadChunkAsync()
@@ -70,7 +72,7 @@ namespace Kabomu.QuasiHttp
 
             if (readError != null)
             {
-                await Parent.AbortTransferAsync(this, readError);
+                await Parent.AbortTransfer(this, readError);
                 return;
             }
 
@@ -95,7 +97,7 @@ namespace Kabomu.QuasiHttp
 
             if (readError != null)
             {
-                await Parent.AbortTransferAsync(this, readError);
+                await Parent.AbortTransfer(this, readError);
                 return;
             }
 
@@ -137,7 +139,7 @@ namespace Kabomu.QuasiHttp
             {
                 if (!IsAborted)
                 {
-                    await Parent.AbortTransferAsync(this, e);
+                    await Parent.AbortTransfer(this, e);
                 }
             }
         }
@@ -146,7 +148,7 @@ namespace Kabomu.QuasiHttp
         {
             if (response == null)
             {
-                await Parent.AbortTransferAsync(this, new Exception("no response"));
+                await Parent.AbortTransfer(this, new Exception("no response"));
                 return;
             }
 
@@ -171,7 +173,7 @@ namespace Kabomu.QuasiHttp
             Exception writeError = null;
             try
             {
-                await Parent.EventLoop.MutexWrap(ProtocolUtils.WriteLeadChunkAsync(Parent.Transport, Connection, chunk));
+                await Parent.EventLoop.MutexWrap(ProtocolUtils.WriteLeadChunk(Parent.Transport, Connection, chunk));
             }
             catch (Exception e)
             {
@@ -185,7 +187,7 @@ namespace Kabomu.QuasiHttp
 
             if (writeError != null)
             {
-                await Parent.AbortTransferAsync(this, writeError);
+                await Parent.AbortTransfer(this, writeError);
                 return;
             }
 
@@ -195,12 +197,12 @@ namespace Kabomu.QuasiHttp
                     Connection, _responseBody));
                 if (!IsAborted)
                 {
-                    await Parent.AbortTransferAsync(this, null);
+                    await Parent.AbortTransfer(this, null);
                 }
             }
             else
             {
-                await Parent.AbortTransferAsync(this, null);
+                await Parent.AbortTransfer(this, null);
             }
         }
     }

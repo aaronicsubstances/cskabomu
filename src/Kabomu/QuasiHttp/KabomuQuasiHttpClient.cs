@@ -221,7 +221,7 @@ namespace Kabomu.QuasiHttp
 
         private async Task DisableTransferAsync(ITransferProtocolInternal transfer, Exception e)
         {
-            await EventLoop.MutexWrap(transfer.CancelAsync(e));
+            await EventLoop.MutexWrap(transfer.Cancel(e));
             transfer.TimeoutCancellationHandle?.Cancel();
             transfer.IsAborted = true;
 
@@ -262,9 +262,7 @@ namespace Kabomu.QuasiHttp
 
             public IEventLoopApi EventLoop => _delegate.EventLoop;
 
-            public UncaughtErrorCallback ErrorHandler => _delegate.ErrorHandler;
-
-            public Task<IQuasiHttpResponse> AbortTransferAsync(ITransferProtocolInternal transfer, Exception e)
+            public Task AbortTransfer(ITransferProtocolInternal transfer, Exception e)
             {
                 return _delegate.AbortTransferAsync(transfer, e);
             }

@@ -19,7 +19,7 @@ namespace Kabomu.Common.Transports
         public IEventLoopApi EventLoop { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
-        public async Task<IQuasiHttpResponse> ProcessSendRequestAsync(object remoteEndpoint, IQuasiHttpRequest request)
+        public Task<IQuasiHttpResponse> ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request)
         {
             if (remoteEndpoint == null)
             {
@@ -30,38 +30,62 @@ namespace Kabomu.Common.Transports
                 throw new ArgumentException("null request");
             }
 
-            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
+            Task<IQuasiHttpResponse> responseTask;
+            lock (EventLoop)
+            {
+                var remoteClient = Hub.Clients[remoteEndpoint];
+                responseTask = remoteClient.Application.ProcessRequest(request);
+            }
 
-            var remoteClient = Hub.Clients[remoteEndpoint];
-            return await remoteClient.Application.ProcessRequestAsync(request);
+            return responseTask;
         }
 
-        public async Task<object> AllocateConnectionAsync(object remoteEndpoint)
+        public async Task<object> AllocateConnection(object remoteEndpoint)
         {
             if (remoteEndpoint == null)
             {
                 throw new ArgumentException("null remote endpoint");
             }
 
-            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            var remoteClient = Hub.Clients[remoteEndpoint];
-            var connection = new MemoryBasedTransportConnectionInternal(this);
-            await remoteClient.ReceiveAsync(connection);
-            return connection;
-        }
-
-        public async Task ReleaseConnectionAsync(object connection)
-        {
-            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            if (connection is MemoryBasedTransportConnectionInternal typedConnection)
+            lock (EventLoop)
             {
-                await typedConnection.ReleaseAsync(EventLoop);
+                var remoteClient = Hub.Clients[remoteEndpoint];
+                var connection = new MemoryBasedTransportConnectionInternal(this);
+                ((MemoryBasedTransport)remoteClient.Transport).OnReceive(remoteClient, connection);
+                return connection;
             }
         }
 
-        public async Task<int> ReadBytesAsync(object connection, byte[] data, int offset, int length)
+        private async void OnReceive(IQuasiHttpClient remoteClient, object connection)
+        {
+            try
+            {
+                await remoteClient.Receive(connection);
+            }
+            catch (Exception ex)
+            {
+                ErrorHandler?.Invoke(ex, "receive processing error");
+            }
+        }
+
+        public async Task ReleaseConnection(object connection)
+        {
+            Task releaseTask = null;
+            lock (EventLoop)
+            {
+                if (connection is MemoryBasedTransportConnectionInternal typedConnection)
+                {
+                    releaseTask = typedConnection.Release(EventLoop);
+                }
+            }
+
+            if (releaseTask != null)
+            {
+                await releaseTask;
+            }
+        }
+
+        public async Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
             if (typedConnection == null)
@@ -73,12 +97,17 @@ namespace Kabomu.Common.Transports
                 throw new ArgumentException("invalid payload");
             }
 
-            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
+            Task<int> readTask;
+            lock (EventLoop)
+            {
+                readTask = typedConnection.ProcessReadRequest(EventLoop, this, data, offset, length);
+            }
 
-            return await typedConnection.ProcessReadRequestAsync(EventLoop, this, data, offset, length);
+            int bytesRead = await readTask;
+            return bytesRead;
         }
 
-        public async Task WriteBytesAsync(object connection, byte[] data, int offset, int length)
+        public async Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
             if (typedConnection == null)
@@ -90,9 +119,13 @@ namespace Kabomu.Common.Transports
                 throw new ArgumentException("invalid payload");
             }
 
-            if (EventLoop.IsMutexRequired(out Task mt)) await mt;
+            Task writeTask;
+            lock (EventLoop)
+            {
+                writeTask = typedConnection.ProcessWriteRequest(EventLoop, this, data, offset, length);
+            }
 
-            await typedConnection.ProcessWriteRequestAsync(EventLoop, this, data, offset, length);
+            await writeTask;
         }
     }
 }

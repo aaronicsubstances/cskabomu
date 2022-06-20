@@ -15,12 +15,12 @@ namespace Kabomu.Common
         public static readonly string ContentTypeJson = "application/json";
         public static readonly string ContentTypeHtmlFormUrlEncoded = "application/x-www-form-urlencoded";
 
-        public static async Task ReadBytesFullyAsync(IEventLoopApi eventLoop, IQuasiHttpBody body,
+        public static async Task ReadBytesFully(IEventLoopApi eventLoop, IQuasiHttpBody body,
             byte[] data, int offset, int bytesToRead)
         {
             while (true)
             {
-                int bytesRead = await body.ReadBytesAsync(eventLoop, data, offset, bytesToRead);
+                int bytesRead = await body.ReadBytes(eventLoop, data, offset, bytesToRead);
 
                 if (bytesRead < bytesToRead)
                 {
@@ -38,7 +38,7 @@ namespace Kabomu.Common
             }
         }
 
-        public static async Task TransferBodyToTransportAsync(IEventLoopApi eventLoop, IQuasiHttpTransport transport, 
+        public static async Task TransferBodyToTransport(IEventLoopApi eventLoop, IQuasiHttpTransport transport, 
             object connection, IQuasiHttpBody body)
         {
             int effectiveChunkSize = Math.Min(transport.MaxChunkSize, MaxChunkSize);
@@ -46,28 +46,28 @@ namespace Kabomu.Common
 
             while (true)
             {
-                int bytesRead = await body.ReadBytesAsync(eventLoop, buffer, 0, buffer.Length);
+                int bytesRead = await body.ReadBytes(eventLoop, buffer, 0, buffer.Length);
 
                 if (bytesRead > 0)
                 {
-                    await transport.WriteBytesAsync(connection, buffer, 0, bytesRead);
+                    await transport.WriteBytes(connection, buffer, 0, bytesRead);
                 }
                 else
                 {
                     break;
                 }
             }
-            await body.EndReadAsync(eventLoop, null);
+            await body.EndRead(eventLoop, null);
         }
 
-        public static async Task<byte[]> ReadBodyToEndAsync(IEventLoopApi eventLoop, IQuasiHttpBody body, int maxChunkSize)
+        public static async Task<byte[]> ReadBodyToEnd(IEventLoopApi eventLoop, IQuasiHttpBody body, int maxChunkSize)
         {
             var readBuffer = new byte[maxChunkSize];
             var byteStream = new MemoryStream();
 
             while (true)
             {
-                int bytesRead = await body.ReadBytesAsync(eventLoop, readBuffer, 0, readBuffer.Length);
+                int bytesRead = await body.ReadBytes(eventLoop, readBuffer, 0, readBuffer.Length);
                 if (bytesRead > 0)
                 {
                     byteStream.Write(readBuffer, 0, bytesRead);
@@ -77,11 +77,11 @@ namespace Kabomu.Common
                     break;
                 }
             }
-            await body.EndReadAsync(eventLoop, null);
+            await body.EndRead(eventLoop, null);
             return byteStream.ToArray();
         }
 
-        public static async Task WriteByteSlicesAsync(IQuasiHttpTransport transport, object connection,
+        public static async Task WriteByteSlices(IQuasiHttpTransport transport, object connection,
             ByteBufferSlice[] slices)
         {
             if (transport == null)
@@ -94,7 +94,7 @@ namespace Kabomu.Common
             }
             foreach (var slice in slices)
             {
-                await transport.WriteBytesAsync(connection, slice.Data, slice.Offset, slice.Length);
+                await transport.WriteBytes(connection, slice.Data, slice.Offset, slice.Length);
             }
         }
     }

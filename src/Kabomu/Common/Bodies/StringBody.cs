@@ -28,14 +28,14 @@ namespace Kabomu.Common.Bodies
 
         public string ContentType => _backingBody.ContentType;
 
-        public Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
+        public Task<int> ReadBytes(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
         {
-            return _backingBody.ReadBytesAsync(eventLoop, data, offset, bytesToRead);
+            return _backingBody.ReadBytes(eventLoop, data, offset, bytesToRead);
         }
 
-        public Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
+        public Task EndRead(IEventLoopApi eventLoop, Exception e)
         {
-            return _backingBody.EndReadAsync(eventLoop, e);
+            return _backingBody.EndRead(eventLoop, e);
         }
     }
 }

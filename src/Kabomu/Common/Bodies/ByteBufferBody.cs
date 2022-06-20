@@ -29,7 +29,7 @@ namespace Kabomu.Common.Bodies
         public long ContentLength => Length;
         public string ContentType { get; }
 
-        public async Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int length)
+        public async Task<int> ReadBytes(IEventLoopApi eventLoop, byte[] data, int offset, int length)
         {
             if (eventLoop == null)
             {
@@ -40,32 +40,34 @@ namespace Kabomu.Common.Bodies
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            if (_srcEndError != null)
+            lock (eventLoop)
             {
-                throw _srcEndError;
+                if (_srcEndError != null)
+                {
+                    throw _srcEndError;
+                }
+                var lengthToUse = Math.Min(Length - _bytesRead, length);
+                Array.Copy(Buffer, Offset + _bytesRead, data, offset, lengthToUse);
+                _bytesRead += lengthToUse;
+                return lengthToUse;
             }
-            var lengthToUse = Math.Min(Length - _bytesRead, length);
-            Array.Copy(Buffer, Offset + _bytesRead, data, offset, lengthToUse);
-            _bytesRead += lengthToUse;
-            return lengthToUse;
         }
 
-        public async Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
+        public async Task EndRead(IEventLoopApi eventLoop, Exception e)
         {
             if (eventLoop == null)
             {
                 throw new ArgumentException("null event loop");
             }
 
-            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            if (_srcEndError != null)
+            lock (eventLoop)
             {
-                return;
+                if (_srcEndError != null)
+                {
+                    return;
+                }
+                _srcEndError = e ?? new Exception("end of read");
             }
-            _srcEndError = e ?? new Exception("end of read");
         }
     }
 }

@@ -6,7 +6,7 @@ namespace Kabomu.QuasiHttp
 {
     internal class ProtocolUtils
     {
-        public static Task WriteLeadChunkAsync(IQuasiHttpTransport transport, object connection, 
+        public static async Task WriteLeadChunk(IQuasiHttpTransport transport, object connection, 
             LeadChunk chunk)
         {
             if (transport == null)
@@ -18,12 +18,6 @@ namespace Kabomu.QuasiHttp
                 throw new ArgumentException("null chunk");
             }
             var slices = chunk.Serialize();
-            return WriteSizeOfSlicesAsync(transport, connection, slices);
-        }
-
-        private static async Task WriteSizeOfSlicesAsync(IQuasiHttpTransport transport, object connection,
-            ByteBufferSlice[] slices)
-        {
             int byteCount = 0;
             foreach (var slice in slices)
             {
@@ -40,8 +34,8 @@ namespace Kabomu.QuasiHttp
             var encodedLength = new byte[2];
             ByteUtils.SerializeUpToInt64BigEndian(byteCount, encodedLength, 0,
                 encodedLength.Length);
-            await transport.WriteBytesAsync(connection, encodedLength, 0, encodedLength.Length);
-            await TransportUtils.WriteByteSlicesAsync(transport, connection, slices);
+            await transport.WriteBytes(connection, encodedLength, 0, encodedLength.Length);
+            await TransportUtils.WriteByteSlices(transport, connection, slices);
         }
     }
 }

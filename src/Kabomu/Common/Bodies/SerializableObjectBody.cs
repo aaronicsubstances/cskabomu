@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -33,7 +34,7 @@ namespace Kabomu.Common.Bodies
 
         public Func<object, byte[]> SerializationHandler { get; }
 
-        public async Task<int> ReadBytesAsync(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
+        public async Task<int> ReadBytes(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
         {
             if (eventLoop == null)
             {
@@ -44,50 +45,49 @@ namespace Kabomu.Common.Bodies
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            if (_srcEndError != null)
+            Task<int> readTask;
+            lock (eventLoop)
             {
-                throw _srcEndError;
-            }
-            if (_byteBufferBody == null)
-            {
-                try
+                if (_srcEndError != null)
+                {
+                    throw _srcEndError;
+                }
+                if (_byteBufferBody == null)
                 {
                     var srcData = SerializationHandler.Invoke(Content);
                     _byteBufferBody = new ByteBufferBody(srcData, 0, srcData.Length, null);
                 }
-                catch (Exception e)
-                {
-                    await EndReadInternally(eventLoop, e);
-                    throw;
-                }
+                readTask = _byteBufferBody.ReadBytes(eventLoop, data, offset, bytesToRead);
             }
-            return await _byteBufferBody.ReadBytesAsync(eventLoop, data, offset, bytesToRead);
+
+            int bytesRead = await readTask;
+            return bytesRead;
         }
 
-        public async Task EndReadAsync(IEventLoopApi eventLoop, Exception e)
+        public async Task EndRead(IEventLoopApi eventLoop, Exception e)
         {
             if (eventLoop == null)
             {
                 throw new ArgumentException("null event loop");
             }
 
-            if (eventLoop.IsMutexRequired(out Task mt)) await mt;
-
-            if (_srcEndError != null)
+            Task endTask = null;
+            lock (eventLoop)
             {
-                return;
+                if (_srcEndError != null)
+                {
+                    return;
+                }
+                _srcEndError = e ?? new Exception("end of read");
+                if (_byteBufferBody != null)
+                {
+                    endTask = _byteBufferBody.EndRead(eventLoop, _srcEndError);
+                }
             }
-            await EndReadInternally(eventLoop, e);
-        }
 
-        private async Task EndReadInternally(IEventLoopApi eventLoop, Exception e)
-        {
-            _srcEndError = e ?? new Exception("end of read");
-            if (_byteBufferBody != null)
+            if (endTask != null)
             {
-                await _byteBufferBody.EndReadAsync(eventLoop, _srcEndError);
+                await endTask;
             }
         }
     }
