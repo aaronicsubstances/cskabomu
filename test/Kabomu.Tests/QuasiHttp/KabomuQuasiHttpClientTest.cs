@@ -43,7 +43,7 @@ namespace Kabomu.Tests.QuasiHttp
                     }, null);
                 }
             };
-            var instance = new KabomuQuasiHttpClient
+            var instance = new DefaultQuasiHttpClient
             {
                 DefaultTimeoutMillis = 100,
                 ErrorHandler = errorHandler,
@@ -166,7 +166,7 @@ namespace Kabomu.Tests.QuasiHttp
                 RunMutexApiThroughPostCallback = true
             };
             var transport = new ConfigurableQuasiHttpTransport();
-            var client = new KabomuQuasiHttpClient
+            var client = new DefaultQuasiHttpClient
             {
                 DefaultTimeoutMillis = 20,
                 Application = new ConfigurableQuasiHttpApplication(),
@@ -231,7 +231,7 @@ namespace Kabomu.Tests.QuasiHttp
                     cb.Invoke(null, new object());
                 }
             };
-            var client = new KabomuQuasiHttpClient
+            var client = new DefaultQuasiHttpClient
             {
                 DefaultTimeoutMillis = 20,
                 Application = new ConfigurableQuasiHttpApplication(),
@@ -307,13 +307,13 @@ namespace Kabomu.Tests.QuasiHttp
                 RunMutexApiThroughPostCallback = true
             };
             var accraEndpoint = "accra";
-            var accraClient = new KabomuQuasiHttpClient
+            var accraClient = new DefaultQuasiHttpClient
             {
                 EventLoop = eventLoop,
                 DefaultTimeoutMillis = 100
             };
             var kumasiEndpoint = "kumasi";
-            var kumasiClient = new KabomuQuasiHttpClient
+            var kumasiClient = new DefaultQuasiHttpClient
             {
                 EventLoop = eventLoop,
                 DefaultTimeoutMillis = 50

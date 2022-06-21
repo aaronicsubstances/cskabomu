@@ -1,6 +1,8 @@
-# C#.NET Core Support for Kabomu
+# Kabomu - C#.NET Core version
 
-Quasi Web Application Framework modelled after ExpressJS, which runs entirely on localhost.
+Kabomu is a quasi web server gateway interface, that enables building quasi web applications that can connect endpoints within localhost and even within an OS process, by employing IPC mechanisms other than TCP. 
+
+From another standpoint, Kabomu is an inter-module communication library intended to help build more maintainable monolithic applications, by making it possile to enforce modular boundaries and software architecture.
 
 ## Mission
 

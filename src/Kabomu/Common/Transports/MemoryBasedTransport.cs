@@ -7,17 +7,49 @@ namespace Kabomu.Common.Transports
 {
     public class MemoryBasedTransport : IQuasiHttpTransport
     {
+        private readonly object _lock = new object();
         private readonly Random _randGen = new Random();
+        private readonly LinkedList<ReceiveConnectionRequest> _onReceiveRequests = new LinkedList<ReceiveConnectionRequest>();
+        private ReceiveConnectionRequest _receiveConnectionRequest;
+        private bool _running;
 
         public MemoryBasedTransportHub Hub { get; set; }
         public double DirectSendRequestProcessingProbability { get; set; }
-
+        public IQuasiHttpApplication Application { get; set; }
         public int MaxChunkSize { get; set; } = 8_192;
 
-        public bool DirectSendRequestProcessingEnabled => _randGen.NextDouble() < DirectSendRequestProcessingProbability;
+        public bool DirectSendRequestProcessingEnabled
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _randGen.NextDouble() < DirectSendRequestProcessingProbability;
+                }
+            }
+        }
 
-        public IEventLoopApi EventLoop { get; set; }
-        public UncaughtErrorCallback ErrorHandler { get; set; }
+        public Task Start()
+        {
+            lock (_lock)
+            {
+                _running = true;
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task Stop()
+        {
+            lock (_lock)
+            {
+                _running = false;
+                var ex = new Exception("transport stopped");
+                _receiveConnectionRequest?.Callback.SetException(ex);
+                _receiveConnectionRequest = null;
+                _onReceiveRequests.Clear();
+            }
+            return Task.CompletedTask;
+        }
 
         public Task<IQuasiHttpResponse> ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request)
         {
@@ -31,10 +63,14 @@ namespace Kabomu.Common.Transports
             }
 
             Task<IQuasiHttpResponse> responseTask;
-            lock (EventLoop)
+            lock (_lock)
             {
-                var remoteClient = Hub.Clients[remoteEndpoint];
-                responseTask = remoteClient.Application.ProcessRequest(request);
+                if (!_running)
+                {
+                    throw new Exception("transport not started");
+                }
+                var remoteTransport = Hub.Transports[remoteEndpoint];
+                responseTask = remoteTransport.Application.ProcessRequest(request);
             }
 
             return responseTask;
@@ -47,35 +83,83 @@ namespace Kabomu.Common.Transports
                 throw new ArgumentException("null remote endpoint");
             }
 
-            lock (EventLoop)
+            lock (_lock)
             {
-                var remoteClient = Hub.Clients[remoteEndpoint];
+                var remoteTransport = Hub.Transports[remoteEndpoint];
                 var connection = new MemoryBasedTransportConnectionInternal(this);
-                ((MemoryBasedTransport)remoteClient.Transport).OnReceive(remoteClient, connection);
+                remoteTransport.OnReceive(connection);
                 return connection;
             }
         }
 
-        private async void OnReceive(IQuasiHttpClient remoteClient, object connection)
+        private void OnReceive(object connection)
         {
-            try
+            lock (_lock)
             {
-                await remoteClient.Receive(connection);
-            }
-            catch (Exception ex)
-            {
-                ErrorHandler?.Invoke(ex, "receive processing error");
+                if (!_running)
+                {
+                    throw new Exception("transport not started");
+                }
+                var receiveRequest = new ReceiveConnectionRequest
+                {
+                    Connection = connection
+                };
+                _onReceiveRequests.AddLast(receiveRequest);
+                if (_receiveConnectionRequest != null)
+                {
+                    ResolvePendingReceiveConnection();
+                }
             }
         }
 
-        public async Task ReleaseConnection(object connection)
+        public Task<object> ReceiveConnection()
+        {
+            lock (_lock)
+            {
+                if (!_running)
+                {
+                    throw new Exception("transport not started");
+                }
+                if (_receiveConnectionRequest != null)
+                {
+                    throw new Exception("pending receive connection yet to be resolved");
+                }
+                var receiveRequest = new ReceiveConnectionRequest
+                {
+                    Callback = new TaskCompletionSource<object>(
+                        TaskCreationOptions.RunContinuationsAsynchronously)
+                };
+                _receiveConnectionRequest = receiveRequest;
+                if (_onReceiveRequests.Count > 0)
+                {
+                    ResolvePendingReceiveConnection();
+                }
+                return receiveRequest.Callback.Task;
+            }
+        }
+
+        private void ResolvePendingReceiveConnection()
+        {
+            var pendingReceiveConnectionRequest = _receiveConnectionRequest;
+            var pendingOnReceiveRequest = _onReceiveRequests.First.Value;
+
+            // do not invoke callbacks until state of this transport is updated,
+            // to prevent error of re-entrant receive connection requests
+            // matching previous on-receives.
+            _receiveConnectionRequest = null;
+            _onReceiveRequests.RemoveFirst();
+
+            pendingReceiveConnectionRequest.Callback.SetResult(pendingOnReceiveRequest.Connection);
+        }
+
+        public async Task ReleaseConnection(object connection, bool wasReceived)
         {
             Task releaseTask = null;
-            lock (EventLoop)
+            lock (_lock)
             {
                 if (connection is MemoryBasedTransportConnectionInternal typedConnection)
                 {
-                    releaseTask = typedConnection.Release(EventLoop);
+                    releaseTask = typedConnection.Release();
                 }
             }
 
@@ -98,9 +182,9 @@ namespace Kabomu.Common.Transports
             }
 
             Task<int> readTask;
-            lock (EventLoop)
+            lock (_lock)
             {
-                readTask = typedConnection.ProcessReadRequest(EventLoop, this, data, offset, length);
+                readTask = typedConnection.ProcessReadRequest(this, data, offset, length);
             }
 
             int bytesRead = await readTask;
@@ -120,12 +204,18 @@ namespace Kabomu.Common.Transports
             }
 
             Task writeTask;
-            lock (EventLoop)
+            lock (_lock)
             {
-                writeTask = typedConnection.ProcessWriteRequest(EventLoop, this, data, offset, length);
+                writeTask = typedConnection.ProcessWriteRequest(this, data, offset, length);
             }
 
             await writeTask;
+        }
+
+        class ReceiveConnectionRequest
+        {
+            public object Connection { get; set; }
+            public TaskCompletionSource<object> Callback { get; set; }
         }
     }
 }

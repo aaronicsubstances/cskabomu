@@ -12,6 +12,7 @@ namespace Kabomu.QuasiHttp
     {
         private TransportBackedBody _transportBody;
         private IQuasiHttpBody _requestBody, _responseBody;
+        private readonly object _lock;
 
         public IParentTransferProtocolInternal Parent { get; set; }
         public object Connection { get; set; }
@@ -19,18 +20,23 @@ namespace Kabomu.QuasiHttp
         public int TimeoutMillis { get; set; }
         public CancellationTokenSource TimeoutCancellationHandle { get; set; }
 
+        public ReceiveProtocolInternal(object lockObj)
+        {
+            _lock = lockObj;
+        }
+
         public async Task Cancel(Exception e)
         {
             Task reqBodyEndTask = null, resBodyEndTask = null;
-            lock (Parent.EventLoop)
+            lock (_lock)
             {
                 if (_requestBody != null)
                 {
-                    reqBodyEndTask = _requestBody.EndRead(Parent.EventLoop, e);
+                    reqBodyEndTask = _requestBody.EndRead(e);
                 }
                 if (_responseBody != null)
                 {
-                    resBodyEndTask = _responseBody.EndRead(Parent.EventLoop, e);
+                    resBodyEndTask = _responseBody.EndRead(e);
                 }
             }
             if (reqBodyEndTask != null)
@@ -52,18 +58,18 @@ namespace Kabomu.QuasiHttp
         {
             Task readTask;
             byte[] encodedLength = new byte[2];
-            lock (Parent.EventLoop)
+            lock (_lock)
             {
                 _transportBody = new TransportBackedBody(Parent.Transport, Connection);
                 _transportBody.ContentLength = -1;
-                readTask = TransportUtils.ReadBytesFully(Parent.EventLoop, _transportBody,
+                readTask = TransportUtils.ReadBytesFully(_transportBody,
                     encodedLength, 0, encodedLength.Length);
             }
 
             await readTask;
 
             byte[] chunkBytes;
-            lock (Parent.EventLoop)
+            lock (_lock)
             {
 
                 if (IsAborted)
@@ -74,14 +80,14 @@ namespace Kabomu.QuasiHttp
                 int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                     encodedLength.Length);
                 chunkBytes = new byte[chunkLen];
-                readTask = TransportUtils.ReadBytesFully(Parent.EventLoop, _transportBody,
+                readTask = TransportUtils.ReadBytesFully(_transportBody,
                     chunkBytes, 0, chunkBytes.Length);
             }
 
             await readTask;
 
             Task<IQuasiHttpResponse> appTask;
-            lock (Parent.EventLoop)
+            lock (_lock)
             {
                 if (IsAborted)
                 {
@@ -116,7 +122,7 @@ namespace Kabomu.QuasiHttp
             var response = await appTask;
 
             Task sendTask;
-            lock (Parent.EventLoop)
+            lock (_lock)
             {
                 if (IsAborted)
                 {
@@ -155,7 +161,7 @@ namespace Kabomu.QuasiHttp
             await ProtocolUtils.WriteLeadChunk(Parent.Transport, Connection, chunk);
 
             Task bodyTransferTask = null, abortTask = null;
-            lock (Parent.EventLoop)
+            lock (_lock)
             {
                 if (IsAborted)
                 {
@@ -163,7 +169,7 @@ namespace Kabomu.QuasiHttp
                 }
                 if (response.Body != null)
                 {
-                    bodyTransferTask = TransportUtils.TransferBodyToTransport(Parent.EventLoop, Parent.Transport,
+                    bodyTransferTask = TransportUtils.TransferBodyToTransport(Parent.Transport,
                         Connection, _responseBody);
                 }
                 else

@@ -7,6 +7,8 @@ namespace Kabomu.Common.Bodies
 {
     public class TransportBackedBody : IQuasiHttpBody
     {
+        private readonly object _lock = new object();
+
         private readonly IQuasiHttpTransport _transport;
         private readonly object _connection;
         private long _contentLength;
@@ -44,19 +46,15 @@ namespace Kabomu.Common.Bodies
 
         internal Func<Task> CloseCallback { get; set; }
 
-        public async Task<int> ReadBytes(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
+        public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
-            if (eventLoop == null)
-            {
-                throw new ArgumentException("null event loop");
-            }
             if (!ByteUtils.IsValidMessagePayload(data, offset, bytesToRead))
             {
                 throw new ArgumentException("invalid destination buffer");
             }
 
             Task<int> readTask;
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (_srcEndError != null)
                 {
@@ -75,7 +73,7 @@ namespace Kabomu.Common.Bodies
 
             int bytesRead = await readTask;
 
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (_srcEndError != null)
                 {
@@ -95,15 +93,10 @@ namespace Kabomu.Common.Bodies
             }
         }
 
-        public async Task EndRead(IEventLoopApi eventLoop, Exception e)
+        public async Task EndRead(Exception e)
         {
-            if (eventLoop == null)
-            {
-                throw new ArgumentException("null event loop");
-            }
-
             Task closeCbTask = null;
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (_srcEndError != null)
                 {

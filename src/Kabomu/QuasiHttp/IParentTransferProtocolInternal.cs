@@ -11,7 +11,6 @@ namespace Kabomu.QuasiHttp
         int DefaultTimeoutMillis { get; }
         IQuasiHttpApplication Application { get; }
         IQuasiHttpTransport Transport { get; }
-        IEventLoopApi EventLoop { get; }
         Task AbortTransfer(ITransferProtocolInternal transfer, Exception e);
     }
 }
