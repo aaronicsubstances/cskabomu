@@ -7,6 +7,8 @@ namespace Kabomu.Common.Bodies
 {
     public class WritableBackedBody : IQuasiHttpBody
     {
+        private readonly object _lock = new object();
+
         private readonly LinkedList<ReadWriteRequest> _writeRequests;
         private ReadWriteRequest _readRequest;
         private bool _endOfWriteSeen;
@@ -22,19 +24,15 @@ namespace Kabomu.Common.Bodies
 
         public string ContentType { get; }
 
-        public async Task<int> ReadBytes(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
+        public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
-            if (eventLoop == null)
-            {
-                throw new ArgumentException("null event loop");
-            }
             if (!ByteUtils.IsValidMessagePayload(data, offset, bytesToRead))
             {
                 throw new ArgumentException("invalid destination buffer");
             }
 
             Task<int> readTask;
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (_srcEndError != null)
                 {
@@ -67,29 +65,25 @@ namespace Kabomu.Common.Bodies
             return await readTask;
         }
 
-        public Task WriteBytes(IEventLoopApi eventLoop, byte[] data, int offset, int length)
+        public Task WriteBytes(byte[] data, int offset, int length)
         {
-            return WritePossiblyLastBytes(eventLoop, false, data, offset, length);
+            return WritePossiblyLastBytes(false, data, offset, length);
         }
 
-        public Task WriteLastBytes(IEventLoopApi eventLoop, byte[] data, int offset, int length)
+        public Task WriteLastBytes(byte[] data, int offset, int length)
         {
-            return WritePossiblyLastBytes(eventLoop, true, data, offset, length);
+            return WritePossiblyLastBytes(true, data, offset, length);
         }
 
-        private async Task WritePossiblyLastBytes(IEventLoopApi eventLoop, bool isLastBytes, byte[] data, int offset, int length)
+        private async Task WritePossiblyLastBytes(bool isLastBytes, byte[] data, int offset, int length)
         {
-            if (eventLoop == null)
-            {
-                throw new ArgumentException("null mutex api");
-            }
             if (!ByteUtils.IsValidMessagePayload(data, offset, length))
             {
                 throw new ArgumentException("invalid source buffer");
             }
 
             Task writeTask;
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (_srcEndError != null)
                 {
@@ -179,14 +173,9 @@ namespace Kabomu.Common.Bodies
             }
         }
 
-        public async Task EndRead(IEventLoopApi eventLoop, Exception e)
+        public async Task EndRead(Exception e)
         {
-            if (eventLoop == null)
-            {
-                throw new ArgumentException("null event loop");
-            }
-
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (_srcEndError != null)
                 {
@@ -203,7 +192,7 @@ namespace Kabomu.Common.Bodies
             }
         }
 
-        private class ReadWriteRequest
+        class ReadWriteRequest
         {
             public byte[] Data { get; set; }
             public int Offset { get; set; }

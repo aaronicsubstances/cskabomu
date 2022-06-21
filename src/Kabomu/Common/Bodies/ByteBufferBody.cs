@@ -7,6 +7,8 @@ namespace Kabomu.Common.Bodies
 {
     public class ByteBufferBody : IQuasiHttpBody
     {
+        private readonly object _lock = new object();
+
         private int _bytesRead;
         private Exception _srcEndError;
 
@@ -29,18 +31,14 @@ namespace Kabomu.Common.Bodies
         public long ContentLength => Length;
         public string ContentType { get; }
 
-        public async Task<int> ReadBytes(IEventLoopApi eventLoop, byte[] data, int offset, int length)
+        public async Task<int> ReadBytes(byte[] data, int offset, int length)
         {
-            if (eventLoop == null)
-            {
-                throw new ArgumentException("null event loop");
-            }
             if (!ByteUtils.IsValidMessagePayload(data, offset, length))
             {
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (_srcEndError != null)
                 {
@@ -53,14 +51,9 @@ namespace Kabomu.Common.Bodies
             }
         }
 
-        public async Task EndRead(IEventLoopApi eventLoop, Exception e)
+        public async Task EndRead(Exception e)
         {
-            if (eventLoop == null)
-            {
-                throw new ArgumentException("null event loop");
-            }
-
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (_srcEndError != null)
                 {

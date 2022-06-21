@@ -18,7 +18,7 @@ namespace Kabomu.Common.Transports
             _readWriteRequestProcessors = new WritableBackedBody[2];
         }
 
-        public async Task<int> ProcessReadRequest(IEventLoopApi eventLoop, object participant, 
+        public async Task<int> ProcessReadRequest(object participant, 
             byte[] data, int offset, int length)
         {
             // Rely on underlying backing body code's validation of arguments except for participant.
@@ -45,10 +45,10 @@ namespace Kabomu.Common.Transports
                 _readWriteRequestProcessors[readReqProcessorIndex] = new WritableBackedBody(null);
             }
             var readProcessor = _readWriteRequestProcessors[readReqProcessorIndex];
-            return await readProcessor.ReadBytes(eventLoop, data, offset, length);
+            return await readProcessor.ReadBytes(data, offset, length);
         }
 
-        public async Task ProcessWriteRequest(IEventLoopApi eventLoop, object participant,
+        public async Task ProcessWriteRequest(object participant,
             byte[] data, int offset, int length)
         {
             // Rely on underlying backing body code's validation of arguments except for participant.
@@ -77,10 +77,10 @@ namespace Kabomu.Common.Transports
             var writeProcessor = _readWriteRequestProcessors[writeReqProcessorIndex];
             // assumptions of write occuring in chunks or with an overall content length remove need to ever call
             // writeProcessor.WriteLastBytes()
-            await writeProcessor.WriteBytes(eventLoop, data, offset, length);
+            await writeProcessor.WriteBytes(data, offset, length);
         }
 
-        public async Task Release(IEventLoopApi eventLoop)
+        public async Task Release()
         {
             if (_releaseError != null)
             {
@@ -92,7 +92,7 @@ namespace Kabomu.Common.Transports
             {
                 if (processor != null)
                 {
-                    tasks.Add(processor.EndRead(eventLoop, _releaseError));
+                    tasks.Add(processor.EndRead(_releaseError));
                 }
             }
             await Task.WhenAll(tasks);

@@ -7,6 +7,8 @@ namespace Kabomu.Common.Bodies
 {
     public class ChunkEncodingBody : IQuasiHttpBody
     {
+        private readonly object _lock = new object();
+
         private readonly IQuasiHttpBody _wrappedBody;
         private bool _endOfReadSeen;
 
@@ -23,7 +25,7 @@ namespace Kabomu.Common.Bodies
 
         public string ContentType => _wrappedBody.ContentType;
 
-        public async Task<int> ReadBytes(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
+        public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
             var chunkPrefix = new SubsequentChunk
             {
@@ -37,14 +39,10 @@ namespace Kabomu.Common.Bodies
             }
             bytesToRead = Math.Min(bytesToRead, TransportUtils.MaxChunkSize);
 
-            if (eventLoop == null)
-            {
-                throw new ArgumentException("null event loop");
-            }
-            int bytesRead = await _wrappedBody.ReadBytes(eventLoop, data,
+            int bytesRead = await _wrappedBody.ReadBytes(data,
                 offset + reservedBytesToUse, bytesToRead - reservedBytesToUse);
 
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (bytesRead == 0)
                 {
@@ -68,9 +66,9 @@ namespace Kabomu.Common.Bodies
             }
         }
 
-        public Task EndRead(IEventLoopApi eventLoop, Exception e)
+        public Task EndRead(Exception e)
         {
-            return _wrappedBody.EndRead(eventLoop, e);
+            return _wrappedBody.EndRead(e);
         }
     }
 }

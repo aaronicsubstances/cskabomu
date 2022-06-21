@@ -5,12 +5,13 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Common
 {
-    public interface IQuasiHttpClient
+    public interface IQuasiHttpServer
     {
+        UncaughtErrorCallback ErrorHandler { get; set; }
         int DefaultTimeoutMillis { get; set; }
+        IQuasiHttpApplication Application { get; set; }
         IQuasiHttpTransport Transport { get; set; }
-        Task<IQuasiHttpResponse> Send(object remoteEndpoint, IQuasiHttpRequest request,
-            IQuasiHttpSendOptions options);
-        Task Reset(Exception cause);
+        Task Start();
+        Task Stop();
     }
 }

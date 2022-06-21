@@ -6,6 +6,6 @@ namespace Kabomu.Common.Transports
 {
     public class MemoryBasedTransportHub
     {
-        public Dictionary<object, IQuasiHttpClient> Clients { get; } = new Dictionary<object, IQuasiHttpClient>();
+        public Dictionary<object, MemoryBasedTransport> Transports { get; } = new Dictionary<object, MemoryBasedTransport>();
     }
 }

@@ -7,6 +7,8 @@ namespace Kabomu.Common.Bodies
 {
     public class ChunkDecodingBody : IQuasiHttpBody
     {
+        private readonly object _lock = new object();
+
         private readonly IQuasiHttpBody _wrappedBody;
         private readonly Func<Task> _closeCallback;
         private SubsequentChunk _lastChunk;
@@ -27,12 +29,8 @@ namespace Kabomu.Common.Bodies
 
         public string ContentType => _wrappedBody.ContentType;
 
-        public async Task<int> ReadBytes(IEventLoopApi eventLoop, byte[] data, int offset, int bytesToRead)
+        public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
-            if (eventLoop == null)
-            {
-                throw new ArgumentException("null mutex api");
-            }
             if (!ByteUtils.IsValidMessagePayload(data, offset, bytesToRead))
             {
                 throw new ArgumentException("invalid destination buffer");
@@ -40,7 +38,7 @@ namespace Kabomu.Common.Bodies
 
             Task readTask;
             var encodedLength = new byte[2];
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (_srcEndError != null)
                 {
@@ -52,14 +50,14 @@ namespace Kabomu.Common.Bodies
                 {
                     return SupplyFromLastChunk(data, offset, bytesToRead);
                 }
-                readTask = TransportUtils.ReadBytesFully(eventLoop, _wrappedBody,
+                readTask = TransportUtils.ReadBytesFully(_wrappedBody,
                     encodedLength, 0, encodedLength.Length);
             }
 
             await readTask;
 
             byte[] chunkBytes;
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (_srcEndError != null)
                 {
@@ -69,13 +67,13 @@ namespace Kabomu.Common.Bodies
                 var chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                     encodedLength.Length);
                 chunkBytes = new byte[chunkLen];
-                readTask = TransportUtils.ReadBytesFully(eventLoop, _wrappedBody,
+                readTask = TransportUtils.ReadBytesFully(_wrappedBody,
                     chunkBytes, 0, chunkBytes.Length);
             }
 
             await readTask;
 
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (_srcEndError != null)
                 {
@@ -96,15 +94,10 @@ namespace Kabomu.Common.Bodies
             return lengthToUse;
         }
 
-        public async Task EndRead(IEventLoopApi eventLoop, Exception e)
+        public async Task EndRead(Exception e)
         {
-            if (eventLoop == null)
-            {
-                throw new ArgumentException("null event loop");
-            }
-
             Task closeCbTask = null;
-            lock (eventLoop)
+            lock (_lock)
             {
                 if (_srcEndError != null)
                 {
