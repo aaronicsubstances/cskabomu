@@ -14,7 +14,7 @@ namespace Kabomu.Common
         public static readonly string ContentTypePlainText = "text/plain";
         public static readonly string ContentTypeByteStream = "application/octet-stream";
         public static readonly string ContentTypeJson = "application/json";
-        public static readonly string ContentTypeHtmlFormUrlEncoded = "application/x-www-form-urlencoded";
+        public static readonly string ContentTypeCsv = "text/csv";
 
         public static readonly string RequestEnvironmentKeyReservedPrefix = "kabomu_";
         public static readonly string RequestEnvironmentKeyConnectTimeout = RequestEnvironmentKeyReservedPrefix + "connect_timeout";

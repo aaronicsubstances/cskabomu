@@ -5,14 +5,14 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Common.Bodies
 {
-    public class HtmlFormUrlEncodedBody : IQuasiHttpBody
+    public class CsvBody : IQuasiHttpBody
     {
         private readonly SerializableObjectBody _backingBody;
 
-        public HtmlFormUrlEncodedBody(Dictionary<string, List<string>> content)
+        public CsvBody(Dictionary<string, List<string>> content)
         {
             _backingBody = new SerializableObjectBody(content,
-                SerializeContent, TransportUtils.ContentTypeHtmlFormUrlEncoded);
+                SerializeContent, TransportUtils.ContentTypeCsv);
         }
 
         private static byte[] SerializeContent(object obj)
