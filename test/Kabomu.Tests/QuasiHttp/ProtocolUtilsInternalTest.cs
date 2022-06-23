@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp
@@ -12,58 +13,51 @@ namespace Kabomu.Tests.QuasiHttp
     public class ProtocolUtilsInternalTest
     {
         [Fact]
-        public void TestWriteLeadChunk()
+        public async Task TestWriteLeadChunk()
         {
             // arrange.
             object connection = "dk";
             var destStream = new MemoryStream();
             var transport = new ConfigurableQuasiHttpTransport
             {
-                MaxChunkSize = 100,
-                WriteBytesCallback = (actualConnection, data, offset, length, cb) =>
+                WriteBytesCallback = (actualConnection, data, offset, length) =>
                 {
                     Assert.Equal(connection, actualConnection);
                     destStream.Write(data, offset, length);
-                    cb.Invoke(null);
+                    return Task.CompletedTask;
                 }
             };
             var leadChunk = new LeadChunk();
             var leadChunkSlices = leadChunk.Serialize();
-            var expectedStreamContents = new byte[2 + leadChunkSlices[0].Length + leadChunkSlices[1].Length];
-            expectedStreamContents[1] = (byte)(leadChunkSlices[0].Length + leadChunkSlices[1].Length);
+            var lengthOfEncodedChunkLength = 3;
+            var expectedStreamContents = new byte[lengthOfEncodedChunkLength + leadChunkSlices[0].Length + leadChunkSlices[1].Length];
+            expectedStreamContents[2] = (byte)(leadChunkSlices[0].Length + leadChunkSlices[1].Length);
             Array.Copy(leadChunkSlices[0].Data, leadChunkSlices[0].Offset, expectedStreamContents,
-                2, leadChunkSlices[0].Length);
+                lengthOfEncodedChunkLength, leadChunkSlices[0].Length);
             Array.Copy(leadChunkSlices[1].Data, leadChunkSlices[1].Offset, expectedStreamContents,
-                2 + leadChunkSlices[0].Length, leadChunkSlices[1].Length);
+                lengthOfEncodedChunkLength + leadChunkSlices[0].Length, leadChunkSlices[1].Length);
 
             // act.
-            var cbCalled = false;
-            ProtocolUtils.WriteLeadChunk(transport, connection, leadChunk, e =>
-            {
-                Assert.False(cbCalled);
-                Assert.Null(e);
-                cbCalled = true;
-            });
+            await ProtocolUtils.WriteLeadChunk(transport, connection, 1000, leadChunk);
 
             // assert.
-            Assert.True(cbCalled);
             Assert.Equal(expectedStreamContents, destStream.ToArray());
         }
 
         [Fact]
-        public void TestWriteLeadChunkForArgumentErrors()
+        public async Task TestWriteLeadChunkForArgumentErrors()
         {
-            Assert.Throws<ArgumentException>(() =>
+            await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                ProtocolUtils.WriteLeadChunk(null, null, new LeadChunk(), e => { });
+                return ProtocolUtils.WriteLeadChunk(null, null, 100, new LeadChunk());
             });
-            Assert.Throws<ArgumentException>(() =>
+            await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                ProtocolUtils.WriteLeadChunk(new ConfigurableQuasiHttpTransport(), null, null, e => { });
+                return ProtocolUtils.WriteLeadChunk(new ConfigurableQuasiHttpTransport(), null, 100, null);
             });
-            Assert.Throws<ArgumentException>(() =>
+            await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                ProtocolUtils.WriteLeadChunk(new ConfigurableQuasiHttpTransport(), null, new LeadChunk(), null);
+                return ProtocolUtils.WriteLeadChunk(new ConfigurableQuasiHttpTransport(), null, 1, new LeadChunk());
             });
         }
     }

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.Internals
@@ -21,17 +22,10 @@ namespace Kabomu.Tests.Internals
             }
         }
 
-        public static byte[] ReadChunkedBody(byte[] data, int offset, int length)
+        public static Task<byte[]> ReadChunkedBody(byte[] data, int offset, int length)
         {
-            var body = new ChunkDecodingBody(new ByteBufferBody(data, offset, length, null), null);
-            byte[] result = null;
-            TransportUtils.ReadBodyToEnd(new TestEventLoopApiPrev(), body, 100, (e, d) =>
-            {
-                Assert.Null(e);
-                result = d;
-            });
-            Assert.NotNull(result);
-            return result;
+            var body = new ChunkDecodingBody(new ByteBufferBody(data, offset, length, null), 100, null);
+            return TransportUtils.ReadBodyToEnd(body, 100);
         }
     }
 }

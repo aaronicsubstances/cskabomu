@@ -2,16 +2,17 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Tests.Shared
 {
     public class ConfigurableQuasiHttpApplication : IQuasiHttpApplication
     {
-        public Action<IQuasiHttpRequest, Action<Exception, IQuasiHttpResponse>> ProcessRequestCallback { get; set; }
+        public Func<IQuasiHttpRequest, IDictionary<string, object>, Task<IQuasiHttpResponse>> ProcessRequestCallback { get; set; }
 
-        public void ProcessRequest(IQuasiHttpRequest request, Action<Exception, IQuasiHttpResponse> cb)
+        public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
         {
-            ProcessRequestCallback?.Invoke(request, cb);
+            return ProcessRequestCallback.Invoke(request, requestEnvironment);
         }
     }
 }

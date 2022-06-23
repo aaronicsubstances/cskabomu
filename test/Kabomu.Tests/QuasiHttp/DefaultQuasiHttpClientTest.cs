@@ -11,13 +11,12 @@ using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp
 {
-    public class KabomuQuasiHttpClientTest
+    /*public class DefaultQuasiHttpClientTest
     {
         [Theory]
         [MemberData(nameof(CreateTestDirectSendData))]
         public void TestDirectSend(object remoteEndpoint, IQuasiHttpRequest request, IQuasiHttpSendOptions options,
-        int responseTimeMillis, string expectedResponseError,
-            IQuasiHttpResponse expectedResponse)
+            int responseTimeMillis, string expectedResponseError, IQuasiHttpResponse expectedResponse)
         {
             // arrange.
             var eventLoop = new TestEventLoopApiPrev
@@ -775,5 +774,5 @@ namespace Kabomu.Tests.QuasiHttp
             };
             return app;
         }
-    }
+    }*/
 }

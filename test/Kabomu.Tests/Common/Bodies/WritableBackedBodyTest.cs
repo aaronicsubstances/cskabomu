@@ -3,7 +3,9 @@ using Kabomu.Common.Bodies;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.Common.Bodies
@@ -11,143 +13,124 @@ namespace Kabomu.Tests.Common.Bodies
     public class WritableBackedBodyTest
     {
         [Fact]
-        public void TestEmptyRead()
+        public async Task TestEmptyRead()
         {
             // arrange.
             var instance = new WritableBackedBody(null);
-            var cbCalled = false;
-            instance.WriteLastBytes(new TestEventLoopApiPrev(), new byte[0], 0, 0, e =>
-            {
-                Assert.False(cbCalled);
-                Assert.Null(e);
-                cbCalled = true;
-            });
+            var task = instance.WriteLastBytes(new byte[0], 0, 0);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, null,
+            await CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, null,
                 new int[0], null, new byte[0]);
-            Assert.True(cbCalled);
+            //Assert.True(task.IsCompleted); // observed to be sometimes false during tests
+            await task;
         }
 
         [Fact]
-        public void TestNonEmptyRead()
+        public async Task TestNonEmptyRead()
         {
             // arrange.
             var instance = new WritableBackedBody("text/csv");
-            var cbCalls = new bool[2];
-            instance.WriteBytes(new TestEventLoopApiPrev(), new byte[] { (byte)'A', (byte)'b' }, 0, 2, e =>
-            {
-                Assert.False(cbCalls[0]);
-                Assert.Null(e);
-                cbCalls[0] = true;
-            });
-            instance.WriteLastBytes(new TestEventLoopApiPrev(), new byte[] { (byte)'2' }, 0, 1, e =>
-            {
-                Assert.False(cbCalls[1]);
-                Assert.Null(e);
-                cbCalls[1] = true;
-            });
+            var tasks = new Task[2];
+            tasks[0] = instance.WriteBytes(new byte[] { (byte)'A', (byte)'b' }, 0, 2);
+            tasks[1] = instance.WriteLastBytes(new byte[] { (byte)'2' }, 0, 1);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/csv",
+            await CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/csv",
                 new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
-            Assert.True(cbCalls[0]);
-            Assert.True(cbCalls[1]);
+            await Task.WhenAll(tasks);
         }
 
         [Fact]
-        public void TestNonEmptyRead2()
+        public async Task TestNonEmptyRead2()
         {
             // arrange.
             var expectedData = Encoding.UTF8.GetBytes("car seat");
             var instance = new WritableBackedBody("text/xml");
-            var cbCalls = new bool[expectedData.Length];
+            var tasks = new Task[expectedData.Length];
             for (int i = 0; i < expectedData.Length; i++)
             {
-                var capturedIndex = i;
                 if (i == expectedData.Length - 1)
                 {
-                    instance.WriteLastBytes(new TestEventLoopApiPrev(), expectedData, capturedIndex, 1, e =>
-                    {
-                        Assert.False(cbCalls[capturedIndex]);
-                        Assert.Null(e);
-                        cbCalls[capturedIndex] = true;
-                    });
+                    tasks[i] = instance.WriteLastBytes(expectedData, i, 1);
                 }
                 else
                 {
-                    instance.WriteBytes(new TestEventLoopApiPrev(), expectedData, capturedIndex, 1, e =>
-                    {
-                        Assert.False(cbCalls[capturedIndex]);
-                        Assert.Null(e);
-                        cbCalls[capturedIndex] = true;
-                    });
+                    tasks[i] = instance.WriteBytes(expectedData, i, 1);
                 }
             }
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(1, instance, -1, "text/xml",
+            await CommonBodyTestRunner.RunCommonBodyTest(1, instance, -1, "text/xml",
                 new int[] { 1, 1, 1, 1, 1, 1, 1, 1 }, null, expectedData);
-            for (int i = 0; i < cbCalls.Length; i++)
-            {
-                Assert.True(cbCalls[i]);
-            }
         }
 
         [Fact]
-        public void TestForArgumentErrors()
+        public async Task TestForArgumentErrors()
         {
             var instance = new WritableBackedBody(null);
-            var mutex = new TestEventLoopApiPrev();
-            instance.WriteLastBytes(mutex, new byte[] { (byte)'c', (byte)'2' }, 0, 2, 
-                e => { });
-            CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
+            _ = instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
+            await CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
+
+            // look out for specific errors.
             instance = new WritableBackedBody(null);
-            var cbCalls = new bool[6];
-            instance.ReadBytes(mutex, new byte[4], 0, 4, (e, len) =>
+            var writeTasks = new Task[3];
+            var expectedWriteErrors = new string[writeTasks.Length];
+            var readTasks = new Task<int>[3];
+            var expectedReadErrors = new string[readTasks.Length];
+            var expectedReadLengths = new int[readTasks.Length];
+            readTasks[0] = instance.ReadBytes(new byte[4], 0, 4);
+            expectedReadLengths[0] = 2;
+            readTasks[1] = instance.ReadBytes(new byte[4], 0, 4);
+            expectedReadErrors[1] = "pending read";
+            writeTasks[0] = instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
+            writeTasks[1] = instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
+            expectedWriteErrors[1] = "end of write";
+            writeTasks[2] = instance.WriteBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
+            expectedWriteErrors[2] = "end of write";
+            readTasks[2] = instance.ReadBytes(new byte[4], 0, 4);
+
+            // wait for all tasks to complete.
+            // since c#'s when all behaves more like NodeJS's Promise.allSettle,
+            // use continuations to avoid dealing with any expected or unexpected errors
+            await Task.WhenAll(writeTasks.Select(t => t.ContinueWith(t => { })));
+            await Task.WhenAll(readTasks.Select(t => t.ContinueWith(t => { })));
+
+            // assert.
+            for (int i = 0; i < readTasks.Length; i++)
             {
-                Assert.False(cbCalls[0]);
-                Assert.Null(e);
-                Assert.Equal(2, len);
-                cbCalls[0] = true;
-            });
-            instance.ReadBytes(mutex, new byte[4], 0, 4, (e, len) =>
+                var task = readTasks[i];
+                var expectedError = expectedReadErrors[i];
+                if (expectedError != null)
+                {
+                    Assert.False(task.IsCompletedSuccessfully);
+                    Assert.Contains(expectedError, task.Exception.Message);
+                }
+                else
+                {
+                    if (!task.IsCompletedSuccessfully)
+                    {
+                        Assert.True(task.IsCompletedSuccessfully, "Didn't expect: " + task.Exception.Message);
+                    }
+                    Assert.Equal(expectedReadLengths[i], task.Result);
+                }
+            }
+            for (int i = 0; i < writeTasks.Length; i++)
             {
-                Assert.False(cbCalls[1]);
-                Assert.NotNull(e);
-                Assert.Contains("outstanding read exists", e.Message);
-                cbCalls[1] = true;
-            });
-            instance.WriteLastBytes(mutex, new byte[] { (byte)'c', (byte)'2' }, 0, 2, e =>
-            {
-                Assert.False(cbCalls[2]);
-                Assert.Null(e);
-                cbCalls[2] = true;
-            });
-            instance.WriteLastBytes(mutex, new byte[] { (byte)'c', (byte)'2' }, 0, 2, e =>
-            {
-                Assert.False(cbCalls[3]);
-                Assert.NotNull(e);
-                Assert.Contains("end of write", e.Message);
-                cbCalls[3] = true;
-            });
-            instance.WriteBytes(mutex, new byte[] { (byte)'c', (byte)'2' }, 0, 2, e =>
-            {
-                Assert.False(cbCalls[4]);
-                Assert.NotNull(e);
-                Assert.Contains("end of write", e.Message);
-                cbCalls[4] = true;
-            });
-            instance.ReadBytes(mutex, new byte[4], 0, 4, (e, len) =>
-            {
-                Assert.False(cbCalls[5]);
-                Assert.Null(e);
-                Assert.Equal(0, len);
-                cbCalls[5] = true;
-            });
-            for (int i = 0; i < cbCalls.Length; i++)
-            {
-                Assert.True(cbCalls[i]);
+                var task = writeTasks[i];
+                var expectedError = expectedWriteErrors[i];
+                if (expectedError != null)
+                {
+                    Assert.False(task.IsCompletedSuccessfully);
+                    Assert.Contains(expectedError, task.Exception.Message);
+                }
+                else
+                {
+                    if (!task.IsCompletedSuccessfully)
+                    {
+                        Assert.True(task.IsCompletedSuccessfully, "Didn't expect: " + task.Exception.Message);
+                    }
+                }
             }
         }
     }

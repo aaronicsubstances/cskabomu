@@ -3,6 +3,7 @@ using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.Internals
@@ -16,18 +17,12 @@ namespace Kabomu.Tests.Internals
             _expectedTransfer = expectedTransfer;
         }
 
-        public int DefaultTimeoutMillis { get; set; }
-
         public IQuasiHttpApplication Application { get; set; }
 
         public IQuasiHttpTransport Transport { get; set; }
-
-        public IMutexApi Mutex { get; set; }
-
-        public UncaughtErrorCallback ErrorHandler { get; set; }
         public bool AbortCalled { get; private set; }
 
-        public void AbortTransfer(ITransferProtocolInternal transfer, Exception e)
+        public async Task AbortTransfer(ITransferProtocolInternal transfer, Exception e)
         {
             Assert.False(AbortCalled);
             Assert.Equal(_expectedTransfer, transfer);

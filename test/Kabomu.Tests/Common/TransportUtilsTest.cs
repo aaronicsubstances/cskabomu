@@ -18,12 +18,10 @@ namespace Kabomu.Tests.Common
             int writeCount = 0;
             var transport = new ConfigurableQuasiHttpTransport
             {
-                MaxChunkSize = maxChunkSize,
-                WriteBytesCallback = (actualConnection, data, offset, length, cb) =>
+                WriteBytesCallback = async (actualConnection, data, offset, length) =>
                 {
                     Assert.Equal(connection, actualConnection);
                     Assert.Equal(maxChunkSize, data.Length);
-                    Exception e = null;
                     if (writeCount < maxWriteCount)
                     {
                         savedWrites.Append(Encoding.UTF8.GetString(data, offset, length));
@@ -31,9 +29,8 @@ namespace Kabomu.Tests.Common
                     }
                     else
                     {
-                        e = new Exception("END");
+                        throw new Exception("END");
                     }
-                    cb.Invoke(e);
                 }
             };
             return transport;
@@ -49,10 +46,9 @@ namespace Kabomu.Tests.Common
             var readIndex = 0;
             var body = new ConfigurableQuasiHttpBody
             {
-                ReadBytesCallback = (mutex, data, offset, length, cb) =>
+                ReadBytesCallback = async (data, offset, length) =>
                 {
                     int nextBytesRead = 0;
-                    Exception e = null;
                     if (readIndex < dataChunks.Length)
                     {
                         var nextReadChunk = Encoding.UTF8.GetBytes(dataChunks[readIndex++]);
@@ -65,28 +61,15 @@ namespace Kabomu.Tests.Common
                     }
                     else
                     {
-                        e = new Exception("END");
+                        throw new Exception("END");
                     }
-                    cb.Invoke(e, nextBytesRead);
+                    return nextBytesRead;
                 }
             };
-            var tcs = new TaskCompletionSource<int>();
-            TransportUtils.ReadBytesFully(new TestEventLoopApiPrev(), body, data, offset, bytesToRead,
-                e =>
-                {
-                    if (e != null)
-                    {
-                        tcs.SetException(e);
-                    }
-                    else
-                    {
-                        tcs.SetResult(0);
-                    }
-                });
             Exception actualException = null;
             try
             {
-                await tcs.Task;
+                await TransportUtils.ReadBytesFully(body, data, offset, bytesToRead);
             }
             catch (Exception e)
             {
@@ -138,7 +121,7 @@ namespace Kabomu.Tests.Common
             data = new byte[10];
             offset = 2;
             bytesToRead = 8;
-            expectedError = "end of read";
+            expectedError = "end of quasi http body";
             testData.Add(new object[] { dataChunks,
                 data, offset, bytesToRead, expectedError });
 
@@ -163,22 +146,10 @@ namespace Kabomu.Tests.Common
             var transport = CreateTransportForBodyTransfer(connection, chunkSize, savedWrites, maxWriteCount);
             var bodyBytes = Encoding.UTF8.GetBytes(bodyData);
             var body = new ByteBufferBody(bodyBytes, 0, bodyBytes.Length, null);
-            TransportUtils.TransferBodyToTransport(new TestEventLoopApiPrev(), transport, connection, body,
-                e =>
-                {
-                    if (e != null)
-                    {
-                        tcs.SetException(e);
-                    }
-                    else
-                    {
-                        tcs.SetResult(0);
-                    }
-                });
             Exception actualException = null;
             try
             {
-                await tcs.Task;
+                await TransportUtils.TransferBodyToTransport(transport, connection, body, chunkSize);
             }
             catch (Exception e)
             {
@@ -237,33 +208,32 @@ namespace Kabomu.Tests.Common
 
         [Theory]
         [MemberData(nameof(CreateTestReadBodyToEndData))]
-        public void TestReadBodyToEnd(IQuasiHttpBody body, int maxChunkSize, string expectedError, string expectedData)
+        public async Task TestReadBodyToEnd(IQuasiHttpBody body, int maxChunkSize, string expectedError, string expectedData)
         {
-            var cbCalled = false;
-            TransportUtils.ReadBodyToEnd(new TestEventLoopApiPrev(), body, maxChunkSize, (e, data) =>
+            byte[] data = null;
+            Exception actualError = null;
+            try
             {
-                Assert.False(cbCalled);
-                if (expectedError != null)
-                {
-                    Assert.NotNull(e);
-                    Assert.Equal(expectedError, e.Message);
-                }
-                else
-                {
-                    Assert.Null(e);
-                    var actualData = Encoding.UTF8.GetString(data);
-                    Assert.Equal(expectedData, actualData);
-                    Exception eofError = null;
-                    body.ReadBytes(new TestEventLoopApiPrev(), new byte[1], 0, 1, (e, i) =>
-                    {
-                        eofError = e;
-                    });
-                    Assert.NotNull(eofError);
-                    Assert.Equal("end of read", eofError.Message);
-                }
-                cbCalled = true;
-            });
-            Assert.True(cbCalled);
+                data = await TransportUtils.ReadBodyToEnd(body, maxChunkSize);
+            }
+            catch (Exception e)
+            {
+                actualError = e;
+            }
+            if (expectedError == null)
+            {
+                Assert.Null(actualError);
+                var actualData = Encoding.UTF8.GetString(data);
+                Assert.Equal(expectedData, actualData);
+                Exception eofError = await Assert.ThrowsAnyAsync<Exception>(() =>
+                    body.ReadBytes(new byte[1], 0, 1));
+                Assert.Equal("end of read", eofError.Message);
+            }
+            else
+            {
+                Assert.NotNull(actualError);
+                Assert.Equal(expectedError, actualError.Message);
+            }
         }
 
         public static List<object[]> CreateTestReadBodyToEndData()
@@ -288,9 +258,9 @@ namespace Kabomu.Tests.Common
             var capturedError = expectedError;
             body = new ConfigurableQuasiHttpBody
             {
-                ReadBytesCallback = (mutex, data, offset, length, cb) =>
+                ReadBytesCallback = (data, offset, length) =>
                 {
-                    cb.Invoke(new Exception(capturedError), 0);
+                    throw new Exception(capturedError);
                 }
             };
             maxChunkSize = 10;
@@ -300,52 +270,43 @@ namespace Kabomu.Tests.Common
         }
 
         [Fact]
-        public void TestWriteEmpty()
+        public async Task TestWriteEmpty()
         {
             // arrange.
             object connection = null;
             var destStream = new MemoryStream();
             var transport = new ConfigurableQuasiHttpTransport
             {
-                MaxChunkSize = 100,
-                WriteBytesCallback = (actualConnection, data, offset, length, cb) =>
+                WriteBytesCallback = (actualConnection, data, offset, length) =>
                 {
                     Assert.Equal(connection, actualConnection);
                     destStream.Write(data, offset, length);
-                    cb.Invoke(null);
+                    return Task.CompletedTask;
                 }
             };
             var slices = new ByteBufferSlice[0];
             var expectedStreamContents = new byte[0];
 
             // act.
-            var cbCalled = false;
-            TransportUtils.WriteByteSlices(transport, connection, slices, e =>
-            {
-                Assert.False(cbCalled);
-                Assert.Null(e);
-                cbCalled = true;
-            });
+            await TransportUtils.WriteByteSlices(transport, connection, slices);
 
             // assert.
-            Assert.True(cbCalled);
             Assert.Equal(expectedStreamContents, destStream.ToArray());
         }
 
         [Fact]
-        public void TestWriteByteSlices()
+        public async Task TestWriteByteSlices()
         {
             // arrange.
             object connection = "dk";
             var destStream = new MemoryStream();
             var transport = new ConfigurableQuasiHttpTransport
             {
-                MaxChunkSize = 100,
-                WriteBytesCallback = (actualConnection, data, offset, length, cb) =>
+                WriteBytesCallback = (actualConnection, data, offset, length) =>
                 {
                     Assert.Equal(connection, actualConnection);
                     destStream.Write(data, offset, length);
-                    cb.Invoke(null);
+                    return Task.CompletedTask;
                 }
             };
             var slices = new ByteBufferSlice[]
@@ -381,38 +342,26 @@ namespace Kabomu.Tests.Common
             var expectedStreamContents = new byte[] { 0, 2, 1, 7, 8, 9, 10 };
 
             // act.
-            var cbCalled = false;
-            TransportUtils.WriteByteSlices(transport, connection, slices, e =>
-            {
-                Assert.False(cbCalled);
-                Assert.Null(e);
-                cbCalled = true;
-            });
+            await TransportUtils.WriteByteSlices(transport, connection, slices);
 
             // assert.
-            Assert.True(cbCalled);
             Assert.Equal(expectedStreamContents, destStream.ToArray());
         }
 
         [Fact]
-        public void TestWriteByteSlicesForArgumentErrors()
+        public async Task TestWriteByteSlicesForArgumentErrors()
         {
-            Assert.Throws<ArgumentException>(() =>
+            await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                TransportUtils.WriteByteSlices(null, null, new ByteBufferSlice[0], e => { });
+                return TransportUtils.WriteByteSlices(null, null, new ByteBufferSlice[0]);
             });
-            Assert.Throws<ArgumentException>(() =>
+            await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                TransportUtils.WriteByteSlices(new ConfigurableQuasiHttpTransport(), null, null, e => { });
+                return TransportUtils.WriteByteSlices(new ConfigurableQuasiHttpTransport(), null, null);
             });
-            Assert.Throws<ArgumentException>(() =>
+            await Assert.ThrowsAnyAsync<Exception>(() =>
             {
-                TransportUtils.WriteByteSlices(new ConfigurableQuasiHttpTransport(), null, new ByteBufferSlice[0], null);
-            });
-            Assert.ThrowsAny<Exception>(() =>
-            {
-                TransportUtils.WriteByteSlices(new ConfigurableQuasiHttpTransport(), null, new ByteBufferSlice[] { null },
-                    e => { });
+                return TransportUtils.WriteByteSlices(new ConfigurableQuasiHttpTransport(), null, new ByteBufferSlice[] { null });
             });
         }
     }

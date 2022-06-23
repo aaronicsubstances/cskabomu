@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.Shared
@@ -32,7 +33,7 @@ namespace Kabomu.Tests.Shared
                 actual.DataOffset, actual.DataLength);
         }
 
-        public static void CompareRequests(IMutexApi mutex, int maxChunkSize,
+        public static async Task CompareRequests(int maxChunkSize,
             IQuasiHttpRequest expected, IQuasiHttpRequest actual,
             byte[] expectedReqBodyBytes)
         {
@@ -49,21 +50,12 @@ namespace Kabomu.Tests.Shared
                 Assert.NotNull(actual.Body);
                 Assert.Equal(expected.Body.ContentLength, actual.Body.ContentLength);
                 Assert.Equal(expected.Body.ContentType, actual.Body.ContentType);
-                byte[] actualReqBodyBytes = null;
-                var cbCalled = false;
-                TransportUtils.ReadBodyToEnd(mutex, actual.Body, maxChunkSize, (e, data) =>
-                {
-                    Assert.False(cbCalled);
-                    Assert.Null(e);
-                    actualReqBodyBytes = data;
-                    cbCalled = true;
-                });
-                Assert.True(cbCalled);
+                var actualReqBodyBytes = await TransportUtils.ReadBodyToEnd(actual.Body, maxChunkSize);
                 Assert.Equal(expectedReqBodyBytes, actualReqBodyBytes);
             }
         }
 
-        public static void CompareResponses(IMutexApi mutex, int maxChunkSize,
+        public static async Task CompareResponses(int maxChunkSize,
             IQuasiHttpResponse expected, IQuasiHttpResponse actual,
             byte[] expectedResBodyBytes)
         {
@@ -82,16 +74,7 @@ namespace Kabomu.Tests.Shared
                 Assert.NotNull(actual.Body);
                 Assert.Equal(expected.Body.ContentLength, actual.Body.ContentLength);
                 Assert.Equal(expected.Body.ContentType, actual.Body.ContentType);
-                byte[] actualResBodyBytes = null;
-                var cbCalled = false;
-                TransportUtils.ReadBodyToEnd(mutex, actual.Body, maxChunkSize, (e, data) =>
-                {
-                    Assert.False(cbCalled);
-                    Assert.Null(e);
-                    actualResBodyBytes = data;
-                    cbCalled = true;
-                });
-                Assert.True(cbCalled);
+                var actualResBodyBytes = await TransportUtils.ReadBodyToEnd(actual.Body, maxChunkSize);
                 Assert.Equal(expectedResBodyBytes, actualResBodyBytes);
             }
         }
