@@ -158,11 +158,10 @@ namespace Kabomu.Common.Bodies
             ReadWriteRequest pendingRead, ReadWriteRequest pendingWrite, List<ReadWriteRequest> writesToFail)
         {
             pendingRead.ReadCallback.SetResult(bytesToReturn);
-            if (pendingWrite == null)
+            if (pendingWrite != null)
             {
-                return;
+                pendingWrite.WriteCallback.SetResult(true);
             }
-            pendingWrite.WriteCallback.SetResult(true);
             if (writesToFail != null)
             {
                 var writeError = new Exception("end of write");
