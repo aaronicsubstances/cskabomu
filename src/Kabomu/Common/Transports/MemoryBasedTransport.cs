@@ -51,9 +51,10 @@ namespace Kabomu.Common.Transports
             return Task.CompletedTask;
         }
 
-        public Task<IQuasiHttpResponse> ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request)
+        public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
+            IConnectionAllocationRequest connectionAllocationInfo)
         {
-            if (remoteEndpoint == null)
+            if (connectionAllocationInfo?.RemoteEndpoint == null)
             {
                 throw new ArgumentException("null remote endpoint");
             }
@@ -69,24 +70,24 @@ namespace Kabomu.Common.Transports
                 {
                     throw new Exception("transport not started");
                 }
-                var remoteTransport = Hub.Transports[remoteEndpoint];
-                responseTask = remoteTransport.Application.ProcessRequest(request);
+                var remoteTransport = Hub.Transports[connectionAllocationInfo.RemoteEndpoint];
+                responseTask = remoteTransport.Application.ProcessRequest(request, connectionAllocationInfo.Environment);
             }
 
             return responseTask;
         }
 
-        public async Task<object> AllocateConnection(object remoteEndpoint)
+        public async Task<object> AllocateConnection(IConnectionAllocationRequest connectionAllocationRequest)
         {
-            if (remoteEndpoint == null)
+            if (connectionAllocationRequest?.RemoteEndpoint == null)
             {
                 throw new ArgumentException("null remote endpoint");
             }
 
             lock (_lock)
             {
-                var remoteTransport = Hub.Transports[remoteEndpoint];
-                var connection = new MemoryBasedTransportConnectionInternal(this);
+                var remoteTransport = Hub.Transports[connectionAllocationRequest.RemoteEndpoint];
+                var connection = new MemoryBasedTransportConnectionInternal(this);                
                 remoteTransport.OnReceive(connection);
                 return connection;
             }
@@ -112,7 +113,7 @@ namespace Kabomu.Common.Transports
             }
         }
 
-        public Task<object> ReceiveConnection()
+        public Task<IConnectionAllocationResponse> ReceiveConnection()
         {
             lock (_lock)
             {
@@ -126,7 +127,7 @@ namespace Kabomu.Common.Transports
                 }
                 var receiveRequest = new ReceiveConnectionRequest
                 {
-                    Callback = new TaskCompletionSource<object>(
+                    Callback = new TaskCompletionSource<IConnectionAllocationResponse>(
                         TaskCreationOptions.RunContinuationsAsynchronously)
                 };
                 _receiveConnectionRequest = receiveRequest;
@@ -142,6 +143,10 @@ namespace Kabomu.Common.Transports
         {
             var pendingReceiveConnectionRequest = _receiveConnectionRequest;
             var pendingOnReceiveRequest = _onReceiveRequests.First.Value;
+            var connectionAllocationResponse = new DefaultConnectionAllocationResponse
+            {
+                Connection = pendingOnReceiveRequest.Connection
+            };
 
             // do not invoke callbacks until state of this transport is updated,
             // to prevent error of re-entrant receive connection requests
@@ -149,7 +154,7 @@ namespace Kabomu.Common.Transports
             _receiveConnectionRequest = null;
             _onReceiveRequests.RemoveFirst();
 
-            pendingReceiveConnectionRequest.Callback.SetResult(pendingOnReceiveRequest.Connection);
+            pendingReceiveConnectionRequest.Callback.SetResult(connectionAllocationResponse);
         }
 
         public async Task ReleaseConnection(object connection, bool wasReceived)
@@ -214,8 +219,8 @@ namespace Kabomu.Common.Transports
 
         class ReceiveConnectionRequest
         {
+            public TaskCompletionSource<IConnectionAllocationResponse> Callback { get; set; }
             public object Connection { get; set; }
-            public TaskCompletionSource<object> Callback { get; set; }
         }
     }
 }

@@ -54,8 +54,8 @@ namespace Kabomu.QuasiHttp
                             break;
                         }
                     }
-                    var connection = await Transport.ReceiveConnection();
-                    await Receive(connection);
+                    var connectionAllocationResponse = await Transport.ReceiveConnection();
+                    await Receive(connectionAllocationResponse);
                 }
                 catch (Exception e)
                 {
@@ -95,29 +95,45 @@ namespace Kabomu.QuasiHttp
             await Task.WhenAll(tasks);
         }
 
-        private async Task Receive(object connection)
+        private async Task Receive(IConnectionAllocationResponse connectionAllocationResponse)
         {
-            if (connection == null)
+            if (connectionAllocationResponse == null)
+            {
+                throw new ArgumentException("null connection allocation");
+            }
+            if (connectionAllocationResponse.Connection == null)
             {
                 throw new ArgumentException("null connection");
             }
 
             ReceiveProtocolInternal transfer;
-            Task timeoutTask, workTask;
+            Task timeoutTask = null, workTask;
             lock (_lock)
             {
                 transfer = new ReceiveProtocolInternal(_lock)
                 {
                     Parent = _representative,
-                    Connection = connection,
-                    TimeoutMillis = DefaultTimeoutMillis
+                    Connection = connectionAllocationResponse.Connection,
+                    RequestEnvironment = connectionAllocationResponse.Environment
                 };
-                _transfers.Add(connection, transfer);
-                timeoutTask = SetResponseTimeout(transfer);
+                _transfers.Add(transfer.Connection, transfer);
+                var transferTimeoutMillis = DefaultTimeoutMillis;
+                if (transferTimeoutMillis > 0)
+                {
+                    timeoutTask = SetResponseTimeout(transfer, transferTimeoutMillis);
+                }
                 workTask = transfer.Receive();
             }
             ExceptionDispatchInfo capturedError = null;
-            var firstCompletedTask = await Task.WhenAny(timeoutTask, workTask);
+            Task firstCompletedTask;
+            if (timeoutTask != null)
+            {
+                firstCompletedTask = await Task.WhenAny(timeoutTask, workTask);
+            }
+            else
+            {
+                firstCompletedTask = workTask;
+            }
             try
             {
                 await firstCompletedTask;
@@ -147,10 +163,10 @@ namespace Kabomu.QuasiHttp
             await workTask;
         }
 
-        private Task SetResponseTimeout(ITransferProtocolInternal transfer)
+        private Task SetResponseTimeout(ITransferProtocolInternal transfer, int transferTimeoutMillis)
         {
             transfer.TimeoutCancellationHandle = new CancellationTokenSource();
-            return EventLoop.SetTimeout<Task>(transfer.TimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
+            return EventLoop.SetTimeout<Task>(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
                 throw new Exception("receive timeout"));
         }
 

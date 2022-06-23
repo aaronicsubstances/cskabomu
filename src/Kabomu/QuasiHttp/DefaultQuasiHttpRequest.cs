@@ -13,12 +13,5 @@ namespace Kabomu.QuasiHttp
         public IQuasiHttpBody Body { get; set; }
         public string HttpMethod { get; set; }
         public string HttpVersion { get; set; }
-        public async Task Abandon(Exception e)
-        {
-            if (Body != null)
-            {
-                await Body.EndRead(e);
-            }
-        }
     }
 }

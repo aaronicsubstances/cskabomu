@@ -16,8 +16,8 @@ namespace Kabomu.QuasiHttp
 
         public IParentTransferProtocolInternal Parent { get; set; }
         public object Connection { get; set; }
+        public IDictionary<string, object> RequestEnvironment { get; set; }
         public bool IsAborted { get; set; }
-        public int TimeoutMillis { get; set; }
         public CancellationTokenSource TimeoutCancellationHandle { get; set; }
 
         public ReceiveProtocolInternal(object lockObj)
@@ -116,7 +116,8 @@ namespace Kabomu.QuasiHttp
                     }
                 }
                 _requestBody = request.Body;
-                appTask = Parent.Application.ProcessRequest(request);
+                appTask = Parent.Application.ProcessRequest(request,
+                    RequestEnvironment ?? new Dictionary<string, object>());
             }
 
             var response = await appTask;

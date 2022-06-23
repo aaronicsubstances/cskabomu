@@ -14,6 +14,6 @@ namespace Kabomu.Common
         IQuasiHttpBody Body { get; }
         int HttpStatusCode { get; }
         string HttpVersion { get; }
-        Task Abandon(Exception e);
+        Task CloseAsync();
     }
 }
