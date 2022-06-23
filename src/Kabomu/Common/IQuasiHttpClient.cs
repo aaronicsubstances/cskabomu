@@ -7,7 +7,7 @@ namespace Kabomu.Common
 {
     public interface IQuasiHttpClient
     {
-        int DefaultTimeoutMillis { get; set; }
+        IQuasiHttpSendOptions DefaultSendOptions { get; set; }
         IQuasiHttpTransport Transport { get; set; }
         Task<IQuasiHttpResponse> Send(object remoteEndpoint, IQuasiHttpRequest request,
             IQuasiHttpSendOptions options);

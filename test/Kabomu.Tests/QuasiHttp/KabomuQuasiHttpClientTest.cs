@@ -114,7 +114,7 @@ namespace Kabomu.Tests.QuasiHttp
             };
             options = new DefaultQuasiHttpSendOptions
             {
-                TimeoutMillis = 200
+                OverallReqRespTimeoutMillis = 200
             };
             responseTimeMillis = 190;
             expectedResponseError = null;
@@ -183,7 +183,7 @@ namespace Kabomu.Tests.QuasiHttp
                     var capturedIndex = (int)s;
                     var options = new DefaultQuasiHttpSendOptions
                     {
-                        TimeoutMillis = 5
+                        OverallReqRespTimeoutMillis = 5
                     };
                     transport.DirectSendRequestProcessingEnabled = capturedIndex == 0;
                     client.Send(null, new DefaultQuasiHttpRequest(), options, (e, res) =>
@@ -248,7 +248,7 @@ namespace Kabomu.Tests.QuasiHttp
                     var capturedIndex = (int)s;
                     var options = new DefaultQuasiHttpSendOptions
                     {
-                        TimeoutMillis = 5
+                        OverallReqRespTimeoutMillis = 5
                     };
                     transport.DirectSendRequestProcessingEnabled = capturedIndex == 0;
                     client.Send(null, new DefaultQuasiHttpRequest(), options, (e, res) =>
@@ -486,7 +486,7 @@ namespace Kabomu.Tests.QuasiHttp
             };
             options = new DefaultQuasiHttpSendOptions
             {
-                TimeoutMillis = 40
+                OverallReqRespTimeoutMillis = 40
             };
             responseError = null;
             response = new DefaultQuasiHttpResponse
@@ -656,7 +656,7 @@ namespace Kabomu.Tests.QuasiHttp
             };
             options = new DefaultQuasiHttpSendOptions
             {
-                TimeoutMillis = 3
+                OverallReqRespTimeoutMillis = 3
             };
             responseError = "send timeout";
             response = null;

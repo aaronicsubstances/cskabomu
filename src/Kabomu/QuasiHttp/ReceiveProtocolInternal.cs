@@ -16,6 +16,7 @@ namespace Kabomu.QuasiHttp
 
         public IParentTransferProtocolInternal Parent { get; set; }
         public object Connection { get; set; }
+        public int MaxChunkSize { get; set; }
         public IDictionary<string, object> RequestEnvironment { get; set; }
         public bool IsAborted { get; set; }
         public CancellationTokenSource TimeoutCancellationHandle { get; set; }
@@ -108,7 +109,7 @@ namespace Kabomu.QuasiHttp
                     _transportBody.ContentType = chunk.ContentType;
                     if (chunk.ContentLength < 0)
                     {
-                        request.Body = new ChunkDecodingBody(_transportBody, null);
+                        request.Body = new ChunkDecodingBody(_transportBody, MaxChunkSize, null);
                     }
                     else
                     {
@@ -159,7 +160,8 @@ namespace Kabomu.QuasiHttp
                 chunk.ContentType = response.Body.ContentType;
             }
 
-            await ProtocolUtils.WriteLeadChunk(Parent.Transport, Connection, chunk);
+            await ProtocolUtils.WriteLeadChunk(Parent.Transport, Connection,
+                MaxChunkSize, chunk);
 
             Task bodyTransferTask = null, abortTask = null;
             lock (_lock)
@@ -171,7 +173,7 @@ namespace Kabomu.QuasiHttp
                 if (response.Body != null)
                 {
                     bodyTransferTask = TransportUtils.TransferBodyToTransport(Parent.Transport,
-                        Connection, _responseBody);
+                        Connection, _responseBody, MaxChunkSize);
                 }
                 else
                 {

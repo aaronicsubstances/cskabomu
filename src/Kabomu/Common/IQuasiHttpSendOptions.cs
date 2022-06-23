@@ -4,7 +4,8 @@ namespace Kabomu.Common
 {
     public interface IQuasiHttpSendOptions
     {
-        int TimeoutMillis { get; }
+        int OverallReqRespTimeoutMillis { get; }
+        int MaxChunkSize { get; }
         IDictionary<string, object> RequestEnvironment { get; }
     }
 }

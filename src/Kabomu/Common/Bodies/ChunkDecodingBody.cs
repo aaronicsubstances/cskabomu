@@ -10,18 +10,24 @@ namespace Kabomu.Common.Bodies
         private readonly object _lock = new object();
 
         private readonly IQuasiHttpBody _wrappedBody;
+        private readonly int _maxChunkSize;
         private readonly Func<Task> _closeCallback;
         private SubsequentChunk _lastChunk;
         private int _lastChunkUsedBytes;
         private Exception _srcEndError;
 
-        public ChunkDecodingBody(IQuasiHttpBody wrappedBody, Func<Task> closeCallback)
+        public ChunkDecodingBody(IQuasiHttpBody wrappedBody, int maxChunkSize, Func<Task> closeCallback)
         {
             if (wrappedBody == null)
             {
                 throw new ArgumentException("null wrapped body");
             }
+            if (maxChunkSize < 0)
+            {
+                throw new ArgumentException("max chunk size must be positive. received: " + maxChunkSize);
+            }
             _wrappedBody = wrappedBody;
+            _maxChunkSize = maxChunkSize;
             _closeCallback = closeCallback;
         }
 
@@ -37,7 +43,7 @@ namespace Kabomu.Common.Bodies
             }
 
             Task readTask;
-            var encodedLength = new byte[2];
+            var encodedLength = new byte[ChunkEncodingBody.LengthOfEncodedChunkLength];
             lock (_lock)
             {
                 if (_srcEndError != null)
@@ -66,6 +72,13 @@ namespace Kabomu.Common.Bodies
 
                 var chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                     encodedLength.Length);
+                if (chunkLen > TransportUtils.DefaultMaxChunkSizeLimit && chunkLen > _maxChunkSize)
+                {
+                    throw new Exception(
+                        $"received chunk size of {chunkLen} which is both larger than" +
+                        $" default limit on max chunk size ({TransportUtils.DefaultMaxChunkSizeLimit})" +
+                        $" and maximum configured chunk size of {_maxChunkSize}");
+                }
                 chunkBytes = new byte[chunkLen];
                 readTask = TransportUtils.ReadBytesFully(_wrappedBody,
                     chunkBytes, 0, chunkBytes.Length);

@@ -7,7 +7,6 @@ namespace Kabomu.Common
 {
     public interface IQuasiHttpTransport
     {
-        int MaxChunkSize { get; }
         Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest);
         Task ReleaseConnection(object connection, bool wasReceived);
         Task WriteBytes(object connection, byte[] data, int offset, int length);
