@@ -8,12 +8,17 @@ namespace Kabomu.Common
 {
     public static class TransportUtils
     {
-        public static readonly int MaxChunkSize = 65_535; // ie max unsigned 16-bit integer value.
+        public static readonly int DefaultMaxChunkSize = 8_192;
+        public static readonly int DefaultMaxChunkSizeLimit = 65_536;
 
         public static readonly string ContentTypePlainText = "text/plain";
         public static readonly string ContentTypeByteStream = "application/octet-stream";
         public static readonly string ContentTypeJson = "application/json";
         public static readonly string ContentTypeHtmlFormUrlEncoded = "application/x-www-form-urlencoded";
+
+        public static readonly string RequestEnvironmentKeyReservedPrefix = "kabomu_";
+        public static readonly string RequestEnvironmentKeyConnectTimeout = RequestEnvironmentKeyReservedPrefix + "connect_timeout";
+        public static readonly string RequestEnvironmentKeyReadTimeout = RequestEnvironmentKeyReservedPrefix + "read_timeout";
 
         public static async Task ReadBytesFully(IQuasiHttpBody body,
             byte[] data, int offset, int bytesToRead)
@@ -38,11 +43,10 @@ namespace Kabomu.Common
             }
         }
 
-        public static async Task TransferBodyToTransport(IQuasiHttpTransport transport, 
-            object connection, IQuasiHttpBody body)
+        public static async Task TransferBodyToTransport(IQuasiHttpTransport transport,
+            object connection, IQuasiHttpBody body, int maxChunkSize)
         {
-            int effectiveChunkSize = Math.Min(transport.MaxChunkSize, MaxChunkSize);
-            byte[] buffer = new byte[effectiveChunkSize];
+            byte[] buffer = new byte[maxChunkSize];
 
             while (true)
             {

@@ -21,7 +21,8 @@ namespace Kabomu.QuasiHttp
             _representative = new ParentTransferProtocolImpl(this);
         }
 
-        public int DefaultTimeoutMillis { get; set; }
+        public int OverallReqRespTimeoutMillis { get; set; }
+        public int MaxChunkSize { get; set; }
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
@@ -113,11 +114,14 @@ namespace Kabomu.QuasiHttp
                 transfer = new ReceiveProtocolInternal(_lock)
                 {
                     Parent = _representative,
+                    MaxChunkSize = MaxChunkSize,
                     Connection = connectionAllocationResponse.Connection,
                     RequestEnvironment = connectionAllocationResponse.Environment
                 };
+                transfer.MaxChunkSize = ProtocolUtils.DetermineEffectiveMaxChunkSize(
+                    null, null, MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
                 _transfers.Add(transfer.Connection, transfer);
-                var transferTimeoutMillis = DefaultTimeoutMillis;
+                var transferTimeoutMillis = OverallReqRespTimeoutMillis;
                 if (transferTimeoutMillis > 0)
                 {
                     timeoutTask = SetResponseTimeout(transfer, transferTimeoutMillis);
@@ -209,8 +213,6 @@ namespace Kabomu.QuasiHttp
             {
                 _delegate = passThrough;
             }
-
-            public int DefaultTimeoutMillis => _delegate.DefaultTimeoutMillis;
 
             public IQuasiHttpApplication Application => _delegate.Application;
 

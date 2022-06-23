@@ -11,6 +11,7 @@ namespace Kabomu.QuasiHttp
     {
         IParentTransferProtocolInternal Parent { get; set; }
         object Connection { get; set; }
+        int MaxChunkSize { get; set; }
         bool IsAborted { get; set; }
         CancellationTokenSource TimeoutCancellationHandle { get; set; }
         Task Cancel(Exception e);

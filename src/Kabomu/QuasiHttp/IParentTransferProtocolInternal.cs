@@ -8,7 +8,6 @@ namespace Kabomu.QuasiHttp
 {
     internal interface IParentTransferProtocolInternal
     {
-        int DefaultTimeoutMillis { get; }
         IQuasiHttpApplication Application { get; }
         IQuasiHttpTransport Transport { get; }
         Task AbortTransfer(ITransferProtocolInternal transfer, Exception e);

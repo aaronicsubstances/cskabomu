@@ -26,7 +26,7 @@ namespace Kabomu.QuasiHttp
             _representative = new ParentTransferProtocolImpl(this);
         }
 
-        public int DefaultTimeoutMillis { get; set; }
+        public IQuasiHttpSendOptions DefaultSendOptions { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public IEventLoopApi EventLoop { get; set; }
 
@@ -53,21 +53,13 @@ namespace Kabomu.QuasiHttp
                 {
                     Parent = _representative
                 };
-                int transferTimeoutMillis = 0;
-                IDictionary<string, object> requestEnvironment = null;
-                if (options != null)
-                {
-                    requestEnvironment = options.RequestEnvironment;
-                    transferTimeoutMillis = options.TimeoutMillis;
-                }
-                if (requestEnvironment == null)
-                {
-                    requestEnvironment = new Dictionary<string, object>();
-                }
-                if (transferTimeoutMillis <= 0)
-                {
-                    transferTimeoutMillis = DefaultTimeoutMillis;
-                }
+                transfer.MaxChunkSize = ProtocolUtils.DetermineEffectiveMaxChunkSize(
+                    options, DefaultSendOptions, 0, TransportUtils.DefaultMaxChunkSize);
+                int transferTimeoutMillis = ProtocolUtils.DetermineEffectiveOverallReqRespTimeoutMillis(
+                    options, DefaultSendOptions, 0);
+                var requestEnvironment = new Dictionary<string, object>();
+                ProtocolUtils.DetermineEffectiveRequestEnvironment(requestEnvironment,
+                    options, DefaultSendOptions);
                 _transfersWithoutConnections.Add(transfer);
                 if (transferTimeoutMillis > 0)
                 {
@@ -84,7 +76,7 @@ namespace Kabomu.QuasiHttp
                 }
                 else
                 {
-                    workTask = AllocateConnection(connectionAllocationRequest, transfer, request);
+                    workTask = AllocateConnectionAndSend(connectionAllocationRequest, transfer, request);
                 }
             }
             ExceptionDispatchInfo capturedError = null;
@@ -152,7 +144,7 @@ namespace Kabomu.QuasiHttp
             return res;
         }
 
-        private async Task<IQuasiHttpResponse> AllocateConnection(
+        private async Task<IQuasiHttpResponse> AllocateConnectionAndSend(
             IConnectionAllocationRequest connectionAllocationRequest,
             SendProtocolInternal transfer, IQuasiHttpRequest request)
         {
@@ -250,8 +242,6 @@ namespace Kabomu.QuasiHttp
             {
                 _delegate = passThrough;
             }
-
-            public int DefaultTimeoutMillis => _delegate.DefaultTimeoutMillis;
 
             public IQuasiHttpApplication Application => throw new NotImplementedException();
 
