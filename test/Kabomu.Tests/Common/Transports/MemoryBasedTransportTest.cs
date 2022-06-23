@@ -5,6 +5,7 @@ using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -20,7 +21,7 @@ namespace Kabomu.Tests.Common.Transports
         }
 
         [Fact]
-        public void TestOperationIncludingDirectSend()
+        public async Task TestOperationIncludingDirectSend()
         {
             // arrange.
             var eventLoop = new TestEventLoopApiPrev

@@ -1,5 +1,5 @@
 ﻿using CommandLine;
-using Kabomu.Common;
+using Kabomu.Common.Concurrency;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using NLog;
@@ -40,35 +40,21 @@ namespace UnixDomainSocket.FileClient
 
         static async Task RunMain(string path, string serverPath, string uploadDirPath)
         {
-            var eventLoop = new DefaultEventLoopApi
+            var eventLoop = new DefaultEventLoopApi();
+            var transport = new UnixDomainSocketTransport(path);
+            var defaultSendOptions = new DefaultQuasiHttpSendOptions
             {
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Event Loop error! {0}: {1}", m, e);
-                }
+                OverallReqRespTimeoutMillis = 5_000
             };
-            var tcpTransport = new UnixDomainSocketTransport(path)
+            var instance = new DefaultQuasiHttpClient
             {
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Warn(e, "UnixDomainSocket transport error: {0}", m);
-                }
-            };
-            var instance = new KabomuQuasiHttpClient
-            {
-                DefaultTimeoutMillis = 5_000,
+                DefaultSendOptions = defaultSendOptions,
                 EventLoop = eventLoop,
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Quasi Http Client error! {0}: {1}", m, e);
-                }
+                Transport = transport
             };
-            tcpTransport.Upstream = instance;
-            instance.Transport = tcpTransport;
 
             try
             {
-                tcpTransport.Start();
                 LOG.Info("Started UnixDomainSocket.FileClient at {0}", path);
 
                 await FileSender.StartTransferringFiles(instance, serverPath, uploadDirPath);
@@ -80,7 +66,7 @@ namespace UnixDomainSocket.FileClient
             finally
             {
                 LOG.Debug("Stopping UnixDomainSocket.FileClient...");
-                tcpTransport.Stop();
+                await instance.Reset(null);
             }
         }
     }
