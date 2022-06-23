@@ -47,8 +47,8 @@ Overall mission is toward monolithic applications for enforcement of architectur
     1. path
     1. http method (optional)
 	1. http version (optional)
-    4. content-type: one of application/octet-stream, application/json (always UTF-8), text/plain (always UTF-8), application/x-www-form-urlencoded (always UTF-8).
-        - Body type for HTML Forms is added so as to completely discard need for query string handling in Path, by requiring such query strings to be sent through POST body.
+    4. content-type: one of application/octet-stream, application/json (always UTF-8), text/plain (always UTF-8), text/csv (always UTF-8).
+        - Body type for HTML Forms is equivalent to CSV. And one can completely discard need for query string handling in Path, by requiring such query strings to be sent through POST body.
         - This also means GET with query string has an alternative representation in QuasiHttp.
     3. headers: map of strings to list of strings
     4. body: QuasiHttpBody.

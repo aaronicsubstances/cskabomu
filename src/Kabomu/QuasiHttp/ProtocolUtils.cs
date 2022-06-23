@@ -101,11 +101,11 @@ namespace Kabomu.QuasiHttp
             }
             if (byteCount > maxChunkSize)
             {
-                throw new Exception($"larger than max chunk size of {maxChunkSize}");
+                throw new Exception($"headers larger than max chunk size of {maxChunkSize}");
             }
             if (byteCount > ChunkEncodingBody.MaxChunkSizeLimit)
             {
-                throw new Exception($"larger than max chunk size limit of {ChunkEncodingBody.MaxChunkSizeLimit}");
+                throw new Exception($"headers larger than max chunk size limit of {ChunkEncodingBody.MaxChunkSizeLimit}");
             }
             var encodedLength = new byte[2];
             ByteUtils.SerializeUpToInt64BigEndian(byteCount, encodedLength, 0,
