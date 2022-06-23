@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.Common.Bodies
@@ -26,7 +27,7 @@ namespace Kabomu.Tests.Common.Bodies
                 };
                 var serialized = chunk.Serialize();
                 var serializedLength = serialized.Sum(x => x.Length);
-                var encodedLength = new byte[2];
+                var encodedLength = new byte[3];
                 ByteUtils.SerializeUpToInt64BigEndian(serializedLength,
                     encodedLength, 0, encodedLength.Length);
                 inputStream.Write(encodedLength);
@@ -37,7 +38,7 @@ namespace Kabomu.Tests.Common.Bodies
             }
 
             // end with terminator empty chunk.            
-            inputStream.Write(new byte[] { 0, 2 });
+            inputStream.Write(new byte[] { 0, 0, 2 });
             inputStream.Write(new byte[] { LeadChunk.Version01, 0 });
 
             inputStream.Position = 0; // rewind position for reads.
@@ -46,13 +47,13 @@ namespace Kabomu.Tests.Common.Bodies
             var body = new ConfigurableQuasiHttpBody
             {
                 ContentType = contentType,
-                ReadBytesCallback = (mutex, data, offset, length, cb) =>
+                ReadBytesCallback = async (data, offset, length) =>
                 {
                     int bytesRead = 0;
                     Exception e = null;
                     if (endOfInputSeen)
                     {
-                        e = new Exception("END");
+                        throw new Exception("END");
                     }
                     else
                     {
@@ -62,62 +63,62 @@ namespace Kabomu.Tests.Common.Bodies
                             endOfInputSeen = true;
                         }
                     }
-                    cb.Invoke(e, bytesRead);
+                    return bytesRead;
                 }
             };
             return body;
         }
 
         [Fact]
-        public void TestEmptyRead()
+        public async Task TestEmptyRead()
         {
             // arrange.
             var dataList = new string[0];
             var wrappedBody = CreateWrappedBody(null, dataList);
             var closed = false;
-            Action closeCb = () => closed = true;
-            var instance = new ChunkDecodingBody(wrappedBody, closeCb);
+            Func<Task> closeCb = async () => closed = true;
+            var instance = new ChunkDecodingBody(wrappedBody, 100, closeCb);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, null,
+            await CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, null,
                 new int[0], null, new byte[0]);
             Assert.True(closed);
         }
 
         [Fact]
-        public void TestNonEmptyRead()
+        public async Task TestNonEmptyRead()
         {
             // arrange.
             var dataList = new string[] { "car", " ", "seat" };
             var wrappedBody = CreateWrappedBody("text/xml", dataList);
             var closed = false;
-            Action closeCb = () => closed = true;
-            var instance = new ChunkDecodingBody(wrappedBody, closeCb);
+            Func<Task> closeCb = async () => closed = true;
+            var instance = new ChunkDecodingBody(wrappedBody, 100, closeCb);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(4, instance, -1, "text/xml",
+            await CommonBodyTestRunner.RunCommonBodyTest(4, instance, -1, "text/xml",
                 new int[] { 3, 1, 4 }, null, Encoding.UTF8.GetBytes("car seat"));
             Assert.True(closed);
         }
 
         [Fact]
-        public void TestNonEmptyRead2()
+        public async Task TestNonEmptyRead2()
         {
             // arrange.
             var dataList = new string[] { "car", " ", "seat" };
             var wrappedBody = CreateWrappedBody("text/csv", dataList);
             var closed = false;
-            Action closeCb = () => closed = true;
-            var instance = new ChunkDecodingBody(wrappedBody, closeCb);
+            Func<Task> closeCb = async () => closed = true;
+            var instance = new ChunkDecodingBody(wrappedBody, 100, closeCb);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(1, instance, -1, "text/csv",
+            await CommonBodyTestRunner.RunCommonBodyTest(1, instance, -1, "text/csv",
                 new int[] { 1, 1, 1, 1, 1, 1, 1, 1 }, null, Encoding.UTF8.GetBytes("car seat"));
             Assert.True(closed);
         }
 
         [Fact]
-        public void TestReadWithTransportError()
+        public Task TestReadWithTransportError()
         {
             // arrange.
             var dataList = new string[] { "de", "a" };
@@ -125,7 +126,7 @@ namespace Kabomu.Tests.Common.Bodies
             var wrappedBody = new ConfigurableQuasiHttpBody
             {
                 ContentType = "image/gif",
-                ReadBytesCallback = (mutex, data, offset, length, cb) =>
+                ReadBytesCallback = async (data, offset, length) =>
                 {
                     Exception e = null;
                     int bytesRead = 0;
@@ -133,8 +134,9 @@ namespace Kabomu.Tests.Common.Bodies
                     {
                         case 0:
                             data[offset] = 0;
-                            data[offset + 1] = 4;
-                            bytesRead = 2;
+                            data[offset + 1] = 0;
+                            data[offset + 2] = 4;
+                            bytesRead = 3;
                             break;
                         case 1:
                             data[offset] = LeadChunk.Version01;
@@ -145,8 +147,9 @@ namespace Kabomu.Tests.Common.Bodies
                             break;
                         case 2:
                             data[offset] = 0;
-                            data[offset + 1] = 3;
-                            bytesRead = 2;
+                            data[offset + 1] = 0;
+                            data[offset + 2] = 3;
+                            bytesRead = 3;
                             break;
                         case 3:
                             data[offset] = LeadChunk.Version01;
@@ -155,29 +158,32 @@ namespace Kabomu.Tests.Common.Bodies
                             bytesRead = 3;
                             break;
                         default:
-                            e = new Exception("END");
-                            break;
+                            throw new Exception("END");
                     }
                     readIndex++;
-                    cb.Invoke(e, bytesRead);
+                    return bytesRead;
                 }
             };
-            var instance = new ChunkDecodingBody(wrappedBody, null);
+            var instance = new ChunkDecodingBody(wrappedBody, 100, null);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "image/gif",
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "image/gif",
                 new int[] { 2, 1 }, "END", null);
         }
 
         [Fact]
-        public void TestForArgumentErrors()
+        public Task TestForArgumentErrors()
         {
             Assert.Throws<ArgumentException>(() =>
             {
-                new ChunkDecodingBody(null, () => { });
+                new ChunkDecodingBody(null, 100, async () => { });
             });
-            var instance = new ChunkDecodingBody(CreateWrappedBody(null, new string[0]), () => { });
-            CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
+            Assert.Throws<ArgumentException>(() =>
+            {
+                new ChunkDecodingBody(null, 0, async () => { });
+            });
+            var instance = new ChunkDecodingBody(CreateWrappedBody(null, new string[0]), 100, async () => { });
+            return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }
 }

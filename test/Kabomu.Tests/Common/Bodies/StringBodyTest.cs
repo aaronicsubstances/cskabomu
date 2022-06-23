@@ -3,6 +3,7 @@ using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.Common.Bodies
@@ -10,36 +11,36 @@ namespace Kabomu.Tests.Common.Bodies
     public class StringBodyTest
     {
         [Fact]
-        public void TestEmptyRead()
+        public Task TestEmptyRead()
         {
             // arrange.
             var instance = new StringBody("", "text/csv");
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "text/csv",
+            return CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "text/csv",
                 new int[0], null, new byte[0]);
         }
 
         [Fact]
-        public void TestNonEmptyRead()
+        public Task TestNonEmptyRead()
         {
             // arrange.
             var instance = new StringBody("Ab2", null);
 
             // act and assert.
-            CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/plain",
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/plain",
                 new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
         }
 
         [Fact]
-        public void TestForArgumentErrors()
+        public Task TestForArgumentErrors()
         {
             Assert.Throws<ArgumentException>(() =>
             {
                 new StringBody(null, null);
             });
             var instance = new StringBody("c2", null);
-            CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
+            return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }
 }

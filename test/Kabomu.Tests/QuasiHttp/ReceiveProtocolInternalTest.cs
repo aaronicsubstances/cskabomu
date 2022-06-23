@@ -12,7 +12,7 @@ using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp
 {
-    public class ReceiveProtocolInternalTest
+    /*public class ReceiveProtocolInternalTest
     {
         [Theory]
         [MemberData(nameof(CreateTestOnReceiveData))]
@@ -270,5 +270,5 @@ namespace Kabomu.Tests.QuasiHttp
 
             return testData;
         }
-    }
+    }*/
 }

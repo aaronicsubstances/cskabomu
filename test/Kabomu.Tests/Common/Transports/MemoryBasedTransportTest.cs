@@ -10,7 +10,7 @@ using Xunit.Abstractions;
 
 namespace Kabomu.Tests.Common.Transports
 {
-    public class MemoryBasedTransportTest
+    /*public class MemoryBasedTransportTest
     {
         private readonly ITestOutputHelper _outputHelper;
 
@@ -579,5 +579,5 @@ namespace Kabomu.Tests.Common.Transports
                 throw new NotImplementedException();
             }
         }
-    }
+    }*/
 }
