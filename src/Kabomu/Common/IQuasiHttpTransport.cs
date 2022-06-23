@@ -8,11 +8,11 @@ namespace Kabomu.Common
     public interface IQuasiHttpTransport
     {
         int MaxChunkSize { get; }
-        Task<object> AllocateConnection(object remoteEndpoint);
+        Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest);
         Task ReleaseConnection(object connection, bool wasReceived);
         Task WriteBytes(object connection, byte[] data, int offset, int length);
         Task<int> ReadBytes(object connection, byte[] data, int offset, int length);
-        Task<object> ReceiveConnection();
+        Task<IConnectionAllocationResponse> ReceiveConnection();
 
         /// <summary>
         /// Memory-based transports return true with a probability between 0 and 1,
@@ -22,7 +22,8 @@ namespace Kabomu.Common
         /// </summary>
         bool DirectSendRequestProcessingEnabled { get; }
 
-        Task<IQuasiHttpResponse> ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request);
+        Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
+            IConnectionAllocationRequest connectionAllocationInfo);
         Task Start();
         Task Stop();
     }

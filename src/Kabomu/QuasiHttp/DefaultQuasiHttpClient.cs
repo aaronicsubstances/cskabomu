@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Common.Transports;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -14,7 +15,7 @@ namespace Kabomu.QuasiHttp
     public class DefaultQuasiHttpClient : IQuasiHttpClient
     {
         private readonly Dictionary<object, ITransferProtocolInternal> _transfersWithConnections;
-        private readonly HashSet<ITransferProtocolInternal> _transfersWithoutConnections;
+        private readonly ISet<ITransferProtocolInternal> _transfersWithoutConnections;
         private readonly IParentTransferProtocolInternal _representative;
         private readonly object _lock = new object();
 
@@ -44,7 +45,7 @@ namespace Kabomu.QuasiHttp
             IQuasiHttpRequest request, IQuasiHttpSendOptions options)
         {
             Task<IQuasiHttpResponse> workTask;
-            Task timeoutTask;
+            Task timeoutTask = null;
             SendProtocolInternal transfer;
             lock (_lock)
             {
@@ -52,27 +53,50 @@ namespace Kabomu.QuasiHttp
                 {
                     Parent = _representative
                 };
+                int transferTimeoutMillis = 0;
+                IDictionary<string, object> requestEnvironment = null;
                 if (options != null)
                 {
-                    transfer.TimeoutMillis = options.TimeoutMillis;
+                    requestEnvironment = options.RequestEnvironment;
+                    transferTimeoutMillis = options.TimeoutMillis;
                 }
-                if (transfer.TimeoutMillis <= 0)
+                if (requestEnvironment == null)
                 {
-                    transfer.TimeoutMillis = DefaultTimeoutMillis;
+                    requestEnvironment = new Dictionary<string, object>();
+                }
+                if (transferTimeoutMillis <= 0)
+                {
+                    transferTimeoutMillis = DefaultTimeoutMillis;
                 }
                 _transfersWithoutConnections.Add(transfer);
-                timeoutTask = SetResponseTimeout(transfer);
+                if (transferTimeoutMillis > 0)
+                {
+                    timeoutTask = SetResponseTimeout(transfer, transferTimeoutMillis);
+                }
+                var connectionAllocationRequest = new DefaultConnectionAllocationRequest
+                {
+                    RemoteEndpoint = remoteEndpoint,
+                    Environment = requestEnvironment
+                };
                 if (Transport.DirectSendRequestProcessingEnabled)
                 {
-                    workTask = ProcessSendRequestDirectly(remoteEndpoint, transfer, request);
+                    workTask = ProcessSendRequestDirectly(connectionAllocationRequest, transfer, request);
                 }
                 else
                 {
-                    workTask = AllocateConnection(remoteEndpoint, transfer, request);
+                    workTask = AllocateConnection(connectionAllocationRequest, transfer, request);
                 }
             }
             ExceptionDispatchInfo capturedError = null;
-            var firstCompletedTask = await Task.WhenAny(timeoutTask, workTask);
+            Task firstCompletedTask;
+            if (timeoutTask != null)
+            {
+                firstCompletedTask = await Task.WhenAny(timeoutTask, workTask);
+            }
+            else
+            {
+                firstCompletedTask = workTask;
+            }
             try
             {
                 await firstCompletedTask;
@@ -102,10 +126,11 @@ namespace Kabomu.QuasiHttp
             return await workTask;
         }
 
-        private async Task<IQuasiHttpResponse> ProcessSendRequestDirectly(object remoteEndpoint,
+        private async Task<IQuasiHttpResponse> ProcessSendRequestDirectly(
+            IConnectionAllocationRequest connectionAllocationRequest,
             ITransferProtocolInternal transfer, IQuasiHttpRequest request)
         {
-            IQuasiHttpResponse res = await Transport.ProcessSendRequest(remoteEndpoint, request);
+            IQuasiHttpResponse res = await Transport.ProcessSendRequest(request, connectionAllocationRequest);
 
             Task abortTask;
             lock (_lock)
@@ -127,10 +152,11 @@ namespace Kabomu.QuasiHttp
             return res;
         }
 
-        private async Task<IQuasiHttpResponse> AllocateConnection(object remoteEndpoint,
+        private async Task<IQuasiHttpResponse> AllocateConnection(
+            IConnectionAllocationRequest connectionAllocationRequest,
             SendProtocolInternal transfer, IQuasiHttpRequest request)
         {
-            object connection = await Transport.AllocateConnection(remoteEndpoint);
+            object connection = await Transport.AllocateConnection(connectionAllocationRequest);
 
             lock (_lock)
             {
@@ -174,10 +200,10 @@ namespace Kabomu.QuasiHttp
             await Task.WhenAll(tasks);
         }
 
-        private Task SetResponseTimeout(ITransferProtocolInternal transfer)
+        private Task SetResponseTimeout(ITransferProtocolInternal transfer, int transferTimeoutMillis)
         {
             transfer.TimeoutCancellationHandle = new CancellationTokenSource();
-            return EventLoop.SetTimeout<Task>(transfer.TimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
+            return EventLoop.SetTimeout<Task>(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
                 throw new Exception("send timeout"));
         }
 

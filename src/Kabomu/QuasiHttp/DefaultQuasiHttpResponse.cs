@@ -15,11 +15,11 @@ namespace Kabomu.QuasiHttp
         public IQuasiHttpBody Body { get; set; }
         public int HttpStatusCode { get; set; }
         public string HttpVersion { get; set; }
-        public async Task Abandon(Exception e)
+        public async Task CloseAsync()
         {
             if (Body != null)
             {
-                await Body.EndRead(e);
+                await Body.EndRead(null);
             }
         }
     }
