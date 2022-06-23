@@ -16,7 +16,6 @@ namespace Kabomu.Common.Transports
         public MemoryBasedTransportHub Hub { get; set; }
         public double DirectSendRequestProcessingProbability { get; set; }
         public IQuasiHttpApplication Application { get; set; }
-        public int MaxChunkSize { get; set; } = 8_192;
 
         public bool DirectSendRequestProcessingEnabled
         {

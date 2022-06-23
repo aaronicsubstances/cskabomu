@@ -1,11 +1,12 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp;
+using Kabomu.Common.Transports;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Examples.Shared
 {
@@ -16,108 +17,63 @@ namespace Kabomu.Examples.Shared
         public LocalhostTcpTransport(int port)
         {
             _tcpServer = new TcpListener(IPAddress.Loopback, port);
-            MaxChunkSize = 8192;
         }
-
-        public int MaxChunkSize { get; set; }
 
         public bool DirectSendRequestProcessingEnabled => false;
 
-        public KabomuQuasiHttpClient Upstream { get; set; }
-
-        public UncaughtErrorCallback ErrorHandler { get; set; }
-
-        public async void Start()
+        public async Task Start()
         {
             _tcpServer.Start();
-            while (true)
-            {
-                try
-                {
-                    var tcpClient = await _tcpServer.AcceptTcpClientAsync();
-                    tcpClient.NoDelay = true;
-                    Upstream.OnReceive(tcpClient);
-                }
-                catch (Exception e)
-                {
-                    if (e is ObjectDisposedException)
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        ErrorHandler?.Invoke(e, "error encountered during receiving");
-                    }
-                }
-            }
         }
 
-        public void Stop()
+        public async Task Stop()
         {
             _tcpServer.Stop();
         }
 
-        public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request, 
-            Action<Exception, IQuasiHttpResponse> cb)
+        public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
+            IConnectionAllocationRequest connectionAllocationInfo)
         {
             throw new NotImplementedException();
         }
 
-        public async void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb)
+        public async Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest)
         {
-            int port = (int)remoteEndpoint;
+            int port = (int)connectionRequest.RemoteEndpoint;
             var tcpClient = new TcpClient();
             tcpClient.NoDelay = true;
-            try
-            {
-                await tcpClient.ConnectAsync("localhost", port);
-            }
-            catch (Exception e)
-            {
-                tcpClient.Dispose();
-                cb.Invoke(e, null);
-                return;
-            }
-            cb.Invoke(null, tcpClient);
+            await tcpClient.ConnectAsync("localhost", port);
+            return tcpClient;
         }
 
-        public void OnReleaseConnection(object connection)
+        public async Task ReleaseConnection(object connection, bool wasReceived)
         {
             var tcpClient = (TcpClient)connection;
             tcpClient.Dispose();
         }
 
-        public async void WriteBytes(object connection, byte[] data, int offset, int length, Action<Exception> cb)
+        public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
             var tcpClient = (TcpClient)connection;
             Stream networkStream = tcpClient.GetStream();
-            try
-            {
-                await networkStream.WriteAsync(data, offset, length);
-            }
-            catch (Exception e)
-            {
-                cb.Invoke(e);
-                return;
-            }
-            cb.Invoke(null);
+            return networkStream.WriteAsync(data, offset, length);
         }
 
-        public async void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
+        public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
             var tcpClient = (TcpClient)connection;
             Stream networkStream = tcpClient.GetStream();
-            int bytesRead;
-            try
+            return networkStream.ReadAsync(data, offset, length);
+        }
+
+        public async Task<IConnectionAllocationResponse> ReceiveConnection()
+        {
+            var tcpClient = await _tcpServer.AcceptTcpClientAsync();
+            tcpClient.NoDelay = true;
+            return new DefaultConnectionAllocationResponse
             {
-                bytesRead = await networkStream.ReadAsync(data, offset, length);
-            }
-            catch (Exception e)
-            {
-                cb.Invoke(e, 0);
-                return;
-            }
-            cb.Invoke(null, bytesRead);
+                Connection = tcpClient
+            };
         }
     }
 }

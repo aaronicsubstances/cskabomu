@@ -1,5 +1,5 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp;
+using Kabomu.Common.Transports;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,106 +19,61 @@ namespace Kabomu.Examples.Shared
         {
             _path = path;
             _startCancelled = new CancellationTokenSource();
-            MaxChunkSize = 8192;
         }
-
-        public int MaxChunkSize { get; set; }
 
         public bool DirectSendRequestProcessingEnabled => false;
 
-        public KabomuQuasiHttpClient Upstream { get; set; }
-
-        public UncaughtErrorCallback ErrorHandler { get; set; }
-
-        public async void Start()
+        public async Task Start()
         {
-            while (!_startCancelled.IsCancellationRequested)
-            {
-                try
-                {
-                    var pipeServer = new NamedPipeServerStream(_path, PipeDirection.InOut,
-                        NamedPipeServerStream.MaxAllowedServerInstances,
-                        PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-                    await pipeServer.WaitForConnectionAsync(_startCancelled.Token);
-                    Upstream.OnReceive(pipeServer);
-                }
-                catch (Exception e)
-                {
-                    if (e is TaskCanceledException)
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        ErrorHandler?.Invoke(e, "error encountered during receiving");
-                    }
-                }
-            }
         }
 
-        public void Stop()
+        public async Task Stop()
         {
             _startCancelled.Cancel();
         }
 
-        public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request,
-            Action<Exception, IQuasiHttpResponse> cb)
+        public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
+            IConnectionAllocationRequest connectionAllocationInfo)
         {
             throw new NotImplementedException();
         }
 
-        public async void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb)
+        public async Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest)
         {
-            var path = (string)remoteEndpoint;
+            var path = (string)connectionRequest.RemoteEndpoint;
             var pipeClient = new NamedPipeClientStream(".", path, PipeDirection.InOut, PipeOptions.Asynchronous);
-            try
-            {
-                await pipeClient.ConnectAsync(_startCancelled.Token);
-            }
-            catch (Exception e)
-            {
-                pipeClient.Dispose();
-                cb.Invoke(e, null);
-                return;
-            }
-            cb.Invoke(null, pipeClient);
+            await pipeClient.ConnectAsync(_startCancelled.Token);
+            return pipeClient;
         }
 
-        public void OnReleaseConnection(object connection)
+        public async Task ReleaseConnection(object connection, bool wasReceived)
         {
             var pipeStream = (PipeStream)connection;
             pipeStream.Dispose();
         }
 
-        public async void WriteBytes(object connection, byte[] data, int offset, int length, Action<Exception> cb)
+        public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
             var networkStream = (PipeStream)connection;
-            try
-            {
-                await networkStream.WriteAsync(data, offset, length);
-            }
-            catch (Exception e)
-            {
-                cb.Invoke(e);
-                return;
-            }
-            cb.Invoke(null);
+            return networkStream.WriteAsync(data, offset, length);
         }
 
-        public async void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
+        public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
             var networkStream = (PipeStream)connection;
-            int bytesRead;
-            try
+            return networkStream.ReadAsync(data, offset, length);
+        }
+
+        public async Task<IConnectionAllocationResponse> ReceiveConnection()
+        {
+            var pipeServer = new NamedPipeServerStream(_path, PipeDirection.InOut,
+                NamedPipeServerStream.MaxAllowedServerInstances,
+                PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+            await pipeServer.WaitForConnectionAsync(_startCancelled.Token);
+            return new DefaultConnectionAllocationResponse
             {
-                bytesRead = await networkStream.ReadAsync(data, offset, length);
-            }
-            catch (Exception e)
-            {
-                cb.Invoke(e, 0);
-                return;
-            }
-            cb.Invoke(null, bytesRead);
+                Connection = pipeServer
+            };
         }
     }
 }

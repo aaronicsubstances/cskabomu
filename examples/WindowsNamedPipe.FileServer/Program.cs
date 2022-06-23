@@ -1,5 +1,6 @@
 ﻿using CommandLine;
 using Kabomu.Common;
+using Kabomu.Common.Concurrency;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using NLog;
@@ -33,37 +34,24 @@ namespace WindowsNamedPipe.FileServer
 
         static async Task RunMain(string path, string uploadDirPath)
         {
-            var eventLoop = new DefaultEventLoopApi
+            var eventLoop = new DefaultEventLoopApi();
+            var transport = new WindowsNamedPipeTransport(path);
+            UncaughtErrorCallback errorHandler = (e, m) =>
             {
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Event Loop error! {0}: {1}", m, e);
-                }
+                LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
             };
-            var windowsNamedPipeTransport = new WindowsNamedPipeTransport(path)
+            var instance = new DefaultQuasiHttpServer
             {
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Transport error! {0}: {1}", m, e);
-                }
-            };
-            var instance = new KabomuQuasiHttpClient
-            {
-                DefaultTimeoutMillis = 5_000,
+                OverallReqRespTimeoutMillis = 5_000,
+                Transport = transport,
                 EventLoop = eventLoop,
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
-                }
+                ErrorHandler = errorHandler
             };
-            windowsNamedPipeTransport.Upstream = instance;
-            instance.Transport = windowsNamedPipeTransport;
-
-            instance.Application = new FileReceiver(path, uploadDirPath, eventLoop);
+            instance.Application = new FileReceiver(path, uploadDirPath);
 
             try
             {
-                windowsNamedPipeTransport.Start();
+                await instance.Start();
                 LOG.Info("Started WindowsNamedPipe.FileServer at {0}", path);
 
                 Console.ReadLine();
@@ -75,7 +63,7 @@ namespace WindowsNamedPipe.FileServer
             finally
             {
                 LOG.Debug("Stopping WindowsNamedPipe.FileServer...");
-                windowsNamedPipeTransport.Stop();
+                await instance.Stop();
             }
         }
     }
