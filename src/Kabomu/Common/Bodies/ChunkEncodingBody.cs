@@ -48,7 +48,14 @@ namespace Kabomu.Common.Bodies
             var reservedBytesToUse = LengthOfEncodedChunkLength + chunkPrefixLength;
             if (bytesToRead <= reservedBytesToUse)
             {
-                throw new ArgumentException("invalid bytes to read");
+                if (bytesToRead < 0)
+                {
+                    throw new ArgumentException("invalid bytes to read");
+                }
+                else
+                {
+                    throw new ArgumentException($"require at least {reservedBytesToUse + 1} bytes to read");
+                }
             }
             bytesToRead = Math.Min(bytesToRead, _maxChunkSize);
             if (bytesToRead <= reservedBytesToUse)
