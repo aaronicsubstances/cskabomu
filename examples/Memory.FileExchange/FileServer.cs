@@ -30,9 +30,9 @@ namespace Memory.FileExchange
                 Transport = transport,
                 EventLoop = eventLoop,
                 ErrorHandler = errorHandler
-                
             };
             instance.Application = new FileReceiver(endpoint, uploadDirPath);
+            transport.Application = instance.Application;
 
             hub.Transports.Add(endpoint, transport);
             transport.Hub = hub;
