@@ -11,12 +11,11 @@ namespace Kabomu.Common.Bodies
 
         private readonly IQuasiHttpBody _wrappedBody;
         private readonly int _maxChunkSize;
-        private readonly Func<Task> _closeCallback;
         private SubsequentChunk _lastChunk;
         private int _lastChunkUsedBytes;
         private Exception _srcEndError;
 
-        public ChunkDecodingBody(IQuasiHttpBody wrappedBody, int maxChunkSize, Func<Task> closeCallback)
+        public ChunkDecodingBody(IQuasiHttpBody wrappedBody, int maxChunkSize)
         {
             if (wrappedBody == null)
             {
@@ -28,12 +27,44 @@ namespace Kabomu.Common.Bodies
             }
             _wrappedBody = wrappedBody;
             _maxChunkSize = maxChunkSize;
-            _closeCallback = closeCallback;
         }
 
         public long ContentLength => -1;
 
         public string ContentType => _wrappedBody.ContentType;
+
+        public static async Task<LeadChunk> ReadLeadChunk(IQuasiHttpTransport transport, object connection,
+            int maxChunkSize)
+        {
+            if (transport == null)
+            {
+                throw new ArgumentException("null transport");
+            }
+            byte[] encodedLength = new byte[ChunkEncodingBody.LengthOfEncodedChunkLength];
+            await TransportUtils.ReadTransportBytesFully(transport, connection,
+                encodedLength, 0, encodedLength.Length);
+
+           int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
+                encodedLength.Length);
+            ValidateChunkLength(chunkLen, maxChunkSize);
+            var chunkBytes = new byte[chunkLen];
+            await TransportUtils.ReadTransportBytesFully(transport, connection,
+                chunkBytes, 0, chunkBytes.Length);
+            
+            var chunk = LeadChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
+            return chunk;
+        }
+
+        private static void ValidateChunkLength(int chunkLen, int maxChunkSize)
+        {
+            if (chunkLen > TransportUtils.DefaultMaxChunkSizeLimit && chunkLen > maxChunkSize)
+            {
+                throw new Exception(
+                    $"received chunk size of {chunkLen} which is both larger than" +
+                    $" default limit on max chunk size ({TransportUtils.DefaultMaxChunkSizeLimit})" +
+                    $" and maximum configured chunk size of {maxChunkSize}");
+            }
+        }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
@@ -56,7 +87,7 @@ namespace Kabomu.Common.Bodies
                 {
                     return SupplyFromLastChunk(data, offset, bytesToRead);
                 }
-                readTask = TransportUtils.ReadBytesFully(_wrappedBody,
+                readTask = TransportUtils.ReadBodyBytesFully(_wrappedBody,
                     encodedLength, 0, encodedLength.Length);
             }
 
@@ -72,15 +103,9 @@ namespace Kabomu.Common.Bodies
 
                 var chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                     encodedLength.Length);
-                if (chunkLen > TransportUtils.DefaultMaxChunkSizeLimit && chunkLen > _maxChunkSize)
-                {
-                    throw new Exception(
-                        $"received chunk size of {chunkLen} which is both larger than" +
-                        $" default limit on max chunk size ({TransportUtils.DefaultMaxChunkSizeLimit})" +
-                        $" and maximum configured chunk size of {_maxChunkSize}");
-                }
+                ValidateChunkLength(chunkLen, _maxChunkSize);
                 chunkBytes = new byte[chunkLen];
-                readTask = TransportUtils.ReadBytesFully(_wrappedBody,
+                readTask = TransportUtils.ReadBodyBytesFully(_wrappedBody,
                     chunkBytes, 0, chunkBytes.Length);
             }
 
@@ -109,7 +134,7 @@ namespace Kabomu.Common.Bodies
 
         public async Task EndRead(Exception e)
         {
-            Task closeCbTask = null;
+            Task endTask = null;
             lock (_lock)
             {
                 if (_srcEndError != null)
@@ -117,16 +142,10 @@ namespace Kabomu.Common.Bodies
                     return;
                 }
                 _srcEndError = e ?? new Exception("end of read");
-                if (_closeCallback != null)
-                {
-                    closeCbTask = _closeCallback.Invoke();
-                }
+                endTask = _wrappedBody.EndRead(_srcEndError);
             }
 
-            if (closeCbTask != null)
-            {
-                await closeCbTask;
-            }
+            await endTask;
         }
     }
 }

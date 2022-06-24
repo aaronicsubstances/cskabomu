@@ -31,7 +31,7 @@ namespace Kabomu.Tests.Shared
             return AllocateConnectionCallback.Invoke(connectionAllocationRequest);
         }
 
-        public async Task ReleaseConnection(object connection, bool wasReceived)
+        public async Task ReleaseConnection(object connection)
         {
             if (ReleaseConnectionCallback != null)
             {

@@ -117,11 +117,10 @@ namespace Kabomu.QuasiHttp
                 transfer = new ReceiveProtocolInternal(_lock)
                 {
                     Parent = _representative,
-                    MaxChunkSize = MaxChunkSize,
                     Connection = connectionAllocationResponse.Connection,
                     RequestEnvironment = connectionAllocationResponse.Environment
                 };
-                transfer.MaxChunkSize = ProtocolUtils.DetermineEffectiveMaxChunkSize(
+                transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(
                     null, null, MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
                 _transfers.Add(transfer.Connection, transfer);
                 var transferTimeoutMillis = OverallReqRespTimeoutMillis;
@@ -199,7 +198,7 @@ namespace Kabomu.QuasiHttp
 
                 if (transfer.Connection != null)
                 {
-                    releaseTask = Transport.ReleaseConnection(transfer.Connection, true);
+                    releaseTask = Transport.ReleaseConnection(transfer.Connection);
                 }
             }
             if (releaseTask != null)

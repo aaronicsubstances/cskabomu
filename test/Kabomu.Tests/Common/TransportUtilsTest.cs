@@ -38,7 +38,7 @@ namespace Kabomu.Tests.Common
 
         [Theory]
         [MemberData(nameof(CreateTestReadBytesFullyData))]
-        public async Task TestReadBytesFully(
+        public async Task TestReadBodyBytesFully(
             string[] dataChunks,
             byte[] data, int offset, int bytesToRead,
             string expectedError)
@@ -69,7 +69,7 @@ namespace Kabomu.Tests.Common
             Exception actualException = null;
             try
             {
-                await TransportUtils.ReadBytesFully(body, data, offset, bytesToRead);
+                await TransportUtils.ReadBodyBytesFully(body, data, offset, bytesToRead);
             }
             catch (Exception e)
             {

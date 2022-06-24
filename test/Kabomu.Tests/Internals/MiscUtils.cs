@@ -24,7 +24,7 @@ namespace Kabomu.Tests.Internals
 
         public static Task<byte[]> ReadChunkedBody(byte[] data, int offset, int length)
         {
-            var body = new ChunkDecodingBody(new ByteBufferBody(data, offset, length, null), 100, null);
+            var body = new ChunkDecodingBody(new ByteBufferBody(data, offset, length, null), 100);
             return TransportUtils.ReadBodyToEnd(body, 100);
         }
     }

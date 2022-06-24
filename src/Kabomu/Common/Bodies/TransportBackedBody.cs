@@ -11,11 +11,13 @@ namespace Kabomu.Common.Bodies
 
         private readonly IQuasiHttpTransport _transport;
         private readonly object _connection;
+        private readonly Func<Task> _closeCallback;
         private long _contentLength;
         private long _bytesRemaining;
         private Exception _srcEndError;
 
-        public TransportBackedBody(IQuasiHttpTransport transport, object connection)
+        public TransportBackedBody(IQuasiHttpTransport transport, object connection,
+             Func<Task> closeCallback, long contentLength, string contentType)
         {
             if (transport == null)
             {
@@ -23,28 +25,19 @@ namespace Kabomu.Common.Bodies
             }
             _transport = transport;
             _connection = connection;
-        }
-
-        public long ContentLength
-        {
-            get
+            _closeCallback = closeCallback;
+            ContentType = contentType;
+            ContentLength = contentLength;
+            _bytesRemaining = -1;
+            if (_contentLength >= 0)
             {
-                return _contentLength;
-            }
-            set
-            {
-                _contentLength = value;
-                _bytesRemaining = -1;
-                if (_contentLength >= 0)
-                {
-                    _bytesRemaining = _contentLength;
-                }
+                _bytesRemaining = contentLength;
             }
         }
 
-        public string ContentType { get; internal set; }
+        public long ContentLength { get; private set; }
 
-        internal Func<Task> CloseCallback { get; set; }
+        public string ContentType { get; private set; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
@@ -104,9 +97,9 @@ namespace Kabomu.Common.Bodies
                 }
 
                 _srcEndError = e ?? new Exception("end of read");
-                if (CloseCallback != null)
+                if (_closeCallback != null)
                 {
-                    closeCbTask = CloseCallback.Invoke();
+                    closeCbTask = _closeCallback.Invoke();
                 }
             }
 

@@ -46,7 +46,7 @@ namespace Kabomu.Examples.Shared
             return tcpClient;
         }
 
-        public async Task ReleaseConnection(object connection, bool wasReceived)
+        public async Task ReleaseConnection(object connection)
         {
             var tcpClient = (TcpClient)connection;
             tcpClient.Dispose();
