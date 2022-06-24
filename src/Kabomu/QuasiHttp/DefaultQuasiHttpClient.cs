@@ -100,10 +100,6 @@ namespace Kabomu.QuasiHttp
             Task abortTask = null;
             lock (_lock)
             {
-                if (transfer.IsAborted)
-                {
-                    return null;
-                }
                 if (capturedError != null)
                 {
                     abortTask = AbortTransfer(transfer, capturedError.SourceException);

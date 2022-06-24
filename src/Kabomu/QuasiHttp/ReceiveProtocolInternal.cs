@@ -146,8 +146,12 @@ namespace Kabomu.QuasiHttp
                 {
                     return;
                 }
-                if (response.Body != null)
+                if (_responseBody != null)
                 {
+                    if (_responseBody.ContentLength < 0)
+                    {
+                        _responseBody = new ChunkEncodingBody(_responseBody, MaxChunkSize);
+                    }
                     bodyTransferTask = TransportUtils.TransferBodyToTransport(Parent.Transport,
                         Connection, _responseBody, MaxChunkSize);
                 }
