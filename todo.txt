@@ -2,7 +2,6 @@ remaining
 ==========
 -transportutils - readtransportbytesfully, readtransporttoend
 -chunkdecodingbody - readleadchunk
--protocolutilsinternal
 -ReceiveProtocolInternal
 -SendProtocolInternal
 -MemoryBasedTransport
