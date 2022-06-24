@@ -8,7 +8,7 @@ namespace Kabomu.Common
     public interface IQuasiHttpTransport
     {
         Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest);
-        Task ReleaseConnection(object connection, bool wasReceived);
+        Task ReleaseConnection(object connection);
         Task WriteBytes(object connection, byte[] data, int offset, int length);
         Task<int> ReadBytes(object connection, byte[] data, int offset, int length);
         Task<IConnectionAllocationResponse> ReceiveConnection();

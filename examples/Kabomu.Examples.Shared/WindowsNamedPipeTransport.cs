@@ -46,7 +46,7 @@ namespace Kabomu.Examples.Shared
             return pipeClient;
         }
 
-        public async Task ReleaseConnection(object connection, bool wasReceived)
+        public async Task ReleaseConnection(object connection)
         {
             var pipeStream = (PipeStream)connection;
             pipeStream.Dispose();

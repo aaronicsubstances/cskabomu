@@ -156,7 +156,7 @@ namespace Kabomu.Common.Transports
             pendingReceiveConnectionRequest.Callback.SetResult(connectionAllocationResponse);
         }
 
-        public async Task ReleaseConnection(object connection, bool wasReceived)
+        public async Task ReleaseConnection(object connection)
         {
             Task releaseTask = null;
             lock (_lock)

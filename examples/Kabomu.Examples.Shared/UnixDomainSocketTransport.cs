@@ -51,7 +51,7 @@ namespace Kabomu.Examples.Shared
             return socket;
         }
 
-        public async Task ReleaseConnection(object connection, bool wasReceived)
+        public async Task ReleaseConnection(object connection)
         {
             var socket = (Socket)connection;
             socket.Dispose();

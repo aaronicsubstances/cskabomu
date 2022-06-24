@@ -8,7 +8,7 @@ namespace Kabomu.Common.Bodies
     public class ChunkEncodingBody : IQuasiHttpBody
     {
         internal static readonly int LengthOfEncodedChunkLength = 3;
-        public static readonly int MaxChunkSizeLimit= 1 << (8 * LengthOfEncodedChunkLength) - 1;
+        public static readonly int HardMaxChunkSizeLimit = 1 << (8 * LengthOfEncodedChunkLength) - 1;
 
         private readonly object _lock = new object();
 
@@ -26,9 +26,9 @@ namespace Kabomu.Common.Bodies
             {
                 throw new ArgumentException("max chunk size must be positive. received: " + maxChunkSize);
             }
-            if (maxChunkSize > MaxChunkSizeLimit)
+            if (maxChunkSize > HardMaxChunkSizeLimit)
             {
-                throw new ArgumentException($"max chunk size cannot exceed {MaxChunkSizeLimit}. received: {maxChunkSize}");
+                throw new ArgumentException($"max chunk size cannot exceed {HardMaxChunkSizeLimit}. received: {maxChunkSize}");
             }
             _wrappedBody = wrappedBody;
             _maxChunkSize = maxChunkSize;
@@ -37,6 +37,38 @@ namespace Kabomu.Common.Bodies
         public long ContentLength => -1;
 
         public string ContentType => _wrappedBody.ContentType;
+
+        public static async Task WriteLeadChunk(IQuasiHttpTransport transport, object connection,
+            int maxChunkSize, LeadChunk chunk)
+        {
+            if (transport == null)
+            {
+                throw new ArgumentException("null transport");
+            }
+            if (chunk == null)
+            {
+                throw new ArgumentException("null chunk");
+            }
+            var slices = chunk.Serialize();
+            int byteCount = 0;
+            foreach (var slice in slices)
+            {
+                byteCount += slice.Length;
+            }
+            if (byteCount > maxChunkSize)
+            {
+                throw new ArgumentException($"headers larger than max chunk size of {maxChunkSize}");
+            }
+            if (byteCount > HardMaxChunkSizeLimit)
+            {
+                throw new ArgumentException($"headers larger than max chunk size limit of {HardMaxChunkSizeLimit}");
+            }
+            var encodedLength = new byte[LengthOfEncodedChunkLength];
+            ByteUtils.SerializeUpToInt64BigEndian(byteCount, encodedLength, 0,
+                encodedLength.Length);
+            await transport.WriteBytes(connection, encodedLength, 0, encodedLength.Length);
+            await TransportUtils.WriteByteSlices(transport, connection, slices);
+        }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {

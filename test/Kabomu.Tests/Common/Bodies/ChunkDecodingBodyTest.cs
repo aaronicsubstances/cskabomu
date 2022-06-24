@@ -75,14 +75,11 @@ namespace Kabomu.Tests.Common.Bodies
             // arrange.
             var dataList = new string[0];
             var wrappedBody = CreateWrappedBody(null, dataList);
-            var closed = false;
-            Func<Task> closeCb = async () => closed = true;
-            var instance = new ChunkDecodingBody(wrappedBody, 100, closeCb);
+            var instance = new ChunkDecodingBody(wrappedBody, 100);
 
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, null,
                 new int[0], null, new byte[0]);
-            Assert.True(closed);
         }
 
         [Fact]
@@ -91,14 +88,11 @@ namespace Kabomu.Tests.Common.Bodies
             // arrange.
             var dataList = new string[] { "car", " ", "seat" };
             var wrappedBody = CreateWrappedBody("text/xml", dataList);
-            var closed = false;
-            Func<Task> closeCb = async () => closed = true;
-            var instance = new ChunkDecodingBody(wrappedBody, 100, closeCb);
+            var instance = new ChunkDecodingBody(wrappedBody, 100);
 
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(4, instance, -1, "text/xml",
                 new int[] { 3, 1, 4 }, null, Encoding.UTF8.GetBytes("car seat"));
-            Assert.True(closed);
         }
 
         [Fact]
@@ -107,14 +101,11 @@ namespace Kabomu.Tests.Common.Bodies
             // arrange.
             var dataList = new string[] { "car", " ", "seat" };
             var wrappedBody = CreateWrappedBody("text/csv", dataList);
-            var closed = false;
-            Func<Task> closeCb = async () => closed = true;
-            var instance = new ChunkDecodingBody(wrappedBody, 100, closeCb);
+            var instance = new ChunkDecodingBody(wrappedBody, 100);
 
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(1, instance, -1, "text/csv",
                 new int[] { 1, 1, 1, 1, 1, 1, 1, 1 }, null, Encoding.UTF8.GetBytes("car seat"));
-            Assert.True(closed);
         }
 
         [Fact]
@@ -164,7 +155,7 @@ namespace Kabomu.Tests.Common.Bodies
                     return bytesRead;
                 }
             };
-            var instance = new ChunkDecodingBody(wrappedBody, 100, null);
+            var instance = new ChunkDecodingBody(wrappedBody, 100);
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "image/gif",
@@ -176,13 +167,13 @@ namespace Kabomu.Tests.Common.Bodies
         {
             Assert.Throws<ArgumentException>(() =>
             {
-                new ChunkDecodingBody(null, 100, async () => { });
+                new ChunkDecodingBody(null, 100);
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                new ChunkDecodingBody(null, 0, async () => { });
+                new ChunkDecodingBody(null, 0);
             });
-            var instance = new ChunkDecodingBody(CreateWrappedBody(null, new string[0]), 100, async () => { });
+            var instance = new ChunkDecodingBody(CreateWrappedBody(null, new string[0]), 100);
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }

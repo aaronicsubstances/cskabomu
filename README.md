@@ -20,7 +20,8 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 1. Quasi Web transport wrapper: connection-oriented, byte-oriented.
 
-1. Quasi Web transports: memory, localhost TCP, unix domain socket, windows named pipe.
+1. Quasi Web transports: memory, localhost TCP, unix domain socket, windows named pipe, HTTP.
+   1. *Support for HTTP makes it possible to use Kabomu with any Web application framework, as well as with any HTTP client library.*
 
 3. Multithreading strategy: event loop
 

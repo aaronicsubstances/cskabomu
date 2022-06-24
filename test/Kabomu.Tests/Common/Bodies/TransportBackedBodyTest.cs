@@ -50,8 +50,7 @@ namespace Kabomu.Tests.Common.Bodies
             var connection = "wer";
             var dataList = new string[0];
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection);
-            instance.ContentType = "text/csv";
+            var instance = new TransportBackedBody(transport, connection, null, 0, "text/csv");
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "text/csv",
@@ -65,15 +64,13 @@ namespace Kabomu.Tests.Common.Bodies
             object connection = null;
             var dataList = new string[] { "Ab", "2" };
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection);
-            instance.ContentType = "text/plain";
-            instance.ContentLength = -1;
             var closed = false;
-            instance.CloseCallback = async () =>
+            Func<Task> closeCb = async () =>
             {
                 Assert.False(closed);
                 closed = true;
             };
+            var instance = new TransportBackedBody(transport, connection, closeCb, -1, "text/plain");
 
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/plain",
@@ -86,13 +83,13 @@ namespace Kabomu.Tests.Common.Bodies
         {
             // arrange.
             var transport = new ConfigurableQuasiHttpTransport();
-            var instance = new TransportBackedBody(transport, "hn");
             var closed = false;
-            instance.CloseCallback = async () =>
+            Func<Task> closeCb = async () =>
             {
                 Assert.False(closed);
                 closed = true;
             };
+            var instance = new TransportBackedBody(transport, "hn", closeCb, 0, null);
 
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(2, instance, 0, null,
@@ -121,15 +118,13 @@ namespace Kabomu.Tests.Common.Bodies
                     return Task.FromResult(srcBytes.Length);
                 }
             };
-            var instance = new TransportBackedBody(transport, connection);
-            instance.ContentType = null;
-            instance.ContentLength = 5;
             var closed = false;
-            instance.CloseCallback = async () =>
+            Func<Task> closeCb = async () =>
             {
                 Assert.False(closed);
                 closed = true;
             };
+            var instance = new TransportBackedBody(transport, connection, closeCb, 5, null);
 
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(2, instance, 5, null,
@@ -142,13 +137,11 @@ namespace Kabomu.Tests.Common.Bodies
         {
             Assert.Throws<ArgumentException>(() =>
             {
-                new TransportBackedBody(null, null);
+                new TransportBackedBody(null, null, null, 0, null);
             });
             var dataList = new string[] { "c", "2" };
             var transport = CreateTransport(null, dataList);
-            var instance = new TransportBackedBody(transport, null);
-            instance.ContentType = "text/plain";
-            instance.ContentLength = 2;
+            var instance = new TransportBackedBody(transport, null, null, 2, "text/plain");
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }

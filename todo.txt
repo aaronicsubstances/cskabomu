@@ -1,6 +1,13 @@
 remaining
 ==========
-Before release....convert to Promises ie C# Tasks.
+-transportutils - readtransportbytesfully, readtransporttoend
+-chunkdecodingbody - readleadchunk
+-protocolutilsinternal
+-ReceiveProtocolInternal
+-SendProtocolInternal
+-MemoryBasedTransport
+-DefaultQuasiHttpClient
+-DefaultQuasiHttpServer
 
 default transports - create new project. Kabomu.StandardAddons
 ------------------
@@ -30,11 +37,6 @@ Create ExtendedBody interface
 -Add canreadslices and readslices - takes a maxchunksize param, and returns slices.
   - of interest to extended transport and chunk encoding body.
 -Have to still support readbytes and give ExtendedTransport the option to choose.
-
-Extension to SCGI and uWSGI
------------------------------
-Probably customize serialization of lead chunk, and enable drop-in replacements for 
-chunk decoding and encoding bodies to enable such extenisions.
 
 Release
 -------

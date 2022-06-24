@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
 {
-    internal class ProtocolUtils
+    internal class ProtocolUtilsInternal
     {
         public static int DetermineEffectiveOverallReqRespTimeoutMillis(IQuasiHttpSendOptions firstOptions,
             IQuasiHttpSendOptions fallbackOptions, int defaultValue)
@@ -80,38 +80,6 @@ namespace Kabomu.QuasiHttp
                     }
                 }
             }
-        }
-
-        public static async Task WriteLeadChunk(IQuasiHttpTransport transport, object connection, 
-            int maxChunkSize, LeadChunk chunk)
-        {
-            if (transport == null)
-            {
-                throw new ArgumentException("null transport");
-            }
-            if (chunk == null)
-            {
-                throw new ArgumentException("null chunk");
-            }
-            var slices = chunk.Serialize();
-            int byteCount = 0;
-            foreach (var slice in slices)
-            {
-                byteCount += slice.Length;
-            }
-            if (byteCount > maxChunkSize)
-            {
-                throw new ArgumentException($"headers larger than max chunk size of {maxChunkSize}");
-            }
-            if (byteCount > ChunkEncodingBody.MaxChunkSizeLimit)
-            {
-                throw new ArgumentException($"headers larger than max chunk size limit of {ChunkEncodingBody.MaxChunkSizeLimit}");
-            }
-            var encodedLength = new byte[ChunkEncodingBody.LengthOfEncodedChunkLength];
-            ByteUtils.SerializeUpToInt64BigEndian(byteCount, encodedLength, 0,
-                encodedLength.Length);
-            await transport.WriteBytes(connection, encodedLength, 0, encodedLength.Length);
-            await TransportUtils.WriteByteSlices(transport, connection, slices);
         }
     }
 }
