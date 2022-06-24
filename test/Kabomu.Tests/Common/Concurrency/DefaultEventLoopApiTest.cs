@@ -27,6 +27,7 @@ namespace Kabomu.Tests.Common.Concurrency
             var expected = new List<string>();
             var actual = new List<string>();
             var tasks = new List<Task<int>>();
+            var cancelledTasks = new List<Task>();
             int i;
             for (i = 0; i < 100; i++)
             {
@@ -40,17 +41,23 @@ namespace Kabomu.Tests.Common.Concurrency
                     return Task.FromResult(capturedIndex);
                 };
                 tasks.Add(instance.SetImmediate(CancellationToken.None, cb));
-                _ = instance.SetImmediate(cancellationTokenSource.Token, cb);
-                _ = instance.SetImmediate(cancellationTokenSource.Token, async () =>
+                cancelledTasks.Add(instance.SetImmediate(cancellationTokenSource.Token, cb));
+                cancelledTasks.Add(instance.SetImmediate(cancellationTokenSource.Token, async () =>
                 {
                     await cb.Invoke();
-                });
+                }));
             }
 
             // this should finish executing after all previous tasks have executed.
             await instance.SetImmediate(CancellationToken.None, () => Task.CompletedTask);
 
             // assert
+            // check cancellations
+            foreach (var t in cancelledTasks)
+            {
+                Assert.False(t.IsCompleted);
+            }
+
             // check for correct return values.
             i = 0;
             foreach (var task in tasks)
@@ -75,6 +82,7 @@ namespace Kabomu.Tests.Common.Concurrency
             var instance = new DefaultEventLoopApi();
             var expected = new List<string>();
             var actual = new List<string>();
+            var tasks = new List<List<Task>>();
             int i;
             for (i = 0; i < 50; i++)
             {
@@ -92,12 +100,14 @@ namespace Kabomu.Tests.Common.Concurrency
                 // Also 50 ms is more than enough to distinguish callback firing times
                 // on the common operating systems (15ms max on Windows, 10ms max on Linux).
                 int timeoutValue = 50 * i + 500;
-                _ = instance.SetTimeout(timeoutValue, cancellationTokenSource.Token, cb);
-                _ = instance.SetTimeout(timeoutValue, cancellationTokenSource.Token, cb);
-                _ = instance.SetTimeout(timeoutValue, cancellationTokenSource.Token, async () =>
+                var related = new List<Task>();
+                related.Add(instance.SetTimeout(timeoutValue, cancellationTokenSource.Token, cb));
+                related.Add(instance.SetTimeout(timeoutValue, cancellationTokenSource.Token, cb));
+                related.Add(instance.SetTimeout(timeoutValue, cancellationTokenSource.Token, async () =>
                 {
                     await cb.Invoke();
-                });
+                }));
+                tasks.Add(related);
             }
 
             Task task1 = instance.SetTimeout(3000, CancellationToken.None, () => Task.CompletedTask);
@@ -108,6 +118,23 @@ namespace Kabomu.Tests.Common.Concurrency
 
             // assert
             Assert.Equal(177, finalRes);
+
+            // check cancellations
+            foreach (var related in tasks)
+            {
+                var winner = await Task.WhenAny(related);
+                foreach (var t in related)
+                {
+                    if (t == winner)
+                    {
+                        Assert.True(t.IsCompleted);
+                    }
+                    else
+                    {
+                        Assert.False(t.IsCompleted);
+                    }
+                }
+            }
 
             // finally ensure correct ordering of execution of tasks.
             new OutputEventLogger { Logs = actual }.AssertEqual(expected, _outputHelper);

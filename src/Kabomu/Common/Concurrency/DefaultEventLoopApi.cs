@@ -24,8 +24,29 @@ namespace Kabomu.Common.Concurrency
             {
                 throw new ArgumentException("null cb");
             }
-            return PostCallback(Task.CompletedTask, cb, null, cancellationToken,
-                TaskContinuationOptions.OnlyOnRanToCompletion);
+            var tcs = new TaskCompletionSource<object>();
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return tcs.Task;
+            }
+            Func<Task> cbWrapper = async () =>
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+                try
+                {
+                    await cb.Invoke();
+                    tcs.SetResult(null);
+                }
+                catch (Exception e)
+                {
+                    tcs.SetException(e);
+                }
+            };
+            PostCallback(Task.CompletedTask, cbWrapper, null);
+            return tcs.Task;
         }
 
         public Task<T> SetImmediate<T>(CancellationToken cancellationToken, Func<Task<T>> cb)
@@ -34,8 +55,29 @@ namespace Kabomu.Common.Concurrency
             {
                 throw new ArgumentException("null cb");
             }
-            return PostCallback(Task.CompletedTask, cb, null, cancellationToken, 
-                TaskContinuationOptions.OnlyOnRanToCompletion);
+            var tcs = new TaskCompletionSource<T>();
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return tcs.Task;
+            }
+            Func<Task> cbWrapper = async () =>
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+                try
+                {
+                    T res = await cb.Invoke();
+                    tcs.SetResult(res);
+                }
+                catch (Exception e)
+                {
+                    tcs.SetException(e);
+                }
+            };
+            PostCallback(Task.CompletedTask, cbWrapper, null);
+            return tcs.Task;
         }
 
         public Task SetTimeout(int millis, CancellationToken cancellationToken, Func<Task> cb)
@@ -46,8 +88,8 @@ namespace Kabomu.Common.Concurrency
             }
             return Task.Delay(millis, cancellationToken).ContinueWith(t =>
             {
-                return PostCallback(t, cb, null, cancellationToken, TaskContinuationOptions.OnlyOnRanToCompletion);
-            }, TaskContinuationOptions.OnlyOnRanToCompletion).Unwrap();
+                return SetImmediate(cancellationToken, cb);
+            }).Unwrap();
         }
 
         public Task<T> SetTimeout<T>(int millis, CancellationToken cancellationToken, Func<Task<T>> cb)
@@ -58,54 +100,12 @@ namespace Kabomu.Common.Concurrency
             }
             return Task.Delay(millis, cancellationToken).ContinueWith(t =>
             {
-                return PostCallback(t, cb, null, cancellationToken, TaskContinuationOptions.OnlyOnRanToCompletion);
-            }, TaskContinuationOptions.OnlyOnRanToCompletion).Unwrap();
-        }
-
-        private Task<T> PostCallback<T>(Task antecedent, Func<Task<T>> successCallback,
-            Func<Exception, Task<T>> failureCallback, CancellationToken cancellationToken,
-            TaskContinuationOptions taskContinuationOptions)
-        {
-            if (antecedent == null)
-            {
-                throw new ArgumentException("null antecedent task");
-            }
-            Func<Task, Task<T>> continuation = t =>
-            {
-                if (t.IsCompletedSuccessfully)
-                {
-                    if (successCallback != null)
-                    {
-                        return successCallback.Invoke();
-                    }
-                    else
-                    {
-                        return Task.FromResult(default(T));
-                    }
-                }
-                else
-                {
-                    if (failureCallback != null)
-                    {
-                        return failureCallback.Invoke(SimplifyAggregateException(t.Exception));
-                    }
-                    else
-                    {
-                        return CreateEquivalentFailureTask<T>(t.Exception);
-                    }
-                }
-            };
-
-            // Hide custom task scheduler to make continuation tasks work seamlessly with async/await syntax,
-            // which uses the default task scheduler.
-            return antecedent.ContinueWith(continuation, cancellationToken,
-                taskContinuationOptions | TaskContinuationOptions.DenyChildAttach | TaskContinuationOptions.HideScheduler,
-                _throttledTaskScheduler).Unwrap();
+                return SetImmediate(cancellationToken, cb);
+            }).Unwrap();
         }
 
         private Task PostCallback(Task antecedent, Func<Task> successCallback,
-            Func<Exception, Task> failureCallback, CancellationToken cancellationToken, 
-            TaskContinuationOptions taskContinuationOptions)
+            Func<Exception, Task> failureCallback)
         {
             if (antecedent == null)
             {
@@ -139,8 +139,8 @@ namespace Kabomu.Common.Concurrency
 
             // Hide custom task scheduler to make continuation tasks work seamlessly with async/await syntax,
             // which uses the default task scheduler.
-            return antecedent.ContinueWith(continuation, cancellationToken,
-                taskContinuationOptions | TaskContinuationOptions.DenyChildAttach | TaskContinuationOptions.HideScheduler,
+            return antecedent.ContinueWith(continuation, CancellationToken.None,
+                TaskContinuationOptions.DenyChildAttach | TaskContinuationOptions.HideScheduler,
                 _throttledTaskScheduler).Unwrap();
         }
 
