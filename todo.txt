@@ -1,6 +1,5 @@
 remaining
 ==========
--transportutils - readtransportbytesfully, readtransporttoend
 -chunkdecodingbody - readleadchunk
 -ReceiveProtocolInternal
 -SendProtocolInternal

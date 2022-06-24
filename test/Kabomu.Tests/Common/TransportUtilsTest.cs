@@ -36,8 +36,36 @@ namespace Kabomu.Tests.Common
             return transport;
         }
 
+        private static IQuasiHttpTransport CreateTransportForDirectTransfer(object expectedConnection, string data, int maxChunkSize)
+        {
+            var srcData = Encoding.UTF8.GetBytes(data);
+            int srcDataOffset = 0;
+            bool connectionDisposed = false;
+            IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = async (actualConnection, data, offset, length) =>
+                {
+                    Assert.Equal(expectedConnection, actualConnection);
+                    Assert.False(length > maxChunkSize);
+                    if (connectionDisposed)
+                    {
+                        throw new Exception("connection disposed");
+                    }
+                    var lengthToUse = Math.Min(srcData.Length - srcDataOffset, length);
+                    Array.Copy(srcData, srcDataOffset, data, offset, lengthToUse);
+                    srcDataOffset += lengthToUse;
+                    return lengthToUse;
+                },
+                ReleaseConnectionCallback = async (actualConnection) =>
+                {
+                    connectionDisposed = true;
+                }
+            };
+            return transport;
+        }
+
         [Theory]
-        [MemberData(nameof(CreateTestReadBytesFullyData))]
+        [MemberData(nameof(CreateTestReadBodyBytesFullyData))]
         public async Task TestReadBodyBytesFully(
             string[] dataChunks,
             byte[] data, int offset, int bytesToRead,
@@ -89,7 +117,7 @@ namespace Kabomu.Tests.Common
             }
         }
 
-        public static List<object[]> CreateTestReadBytesFullyData()
+        public static List<object[]> CreateTestReadBodyBytesFullyData()
         {
             var testData = new List<object[]>();
 
@@ -122,6 +150,107 @@ namespace Kabomu.Tests.Common
             offset = 2;
             bytesToRead = 8;
             expectedError = "end of quasi http body";
+            testData.Add(new object[] { dataChunks,
+                data, offset, bytesToRead, expectedError });
+
+            dataChunks = new string[0];
+            data = new byte[10];
+            offset = 7;
+            bytesToRead = 0;
+            expectedError = null;
+            testData.Add(new object[] { dataChunks,
+                data, offset, bytesToRead, expectedError });
+
+            return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestReadTransportBytesFullyData))]
+        public async Task TestReadTransportBytesFully(
+            string[] dataChunks,
+            byte[] data, int offset, int bytesToRead,
+            string expectedError)
+        {
+            var readIndex = 0;
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = async (actualConnection, data, offset, length) =>
+                {
+                    Assert.Equal(bytesToRead, actualConnection);
+                    int nextBytesRead = 0;
+                    if (readIndex < dataChunks.Length)
+                    {
+                        var nextReadChunk = Encoding.UTF8.GetBytes(dataChunks[readIndex++]);
+                        nextBytesRead = nextReadChunk.Length;
+                        Array.Copy(nextReadChunk, 0, data, offset, nextBytesRead);
+                    }
+                    else if (readIndex == dataChunks.Length)
+                    {
+                        readIndex++;
+                    }
+                    else
+                    {
+                        throw new Exception("END");
+                    }
+                    return nextBytesRead;
+                }
+            };
+            Exception actualException = null;
+            try
+            {
+                await TransportUtils.ReadTransportBytesFully(transport, bytesToRead, data, offset, bytesToRead);
+            }
+            catch (Exception e)
+            {
+                actualException = e;
+            }
+            if (expectedError != null)
+            {
+                Assert.NotNull(actualException);
+                Assert.Equal(expectedError, actualException.Message);
+            }
+            else
+            {
+                Assert.Null(actualException);
+                string actualData = Encoding.UTF8.GetString(data, offset, bytesToRead);
+                var expectedData = string.Join("", dataChunks);
+                Assert.Equal(expectedData, actualData);
+            }
+        }
+
+        public static List<object[]> CreateTestReadTransportBytesFullyData()
+        {
+            var testData = new List<object[]>();
+
+            var dataChunks = new string[] { "car", "e" };
+            byte[] data = new byte[4];
+            int offset = 0;
+            int bytesToRead = data.Length;
+            string expectedError = null;
+            testData.Add(new object[] { dataChunks,
+                data, offset, bytesToRead, expectedError });
+
+            dataChunks = new string[] { "are" };
+            data = new byte[4];
+            offset = 1;
+            bytesToRead = 3;
+            expectedError = null;
+            testData.Add(new object[] { dataChunks,
+                data, offset, bytesToRead, expectedError });
+
+            dataChunks = new string[] { "sen", "der", "s" };
+            data = new byte[10];
+            offset = 2;
+            bytesToRead = 7;
+            expectedError = null;
+            testData.Add(new object[] { dataChunks,
+                data, offset, bytesToRead, expectedError });
+
+            dataChunks = new string[] { "123", "der", "." };
+            data = new byte[10];
+            offset = 2;
+            bytesToRead = 8;
+            expectedError = "end of transport";
             testData.Add(new object[] { dataChunks,
                 data, offset, bytesToRead, expectedError });
 
@@ -265,6 +394,80 @@ namespace Kabomu.Tests.Common
             };
             maxChunkSize = 10;
             testData.Add(new object[] { body, maxChunkSize, expectedError, data });
+
+            return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestReadTransportToEndData))]
+        public async Task TestReadTransportToEnd(object connection, IQuasiHttpTransport transport,
+            int maxChunkSize, string expectedError, string expectedData)
+        {
+            byte[] data = null;
+            Exception actualError = null;
+            try
+            {
+                data = await TransportUtils.ReadTransportToEnd(transport, connection, maxChunkSize);
+            }
+            catch (Exception e)
+            {
+                actualError = e;
+            }
+            if (expectedError == null)
+            {
+                Assert.Null(actualError);
+                var actualData = Encoding.UTF8.GetString(data);
+                Assert.Equal(expectedData, actualData);
+                Exception eofError = await Assert.ThrowsAnyAsync<Exception>(() =>
+                    transport.ReadBytes(connection, new byte[1], 0, 1));
+                Assert.Equal("connection disposed", eofError.Message);
+            }
+            else
+            {
+                Assert.NotNull(actualError);
+                Assert.Equal(expectedError, actualError.Message);
+            }
+        }
+
+        public static List<object[]> CreateTestReadTransportToEndData()
+        {
+            var testData = new List<object[]>();
+
+            var expectedData = "abcdefghijklmnopqrstuvwxyz";
+            object connection = "ty";
+            int maxChunkSize = 5;
+            IQuasiHttpTransport transport = CreateTransportForDirectTransfer(connection, expectedData, maxChunkSize);
+            string expectedError = null;
+            testData.Add(new object[] { connection, transport, maxChunkSize, expectedError, expectedData });
+
+            expectedData = "0123456789";
+            connection = null;
+            maxChunkSize = 1;
+            transport = CreateTransportForDirectTransfer(connection, expectedData, maxChunkSize);
+            expectedError = null;
+            testData.Add(new object[] { connection, transport, maxChunkSize, expectedError, expectedData });
+
+            expectedData = "";
+            connection = null;
+            maxChunkSize = 1;
+            transport = CreateTransportForDirectTransfer(connection, expectedData, maxChunkSize);
+            expectedError = null;
+            testData.Add(new object[] { connection, transport, maxChunkSize, expectedError, expectedData });
+
+            expectedData = null;
+            connection = "yread";
+            maxChunkSize = 10;
+            var capturedError = "test read error";
+            transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = (actualConnection, data, offset, length) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    throw new Exception(capturedError);
+                }
+            };
+            expectedError = capturedError;
+            testData.Add(new object[] { connection, transport, maxChunkSize, expectedError, expectedData });
 
             return testData;
         }
