@@ -52,11 +52,11 @@ namespace Kabomu.QuasiHttp
             return  secondFallback > 0 ? secondFallback : defaultValue;
         }
 
-        public static void DetermineEffectiveRequestEnvironment(
-            IDictionary<string, object> dest,
+        public static IDictionary<string, object> DetermineEffectiveRequestEnvironment(
             IQuasiHttpSendOptions firstOptions,
             IQuasiHttpSendOptions fallbackOptions)
         {
+            var dest = new Dictionary<string, object>();
             // since we want first options to overwrite fall back options,
             // set fall back options first.
             if (fallbackOptions?.RequestEnvironment != null)
@@ -80,6 +80,7 @@ namespace Kabomu.QuasiHttp
                     }
                 }
             }
+            return dest;
         }
     }
 }

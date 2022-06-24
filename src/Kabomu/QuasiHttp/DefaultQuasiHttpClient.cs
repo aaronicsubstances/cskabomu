@@ -57,8 +57,7 @@ namespace Kabomu.QuasiHttp
                     options, DefaultSendOptions, 0, TransportUtils.DefaultMaxChunkSize);
                 int transferTimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveOverallReqRespTimeoutMillis(
                     options, DefaultSendOptions, 0);
-                var requestEnvironment = new Dictionary<string, object>();
-                ProtocolUtilsInternal.DetermineEffectiveRequestEnvironment(requestEnvironment,
+                var requestEnvironment = ProtocolUtilsInternal.DetermineEffectiveRequestEnvironment(
                     options, DefaultSendOptions);
                 _transfersWithoutConnections.Add(transfer);
                 if (transferTimeoutMillis > 0)
