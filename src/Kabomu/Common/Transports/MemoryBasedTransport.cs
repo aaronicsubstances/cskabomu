@@ -65,11 +65,11 @@ namespace Kabomu.Common.Transports
             Task<IQuasiHttpResponse> responseTask;
             lock (_lock)
             {
-                if (!_running)
-                {
-                    throw new Exception("transport not started");
-                }
                 var remoteTransport = Hub.Transports[connectionAllocationInfo.RemoteEndpoint];
+                if (!remoteTransport._running)
+                {
+                    throw new Exception("remote transport not started");
+                }
                 responseTask = remoteTransport.Application.ProcessRequest(request, connectionAllocationInfo.Environment);
             }
 
