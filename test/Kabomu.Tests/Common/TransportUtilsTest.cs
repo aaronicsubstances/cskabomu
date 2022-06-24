@@ -149,7 +149,7 @@ namespace Kabomu.Tests.Common
             data = new byte[10];
             offset = 2;
             bytesToRead = 8;
-            expectedError = "end of quasi http body";
+            expectedError = "unexpected end of read";
             testData.Add(new object[] { dataChunks,
                 data, offset, bytesToRead, expectedError });
 
@@ -250,7 +250,7 @@ namespace Kabomu.Tests.Common
             data = new byte[10];
             offset = 2;
             bytesToRead = 8;
-            expectedError = "end of transport";
+            expectedError = "unexpected end of read";
             testData.Add(new object[] { dataChunks,
                 data, offset, bytesToRead, expectedError });
 
