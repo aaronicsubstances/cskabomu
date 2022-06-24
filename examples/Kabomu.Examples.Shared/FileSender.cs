@@ -31,8 +31,9 @@ namespace Kabomu.Examples.Shared
             }
             double timeTaken = Math.Round((DateTime.Now - startTime).TotalSeconds, 2);
             double megaBytesTransferred = Math.Round(bytesTransferred / (1024.0 * 1024.0), 2);
-            LOG.Info("Successfully transferred {0} bytes ({1} MB) worth of data in {2} files in {3} seconds",
-                bytesTransferred, megaBytesTransferred, count, timeTaken);
+            double rate = Math.Round(megaBytesTransferred / timeTaken, 2);
+            LOG.Info("Successfully transferred {0} bytes ({1} MB) worth of data in {2} files in {3} seconds = {4} MB/s",
+                bytesTransferred, megaBytesTransferred, count, timeTaken, rate);
         }
 
         private static async Task TransferFile(IQuasiHttpClient instance, object serverEndpoint, FileInfo f)

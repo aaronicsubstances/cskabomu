@@ -110,7 +110,7 @@ namespace Kabomu.Tests.Common.Bodies
                 {
                     if (!task.IsCompletedSuccessfully)
                     {
-                        Assert.True(task.IsCompletedSuccessfully, "Didn't expect: " + task.Exception.Message);
+                        Assert.True(task.IsCompletedSuccessfully, "Didn't expect: " + task.Exception);
                     }
                     Assert.Equal(expectedReadLengths[i], task.Result);
                 }
@@ -128,7 +128,7 @@ namespace Kabomu.Tests.Common.Bodies
                 {
                     if (!task.IsCompletedSuccessfully)
                     {
-                        Assert.True(task.IsCompletedSuccessfully, "Didn't expect: " + task.Exception.Message);
+                        Assert.True(task.IsCompletedSuccessfully, "Didn't expect: " + task.Exception);
                     }
                 }
             }
