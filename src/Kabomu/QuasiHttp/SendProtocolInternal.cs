@@ -78,8 +78,8 @@ namespace Kabomu.QuasiHttp
 
             await writeTask;
 
-            Task <IQuasiHttpResponse> responseFetchTask = null;
-            Task transferTask = null;
+            Task <IQuasiHttpResponse> responseFetchTask;
+            Task bodyTransferTask = null;
             lock (_lock)
             {
                 if (IsAborted)
@@ -89,18 +89,26 @@ namespace Kabomu.QuasiHttp
 
                 responseFetchTask = StartFetchingResponse();
 
-                if (request.Body.ContentLength < 0)
+                if (_requestBody != null)
                 {
-                    _requestBody = new ChunkEncodingBody(request.Body, MaxChunkSize);
+                    if (_requestBody.ContentLength < 0)
+                    {
+                        _requestBody = new ChunkEncodingBody(_requestBody, MaxChunkSize);
+                    }
+                    bodyTransferTask = TransportUtils.TransferBodyToTransport(Parent.Transport,
+                        Connection, _requestBody, MaxChunkSize);
                 }
-                transferTask = TransportUtils.TransferBodyToTransport(Parent.Transport,
-                    Connection, _requestBody, MaxChunkSize);
+            }
+
+            if (_requestBody == null)
+            {
+                return await responseFetchTask;
             }
 
             // Run a race for pending tasks to obtain any error.
             // if any task finishes first and was successful, then return the result of the response fetch regardless of 
             // any subsequent errors.
-            var firstCompletedTask = await Task.WhenAny(transferTask, responseFetchTask);
+            var firstCompletedTask = await Task.WhenAny(bodyTransferTask, responseFetchTask);
             await firstCompletedTask;
             return await responseFetchTask;
         }
