@@ -54,7 +54,7 @@ namespace Kabomu.Common.Bodies
 
            int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                 encodedLength.Length);
-            ValidateChunkLength(chunkLen, maxChunkSize);
+            ValidateChunkLength(chunkLen, maxChunkSize, "Failed to decode quasi http headers");
             var chunkBytes = new byte[chunkLen];
             try
             {
@@ -78,12 +78,12 @@ namespace Kabomu.Common.Bodies
             }
         }
 
-        private static void ValidateChunkLength(int chunkLen, int maxChunkSize)
+        private static void ValidateChunkLength(int chunkLen, int maxChunkSize, string prefix)
         {
             if (chunkLen > TransportUtils.DefaultMaxChunkSizeLimit && chunkLen > maxChunkSize)
             {
                 throw new ChunkDecodingException(
-                    $"received chunk size of {chunkLen} exceeds" +
+                    $"{prefix}: received chunk size of {chunkLen} exceeds" +
                     $" default limit on max chunk size ({TransportUtils.DefaultMaxChunkSizeLimit})" +
                     $" as well as maximum configured chunk size of {maxChunkSize}");
             }
@@ -134,7 +134,7 @@ namespace Kabomu.Common.Bodies
 
                 var chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                     encodedLength.Length);
-                ValidateChunkLength(chunkLen, _maxChunkSize);
+                ValidateChunkLength(chunkLen, _maxChunkSize, "Failed to decode quasi http body");
                 chunkBytes = new byte[chunkLen];
                 readTask = TransportUtils.ReadBodyBytesFully(_wrappedBody,
                     chunkBytes, 0, chunkBytes.Length);

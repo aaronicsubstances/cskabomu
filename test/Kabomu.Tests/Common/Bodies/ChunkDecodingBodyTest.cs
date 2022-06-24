@@ -14,7 +14,6 @@ namespace Kabomu.Tests.Common.Bodies
     public class ChunkDecodingBodyTest
     {
         private static readonly int LengthOfEncodedChunkLength = 3;
-
         private static ConfigurableQuasiHttpBody CreateWrappedBody(string contentType, string[] strings)
         {
             var inputStream = new MemoryStream();
@@ -165,7 +164,7 @@ namespace Kabomu.Tests.Common.Bodies
         }
 
         [Fact]
-        public Task TestForArgumentErrors()
+        public async Task TestForArgumentErrors()
         {
             Assert.Throws<ArgumentException>(() =>
             {
@@ -176,7 +175,87 @@ namespace Kabomu.Tests.Common.Bodies
                 new ChunkDecodingBody(null, 0);
             });
             var instance = new ChunkDecodingBody(CreateWrappedBody(null, new string[0]), 100);
-            return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
+            await CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
+        }
+
+        [Fact]
+        public async Task TestReadSubsequentChunkForMaxChunkExceededError()
+        {
+            // test for specific errors.
+            var destStream = new MemoryStream();
+            int maxChunkSize = 40;
+            var encodedLength = new byte[LengthOfEncodedChunkLength];
+            ByteUtils.SerializeUpToInt64BigEndian(1_000_000, encodedLength, 0, encodedLength.Length);
+            destStream.Write(encodedLength);
+            var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length, null),
+                maxChunkSize);
+
+            var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
+            {
+                await instance.ReadBytes(new byte[1], 0, 1);
+            });
+            Assert.Contains("body", decodingError.Message);
+            Assert.Contains("exceed", decodingError.Message);
+            Assert.Contains("chunk size", decodingError.Message);
+        }
+
+        [Fact]
+        public async Task TestReadSubsequentChunkForInsuffcientDataForLengthError()
+        {
+            var destStream = new MemoryStream();
+            int maxChunkSize = 40;
+            var encodedLength = new byte[LengthOfEncodedChunkLength - 1];
+            destStream.Write(encodedLength);
+            var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length, null),
+                maxChunkSize);
+
+            var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
+            {
+                await instance.ReadBytes(new byte[1], 0, 1);
+            });
+            Assert.Contains("body", decodingError.Message);
+            Assert.Contains("chunk length", decodingError.Message);
+        }
+
+        [Fact]
+        public async Task TestReadSubsequentChunkForInsuffcientDataError()
+        {
+            var destStream = new MemoryStream();
+            var maxChunkSize = 40;
+            var encodedLength = new byte[LengthOfEncodedChunkLength];
+            encodedLength[LengthOfEncodedChunkLength - 1] = 77;
+            destStream.Write(encodedLength);
+            destStream.Write(new byte[76]);
+            var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length, null),
+                maxChunkSize);
+
+            var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
+            {
+                await instance.ReadBytes(new byte[1], 0, 1);
+            });
+            Assert.Contains("body", decodingError.Message);
+            Assert.Contains("unexpected end of read", decodingError.Message);
+        }
+
+        [Fact]
+        public async Task TestReadSubsequentChunkForInvalidChunkError()
+        {
+            // arrange.
+            var destStream = new MemoryStream();
+            byte maxChunkSize = 10;
+            var encodedLength = new byte[LengthOfEncodedChunkLength];
+            encodedLength[LengthOfEncodedChunkLength - 1] = maxChunkSize;
+            destStream.Write(encodedLength);
+            destStream.Write(new byte[maxChunkSize]); // invalid since version is not set.
+            var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length, null),
+                maxChunkSize);
+
+            var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
+            {
+                await instance.ReadBytes(new byte[1], 0, 1);
+            });
+            Assert.Contains("body", decodingError.Message);
+            Assert.Contains("invalid chunk", decodingError.Message);
         }
 
         [Fact]
@@ -277,6 +356,7 @@ namespace Kabomu.Tests.Common.Bodies
             {
                 await ChunkDecodingBody.ReadLeadChunk(transport, connection, maxChunkSize);
             });
+            Assert.Contains("headers", decodingError.Message);
             Assert.Contains("exceed", decodingError.Message);
             Assert.Contains("chunk size", decodingError.Message);
         }
@@ -305,6 +385,7 @@ namespace Kabomu.Tests.Common.Bodies
             {
                 await ChunkDecodingBody.ReadLeadChunk(transport, connection, maxChunkSize);
             });
+            Assert.Contains("headers", decodingError.Message);
             Assert.Contains("chunk length", decodingError.Message);
         }
 
@@ -334,7 +415,8 @@ namespace Kabomu.Tests.Common.Bodies
             {
                 await ChunkDecodingBody.ReadLeadChunk(transport, connection, maxChunkSize);
             });
-            Assert.Contains("end of transport", decodingError.Message);
+            Assert.Contains("headers", decodingError.Message);
+            Assert.Contains("unexpected end of read", decodingError.Message);
         }
 
         [Fact]
@@ -364,6 +446,7 @@ namespace Kabomu.Tests.Common.Bodies
             {
                 await ChunkDecodingBody.ReadLeadChunk(transport, connection, maxChunkSize);
             });
+            Assert.Contains("headers", decodingError.Message);
             Assert.Contains("invalid chunk", decodingError.Message);
         }
     }

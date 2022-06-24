@@ -31,7 +31,7 @@ namespace Kabomu.Common
                 {
                     if (bytesRead <= 0)
                     {
-                        throw new Exception("end of quasi http body");
+                        throw new Exception("unexpected end of read");
                     }
                     offset += bytesRead;
                     bytesToRead -= bytesRead;
@@ -75,7 +75,7 @@ namespace Kabomu.Common
                 {
                     if (bytesRead <= 0)
                     {
-                        throw new Exception("end of transport");
+                        throw new Exception("unexpected end of read");
                     }
                     offset += bytesRead;
                     bytesToRead -= bytesRead;
