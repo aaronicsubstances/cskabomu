@@ -13,6 +13,8 @@ namespace Kabomu.Tests.Common.Bodies
 {
     public class ChunkDecodingBodyTest
     {
+        private static readonly int LengthOfEncodedChunkLength = 3;
+
         private static ConfigurableQuasiHttpBody CreateWrappedBody(string contentType, string[] strings)
         {
             var inputStream = new MemoryStream();
@@ -27,7 +29,7 @@ namespace Kabomu.Tests.Common.Bodies
                 };
                 var serialized = chunk.Serialize();
                 var serializedLength = serialized.Sum(x => x.Length);
-                var encodedLength = new byte[3];
+                var encodedLength = new byte[LengthOfEncodedChunkLength];
                 ByteUtils.SerializeUpToInt64BigEndian(serializedLength,
                     encodedLength, 0, encodedLength.Length);
                 inputStream.Write(encodedLength);
@@ -37,9 +39,11 @@ namespace Kabomu.Tests.Common.Bodies
                 }
             }
 
-            // end with terminator empty chunk.            
-            inputStream.Write(new byte[] { 0, 0, 2 });
-            inputStream.Write(new byte[] { LeadChunk.Version01, 0 });
+            // end with terminator empty chunk.
+            var terminatorChunk = new byte[LengthOfEncodedChunkLength + 2];
+            terminatorChunk[LengthOfEncodedChunkLength - 1] = 2;
+            terminatorChunk[LengthOfEncodedChunkLength] = LeadChunk.Version01;
+            inputStream.Write(terminatorChunk);
 
             inputStream.Position = 0; // rewind position for reads.
 
@@ -50,7 +54,6 @@ namespace Kabomu.Tests.Common.Bodies
                 ReadBytesCallback = async (data, offset, length) =>
                 {
                     int bytesRead = 0;
-                    Exception e = null;
                     if (endOfInputSeen)
                     {
                         throw new Exception("END");
@@ -119,7 +122,6 @@ namespace Kabomu.Tests.Common.Bodies
                 ContentType = "image/gif",
                 ReadBytesCallback = async (data, offset, length) =>
                 {
-                    Exception e = null;
                     int bytesRead = 0;
                     switch (readIndex)
                     {
@@ -175,6 +177,194 @@ namespace Kabomu.Tests.Common.Bodies
             });
             var instance = new ChunkDecodingBody(CreateWrappedBody(null, new string[0]), 100);
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
+        }
+
+        [Fact]
+        public async Task TestReadLeadChunk()
+        {
+            // arrange.
+            object connection = "dk";
+            var destStream = new MemoryStream();
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = (actualConnection, data, offset, length) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    int bytesRead = destStream.Read(data, offset, length);
+                    return Task.FromResult(bytesRead);
+                }
+            };
+            int maxChunkSize = 100;
+            var expectedChunk = new LeadChunk
+            {
+                Version = LeadChunk.Version01
+            };
+            var leadChunkSlices = expectedChunk.Serialize();
+            var encodedLength = new byte[LengthOfEncodedChunkLength];
+            encodedLength[LengthOfEncodedChunkLength - 1] = (byte)(leadChunkSlices[0].Length + leadChunkSlices[1].Length);
+            destStream.Write(encodedLength);
+            destStream.Write(leadChunkSlices[0].Data, leadChunkSlices[0].Offset, leadChunkSlices[0].Length);
+            destStream.Write(leadChunkSlices[1].Data, leadChunkSlices[1].Offset, leadChunkSlices[1].Length);
+
+            destStream.Position = 0; // reset for reading.
+
+            // act
+            var actualChunk = await ChunkDecodingBody.ReadLeadChunk(transport, connection, maxChunkSize);
+
+            // assert
+            ComparisonUtils.CompareLeadChunks(expectedChunk, actualChunk);
+        }
+
+        [Fact]
+        public async Task TestReadLeadChunkForLaxityInChunkSizeCheck()
+        {
+            // arrange.
+            object connection = "dkt";
+            var destStream = new MemoryStream();
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = (actualConnection, data, offset, length) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    int bytesRead = destStream.Read(data, offset, length);
+                    return Task.FromResult(bytesRead);
+                }
+            };
+            int maxChunkSize = 10; // definitely less than actual serialized value but ok once it is less than 64K
+            var expectedChunk = new LeadChunk
+            {
+                Version = LeadChunk.Version01,
+                Path = "/abcdefghijklmop"
+            };
+            var leadChunkSlices = expectedChunk.Serialize();
+            var encodedLength = new byte[LengthOfEncodedChunkLength];
+            encodedLength[LengthOfEncodedChunkLength - 1] = (byte)(leadChunkSlices[0].Length + leadChunkSlices[1].Length);
+            destStream.Write(encodedLength);
+            destStream.Write(leadChunkSlices[0].Data, leadChunkSlices[0].Offset, leadChunkSlices[0].Length);
+            destStream.Write(leadChunkSlices[1].Data, leadChunkSlices[1].Offset, leadChunkSlices[1].Length);
+
+            destStream.Position = 0; // reset for reading.
+
+            // act
+            var actualChunk = await ChunkDecodingBody.ReadLeadChunk(transport, connection, maxChunkSize);
+
+            // assert
+            ComparisonUtils.CompareLeadChunks(expectedChunk, actualChunk);
+        }
+
+        [Fact]
+        public async Task TestReadLeadChunkForMaxChunkExceededError()
+        {
+            object connection = "tree";
+            var destStream = new MemoryStream();
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = (actualConnection, data, offset, length) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    int bytesRead = destStream.Read(data, offset, length);
+                    return Task.FromResult(bytesRead);
+                }
+            };
+            int maxChunkSize = 40;
+            var encodedLength = new byte[LengthOfEncodedChunkLength];
+            ByteUtils.SerializeUpToInt64BigEndian(1_000_000, encodedLength, 0, encodedLength.Length);
+            destStream.Write(encodedLength);
+
+            destStream.Position = 0; // reset for reading.
+
+            var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
+            {
+                await ChunkDecodingBody.ReadLeadChunk(transport, connection, maxChunkSize);
+            });
+            Assert.Contains("exceed", decodingError.Message);
+            Assert.Contains("chunk size", decodingError.Message);
+        }
+
+        [Fact]
+        public async Task TestReadLeadChunkForInsuffcientDataForLengthError()
+        {
+            object connection = null;
+            var destStream = new MemoryStream();
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = (actualConnection, data, offset, length) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    int bytesRead = destStream.Read(data, offset, length);
+                    return Task.FromResult(bytesRead);
+                }
+            };
+            int maxChunkSize = 40;
+            var encodedLength = new byte[LengthOfEncodedChunkLength - 1];
+            destStream.Write(encodedLength);
+
+            destStream.Position = 0; // reset for reading.
+
+            var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
+            {
+                await ChunkDecodingBody.ReadLeadChunk(transport, connection, maxChunkSize);
+            });
+            Assert.Contains("chunk length", decodingError.Message);
+        }
+
+        [Fact]
+        public async Task TestReadLeadChunkForInsuffcientDataError()
+        {
+            object connection = "nice length but incomplete data";
+            var destStream = new MemoryStream();
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = (actualConnection, data, offset, length) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    int bytesRead = destStream.Read(data, offset, length);
+                    return Task.FromResult(bytesRead);
+                }
+            };
+            int maxChunkSize = 40;
+            var encodedLength = new byte[LengthOfEncodedChunkLength];
+            encodedLength[LengthOfEncodedChunkLength - 1] = 77;
+            destStream.Write(encodedLength);
+            destStream.Write(new byte[76]);
+
+            destStream.Position = 0; // reset for reading.
+
+            var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
+            {
+                await ChunkDecodingBody.ReadLeadChunk(transport, connection, maxChunkSize);
+            });
+            Assert.Contains("end of transport", decodingError.Message);
+        }
+
+        [Fact]
+        public async Task TestReadLeadChunkForInvalidChunkError()
+        {
+            // arrange.
+            object connection = 10;
+            var destStream = new MemoryStream();
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = (actualConnection, data, offset, length) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    int bytesRead = destStream.Read(data, offset, length);
+                    return Task.FromResult(bytesRead);
+                }
+            };
+            byte maxChunkSize = 100;
+            var encodedLength = new byte[LengthOfEncodedChunkLength];
+            encodedLength[LengthOfEncodedChunkLength - 1] = maxChunkSize;
+            destStream.Write(encodedLength);
+            destStream.Write(new byte[maxChunkSize]);
+
+            destStream.Position = 0; // reset for reading.
+
+            var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
+            {
+                await ChunkDecodingBody.ReadLeadChunk(transport, connection, maxChunkSize);
+            });
+            Assert.Contains("invalid chunk", decodingError.Message);
         }
     }
 }

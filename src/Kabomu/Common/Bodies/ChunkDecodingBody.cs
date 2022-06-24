@@ -41,28 +41,51 @@ namespace Kabomu.Common.Bodies
                 throw new ArgumentException("null transport");
             }
             byte[] encodedLength = new byte[ChunkEncodingBody.LengthOfEncodedChunkLength];
-            await TransportUtils.ReadTransportBytesFully(transport, connection,
-                encodedLength, 0, encodedLength.Length);
+            try
+            {
+                await TransportUtils.ReadTransportBytesFully(transport, connection,
+                    encodedLength, 0, encodedLength.Length);
+            }
+            catch (Exception e)
+            {
+                throw new ChunkDecodingException("Failed to decode quasi http headers while " +
+                    "reading a chunk length specification: " + e.Message, e);
+            }
 
            int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                 encodedLength.Length);
             ValidateChunkLength(chunkLen, maxChunkSize);
             var chunkBytes = new byte[chunkLen];
-            await TransportUtils.ReadTransportBytesFully(transport, connection,
-                chunkBytes, 0, chunkBytes.Length);
-            
-            var chunk = LeadChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
-            return chunk;
+            try
+            {
+                await TransportUtils.ReadTransportBytesFully(transport, connection,
+                    chunkBytes, 0, chunkBytes.Length);
+            }
+            catch (Exception e)
+            {
+                throw new ChunkDecodingException("Failed to decode quasi http headers while " +
+                    "reading in chunk data: " + e.Message, e);
+            }
+
+            try
+            {
+                var chunk = LeadChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
+                return chunk;
+            }
+            catch (Exception e)
+            {
+                throw new ChunkDecodingException("Encountered invalid chunk of quasi http headers: " + e.Message, e);
+            }
         }
 
         private static void ValidateChunkLength(int chunkLen, int maxChunkSize)
         {
             if (chunkLen > TransportUtils.DefaultMaxChunkSizeLimit && chunkLen > maxChunkSize)
             {
-                throw new Exception(
-                    $"received chunk size of {chunkLen} which is both larger than" +
+                throw new ChunkDecodingException(
+                    $"received chunk size of {chunkLen} exceeds" +
                     $" default limit on max chunk size ({TransportUtils.DefaultMaxChunkSizeLimit})" +
-                    $" and maximum configured chunk size of {maxChunkSize}");
+                    $" as well as maximum configured chunk size of {maxChunkSize}");
             }
         }
 
@@ -91,7 +114,15 @@ namespace Kabomu.Common.Bodies
                     encodedLength, 0, encodedLength.Length);
             }
 
-            await readTask;
+            try
+            {
+                await readTask;
+            }
+            catch (Exception e)
+            {
+                throw new ChunkDecodingException("Failed to decode quasi http body while " +
+                    "reading a chunk length specification: " + e.Message, e);
+            }
 
             byte[] chunkBytes;
             lock (_lock)
@@ -109,7 +140,15 @@ namespace Kabomu.Common.Bodies
                     chunkBytes, 0, chunkBytes.Length);
             }
 
-            await readTask;
+            try
+            {
+                await readTask;
+            }
+            catch (Exception e)
+            {
+                throw new ChunkDecodingException("Failed to decode quasi http body while " +
+                    "reading in chunk data: " + e.Message, e);
+            }
 
             lock (_lock)
             {
@@ -118,7 +157,14 @@ namespace Kabomu.Common.Bodies
                     throw _srcEndError;
                 }
 
-                _lastChunk = SubsequentChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
+                try
+                {
+                    _lastChunk = SubsequentChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
+                }
+                catch (Exception e)
+                {
+                    throw new ChunkDecodingException("Encountered invalid chunked quasi http body: " + e.Message, e);
+                }
                 _lastChunkUsedBytes = 0;
                 return SupplyFromLastChunk(data, offset, bytesToRead);
             }

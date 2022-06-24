@@ -38,7 +38,7 @@ namespace Kabomu.Tests.Shared
                 {
                     return instance.ReadBytes(buffer, 0, buffer.Length);
                 });
-                Assert.Equal(expectedError, e.Message);
+                Assert.Contains(expectedError, e.Message);
             }
             else
             {
@@ -53,7 +53,7 @@ namespace Kabomu.Tests.Shared
                 {
                     return instance.ReadBytes(buffer, 0, buffer.Length);
                 });
-                Assert.Equal("end of read", e.Message);
+                Assert.Contains("end of read", e.Message);
             }
         }
 
