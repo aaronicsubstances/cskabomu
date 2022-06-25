@@ -139,7 +139,7 @@ namespace Kabomu.QuasiHttp
             await ChunkEncodingBody.WriteLeadChunk(Parent.Transport, Connection,
                 MaxChunkSize, chunk);
 
-            Task bodyTransferTask = null, abortTask = null;
+            Task bodyTransferTask = null;
             lock (_lock)
             {
                 if (IsAborted)
@@ -155,10 +155,6 @@ namespace Kabomu.QuasiHttp
                     bodyTransferTask = TransportUtils.TransferBodyToTransport(Parent.Transport,
                         Connection, _responseBody, MaxChunkSize);
                 }
-                else
-                {
-                    abortTask = Parent.AbortTransfer(this, null);
-                }
             }
 
             if (bodyTransferTask != null)
@@ -166,10 +162,17 @@ namespace Kabomu.QuasiHttp
                 await bodyTransferTask;
             }
 
-            if (abortTask != null)
+            Task abortTask;
+            lock (_lock)
             {
-                await abortTask;
+                if (IsAborted)
+                {
+                    return;
+                }
+                abortTask = Parent.AbortTransfer(this, null);
             }
+
+            await abortTask;
         }
     }
 }

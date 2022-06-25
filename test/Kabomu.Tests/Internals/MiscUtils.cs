@@ -11,10 +11,13 @@ namespace Kabomu.Tests.Internals
 {
     public static class MiscUtils
     {
+        private static readonly int LengthOfEncodedChunkLength = 3;
+
         public static void WriteChunk(ByteBufferSlice[] slices, Action<byte[], int, int> writeCallback)
         {
-            var byteCount = (short)ByteUtils.CalculateSizeOfSlices(slices);
-            var encodedLength = ByteUtils.SerializeInt16BigEndian(byteCount);
+            var byteCount = ByteUtils.CalculateSizeOfSlices(slices);
+            var encodedLength = new byte[LengthOfEncodedChunkLength];
+            ByteUtils.SerializeUpToInt64BigEndian(byteCount, encodedLength, 0, encodedLength.Length);
             writeCallback.Invoke(encodedLength, 0, encodedLength.Length);
             foreach (var slice in slices)
             {

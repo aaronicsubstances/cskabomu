@@ -8,20 +8,22 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp
 {
-    /*public class ReceiveProtocolInternalTest
+    public class ReceiveProtocolInternalTest
     {
+        private static readonly int LengthOfEncodedChunkLength = 3;
+
         [Theory]
-        [MemberData(nameof(CreateTestOnReceiveData))]
-        public void TestOnReceive(object connection, int maxChunkSize,
-            IQuasiHttpRequest request, byte[] requestBodyBytes,
+        [MemberData(nameof(CreateTestReceiveData))]
+        public async Task TestReceive(object connection, int maxChunkSize,
+            IQuasiHttpRequest request, byte[] requestBodyBytes, IDictionary<string, object> reqEnv,
             IQuasiHttpResponse expectedResponse, byte[] expectedResponseBodyBytes)
         {
             // arrange.
-            var eventLoop = new TestEventLoopApiPrev();
             var reqChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
@@ -79,69 +81,55 @@ namespace Kabomu.Tests.QuasiHttp
             var outputStream = new MemoryStream();
             var transport = new ConfigurableQuasiHttpTransport
             {
-                MaxChunkSize = maxChunkSize,
-                AllocateConnectionCallback = (actualRemoteEndpoint, cb) =>
-                {
-                    Assert.Null(actualRemoteEndpoint);
-                    cb.Invoke(null, connection);
-                    // test handling of multiple callback invocations.
-                    cb.Invoke(null, connection);
-                },
-                ReleaseConnectionCallback = actualConnection =>
-                {
-                    Assert.Equal(connection, actualConnection);
-                    // nothing to do again.
-                },
-                ReadBytesCallback = (actualConnection, data, offset, length, cb) =>
+                ReadBytesCallback = async (actualConnection, data, offset, length) =>
                 {
                     Assert.Equal(connection, actualConnection);
                     var bytesRead = inputStream.Read(data, offset, length);
-                    cb.Invoke(null, bytesRead);
+                    return bytesRead;
                 },
-                WriteBytesCallback = (actualConnection, data, offset, length, cb) =>
+                WriteBytesCallback = async (actualConnection, data, offset, length) =>
                 {
                     Assert.Equal(connection, actualConnection);
                     outputStream.Write(data, offset, length);
-                    cb.Invoke(null);
                 }
             };
-            var instance = new ReceiveProtocolInternal();
+            var instance = new ReceiveProtocolInternal(new object());
             instance.Connection = connection;
+            instance.RequestEnvironment = reqEnv;
+            instance.MaxChunkSize = maxChunkSize;
+
             IQuasiHttpRequest actualRequest = null;
-            var cbCalled = false;
+            IDictionary<string, object> actualRequestEnvironment = null;
             IQuasiHttpApplication app = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = (req, resCb) =>
+                ProcessRequestCallback = async (req, reqEnv) =>
                 {
-                    Assert.False(cbCalled);
                     actualRequest = req;
-                    resCb.Invoke(null, expectedResponse);
-                    cbCalled = true;
-                    // just for testing correct cancelling of callback waits, repeat
-                    resCb.Invoke(null, expectedResponse);
+                    actualRequestEnvironment = reqEnv;
+                    return expectedResponse;
                 }
             };
             instance.Parent = new TestParentTransferProtocol(instance)
             {
                 Application = app,
-                Transport = transport,
-                Mutex = eventLoop
+                Transport = transport
             };
 
             // act
-            instance.OnReceive();
+            await instance.Receive();
 
             // assert
-            Assert.True(cbCalled);
-            ComparisonUtils.CompareRequests(eventLoop, maxChunkSize, request, actualRequest,
+            await ComparisonUtils.CompareRequests(maxChunkSize, request, actualRequest,
                 requestBodyBytes);
+            Assert.Equal(reqEnv ?? new Dictionary<string, object>(), actualRequestEnvironment);
             Assert.True(((TestParentTransferProtocol)instance.Parent).AbortCalled);
             var actualRes = outputStream.ToArray();
             Assert.NotEmpty(actualRes);
-            int actualResChunkLength = ByteUtils.DeserializeInt16BigEndian(actualRes, 0);
-            var actualResChunk = LeadChunk.Deserialize(actualRes, 2, actualResChunkLength);
+            var actualResChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualRes, 0,
+                LengthOfEncodedChunkLength);
+            var actualResChunk = LeadChunk.Deserialize(actualRes, LengthOfEncodedChunkLength, actualResChunkLength);
             ComparisonUtils.CompareLeadChunks(expectedResChunk, actualResChunk);
-            var actualResponseBodyLen = actualRes.Length - 2 - actualResChunkLength;
+            var actualResponseBodyLen = actualRes.Length - LengthOfEncodedChunkLength - actualResChunkLength;
             if (expectedResponseBodyBytes == null)
             {
                 Assert.Equal(0, actualResponseBodyLen);
@@ -151,19 +139,21 @@ namespace Kabomu.Tests.QuasiHttp
                 byte[] actualResBodyBytes;
                 if (actualResChunk.ContentLength < 0)
                 {
-                    actualResBodyBytes = MiscUtils.ReadChunkedBody(actualRes, actualResChunkLength + 2,
+                    actualResBodyBytes = await MiscUtils.ReadChunkedBody(actualRes,
+                        actualResChunkLength + LengthOfEncodedChunkLength,
                         actualResponseBodyLen);
                 }
                 else
                 {
                     actualResBodyBytes = new byte[actualResponseBodyLen];
-                    Array.Copy(actualRes, actualResChunkLength + 2, actualResBodyBytes, 0, actualResponseBodyLen);
+                    Array.Copy(actualRes, actualResChunkLength + LengthOfEncodedChunkLength,
+                        actualResBodyBytes, 0, actualResponseBodyLen);
                 }
                 Assert.Equal(expectedResponseBodyBytes, actualResBodyBytes);
             }
         }
 
-        public static List<object[]> CreateTestOnReceiveData()
+        public static List<object[]> CreateTestReceiveData()
         {
             var testData = new List<object[]>();
 
@@ -181,6 +171,7 @@ namespace Kabomu.Tests.QuasiHttp
             var reqBodyBytes = Encoding.UTF8.GetBytes("this is our king");
             request.Body = new ByteBufferBody(reqBodyBytes, 0, reqBodyBytes.Length,
                 "text/plain");
+            IDictionary<string, object> reqEnv = null;
 
             var expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -195,7 +186,7 @@ namespace Kabomu.Tests.QuasiHttp
             byte[] expectedResBodyBytes = Encoding.UTF8.GetBytes("and this is our queen");
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes, 0, expectedResBodyBytes.Length,
                 "image/png");
-            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
+            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
                 expectedResponse, expectedResBodyBytes });
 
             connection = 123;
@@ -205,6 +196,10 @@ namespace Kabomu.Tests.QuasiHttp
                 Path = "/p"
             };
             reqBodyBytes = null;
+            reqEnv = new Dictionary<string, object>
+            {
+                { "is_ssl", "true" }
+            };
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -213,7 +208,7 @@ namespace Kabomu.Tests.QuasiHttp
                 StatusMessage = "not found"
             };
             expectedResBodyBytes = null;
-            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
+            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
                 expectedResponse, expectedResBodyBytes });
 
             connection = null;
@@ -225,6 +220,7 @@ namespace Kabomu.Tests.QuasiHttp
             };
             reqBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
             request.Body = new StringBody("<a>this is news</a>", "application/xml");
+            reqEnv = new Dictionary<string, object>();
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -234,7 +230,7 @@ namespace Kabomu.Tests.QuasiHttp
                 StatusMessage = "server error"
             };
             expectedResBodyBytes = null;
-            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
+            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
                 expectedResponse, expectedResBodyBytes });
 
             connection = new object();
@@ -251,6 +247,10 @@ namespace Kabomu.Tests.QuasiHttp
                 }
             };
             reqBodyBytes = null;
+            reqEnv = new Dictionary<string, object>
+            {
+                { "r", 2 }, { "tea", new byte[3] }
+            };
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -265,10 +265,10 @@ namespace Kabomu.Tests.QuasiHttp
             };
             expectedResBodyBytes =  Encoding.UTF8.GetBytes("<a>this is news</a>");
             expectedResponse.Body = new StringBody("<a>this is news</a>", "application/xml");
-            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
+            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
                 expectedResponse, expectedResBodyBytes });
 
             return testData;
         }
-    }*/
+    }
 }

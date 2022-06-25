@@ -9,6 +9,7 @@ namespace Kabomu.Tests.Shared
     public class ConfigurableQuasiHttpBody : IQuasiHttpBody
     {
         public Func<byte[], int, int, Task<int>> ReadBytesCallback { get; set; }
+        public Func<Exception, Task> EndReadCallback { get; set; }
 
         public long ContentLength { get; set; }
         public string ContentType { get; set; }
@@ -20,7 +21,7 @@ namespace Kabomu.Tests.Shared
 
         public Task EndRead(Exception e)
         {
-            return Task.CompletedTask;
+            return EndReadCallback.Invoke(e);
         }
     }
 }
