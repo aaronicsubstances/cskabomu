@@ -16,10 +16,6 @@ namespace Kabomu.Common
         public static readonly string ContentTypeJson = "application/json";
         public static readonly string ContentTypeCsv = "text/csv";
 
-        public static readonly string RequestEnvironmentKeyReservedPrefix = "kabomu_";
-        public static readonly string RequestEnvironmentKeyConnectTimeout = RequestEnvironmentKeyReservedPrefix + "connect_timeout";
-        public static readonly string RequestEnvironmentKeyReadTimeout = RequestEnvironmentKeyReservedPrefix + "read_timeout";
-
         public static async Task ReadBodyBytesFully(IQuasiHttpBody body,
             byte[] data, int offset, int bytesToRead)
         {
