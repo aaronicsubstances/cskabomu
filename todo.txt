@@ -1,7 +1,8 @@
 remaining
 ==========
--ReceiveProtocolInternal
--SendProtocolInternal
+-split transports into 3: transport, servertransport and clienttransport
+-only release, write and read should remain in transport.
+-let examples bind server in start rather than in constructors.
 -MemoryBasedTransport
 -DefaultQuasiHttpClient
 -DefaultQuasiHttpServer

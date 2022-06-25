@@ -1,5 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.Common.Bodies;
+using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -13,7 +14,6 @@ namespace Kabomu.Tests.Common.Bodies
 {
     public class ChunkDecodingBodyTest
     {
-        private static readonly int LengthOfEncodedChunkLength = 3;
         private static ConfigurableQuasiHttpBody CreateWrappedBody(string contentType, string[] strings)
         {
             var inputStream = new MemoryStream();
@@ -28,7 +28,7 @@ namespace Kabomu.Tests.Common.Bodies
                 };
                 var serialized = chunk.Serialize();
                 var serializedLength = serialized.Sum(x => x.Length);
-                var encodedLength = new byte[LengthOfEncodedChunkLength];
+                var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength];
                 ByteUtils.SerializeUpToInt64BigEndian(serializedLength,
                     encodedLength, 0, encodedLength.Length);
                 inputStream.Write(encodedLength);
@@ -39,9 +39,9 @@ namespace Kabomu.Tests.Common.Bodies
             }
 
             // end with terminator empty chunk.
-            var terminatorChunk = new byte[LengthOfEncodedChunkLength + 2];
-            terminatorChunk[LengthOfEncodedChunkLength - 1] = 2;
-            terminatorChunk[LengthOfEncodedChunkLength] = LeadChunk.Version01;
+            var terminatorChunk = new byte[MiscUtils.LengthOfEncodedChunkLength + 2];
+            terminatorChunk[MiscUtils.LengthOfEncodedChunkLength - 1] = 2;
+            terminatorChunk[MiscUtils.LengthOfEncodedChunkLength] = LeadChunk.Version01;
             inputStream.Write(terminatorChunk);
 
             inputStream.Position = 0; // rewind position for reads.
@@ -185,7 +185,7 @@ namespace Kabomu.Tests.Common.Bodies
             // test for specific errors.
             var destStream = new MemoryStream();
             int maxChunkSize = 40;
-            var encodedLength = new byte[LengthOfEncodedChunkLength];
+            var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength];
             ByteUtils.SerializeUpToInt64BigEndian(1_000_000, encodedLength, 0, encodedLength.Length);
             destStream.Write(encodedLength);
             var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length, null),
@@ -205,7 +205,7 @@ namespace Kabomu.Tests.Common.Bodies
         {
             var destStream = new MemoryStream();
             int maxChunkSize = 40;
-            var encodedLength = new byte[LengthOfEncodedChunkLength - 1];
+            var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength - 1];
             destStream.Write(encodedLength);
             var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length, null),
                 maxChunkSize);
@@ -223,8 +223,8 @@ namespace Kabomu.Tests.Common.Bodies
         {
             var destStream = new MemoryStream();
             var maxChunkSize = 40;
-            var encodedLength = new byte[LengthOfEncodedChunkLength];
-            encodedLength[LengthOfEncodedChunkLength - 1] = 77;
+            var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength];
+            encodedLength[MiscUtils.LengthOfEncodedChunkLength - 1] = 77;
             destStream.Write(encodedLength);
             destStream.Write(new byte[76]);
             var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length, null),
@@ -244,8 +244,8 @@ namespace Kabomu.Tests.Common.Bodies
             // arrange.
             var destStream = new MemoryStream();
             byte maxChunkSize = 10;
-            var encodedLength = new byte[LengthOfEncodedChunkLength];
-            encodedLength[LengthOfEncodedChunkLength - 1] = maxChunkSize;
+            var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength];
+            encodedLength[MiscUtils.LengthOfEncodedChunkLength - 1] = maxChunkSize;
             destStream.Write(encodedLength);
             destStream.Write(new byte[maxChunkSize]); // invalid since version is not set.
             var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length, null),
@@ -280,8 +280,8 @@ namespace Kabomu.Tests.Common.Bodies
                 Version = LeadChunk.Version01
             };
             var leadChunkSlices = expectedChunk.Serialize();
-            var encodedLength = new byte[LengthOfEncodedChunkLength];
-            encodedLength[LengthOfEncodedChunkLength - 1] = (byte)(leadChunkSlices[0].Length + leadChunkSlices[1].Length);
+            var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength];
+            encodedLength[MiscUtils.LengthOfEncodedChunkLength - 1] = (byte)(leadChunkSlices[0].Length + leadChunkSlices[1].Length);
             destStream.Write(encodedLength);
             destStream.Write(leadChunkSlices[0].Data, leadChunkSlices[0].Offset, leadChunkSlices[0].Length);
             destStream.Write(leadChunkSlices[1].Data, leadChunkSlices[1].Offset, leadChunkSlices[1].Length);
@@ -317,8 +317,8 @@ namespace Kabomu.Tests.Common.Bodies
                 Path = "/abcdefghijklmop"
             };
             var leadChunkSlices = expectedChunk.Serialize();
-            var encodedLength = new byte[LengthOfEncodedChunkLength];
-            encodedLength[LengthOfEncodedChunkLength - 1] = (byte)(leadChunkSlices[0].Length + leadChunkSlices[1].Length);
+            var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength];
+            encodedLength[MiscUtils.LengthOfEncodedChunkLength - 1] = (byte)(leadChunkSlices[0].Length + leadChunkSlices[1].Length);
             destStream.Write(encodedLength);
             destStream.Write(leadChunkSlices[0].Data, leadChunkSlices[0].Offset, leadChunkSlices[0].Length);
             destStream.Write(leadChunkSlices[1].Data, leadChunkSlices[1].Offset, leadChunkSlices[1].Length);
@@ -347,7 +347,7 @@ namespace Kabomu.Tests.Common.Bodies
                 }
             };
             int maxChunkSize = 40;
-            var encodedLength = new byte[LengthOfEncodedChunkLength];
+            var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength];
             ByteUtils.SerializeUpToInt64BigEndian(1_000_000, encodedLength, 0, encodedLength.Length);
             destStream.Write(encodedLength);
 
@@ -377,7 +377,7 @@ namespace Kabomu.Tests.Common.Bodies
                 }
             };
             int maxChunkSize = 40;
-            var encodedLength = new byte[LengthOfEncodedChunkLength - 1];
+            var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength - 1];
             destStream.Write(encodedLength);
 
             destStream.Position = 0; // reset for reading.
@@ -405,8 +405,8 @@ namespace Kabomu.Tests.Common.Bodies
                 }
             };
             int maxChunkSize = 40;
-            var encodedLength = new byte[LengthOfEncodedChunkLength];
-            encodedLength[LengthOfEncodedChunkLength - 1] = 77;
+            var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength];
+            encodedLength[MiscUtils.LengthOfEncodedChunkLength - 1] = 77;
             destStream.Write(encodedLength);
             destStream.Write(new byte[76]);
 
@@ -436,8 +436,8 @@ namespace Kabomu.Tests.Common.Bodies
                 }
             };
             byte maxChunkSize = 100;
-            var encodedLength = new byte[LengthOfEncodedChunkLength];
-            encodedLength[LengthOfEncodedChunkLength - 1] = maxChunkSize;
+            var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength];
+            encodedLength[MiscUtils.LengthOfEncodedChunkLength - 1] = maxChunkSize;
             destStream.Write(encodedLength);
             destStream.Write(new byte[maxChunkSize]);
 

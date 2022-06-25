@@ -11,7 +11,7 @@ namespace Kabomu.Tests.Internals
 {
     public static class MiscUtils
     {
-        private static readonly int LengthOfEncodedChunkLength = 3;
+        public static readonly int LengthOfEncodedChunkLength = 3;
 
         public static void WriteChunk(ByteBufferSlice[] slices, Action<byte[], int, int> writeCallback)
         {
