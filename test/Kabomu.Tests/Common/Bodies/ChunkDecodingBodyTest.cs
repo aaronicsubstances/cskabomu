@@ -66,7 +66,8 @@ namespace Kabomu.Tests.Common.Bodies
                         }
                     }
                     return bytesRead;
-                }
+                },
+                EndReadCallback = e => Task.CompletedTask
             };
             return body;
         }

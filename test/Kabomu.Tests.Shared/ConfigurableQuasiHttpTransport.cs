@@ -31,12 +31,9 @@ namespace Kabomu.Tests.Shared
             return AllocateConnectionCallback.Invoke(connectionAllocationRequest);
         }
 
-        public async Task ReleaseConnection(object connection)
+        public Task ReleaseConnection(object connection)
         {
-            if (ReleaseConnectionCallback != null)
-            {
-                await ReleaseConnectionCallback.Invoke(connection);
-            }
+            return ReleaseConnectionCallback.Invoke(connection);
         }
 
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
@@ -44,12 +41,9 @@ namespace Kabomu.Tests.Shared
             return ReadBytesCallback.Invoke(connection, data, offset, length);
         }
 
-        public async Task WriteBytes(object connection, byte[] data, int offset, int length)
+        public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
-            if (WriteBytesCallback != null)
-            {
-                await WriteBytesCallback.Invoke(connection, data, offset, length);
-            }
+            return WriteBytesCallback.Invoke(connection, data, offset, length);
         }
 
         public Task<IConnectionAllocationResponse> ReceiveConnection()
