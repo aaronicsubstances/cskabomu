@@ -1,7 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.Common.Bodies;
 using Kabomu.QuasiHttp;
-using Kabomu.Tests.Common;
 using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
 using System;
@@ -15,8 +14,6 @@ namespace Kabomu.Tests.QuasiHttp
 {
     public class ReceiveProtocolInternalTest
     {
-        private static readonly int LengthOfEncodedChunkLength = 3;
-
         [Theory]
         [MemberData(nameof(CreateTestReceiveData))]
         public async Task TestReceive(object connection, int maxChunkSize,
@@ -119,17 +116,19 @@ namespace Kabomu.Tests.QuasiHttp
             await instance.Receive();
 
             // assert
+            Assert.True(((TestParentTransferProtocol)instance.Parent).AbortCalled);
             await ComparisonUtils.CompareRequests(maxChunkSize, request, actualRequest,
                 requestBodyBytes);
             Assert.Equal(reqEnv ?? new Dictionary<string, object>(), actualRequestEnvironment);
-            Assert.True(((TestParentTransferProtocol)instance.Parent).AbortCalled);
             var actualRes = outputStream.ToArray();
             Assert.NotEmpty(actualRes);
             var actualResChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualRes, 0,
-                LengthOfEncodedChunkLength);
-            var actualResChunk = LeadChunk.Deserialize(actualRes, LengthOfEncodedChunkLength, actualResChunkLength);
+                MiscUtils.LengthOfEncodedChunkLength);
+            var actualResChunk = LeadChunk.Deserialize(actualRes,
+                MiscUtils.LengthOfEncodedChunkLength, actualResChunkLength);
             ComparisonUtils.CompareLeadChunks(expectedResChunk, actualResChunk);
-            var actualResponseBodyLen = actualRes.Length - LengthOfEncodedChunkLength - actualResChunkLength;
+            var actualResponseBodyLen = actualRes.Length - 
+                MiscUtils.LengthOfEncodedChunkLength - actualResChunkLength;
             if (expectedResponseBodyBytes == null)
             {
                 Assert.Equal(0, actualResponseBodyLen);
@@ -140,13 +139,13 @@ namespace Kabomu.Tests.QuasiHttp
                 if (actualResChunk.ContentLength < 0)
                 {
                     actualResBodyBytes = await MiscUtils.ReadChunkedBody(actualRes,
-                        actualResChunkLength + LengthOfEncodedChunkLength,
+                        actualResChunkLength + MiscUtils.LengthOfEncodedChunkLength,
                         actualResponseBodyLen);
                 }
                 else
                 {
                     actualResBodyBytes = new byte[actualResponseBodyLen];
-                    Array.Copy(actualRes, actualResChunkLength + LengthOfEncodedChunkLength,
+                    Array.Copy(actualRes, actualResChunkLength + MiscUtils.LengthOfEncodedChunkLength,
                         actualResBodyBytes, 0, actualResponseBodyLen);
                 }
                 Assert.Equal(expectedResponseBodyBytes, actualResBodyBytes);

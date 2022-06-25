@@ -1,27 +1,26 @@
 ﻿using Kabomu.Common;
 using Kabomu.Common.Bodies;
 using Kabomu.QuasiHttp;
-using Kabomu.Tests.Common;
 using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp
 {
-    /*public class SendProtocolInternalTest
+    public class SendProtocolInternalTest
     {
         [Theory]
-        [MemberData(nameof(CreateTestOnSendData))]
-        public void TestOnSend(object connection, int maxChunkSize,
+        [MemberData(nameof(CreateTestSendData))]
+        public async Task TestSend(object connection, int maxChunkSize,
             IQuasiHttpRequest expectedRequest, byte[] expectedRequestBodyBytes,
             IQuasiHttpResponse response, byte[] responseBodyBytes)
         {
             // arrange.
-            var eventLoop = new TestEventLoopApiPrev();
             var expectedReqChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
@@ -79,63 +78,43 @@ namespace Kabomu.Tests.QuasiHttp
             var outputStream = new MemoryStream();
             var transport = new ConfigurableQuasiHttpTransport
             {
-                MaxChunkSize = maxChunkSize,
-                AllocateConnectionCallback = (actualRemoteEndpoint, cb) =>
-                {
-                    Assert.Null(actualRemoteEndpoint);
-                    cb.Invoke(null, connection);
-                    // test handling of multiple callback invocations.
-                    cb.Invoke(null, connection);
-                },
-                ReleaseConnectionCallback = actualConnection =>
-                {
-                    Assert.Equal(connection, actualConnection);
-                    // nothing to do again.
-                },
-                ReadBytesCallback = (actualConnection, data, offset, length, cb) =>
+                ReadBytesCallback = async (actualConnection, data, offset, length) =>
                 {
                     Assert.Equal(connection, actualConnection);
                     var bytesRead = inputStream.Read(data, offset, length);
-                    cb.Invoke(null, bytesRead);
+                    return bytesRead;
                 },
-                WriteBytesCallback = (actualConnection, data, offset, length, cb) =>
+                WriteBytesCallback = async (actualConnection, data, offset, length) =>
                 {
                     Assert.Equal(connection, actualConnection);
                     outputStream.Write(data, offset, length);
-                    cb.Invoke(null);
                 }
             };
-            var instance = new SendProtocolInternal();
+            var instance = new SendProtocolInternal(new object());
             instance.Connection = connection;
-            IQuasiHttpResponse actualResponse = null;
-            var cbCalled = false;
-            instance.SendCallback = (e, res) =>
-            {
-                Assert.False(cbCalled);
-                Assert.Null(e);
-                actualResponse = res;
-                cbCalled = true;
-            };
+            instance.MaxChunkSize = maxChunkSize;
             instance.Parent = new TestParentTransferProtocol(instance)
             {
-                Transport = transport,
-                Mutex = eventLoop
+                Transport = transport
             };
 
             // act.
-            instance.OnSend(expectedRequest);
+            IQuasiHttpResponse actualResponse = await instance.Send(expectedRequest);
 
             // assert.
-            Assert.True(cbCalled);
-            ComparisonUtils.CompareResponses(eventLoop, maxChunkSize, response, actualResponse,
+            Assert.Equal(response.Body == null, ((TestParentTransferProtocol)instance.Parent).AbortCalled);
+            await ComparisonUtils.CompareResponses(maxChunkSize, response, actualResponse,
                 responseBodyBytes);
             Assert.True(((TestParentTransferProtocol)instance.Parent).AbortCalled);
             var actualReq = outputStream.ToArray();
             Assert.NotEmpty(actualReq);
-            int actualReqChunkLength = ByteUtils.DeserializeInt16BigEndian(actualReq, 0);
-            var actualReqChunk = LeadChunk.Deserialize(actualReq, 2, actualReqChunkLength);
+            var actualReqChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualReq, 0,
+                MiscUtils.LengthOfEncodedChunkLength);
+            var actualReqChunk = LeadChunk.Deserialize(actualReq,
+                MiscUtils.LengthOfEncodedChunkLength, actualReqChunkLength);
             ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
-            var actualRequestBodyLen = actualReq.Length - 2 - actualReqChunkLength;
+            var actualRequestBodyLen = actualReq.Length -
+                MiscUtils.LengthOfEncodedChunkLength- actualReqChunkLength;
             if (expectedRequestBodyBytes == null)
             {
                 Assert.Equal(0, actualRequestBodyLen);
@@ -145,19 +124,21 @@ namespace Kabomu.Tests.QuasiHttp
                 byte[] actualReqBodyBytes;
                 if (actualReqChunk.ContentLength < 0)
                 {
-                    actualReqBodyBytes = MiscUtils.ReadChunkedBody(actualReq, actualReqChunkLength + 2,
+                    actualReqBodyBytes = await MiscUtils.ReadChunkedBody(actualReq,
+                        actualReqChunkLength + MiscUtils.LengthOfEncodedChunkLength,
                         actualRequestBodyLen);
                 }
                 else
                 {
                     actualReqBodyBytes = new byte[actualRequestBodyLen];
-                    Array.Copy(actualReq, actualReqChunkLength + 2, actualReqBodyBytes, 0, actualRequestBodyLen);
+                    Array.Copy(actualReq, actualReqChunkLength + MiscUtils.LengthOfEncodedChunkLength,
+                        actualReqBodyBytes, 0, actualRequestBodyLen);
                 }
                 Assert.Equal(expectedRequestBodyBytes, actualReqBodyBytes);
             }
         }
 
-        public static List<object[]> CreateTestOnSendData()
+        public static List<object[]> CreateTestSendData()
         {
             var testData = new List<object[]>();
 
@@ -264,5 +245,5 @@ namespace Kabomu.Tests.QuasiHttp
 
             return testData;
         }
-    }*/
+    }
 }
