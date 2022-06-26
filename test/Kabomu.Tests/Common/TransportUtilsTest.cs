@@ -17,7 +17,7 @@ namespace Kabomu.Tests.Common
             StringBuilder savedWrites, int maxWriteCount)
         {
             int writeCount = 0;
-            var transport = new ConfigurableQuasiHttpTransport
+            IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport
             {
                 WriteBytesCallback = async (actualConnection, data, offset, length) =>
                 {
@@ -173,7 +173,7 @@ namespace Kabomu.Tests.Common
             string expectedError)
         {
             var readIndex = 0;
-            var transport = new ConfigurableQuasiHttpTransport
+            IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport
             {
                 ReadBytesCallback = async (actualConnection, data, offset, length) =>
                 {
@@ -479,7 +479,7 @@ namespace Kabomu.Tests.Common
             // arrange.
             object connection = null;
             var destStream = new MemoryStream();
-            var transport = new ConfigurableQuasiHttpTransport
+            IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport
             {
                 WriteBytesCallback = (actualConnection, data, offset, length) =>
                 {
@@ -504,7 +504,7 @@ namespace Kabomu.Tests.Common
             // arrange.
             object connection = "dk";
             var destStream = new MemoryStream();
-            var transport = new ConfigurableQuasiHttpTransport
+            IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport
             {
                 WriteBytesCallback = (actualConnection, data, offset, length) =>
                 {

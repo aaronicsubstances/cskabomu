@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
 using System;
@@ -76,7 +77,7 @@ namespace Kabomu.Tests.QuasiHttp
             }
             inputStream.Position = 0; // rewind read pointer.
             var outputStream = new MemoryStream();
-            var transport = new ConfigurableQuasiHttpTransport
+            IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport
             {
                 ReadBytesCallback = async (actualConnection, data, offset, length) =>
                 {

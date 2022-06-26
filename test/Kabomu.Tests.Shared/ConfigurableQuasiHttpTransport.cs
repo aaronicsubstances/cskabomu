@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Tests.Shared
 {
-    public class ConfigurableQuasiHttpTransport : IQuasiHttpTransport
+    public class ConfigurableQuasiHttpTransport : IQuasiHttpClientTransport, IQuasiHttpServerTransport
     {
         public bool DirectSendRequestProcessingEnabled { get; set; }
 
@@ -56,6 +56,8 @@ namespace Kabomu.Tests.Shared
         {
             throw new NotImplementedException();
         }
+
+        public bool IsRunning => throw new NotImplementedException();
 
         public Task Stop()
         {

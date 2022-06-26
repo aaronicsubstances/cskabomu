@@ -17,7 +17,6 @@ namespace Memory.FileExchange
                 HelpText = "Path to directory for saving uploaded files. Defaults to images/ folder in current directory")]
             public string ClientUploadDirPath { get; set; }
 
-
             [Option('p', "direct-send-probability (0-1)", Required = false,
                 HelpText = "Probability of processing request directly and skipping serialization. Defaults to 0" +
                             " (ie requests are never procesed directly and serialization always kicks in)")]

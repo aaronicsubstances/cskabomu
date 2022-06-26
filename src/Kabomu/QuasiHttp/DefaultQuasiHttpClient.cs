@@ -27,7 +27,7 @@ namespace Kabomu.QuasiHttp
         }
 
         public IQuasiHttpSendOptions DefaultSendOptions { get; set; }
-        public IQuasiHttpTransport Transport { get; set; }
+        public IQuasiHttpClientTransport Transport { get; set; }
         public IEventLoopApi EventLoop { get; set; }
 
         public Task<IQuasiHttpResponse> Send(object remoteEndpoint,

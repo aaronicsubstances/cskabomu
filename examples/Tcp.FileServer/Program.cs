@@ -17,6 +17,7 @@ namespace Tcp.FileServer
             [Option('p', "port", Required = false,
                 HelpText = "Server Port. Defaults to 5001")]
             public int? Port { get; set; }
+
             [Option('d', "upload-dir", Required = false,
                 HelpText = "Path to directory for saving uploaded files. Defaults to current directory")]
             public string UploadDirPath { get; set; }
@@ -34,7 +35,7 @@ namespace Tcp.FileServer
         static async Task RunMain(int port, string uploadDirPath)
         {
             var eventLoop = new DefaultEventLoopApi();
-            var transport = new LocalhostTcpTransport(port);
+            var transport = new LocalhostTcpServerTransport(port);
             UncaughtErrorCallback errorHandler = (e, m) =>
             {
                 LOG.Error("Quasi Http Server error! {0}: {1}", m, e);

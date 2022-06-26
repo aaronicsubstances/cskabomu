@@ -9,14 +9,19 @@ namespace Kabomu.QuasiHttp.Transport
     internal class MemoryBasedTransportConnectionInternal
     {
         private readonly WritableBackedBody[] _readWriteRequestProcessors;
-        private readonly object _initiatingParticipant;
         private Exception _releaseError;
 
-        public MemoryBasedTransportConnectionInternal(object initiatingParticipant)
+        public MemoryBasedTransportConnectionInternal(object initiatingParticipant, 
+            object initiatingParticipantEndpoint, object remoteParticipantEndpoint)
         {
-            _initiatingParticipant = initiatingParticipant;
+            InitiatingParticipant = initiatingParticipant;
+            InitiatingParticipantEndpoint = initiatingParticipantEndpoint;
+            RemoteParticipantEndpoint = remoteParticipantEndpoint;
             _readWriteRequestProcessors = new WritableBackedBody[2];
         }
+        public object InitiatingParticipant { get; }
+        public object InitiatingParticipantEndpoint { get; }
+        public object RemoteParticipantEndpoint { get; }
 
         public async Task<int> ProcessReadRequest(object participant, 
             byte[] data, int offset, int length)
@@ -32,7 +37,7 @@ namespace Kabomu.QuasiHttp.Transport
             }
             // pick body at index for other participant for processing read request.
             int readReqProcessorIndex;
-            if (participant == _initiatingParticipant)
+            if (participant == InitiatingParticipant)
             {
                 readReqProcessorIndex = 1;
             }
@@ -62,7 +67,7 @@ namespace Kabomu.QuasiHttp.Transport
             }
             // pick body at index for participant for processing write request.
             int writeReqProcessorIndex;
-            if (participant == _initiatingParticipant)
+            if (participant == InitiatingParticipant)
             {
                 writeReqProcessorIndex = 0;
             }

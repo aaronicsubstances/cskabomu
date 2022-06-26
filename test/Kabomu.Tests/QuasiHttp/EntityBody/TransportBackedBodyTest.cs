@@ -1,4 +1,5 @@
 ﻿using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -10,11 +11,11 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class TransportBackedBodyTest
     {
-        private ConfigurableQuasiHttpTransport CreateTransport(object connection, string[] strings)
+        private IQuasiHttpTransport CreateTransport(object connection, string[] strings)
         {
             var endOfReadSeen = false;
             var readIndex = 0;
-            var transport = new ConfigurableQuasiHttpTransport
+            IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport
             {
                 ReadBytesCallback = async (actualConnection, data, offset, length) =>
                 {
@@ -82,7 +83,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public async Task TestWithEmptyTransportWhichDoesNotCompleteReadsAfterSatisfyingContentLength()
         {
             // arrange.
-            var transport = new ConfigurableQuasiHttpTransport();
+            IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport();
             var closed = false;
             Func<Task> closeCb = async () =>
             {
@@ -104,7 +105,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             object connection = null;
             var dataList = new string[] { "Ab", "cD", "2" };
             var readIndex = 0;
-            var transport = new ConfigurableQuasiHttpTransport
+            IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport
             {
                 ReadBytesCallback = (actualConnection, data, offset, length) =>
                 {
