@@ -1,5 +1,5 @@
-﻿using Kabomu.Common;
-using Kabomu.QuasiHttp;
+﻿using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -22,12 +22,13 @@ namespace Kabomu.Tests.Internals
         public IQuasiHttpTransport Transport { get; set; }
         public bool AbortCalled { get; private set; }
 
-        public async Task AbortTransfer(ITransferProtocolInternal transfer, Exception e)
+        public Task AbortTransfer(ITransferProtocolInternal transfer, Exception e)
         {
             Assert.False(AbortCalled);
             Assert.Equal(_expectedTransfer, transfer);
             Assert.Null(e);
             AbortCalled = true;
+            return Task.CompletedTask;
         }
     }
 }

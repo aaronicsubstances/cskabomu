@@ -36,6 +36,8 @@ Create ExtendedBody interface
   - of interest to extended transport and chunk encoding body.
 -Have to still support readbytes and give ExtendedTransport the option to choose.
 
+*Often I end up with a slightly corrupted Test Explorer cache, such that I have tons of entries erroneously appearing under "<unknown project>" in the Test Explorer window. Fixing this requires manually deleting the testlogs at ".vs/<project name>/v16/TestStore/0/*.testlog". There should be a way to clear this cache from within Visual Studio.
+
 Release
 -------
 copyright

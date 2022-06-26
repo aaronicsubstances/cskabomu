@@ -1,6 +1,6 @@
 ﻿using Kabomu.Common;
-using Kabomu.Common.Bodies;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
 using System;

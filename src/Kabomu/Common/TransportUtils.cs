@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Transport;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;

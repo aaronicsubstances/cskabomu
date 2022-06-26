@@ -1,5 +1,5 @@
 ﻿using CommandLine;
-using Kabomu.Common.Concurrency;
+using Kabomu.Common;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using NLog;
