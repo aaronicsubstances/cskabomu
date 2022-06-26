@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Transport;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -17,34 +18,24 @@ namespace Memory.FileExchange
         public static async Task RunMain(string endpoint, string serverEndpoint,
             string uploadDirPath, MemoryBasedTransportHub hub, double directSendProb)
         {
-            var eventLoop = new DefaultEventLoopApi
+            var eventLoop = new DefaultEventLoopApi();
+            var transport = new MemoryBasedTransport
             {
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Event Loop error! {0}: {1}", m, e);
-                }
+                DirectSendRequestProcessingProbability = directSendProb
             };
-            var memTransport = new MemoryBasedTransport
+            var defaultSendOptions = new DefaultQuasiHttpSendOptions
             {
-                DirectSendRequestProcessingProbability = directSendProb,
-                Mutex = eventLoop,
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Warn(e, "Memory-based transport error: {0}", m);
-                }
+                OverallReqRespTimeoutMillis = 5_000
             };
-            var instance = new KabomuQuasiHttpClient
+            var instance = new DefaultQuasiHttpClient
             {
-                DefaultTimeoutMillis = 5_000,
+                DefaultSendOptions = defaultSendOptions,
                 EventLoop = eventLoop,
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Quasi Http Client error! {0}: {1}", m, e);
-                }
+                Transport = transport
             };
-            hub.Clients.Add(endpoint, instance);
-            memTransport.Hub = hub;
-            instance.Transport = memTransport;
+
+            hub.Transports.Add(endpoint, transport);
+            transport.Hub = hub;
 
             try
             {

@@ -1,6 +1,8 @@
-# C#.NET Core Support for Kabomu
+# Kabomu - C#.NET Core version
 
-Quasi Web Application Framework modelled after ExpressJS, which runs entirely on localhost.
+Kabomu is a quasi web server gateway interface, that enables building quasi web applications that can connect endpoints within localhost and even within an OS process, by employing IPC mechanisms other than TCP. 
+
+From another standpoint, Kabomu is an inter-module communication library intended to help build more maintainable monolithic applications, by making it possile to enforce modular boundaries and software architecture.
 
 ## Mission
 
@@ -18,7 +20,8 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 1. Quasi Web transport wrapper: connection-oriented, byte-oriented.
 
-1. Quasi Web transports: memory, localhost TCP, unix domain socket, windows named pipe.
+1. Quasi Web transports: memory, localhost TCP, unix domain socket, windows named pipe, HTTP.
+   1. *Support for HTTP makes it possible to use Kabomu with any Web application framework, as well as with any HTTP client library.*
 
 3. Multithreading strategy: event loop
 
@@ -45,8 +48,8 @@ Overall mission is toward monolithic applications for enforcement of architectur
     1. path
     1. http method (optional)
 	1. http version (optional)
-    4. content-type: one of application/octet-stream, application/json (always UTF-8), text/plain (always UTF-8), application/x-www-form-urlencoded (always UTF-8).
-        - Body type for HTML Forms is added so as to completely discard need for query string handling in Path, by requiring such query strings to be sent through POST body.
+    4. content-type: one of application/octet-stream, application/json (always UTF-8), text/plain (always UTF-8), text/csv (always UTF-8).
+        - Body type for HTML Forms is equivalent to CSV. And one can completely discard need for query string handling in Path, by requiring such query strings to be sent through POST body.
         - This also means GET with query string has an alternative representation in QuasiHttp.
     3. headers: map of strings to list of strings
     4. body: QuasiHttpBody.

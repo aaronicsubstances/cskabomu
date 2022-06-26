@@ -1,38 +1,34 @@
-﻿using Kabomu.Common;
-using Kabomu.Internals;
+﻿using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.Internals
 {
-    internal class TestParentTransferProtocol : IParentTransferProtocol
+    internal class TestParentTransferProtocol : IParentTransferProtocolInternal
     {
-        private readonly ITransferProtocol _expectedTransfer;
+        private readonly ITransferProtocolInternal _expectedTransfer;
 
-        public TestParentTransferProtocol(ITransferProtocol expectedTransfer)
+        public TestParentTransferProtocol(ITransferProtocolInternal expectedTransfer)
         {
             _expectedTransfer = expectedTransfer;
         }
 
-        public int DefaultTimeoutMillis { get; set; }
-
         public IQuasiHttpApplication Application { get; set; }
 
         public IQuasiHttpTransport Transport { get; set; }
-
-        public IMutexApi Mutex { get; set; }
-
-        public UncaughtErrorCallback ErrorHandler { get; set; }
         public bool AbortCalled { get; private set; }
 
-        public void AbortTransfer(ITransferProtocol transfer, Exception e)
+        public Task AbortTransfer(ITransferProtocolInternal transfer, Exception e)
         {
             Assert.False(AbortCalled);
             Assert.Equal(_expectedTransfer, transfer);
             Assert.Null(e);
             AbortCalled = true;
+            return Task.CompletedTask;
         }
     }
 }

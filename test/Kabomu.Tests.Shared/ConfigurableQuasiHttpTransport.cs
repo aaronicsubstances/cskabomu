@@ -1,51 +1,65 @@
-﻿using Kabomu.Common;
+﻿using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Tests.Shared
 {
     public class ConfigurableQuasiHttpTransport : IQuasiHttpTransport
     {
-        public int MaxChunkSize { get; set; }
-
-        public UncaughtErrorCallback ErrorHandler { get; set; }
-
         public bool DirectSendRequestProcessingEnabled { get; set; }
 
-        public Action<object, IQuasiHttpRequest, Action<Exception, IQuasiHttpResponse>> ProcessSendRequestCallback { get; set; }
+        public Func<IQuasiHttpRequest, IConnectionAllocationRequest, Task<IQuasiHttpResponse>> ProcessSendRequestCallback { get; set; }
 
-        public Action<object, Action<Exception, object>> AllocateConnectionCallback { get; set; }
+        public Func<IConnectionAllocationRequest, Task<object>> AllocateConnectionCallback { get; set; }
 
-        public Action<object> ReleaseConnectionCallback { get; set; }
+        public Func<object, Task> ReleaseConnectionCallback { get; set; }
 
-        public Action<object, byte[], int, int, Action<Exception, int>> ReadBytesCallback { get; set; }
+        public Func<object, byte[], int, int, Task<int>> ReadBytesCallback { get; set; }
 
-        public Action<object, byte[], int, int, Action<Exception>> WriteBytesCallback { get; set; }
+        public Func<object, byte[], int, int, Task> WriteBytesCallback { get; set; }
 
-        public void ProcessSendRequest(object remoteEndpoint, IQuasiHttpRequest request, Action<Exception, IQuasiHttpResponse> cb)
+        public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
+            IConnectionAllocationRequest connectionAllocationInfo)
         {
-            ProcessSendRequestCallback?.Invoke(remoteEndpoint, request, cb);
+            return ProcessSendRequestCallback.Invoke(request, connectionAllocationInfo);
         }
 
-        public void AllocateConnection(object remoteEndpoint, Action<Exception, object> cb)
+        public Task<object> AllocateConnection(IConnectionAllocationRequest connectionAllocationRequest)
         {
-            AllocateConnectionCallback?.Invoke(remoteEndpoint, cb);
+            return AllocateConnectionCallback.Invoke(connectionAllocationRequest);
         }
 
-        public void OnReleaseConnection(object connection)
+        public Task ReleaseConnection(object connection)
         {
-            ReleaseConnectionCallback?.Invoke(connection);
+            return ReleaseConnectionCallback.Invoke(connection);
         }
 
-        public void ReadBytes(object connection, byte[] data, int offset, int length, Action<Exception, int> cb)
+        public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
-            ReadBytesCallback?.Invoke(connection, data, offset, length, cb);
+            return ReadBytesCallback.Invoke(connection, data, offset, length);
         }
 
-        public void WriteBytes(object connection, byte[] data, int offset, int length, Action<Exception> cb)
+        public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
-            WriteBytesCallback?.Invoke(connection, data, offset, length, cb);
+            return WriteBytesCallback.Invoke(connection, data, offset, length);
+        }
+
+        public Task<IConnectionAllocationResponse> ReceiveConnection()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task Start()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task Stop()
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -33,37 +33,24 @@ namespace Tcp.FileServer
 
         static async Task RunMain(int port, string uploadDirPath)
         {
-            var eventLoop = new DefaultEventLoopApi
+            var eventLoop = new DefaultEventLoopApi();
+            var transport = new LocalhostTcpTransport(port);
+            UncaughtErrorCallback errorHandler = (e, m) =>
             {
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Event Loop error! {0}: {1}", m, e);
-                }
+                LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
             };
-            var tcpTransport = new LocalhostTcpTransport(port)
+            var instance = new DefaultQuasiHttpServer
             {
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Transport error! {0}: {1}", m, e);
-                }
-            };
-            var instance = new KabomuQuasiHttpClient
-            {
-                DefaultTimeoutMillis = 5_000,
+                OverallReqRespTimeoutMillis = 5_000,
+                Transport = transport,
                 EventLoop = eventLoop,
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
-                }
+                ErrorHandler = errorHandler
             };
-            tcpTransport.Upstream = instance;
-            instance.Transport = tcpTransport;
-
-            instance.Application = new FileReceiver(port, uploadDirPath, eventLoop);
+            instance.Application = new FileReceiver(port, uploadDirPath);
 
             try
             {
-                tcpTransport.Start();
+                await transport.Start();
                 LOG.Info("Started Tcp.FileServer at {0}", port);
 
                 Console.ReadLine();
@@ -75,7 +62,7 @@ namespace Tcp.FileServer
             finally
             {
                 LOG.Debug("Stopping Tcp.FileServer...");
-                tcpTransport.Stop();
+                await transport.Stop();
             }
         }
     }

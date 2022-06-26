@@ -15,16 +15,14 @@ namespace Kabomu.Examples.Shared
 
         private readonly object _remoteEndpoint;
         private readonly string _uploadDirPath;
-        private readonly IEventLoopApi _eventLoop;
 
-        public FileReceiver(object remoteEndpoint, string uploadDirPath, IEventLoopApi eventLoop)
+        public FileReceiver(object remoteEndpoint, string uploadDirPath)
         {
             _remoteEndpoint = remoteEndpoint;
             _uploadDirPath = uploadDirPath;
-            _eventLoop = eventLoop;
         }
 
-        public async void ProcessRequest(IQuasiHttpRequest request, Action<Exception, IQuasiHttpResponse> cb)
+        public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
         {
             var fileName = request.Headers["f"][0];
             LOG.Debug("Starting receipt of file {0} from {1}...", fileName, _remoteEndpoint);
@@ -38,11 +36,10 @@ namespace Kabomu.Examples.Shared
                 string p = Path.Combine(directory.Name, fileName);
                 using (var fileStream = new FileStream(p, FileMode.Create))
                 {
-                    var wrapper = new AsyncBody(request.Body);
                     var buffer = new byte[4096];
                     while (true)
                     {
-                        var length = await wrapper.DataReadAsync(_eventLoop, buffer, 0, buffer.Length);
+                        var length = await request.Body.ReadBytes(buffer, 0, buffer.Length);
                         if (length == 0)
                         {
                             break;
@@ -63,34 +60,7 @@ namespace Kabomu.Examples.Shared
                 StatusIndicatesSuccess = transferError == null,
                 StatusMessage = transferError?.Message ?? "OK"
             };
-            cb.Invoke(null, response);
-        }
-
-        class AsyncBody
-        {
-            private readonly IQuasiHttpBody _body;
-
-            public AsyncBody(IQuasiHttpBody body)
-            {
-                _body = body;
-            }
-
-            public Task<int> DataReadAsync(IMutexApi mutex, byte[] data, int offset, int bytesToRead)
-            {
-                var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
-                _body.ReadBytes(mutex, data, offset, bytesToRead, (e, bytesRead) =>
-                {
-                    if (e != null)
-                    {
-                        tcs.SetException(e);
-                    }
-                    else
-                    {
-                        tcs.SetResult(bytesRead);
-                    }
-                });
-                return tcs.Task;
-            }
+            return response;
         }
     }
 }
