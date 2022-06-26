@@ -1,5 +1,5 @@
 ﻿using Kabomu.Common;
-using Kabomu.Common.Bodies;
+using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;

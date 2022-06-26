@@ -1,5 +1,5 @@
-﻿using Kabomu.Common;
-using Kabomu.Common.Transports;
+﻿using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO;

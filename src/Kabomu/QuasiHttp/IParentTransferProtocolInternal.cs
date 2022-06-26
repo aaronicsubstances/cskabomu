@@ -1,4 +1,4 @@
-﻿using Kabomu.Common;
+﻿using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;

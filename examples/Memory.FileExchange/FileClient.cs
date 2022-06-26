@@ -1,8 +1,7 @@
 ﻿using Kabomu.Common;
-using Kabomu.Common.Concurrency;
-using Kabomu.Common.Transports;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Transport;
 using NLog;
 using System;
 using System.Collections.Generic;

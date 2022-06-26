@@ -1,5 +1,5 @@
 ﻿using CommandLine;
-using Kabomu.Common.Transports;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Threading.Tasks;
 
