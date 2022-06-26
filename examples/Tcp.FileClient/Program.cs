@@ -1,12 +1,10 @@
 ﻿using CommandLine;
 using Kabomu.Common;
-using Kabomu.Common.Bodies;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using NLog;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading.Tasks;
 
 namespace Tcp.FileClient
@@ -40,35 +38,21 @@ namespace Tcp.FileClient
 
         static async Task RunMain(int port, int serverPort, string uploadDirPath)
         {
-            var eventLoop = new DefaultEventLoopApi
+            var eventLoop = new DefaultEventLoopApi();
+            var transport = new LocalhostTcpTransport(port);
+            var defaultSendOptions = new DefaultQuasiHttpSendOptions
             {
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Event Loop error! {0}: {1}", m, e);
-                }
+                OverallReqRespTimeoutMillis = 5_000
             };
-            var tcpTransport = new LocalhostTcpTransport(port)
+            var instance = new DefaultQuasiHttpClient
             {
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Warn(e, "TCP transport error: {0}", m);
-                }
-            };
-            var instance = new KabomuQuasiHttpClient
-            {
-                DefaultTimeoutMillis = 5_000,
+                DefaultSendOptions = defaultSendOptions,
                 EventLoop = eventLoop,
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Quasi Http Client error! {0}: {1}", m, e);
-                }
+                Transport = transport
             };
-            tcpTransport.Upstream = instance;
-            instance.Transport = tcpTransport;
 
             try
             {
-                tcpTransport.Start();
                 LOG.Info("Started Tcp.FileClient at {0}", port);
 
                 await FileSender.StartTransferringFiles(instance, serverPort, uploadDirPath);
@@ -80,7 +64,7 @@ namespace Tcp.FileClient
             finally
             {
                 LOG.Debug("Stopping Tcp.FileClient...");
-                tcpTransport.Stop();
+                await instance.Reset(null);
             }
         }
     }

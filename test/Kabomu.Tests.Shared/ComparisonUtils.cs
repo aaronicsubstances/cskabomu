@@ -1,14 +1,40 @@
 ﻿using Kabomu.Common;
+using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.Shared
 {
     public static class ComparisonUtils
     {
-        public static void CompareRequests(IMutexApi mutex, int maxChunkSize,
+        public static void CompareLeadChunks(LeadChunk expected, LeadChunk actual)
+        {
+            Assert.Equal(expected.Version, actual.Version);
+            Assert.Equal(expected.Flags, actual.Flags);
+            Assert.Equal(expected.Path, actual.Path);
+            Assert.Equal(expected.StatusIndicatesSuccess, actual.StatusIndicatesSuccess);
+            Assert.Equal(expected.StatusIndicatesClientError, actual.StatusIndicatesClientError);
+            Assert.Equal(expected.StatusMessage, actual.StatusMessage);
+            Assert.Equal(expected.ContentLength, actual.ContentLength);
+            Assert.Equal(expected.ContentType, actual.ContentType);
+            Assert.Equal(expected.HttpMethod, actual.HttpMethod);
+            Assert.Equal(expected.HttpVersion, actual.HttpVersion);
+            Assert.Equal(expected.HttpStatusCode, actual.HttpStatusCode);
+            CompareHeaders(expected.Headers, actual.Headers);
+        }
+
+        public static void CompareSubsequentChunks(SubsequentChunk expected, SubsequentChunk actual)
+        {
+            Assert.Equal(expected.Version, actual.Version);
+            Assert.Equal(expected.Flags, actual.Flags);
+            CompareData(expected.Data, expected.DataOffset, expected.DataLength, actual.Data,
+                actual.DataOffset, actual.DataLength);
+        }
+
+        public static async Task CompareRequests(int maxChunkSize,
             IQuasiHttpRequest expected, IQuasiHttpRequest actual,
             byte[] expectedReqBodyBytes)
         {
@@ -25,21 +51,12 @@ namespace Kabomu.Tests.Shared
                 Assert.NotNull(actual.Body);
                 Assert.Equal(expected.Body.ContentLength, actual.Body.ContentLength);
                 Assert.Equal(expected.Body.ContentType, actual.Body.ContentType);
-                byte[] actualReqBodyBytes = null;
-                var cbCalled = false;
-                TransportUtils.ReadBodyToEnd(mutex, actual.Body, maxChunkSize, (e, data) =>
-                {
-                    Assert.False(cbCalled);
-                    Assert.Null(e);
-                    actualReqBodyBytes = data;
-                    cbCalled = true;
-                });
-                Assert.True(cbCalled);
+                var actualReqBodyBytes = await TransportUtils.ReadBodyToEnd(actual.Body, maxChunkSize);
                 Assert.Equal(expectedReqBodyBytes, actualReqBodyBytes);
             }
         }
 
-        public static void CompareResponses(IMutexApi mutex, int maxChunkSize,
+        public static async Task CompareResponses(int maxChunkSize,
             IQuasiHttpResponse expected, IQuasiHttpResponse actual,
             byte[] expectedResBodyBytes)
         {
@@ -58,16 +75,7 @@ namespace Kabomu.Tests.Shared
                 Assert.NotNull(actual.Body);
                 Assert.Equal(expected.Body.ContentLength, actual.Body.ContentLength);
                 Assert.Equal(expected.Body.ContentType, actual.Body.ContentType);
-                byte[] actualResBodyBytes = null;
-                var cbCalled = false;
-                TransportUtils.ReadBodyToEnd(mutex, actual.Body, maxChunkSize, (e, data) =>
-                {
-                    Assert.False(cbCalled);
-                    Assert.Null(e);
-                    actualResBodyBytes = data;
-                    cbCalled = true;
-                });
-                Assert.True(cbCalled);
+                var actualResBodyBytes = await TransportUtils.ReadBodyToEnd(actual.Body, maxChunkSize);
                 Assert.Equal(expectedResBodyBytes, actualResBodyBytes);
             }
         }

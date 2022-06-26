@@ -1,11 +1,17 @@
 remaining
 ==========
-Before release....convert to Promises ie C# Tasks.
+-split transports into 3: transport, servertransport and clienttransport
+-only release, write and read should remain in transport.
+-let examples bind server in start rather than in constructors.
+-MemoryBasedTransport
+-DefaultQuasiHttpClient
+-DefaultQuasiHttpServer
 
 default transports - create new project. Kabomu.StandardAddons
 ------------------
 MemoryBasedTransport
-LocalhostTcpTransport - making it async may require use of third party library
+LocalhostTcpTransport - making it async may require use of third party library. 
+https://www.baeldung.com/java-socket-connection-read-timeout
 UnixSocketDomainTransport - availability and making it async may require use of third party library
 WindowsNamedPipeTransport - availability and making it async may require use of third party library
 
@@ -29,6 +35,8 @@ Create ExtendedBody interface
 -Add canreadslices and readslices - takes a maxchunksize param, and returns slices.
   - of interest to extended transport and chunk encoding body.
 -Have to still support readbytes and give ExtendedTransport the option to choose.
+
+*Often I end up with a slightly corrupted Test Explorer cache, such that I have tons of entries erroneously appearing under "<unknown project>" in the Test Explorer window. Fixing this requires manually deleting the testlogs at ".vs/<project name>/v16/TestStore/0/*.testlog". There should be a way to clear this cache from within Visual Studio.
 
 Release
 -------

@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Transport;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -13,42 +14,30 @@ namespace Memory.FileExchange
     {
         static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
-        public static Task RunMain(string endpoint, string uploadDirPath,
+        public static async Task RunMain(string endpoint, string uploadDirPath,
             MemoryBasedTransportHub hub)
         {
-            var eventLoop = new DefaultEventLoopApi
+            var eventLoop = new DefaultEventLoopApi();
+            var transport = new MemoryBasedTransport();
+            UncaughtErrorCallback errorHandler = (e, m) =>
             {
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Event Loop error! {0}: {1}", m, e);
-                }
+                LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
             };
-            var memTransport = new MemoryBasedTransport
+            var instance = new DefaultQuasiHttpServer
             {
-                MaxChunkSize = 512,
-                Mutex = eventLoop,
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Transport error! {0}: {1}", m, e);
-                }
-            };
-            var instance = new KabomuQuasiHttpClient
-            {
-                DefaultTimeoutMillis = 5_000,
+                OverallReqRespTimeoutMillis = 5_000,
+                Transport = transport,
                 EventLoop = eventLoop,
-                ErrorHandler = (e, m) =>
-                {
-                    LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
-                }
+                ErrorHandler = errorHandler
             };
-            hub.Clients.Add(endpoint, instance);
-            memTransport.Hub = hub;
-            instance.Transport = memTransport;
+            instance.Application = new FileReceiver(endpoint, uploadDirPath);
+            transport.Application = instance.Application;
 
-            instance.Application = new FileReceiver(endpoint, uploadDirPath, eventLoop);
+            hub.Transports.Add(endpoint, transport);
+            transport.Hub = hub;
 
+            await instance.Start();
             LOG.Info("Started Memory.FileServer at {0}", endpoint);
-            return Task.CompletedTask;
         }
     }
 }

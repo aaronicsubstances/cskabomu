@@ -1,125 +1,134 @@
-﻿using Kabomu.Internals;
+﻿using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common
 {
     public static class TransportUtils
     {
-        public static readonly int MaxChunkSize = 65_535; // ie max unsigned 16-bit integer value.
+        public static readonly int DefaultMaxChunkSize = 8_192;
+        public static readonly int DefaultMaxChunkSizeLimit = 65_536;
 
         public static readonly string ContentTypePlainText = "text/plain";
         public static readonly string ContentTypeByteStream = "application/octet-stream";
         public static readonly string ContentTypeJson = "application/json";
-        public static readonly string ContentTypeHtmlFormUrlEncoded = "application/x-www-form-urlencoded";
+        public static readonly string ContentTypeCsv = "text/csv";
 
-        public static void ReadBytesFully(IMutexApi mutex, IQuasiHttpBody body,
-            byte[] data, int offset, int bytesToRead, Action<Exception> cb)
+        public static async Task ReadBodyBytesFully(IQuasiHttpBody body,
+            byte[] data, int offset, int bytesToRead)
         {
-            body.ReadBytes(mutex, data, offset, bytesToRead, (e, bytesRead) =>
-                HandlePartialReadOutcome(mutex, body, data, offset, bytesToRead, e, bytesRead, cb));
-        }
+            while (true)
+            {
+                int bytesRead = await body.ReadBytes(data, offset, bytesToRead);
 
-        private static void HandlePartialReadOutcome(IMutexApi mutex, IQuasiHttpBody body,
-           byte[] data, int offset, int bytesToRead, Exception e, int bytesRead, Action<Exception> cb)
-        {
-            if (e != null)
-            {
-                cb.Invoke(e);
-                return;
-            }
-            if (bytesRead < bytesToRead)
-            {
-                if (bytesRead <= 0)
+                if (bytesRead < bytesToRead)
                 {
-                    cb.Invoke(new Exception("end of read"));
-                    return;
+                    if (bytesRead <= 0)
+                    {
+                        throw new Exception("unexpected end of read");
+                    }
+                    offset += bytesRead;
+                    bytesToRead -= bytesRead;
                 }
-                int newOffset = offset + bytesRead;
-                int newBytesToRead = bytesToRead - bytesRead;
-                body.ReadBytes(mutex, data, newOffset, newBytesToRead, (e, bytesRead) =>
-                   HandlePartialReadOutcome(mutex, body, data, newOffset, newBytesToRead, e, bytesRead, cb));
-            }
-            else
-            {
-                cb.Invoke(null);
+                else
+                {
+                    break;
+                }
             }
         }
 
-        public static void TransferBodyToTransport(IMutexApi mutex, IQuasiHttpTransport transport, 
-            object connection, IQuasiHttpBody body, Action<Exception> cb)
-        {
-            int effectiveChunkSize = Math.Min(transport.MaxChunkSize, MaxChunkSize);
-            byte[] buffer = new byte[effectiveChunkSize];
-            body.ReadBytes(mutex, buffer, 0, buffer.Length, (e, bytesRead) =>
-                HandleReadOutcome(mutex, transport, connection, body, buffer, e, bytesRead, cb));
-        }
-
-        private static void HandleReadOutcome(IMutexApi mutex, IQuasiHttpTransport transport, object connection, 
-            IQuasiHttpBody body, byte[] buffer, Exception e, int bytesRead, Action<Exception> cb)
-        {
-            if (e != null)
-            {
-                cb.Invoke(e);
-                return;
-            }
-            if (bytesRead > 0)
-            {
-                transport.WriteBytes(connection, buffer, 0, bytesRead, e =>
-                    HandleWriteOutcome(mutex, transport, connection, body, buffer, e, cb));
-            }
-            else
-            {
-                cb.Invoke(null);
-            }
-        }
-
-        private static void HandleWriteOutcome(IMutexApi mutex, IQuasiHttpTransport transport, object connection,
-            IQuasiHttpBody body, byte[] buffer, Exception e, Action<Exception> cb)
-        {
-            if (e != null)
-            {
-                cb.Invoke(e);
-                return;
-            }
-            body.ReadBytes(mutex, buffer, 0, buffer.Length, (e, bytesRead) =>
-                HandleReadOutcome(mutex, transport, connection, body, buffer, e, bytesRead, cb));
-        }
-
-        public static void ReadBodyToEnd(IMutexApi mutex, IQuasiHttpBody body, int maxChunkSize,
-            Action<Exception, byte[]> cb)
+        public static async Task<byte[]> ReadBodyToEnd(IQuasiHttpBody body, int maxChunkSize)
         {
             var readBuffer = new byte[maxChunkSize];
             var byteStream = new MemoryStream();
-            body.ReadBytes(mutex, readBuffer, 0, readBuffer.Length, (e, i) =>
-                HandleReadBodyToEndOutcome(mutex, body, readBuffer, byteStream, e, i, cb));
+
+            while (true)
+            {
+                int bytesRead = await body.ReadBytes(readBuffer, 0, readBuffer.Length);
+                if (bytesRead > 0)
+                {
+                    byteStream.Write(readBuffer, 0, bytesRead);
+                }
+                else
+                {
+                    break;
+                }
+            }
+            await body.EndRead(null);
+            return byteStream.ToArray();
         }
 
-        private static void HandleReadBodyToEndOutcome(IMutexApi mutex, IQuasiHttpBody body, byte[] readBuffer,
-            MemoryStream byteStream, Exception e, int bytesRead, Action<Exception, byte[]> cb)
+        public static async Task ReadTransportBytesFully(IQuasiHttpTransport transport, object connection,
+           byte[] data, int offset, int bytesToRead)
         {
-            if (e != null)
+            while (true)
             {
-                cb.Invoke(e, null);
-                return;
-            }
-            if (bytesRead > 0)
-            {
-                byteStream.Write(readBuffer, 0, bytesRead);
-                body.ReadBytes(mutex, readBuffer, 0, readBuffer.Length, (e, i) =>
-                    HandleReadBodyToEndOutcome(mutex, body, readBuffer, byteStream, e, i, cb));
-            }
-            else
-            {
-                body.OnEndRead(mutex, null);
-                cb.Invoke(null, byteStream.ToArray());
+                int bytesRead = await transport.ReadBytes(connection, data, offset, bytesToRead);
+
+                if (bytesRead < bytesToRead)
+                {
+                    if (bytesRead <= 0)
+                    {
+                        throw new Exception("unexpected end of read");
+                    }
+                    offset += bytesRead;
+                    bytesToRead -= bytesRead;
+                }
+                else
+                {
+                    break;
+                }
             }
         }
 
-        public static void WriteByteSlices(IQuasiHttpTransport transport, object connection,
-            ByteBufferSlice[] slices, Action<Exception> cb)
+        public static async Task<byte[]> ReadTransportToEnd(IQuasiHttpTransport transport, object connection, int maxChunkSize)
+        {
+            var readBuffer = new byte[maxChunkSize];
+            var byteStream = new MemoryStream();
+
+            while (true)
+            {
+                int bytesRead = await transport.ReadBytes(connection, readBuffer, 0, readBuffer.Length);
+                if (bytesRead > 0)
+                {
+                    byteStream.Write(readBuffer, 0, bytesRead);
+                }
+                else
+                {
+                    break;
+                }
+            }
+            await transport.ReleaseConnection(connection);
+            return byteStream.ToArray();
+        }
+
+        public static async Task TransferBodyToTransport(IQuasiHttpTransport transport,
+            object connection, IQuasiHttpBody body, int maxChunkSize)
+        {
+            byte[] buffer = new byte[maxChunkSize];
+
+            while (true)
+            {
+                int bytesRead = await body.ReadBytes(buffer, 0, buffer.Length);
+
+                if (bytesRead > 0)
+                {
+                    await transport.WriteBytes(connection, buffer, 0, bytesRead);
+                }
+                else
+                {
+                    break;
+                }
+            }
+            await body.EndRead(null);
+        }
+
+        public static async Task WriteByteSlices(IQuasiHttpTransport transport, object connection,
+            ByteBufferSlice[] slices)
         {
             if (transport == null)
             {
@@ -129,31 +138,10 @@ namespace Kabomu.Common
             {
                 throw new ArgumentException("null byte slices");
             }
-            if (cb == null)
+            foreach (var slice in slices)
             {
-                throw new ArgumentException("null callback");
+                await transport.WriteBytes(connection, slice.Data, slice.Offset, slice.Length);
             }
-            WriteSlice(transport, connection, slices, 0, cb);
-        }
-
-        private static void WriteSlice(IQuasiHttpTransport transport, object connection,
-            ByteBufferSlice[] slices, int index, Action<Exception> cb)
-        {
-            if (index >= slices.Length)
-            {
-                cb.Invoke(null);
-                return;
-            }
-            var nextSlice = slices[index];
-            transport.WriteBytes(connection, nextSlice.Data, nextSlice.Offset, nextSlice.Length, e =>
-            {
-                if (e != null)
-                {
-                    cb.Invoke(e);
-                    return;
-                }
-                WriteSlice(transport, connection, slices, index + 1, cb);
-            });
         }
     }
 }

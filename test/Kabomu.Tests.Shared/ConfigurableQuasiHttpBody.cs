@@ -1,24 +1,27 @@
-﻿using Kabomu.Common;
+﻿using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Tests.Shared
 {
     public class ConfigurableQuasiHttpBody : IQuasiHttpBody
     {
-        public Action<IMutexApi, byte[], int, int, Action<Exception, int>> ReadBytesCallback { get; set; }
+        public Func<byte[], int, int, Task<int>> ReadBytesCallback { get; set; }
+        public Func<Exception, Task> EndReadCallback { get; set; }
 
         public long ContentLength { get; set; }
         public string ContentType { get; set; }
 
-        public void ReadBytes(IMutexApi mutex, byte[] data, int offset, int bytesToRead, Action<Exception, int> cb)
+        public Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
-            ReadBytesCallback?.Invoke(mutex, data, offset, bytesToRead, cb);
+            return ReadBytesCallback.Invoke(data, offset, bytesToRead);
         }
 
-        public void OnEndRead(IMutexApi mutex, Exception e)
+        public Task EndRead(Exception e)
         {
+            return EndReadCallback.Invoke(e);
         }
     }
 }
