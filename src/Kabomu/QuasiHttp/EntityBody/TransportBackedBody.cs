@@ -14,7 +14,6 @@ namespace Kabomu.QuasiHttp.EntityBody
         private readonly IQuasiHttpTransport _transport;
         private readonly object _connection;
         private readonly Func<Task> _closeCallback;
-        private long _contentLength;
         private long _bytesRemaining;
         private Exception _srcEndError;
 
@@ -31,7 +30,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             ContentType = contentType;
             ContentLength = contentLength;
             _bytesRemaining = -1;
-            if (_contentLength >= 0)
+            if (ContentLength >= 0)
             {
                 _bytesRemaining = contentLength;
             }

@@ -1,6 +1,5 @@
 ﻿using CommandLine;
 using Kabomu.Common;
-using Kabomu.Common;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using NLog;
@@ -18,6 +17,7 @@ namespace UnixDomainSocket.FileServer
             [Option('p', "path", Required = false,
                 HelpText = "Server Path. Defaults to 380d562f-554d-4b19-88ff-d92356a62b5f.sock")]
             public string Path { get; set; }
+
             [Option('d', "upload-dir", Required = false,
                 HelpText = "Path to directory for saving uploaded files. Defaults to current directory")]
             public string UploadDirPath { get; set; }
@@ -35,7 +35,7 @@ namespace UnixDomainSocket.FileServer
         static async Task RunMain(string path, string uploadDirPath)
         {
             var eventLoop = new DefaultEventLoopApi();
-            var transport = new UnixDomainSocketTransport(path);
+            var transport = new UnixDomainSocketServerTransport(path);
             UncaughtErrorCallback errorHandler = (e, m) =>
             {
                 LOG.Error("Quasi Http Server error! {0}: {1}", m, e);

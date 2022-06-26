@@ -28,7 +28,7 @@ namespace Kabomu.QuasiHttp
         public int OverallReqRespTimeoutMillis { get; set; }
         public int MaxChunkSize { get; set; }
         public IQuasiHttpApplication Application { get; set; }
-        public IQuasiHttpTransport Transport { get; set; }
+        public IQuasiHttpServerTransport Transport { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
         public IEventLoopApi EventLoop { get; set; }
 

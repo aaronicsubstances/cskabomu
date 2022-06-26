@@ -10,26 +10,9 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Examples.Shared
 {
-    public class LocalhostTcpTransport : IQuasiHttpTransport
+    public class LocalhostTcpClientTransport : IQuasiHttpClientTransport
     {
-        private readonly TcpListener _tcpServer;
-
-        public LocalhostTcpTransport(int port)
-        {
-            _tcpServer = new TcpListener(IPAddress.Loopback, port);
-        }
-
         public bool DirectSendRequestProcessingEnabled => false;
-
-        public async Task Start()
-        {
-            _tcpServer.Start();
-        }
-
-        public async Task Stop()
-        {
-            _tcpServer.Stop();
-        }
 
         public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectionAllocationRequest connectionAllocationInfo)
@@ -46,34 +29,40 @@ namespace Kabomu.Examples.Shared
             return tcpClient;
         }
 
-        public async Task ReleaseConnection(object connection)
+        public Task ReleaseConnection(object connection)
+        {
+            return ReleaseConnectionInternal(connection);
+        }
+
+        internal static Task ReleaseConnectionInternal(object connection)
         {
             var tcpClient = (TcpClient)connection;
             tcpClient.Dispose();
-        }
-
-        public Task WriteBytes(object connection, byte[] data, int offset, int length)
-        {
-            var tcpClient = (TcpClient)connection;
-            Stream networkStream = tcpClient.GetStream();
-            return networkStream.WriteAsync(data, offset, length);
+            return Task.CompletedTask;
         }
 
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
+        {
+            return ReadBytesInternal(connection, data, offset, length);
+        }
+
+        internal static Task<int> ReadBytesInternal(object connection, byte[] data, int offset, int length)
         {
             var tcpClient = (TcpClient)connection;
             Stream networkStream = tcpClient.GetStream();
             return networkStream.ReadAsync(data, offset, length);
         }
 
-        public async Task<IConnectionAllocationResponse> ReceiveConnection()
+        public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
-            var tcpClient = await _tcpServer.AcceptTcpClientAsync();
-            tcpClient.NoDelay = true;
-            return new DefaultConnectionAllocationResponse
-            {
-                Connection = tcpClient
-            };
+            return WriteBytesInternal(connection, data, offset, length);
+        }
+
+        internal static Task WriteBytesInternal(object connection, byte[] data, int offset, int length)
+        {
+            var tcpClient = (TcpClient)connection;
+            Stream networkStream = tcpClient.GetStream();
+            return networkStream.WriteAsync(data, offset, length);
         }
     }
 }

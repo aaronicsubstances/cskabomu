@@ -6,6 +6,6 @@ namespace Kabomu.QuasiHttp.Transport
 {
     public class MemoryBasedTransportHub
     {
-        public Dictionary<object, MemoryBasedTransport> Transports { get; } = new Dictionary<object, MemoryBasedTransport>();
+        public Dictionary<object, MemoryBasedServerTransport> Servers { get; } = new Dictionary<object, MemoryBasedServerTransport>();
     }
 }

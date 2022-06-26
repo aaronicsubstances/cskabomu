@@ -15,13 +15,15 @@ namespace Memory.FileExchange
     {
         static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
-        public static async Task RunMain(string endpoint, string serverEndpoint,
+        public static async Task RunMain(string clientEndpoint, string serverEndpoint,
             string uploadDirPath, MemoryBasedTransportHub hub, double directSendProb)
         {
             var eventLoop = new DefaultEventLoopApi();
-            var transport = new MemoryBasedTransport
+            var transport = new MemoryBasedClientTransport
             {
-                DirectSendRequestProcessingProbability = directSendProb
+                LocalEndpoint = clientEndpoint,
+                DirectSendRequestProcessingProbability = directSendProb,
+                Hub = hub
             };
             var defaultSendOptions = new DefaultQuasiHttpSendOptions
             {
@@ -34,12 +36,9 @@ namespace Memory.FileExchange
                 Transport = transport
             };
 
-            hub.Transports.Add(endpoint, transport);
-            transport.Hub = hub;
-
             try
             {
-                LOG.Info("Started Memory.FileClient at {0}", endpoint);
+                LOG.Info("Started Memory.FileClient to {0}", serverEndpoint);
 
                 await FileSender.StartTransferringFiles(instance, serverEndpoint, uploadDirPath);
                 LOG.Debug("Completed Memory.FileClient.");

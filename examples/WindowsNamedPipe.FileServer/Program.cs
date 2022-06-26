@@ -17,6 +17,7 @@ namespace WindowsNamedPipe.FileServer
             [Option('p', "path", Required = false,
                 HelpText = "Server Path. Defaults to 34dc4fb1-71e0-4682-a64f-52d2635df2f5")]
             public string Path { get; set; }
+
             [Option('d', "upload-dir", Required = false,
                 HelpText = "Path to directory for saving uploaded files. Defaults to current directory")]
             public string UploadDirPath { get; set; }
@@ -34,7 +35,7 @@ namespace WindowsNamedPipe.FileServer
         static async Task RunMain(string path, string uploadDirPath)
         {
             var eventLoop = new DefaultEventLoopApi();
-            var transport = new WindowsNamedPipeTransport(path);
+            var transport = new WindowsNamedPipeServerTransport(path);
             UncaughtErrorCallback errorHandler = (e, m) =>
             {
                 LOG.Error("Quasi Http Server error! {0}: {1}", m, e);

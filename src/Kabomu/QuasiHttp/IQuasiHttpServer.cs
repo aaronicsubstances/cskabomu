@@ -13,7 +13,7 @@ namespace Kabomu.QuasiHttp
         UncaughtErrorCallback ErrorHandler { get; set; }
         int OverallReqRespTimeoutMillis { get; set; }
         IQuasiHttpApplication Application { get; set; }
-        IQuasiHttpTransport Transport { get; set; }
+        IQuasiHttpServerTransport Transport { get; set; }
         Task Start();
         Task Stop();
     }
