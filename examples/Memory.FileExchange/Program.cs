@@ -1,6 +1,7 @@
 ﻿using CommandLine;
 using Kabomu.QuasiHttp.Transport;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Memory.FileExchange
@@ -23,7 +24,7 @@ namespace Memory.FileExchange
             public double? DirectSendProbability { get; set; }
         }
 
-        static void Main(string[] args)
+        static void Mai2n(string[] args)
         {
             Parser.Default.ParseArguments<Options>(args)
                    .WithParsed<Options>(o =>
@@ -37,6 +38,20 @@ namespace Memory.FileExchange
                            o.ClientUploadDirPath ?? "images", hub, o.DirectSendProbability ?? 0);
                        Task.WaitAll(serverTask, clientTask);
                    });
+        }
+
+        static async Task Main()
+        {
+            Console.WriteLine("Thread Id before Memb(): {0}", Thread.CurrentThread.ManagedThreadId);
+            await Memb();
+            Console.WriteLine("Thread Id after Memb(): {0}", Thread.CurrentThread.ManagedThreadId);
+        }
+
+        private static async Task Memb()
+        {
+            Console.WriteLine("Thread Id before 2-sec delay: {0}", Thread.CurrentThread.ManagedThreadId);
+            await Task.Delay(2000);
+            Console.WriteLine("Thread Id after 2-sec delay: {0}", Thread.CurrentThread.ManagedThreadId);
         }
     }
 }

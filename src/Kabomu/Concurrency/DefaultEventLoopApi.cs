@@ -4,7 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu.Common
+namespace Kabomu.Concurrency
 {
     /// <summary>
     /// Provides default implementation of event loop that runs on the system thread pool.
@@ -12,11 +12,14 @@ namespace Kabomu.Common
     public class DefaultEventLoopApi : IEventLoopApi
     {
         private readonly LimitedConcurrencyLevelTaskSchedulerInternal _throttledTaskScheduler;
+        public int _interimEventLoopThreadId;
 
         public DefaultEventLoopApi()
         {
             _throttledTaskScheduler = new LimitedConcurrencyLevelTaskSchedulerInternal(1);
         }
+
+        public bool IsInterimEventLoopThread => Thread.CurrentThread.ManagedThreadId == _interimEventLoopThreadId;
 
         public Task SetImmediate(CancellationToken cancellationToken, Func<Task> cb)
         {
@@ -37,6 +40,8 @@ namespace Kabomu.Common
                 }
                 try
                 {
+                    Interlocked.Exchange(ref _interimEventLoopThreadId, Thread.CurrentThread.ManagedThreadId);
+
                     await cb.Invoke();
                     tcs.SetResult(null);
                 }
@@ -49,50 +54,7 @@ namespace Kabomu.Common
             return tcs.Task;
         }
 
-        public Task<T> SetImmediate<T>(CancellationToken cancellationToken, Func<Task<T>> cb)
-        {
-            if (cb == null)
-            {
-                throw new ArgumentException("null cb");
-            }
-            var tcs = new TaskCompletionSource<T>();
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return tcs.Task;
-            }
-            Func<Task> cbWrapper = async () =>
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    return;
-                }
-                try
-                {
-                    T res = await cb.Invoke();
-                    tcs.SetResult(res);
-                }
-                catch (Exception e)
-                {
-                    tcs.SetException(e);
-                }
-            };
-            PostCallback(Task.CompletedTask, cbWrapper, null);
-            return tcs.Task;
-        }
-
         public Task SetTimeout(int millis, CancellationToken cancellationToken, Func<Task> cb)
-        {
-            if (cb == null)
-            {
-                throw new ArgumentException("null cb");
-            }
-            return Task.Delay(millis, cancellationToken).ContinueWith(t =>
-            {
-                return SetImmediate(cancellationToken, cb);
-            }).Unwrap();
-        }
-
-        public Task<T> SetTimeout<T>(int millis, CancellationToken cancellationToken, Func<Task<T>> cb)
         {
             if (cb == null)
             {

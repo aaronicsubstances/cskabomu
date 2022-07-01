@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -169,7 +170,7 @@ namespace Kabomu.QuasiHttp
         private Task SetResponseTimeout(ITransferProtocolInternal transfer, int transferTimeoutMillis)
         {
             transfer.TimeoutCancellationHandle = new CancellationTokenSource();
-            return EventLoop.SetTimeout<Task>(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
+            return EventLoop.SetTimeout(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
                 throw new Exception("receive timeout"));
         }
 
