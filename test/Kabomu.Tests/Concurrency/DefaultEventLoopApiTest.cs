@@ -1,4 +1,4 @@
-﻿using Kabomu.Common;
+﻿using Kabomu.Concurrency;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Kabomu.Tests.Common.Concurrency
+namespace Kabomu.Tests.Concurrency
 {
     public class DefaultEventLoopApiTest
     {
@@ -26,7 +26,7 @@ namespace Kabomu.Tests.Common.Concurrency
             var instance = new DefaultEventLoopApi();
             var expected = new List<string>();
             var actual = new List<string>();
-            var tasks = new List<Task<int>>();
+            var tasks = new List<Task>();
             var cancelledTasks = new List<Task>();
             int i;
             for (i = 0; i < 100; i++)
@@ -67,7 +67,6 @@ namespace Kabomu.Tests.Common.Concurrency
                 {
                     Assert.True(task.IsCompletedSuccessfully, "Didn't expect: " + task.Exception);
                 }
-                Assert.Equal(i, task.Result);
                 i++;
             }
 
@@ -110,15 +109,10 @@ namespace Kabomu.Tests.Common.Concurrency
                 tasks.Add(related);
             }
 
-            Task task1 = instance.SetTimeout(3000, CancellationToken.None, () => Task.CompletedTask);
-            Task<int> task2 = instance.SetTimeout(3100, CancellationToken.None, () => Task.FromResult(177));
             // this should finish executing after all previous tasks have executed.
-            await task1;
-            int finalRes = await task2;
+            await instance.SetTimeout(3000, CancellationToken.None, () => Task.CompletedTask);
 
             // assert
-            Assert.Equal(177, finalRes);
-
             // check cancellations
             foreach (var related in tasks)
             {
