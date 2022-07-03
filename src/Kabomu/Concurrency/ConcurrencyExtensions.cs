@@ -9,9 +9,9 @@ namespace Kabomu.Concurrency
 {
     public static class ConcurrencyExtensions
     {
-        public static LockAsyncAwaitable LockAsync(this IEventLoopApi eventLoop, object fallbackLockObj)
+        public static MutexAwaitable Synchronize(this IMutexApi mutexApi)
         {
-            return new LockAsyncAwaitable(eventLoop, fallbackLockObj);
+            return new MutexAwaitable(mutexApi);
         }
     }
 }
