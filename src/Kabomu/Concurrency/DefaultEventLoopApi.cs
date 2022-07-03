@@ -11,15 +11,40 @@ namespace Kabomu.Concurrency
     /// </summary>
     public class DefaultEventLoopApi : IEventLoopApi
     {
+        private readonly Action<object> UnwrapAndRunExclusivelyCallback;
         private readonly LimitedConcurrencyLevelTaskSchedulerInternal _throttledTaskScheduler;
-        public int _interimEventLoopThreadId;
+        private int _interimEventLoopThreadId;
 
         public DefaultEventLoopApi()
         {
+            UnwrapAndRunExclusivelyCallback = UnwrapAndRunExclusively;
             _throttledTaskScheduler = new LimitedConcurrencyLevelTaskSchedulerInternal(1);
         }
 
+        private void UnwrapAndRunExclusively(object cbState)
+        {
+            Interlocked.Exchange(ref _interimEventLoopThreadId, Thread.CurrentThread.ManagedThreadId);
+
+            var continuation = (Action)cbState;
+            continuation.Invoke();
+        }
+
         public bool IsInterimEventLoopThread => Thread.CurrentThread.ManagedThreadId == _interimEventLoopThreadId;
+
+        public bool IsExclusiveRunRequired => !IsInterimEventLoopThread;
+
+        public void RunExclusively(Action cb)
+        {
+            if (cb == null)
+            {
+                throw new ArgumentException("null cb");
+            }
+            // try to reduce garbage collection by not reusing SetImmediate.
+            Task.Factory.StartNew(UnwrapAndRunExclusivelyCallback, cb, CancellationToken.None,
+                TaskCreationOptions.None, _throttledTaskScheduler);
+        }
+
+        public IDisposable CreateMutexContextManager() => null;
 
         public Task SetImmediate(CancellationToken cancellationToken, Func<Task> cb)
         {

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Concurrency
 {
-    public interface IEventLoopApi
+    public interface IEventLoopApi : IMutexApi
     {
         bool IsInterimEventLoopThread { get; }
 

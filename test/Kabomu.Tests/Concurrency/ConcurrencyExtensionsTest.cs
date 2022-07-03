@@ -13,55 +13,87 @@ namespace Kabomu.Tests.Concurrency
         [Fact]
         public async Task TestEventLoopBasedMutex()
         {
-            IEventLoopApi eventLoop = new DefaultEventLoopApi();
-            object lockObj = null;
+            // arrange.
+            IMutexApi eventLoopBased = new DefaultEventLoopApi();
+
+            // act.
             Thread t = Thread.CurrentThread, u, v;
-            using (await eventLoop.LockAsync(lockObj))
+            using (await eventLoopBased.Synchronize())
             {
                 u = Thread.CurrentThread;
-                using (await eventLoop.LockAsync(lockObj))
+                using (await eventLoopBased.Synchronize())
                 {
                     v = Thread.CurrentThread;
                 }
             }
+
+            // assert.
             Assert.NotEqual(t, u);
             Assert.Equal(u, v);
         }
 
         [Fact]
-        public async Task TestOrdinaryLockBasedMutex()
+        public async Task TestLockBasedMutex()
         {
-            IEventLoopApi eventLoop = null;
-            object lockObj = new object();
+            // arrange.
+            IMutexApi lockBased = new LockBasedMutexApi(new object());
+
+            // act.
             Thread t = Thread.CurrentThread, u, v;
-            using (await eventLoop.LockAsync(lockObj))
+            using (await lockBased.Synchronize())
             {
                 u = Thread.CurrentThread;
-                using (await eventLoop.LockAsync(lockObj))
+                using (await lockBased.Synchronize())
                 {
                     v = Thread.CurrentThread;
                 }
-                Assert.Equal(t, u);
             }
+
+            // assert.
             Assert.Equal(t, u);
             Assert.Equal(u, v);
         }
 
         [Fact]
-        public async Task TestSameThreadMaintenanceForNoMutex()
+        public async Task TestLockBasedMutexConvenienceWithNullArgument()
         {
-            IEventLoopApi eventLoop = null;
-            object lockObj = null;
+            // arrange.
+            IMutexApi lockBased = new LockBasedMutexApi(null);
+
+            // act.
             Thread t = Thread.CurrentThread, u, v;
-            using (await eventLoop.LockAsync(lockObj))
+            using (await lockBased.Synchronize())
             {
                 u = Thread.CurrentThread;
-                using (await eventLoop.LockAsync(lockObj))
+                using (await lockBased.Synchronize())
                 {
                     v = Thread.CurrentThread;
                 }
-                Assert.Equal(t, u);
             }
+
+            // assert.
+            Assert.Equal(t, u);
+            Assert.Equal(u, v);
+        }
+
+        [Fact]
+        public async Task TestNullMutexConvenience()
+        {
+            // arrange.
+            IMutexApi nullBased = null;
+
+            // act.
+            Thread t = Thread.CurrentThread, u, v;
+            using (await nullBased.Synchronize())
+            {
+                u = Thread.CurrentThread;
+                using (await nullBased.Synchronize())
+                {
+                    v = Thread.CurrentThread;
+                }
+            }
+
+            // assert.
             Assert.Equal(t, u);
             Assert.Equal(u, v);
         }
