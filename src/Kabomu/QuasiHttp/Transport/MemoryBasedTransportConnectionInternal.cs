@@ -9,19 +9,18 @@ namespace Kabomu.QuasiHttp.Transport
     internal class MemoryBasedTransportConnectionInternal
     {
         private readonly WritableBackedBody[] _readWriteRequestProcessors;
-        private Exception _releaseError;
+        private bool _released;
 
-        public MemoryBasedTransportConnectionInternal(object initiatingParticipant, 
-            object initiatingParticipantEndpoint, object remoteParticipantEndpoint)
+        public MemoryBasedTransportConnectionInternal(MemoryBasedClientTransport initiatingParticipant, 
+            object remoteEndpoint)
         {
             InitiatingParticipant = initiatingParticipant;
-            InitiatingParticipantEndpoint = initiatingParticipantEndpoint;
-            RemoteParticipantEndpoint = remoteParticipantEndpoint;
+            RemoteEndpoint = remoteEndpoint;
             _readWriteRequestProcessors = new WritableBackedBody[2];
         }
-        public object InitiatingParticipant { get; }
-        public object InitiatingParticipantEndpoint { get; }
-        public object RemoteParticipantEndpoint { get; }
+
+        public MemoryBasedClientTransport InitiatingParticipant { get; }
+        public object RemoteEndpoint { get; }
 
         public async Task<int> ProcessReadRequest(object participant, 
             byte[] data, int offset, int length)
@@ -31,9 +30,9 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 throw new ArgumentException("null participating transport");
             }
-            if (_releaseError != null)
+            if (_released)
             {
-                throw _releaseError;
+                throw new Exception("connection reset");
             }
             // pick body at index for other participant for processing read request.
             int readReqProcessorIndex;
@@ -61,9 +60,9 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 throw new ArgumentException("null participating transport");
             }
-            if (_releaseError != null)
+            if (_released)
             {
-                throw _releaseError;
+                throw new Exception("connection reset");
             }
             // pick body at index for participant for processing write request.
             int writeReqProcessorIndex;
@@ -87,17 +86,17 @@ namespace Kabomu.QuasiHttp.Transport
 
         public async Task Release()
         {
-            if (_releaseError != null)
+            if (_released)
             {
                 return;
             }
-            _releaseError = new Exception("connection reset");
+            _released = true;
             var tasks = new List<Task>();
             foreach (var processor in _readWriteRequestProcessors)
             {
                 if (processor != null)
                 {
-                    tasks.Add(processor.EndRead(_releaseError));
+                    tasks.Add(processor.EndRead());
                 }
             }
             await Task.WhenAll(tasks);

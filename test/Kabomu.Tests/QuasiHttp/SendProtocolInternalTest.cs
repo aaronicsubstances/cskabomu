@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
@@ -91,7 +92,8 @@ namespace Kabomu.Tests.QuasiHttp
                     outputStream.Write(data, offset, length);
                 }
             };
-            var instance = new SendProtocolInternal(new object());
+            var instance = new SendProtocolInternal();
+            instance.MutexApi = new LockBasedMutexApi(new object());
             instance.Connection = connection;
             instance.MaxChunkSize = maxChunkSize;
             instance.Parent = new TestParentTransferProtocol(instance)

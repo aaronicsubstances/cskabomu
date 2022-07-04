@@ -44,9 +44,9 @@ namespace Kabomu.QuasiHttp.EntityBody
             return _backingBody.ReadBytes(data, offset, bytesToRead);
         }
 
-        public Task EndRead(Exception e)
+        public Task EndRead()
         {
-            return _backingBody.EndRead(e);
+            return _backingBody.EndRead();
         }
     }
 }

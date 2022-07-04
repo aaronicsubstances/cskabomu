@@ -10,6 +10,6 @@ namespace Kabomu.QuasiHttp
     {
         IQuasiHttpApplication Application { get; }
         IQuasiHttpTransport Transport { get; }
-        Task AbortTransfer(ITransferProtocolInternal transfer, Exception e);
+        Task AbortTransfer(ITransferProtocolInternal transfer);
     }
 }

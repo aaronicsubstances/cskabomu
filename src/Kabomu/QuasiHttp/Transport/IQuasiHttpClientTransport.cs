@@ -13,7 +13,7 @@ namespace Kabomu.QuasiHttp.Transport
         /// HTTP-based transports return true always in order to completely take over
         /// processing of (Quasi) HTTP requests.
         /// </summary>
-        bool DirectSendRequestProcessingEnabled { get; }
+        Task<bool> CanProcessSendRequestDirectly();
 
         Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectionAllocationRequest connectionAllocationInfo);

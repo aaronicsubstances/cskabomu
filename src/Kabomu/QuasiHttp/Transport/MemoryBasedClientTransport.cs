@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -8,25 +9,27 @@ namespace Kabomu.QuasiHttp.Transport
 {
     public class MemoryBasedClientTransport : IQuasiHttpClientTransport
     {
-        private readonly object _lock = new object();
         private readonly Random _randGen = new Random();
+
+        public MemoryBasedClientTransport()
+        {
+            MutexApi = new LockBasedMutexApi(new object());
+        }
 
         public string LocalEndpoint { get; set; }
         public MemoryBasedTransportHub Hub { get; set; }
         public double DirectSendRequestProcessingProbability { get; set; }
+        public IMutexApi MutexApi { get; set; }
 
-        public bool DirectSendRequestProcessingEnabled
+        public async Task<bool> CanProcessSendRequestDirectly()
         {
-            get
+            using (await MutexApi.Synchronize())
             {
-                lock (_lock)
-                {
-                    return _randGen.NextDouble() < DirectSendRequestProcessingProbability;
-                }
+                return _randGen.NextDouble() < DirectSendRequestProcessingProbability;
             }
         }
 
-        public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
+        public async Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectionAllocationRequest connectionAllocationInfo)
         {
             if (connectionAllocationInfo?.RemoteEndpoint == null)
@@ -38,47 +41,63 @@ namespace Kabomu.QuasiHttp.Transport
                 throw new ArgumentException("null request");
             }
 
-            Task<IQuasiHttpResponse> responseTask;
-            lock (_lock)
+            Task<MemoryBasedServerTransport> remoteTransportTask;
+            using (await MutexApi.Synchronize())
             {
-                var remoteTransport = Hub.Servers[connectionAllocationInfo.RemoteEndpoint];
-                if (!remoteTransport.IsRunning)
-                {
-                    throw new Exception("remote transport not started");
-                }
-                // can later pass local and remote endpoint information in request environment.
-                responseTask = remoteTransport.Application.ProcessRequest(request, connectionAllocationInfo.Environment);
+                remoteTransportTask = Hub.GetServer(connectionAllocationInfo.RemoteEndpoint);
             }
 
-            return responseTask;
+            var remoteTransport = await remoteTransportTask;
+            // ensure remote transport is running, so as to have comparable behaviour
+            // with allocate connection
+            if (!await remoteTransport.IsRunning())
+            {
+                throw new Exception("remote transport not started");
+            }
+            var remoteApp = remoteTransport.Application;
+            if (remoteApp == null)
+            {
+                throw new Exception("remote application not set");
+            }
+            // can later pass local and remote endpoint information in request environment.
+            var response = await remoteApp.ProcessRequest(request, connectionAllocationInfo.Environment);
+            return response;
         }
 
-        public Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest)
+        public async Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest)
         {
             if (connectionRequest?.RemoteEndpoint == null)
             {
                 throw new ArgumentException("null remote endpoint");
             }
 
-            lock (_lock)
+            Task<MemoryBasedServerTransport> remoteTransportTask;
+            using (await MutexApi.Synchronize())
             {
-                var remoteTransport = Hub.Servers[connectionRequest.RemoteEndpoint];
-                var connection = new MemoryBasedTransportConnectionInternal(this, LocalEndpoint,
-                    connectionRequest.RemoteEndpoint);
-                remoteTransport.OnReceive(connection);
-                return Task.FromResult<object>(connection);
+                remoteTransportTask = Hub.GetServer(connectionRequest.RemoteEndpoint);
             }
+
+            var remoteTransport = await remoteTransportTask;
+
+            Task<MemoryBasedTransportConnectionInternal> connectionTask;
+            using (await MutexApi.Synchronize())
+            {
+                connectionTask = remoteTransport.Connect(this, connectionRequest);
+            }
+
+            var connection = await connectionTask;
+            return connection;
         }
 
         public Task ReleaseConnection(object connection)
         {
-            return ReleaseConnectionInternal(_lock, connection);
+            return ReleaseConnectionInternal(MutexApi, connection);
         }
 
-        internal static async Task ReleaseConnectionInternal(object lockObj, object connection)
+        internal static async Task ReleaseConnectionInternal(IMutexApi mutexApi, object connection)
         {
             Task releaseTask = null;
-            lock (lockObj)
+            using (await mutexApi.Synchronize())
             {
                 if (connection is MemoryBasedTransportConnectionInternal typedConnection)
                 {
@@ -94,10 +113,10 @@ namespace Kabomu.QuasiHttp.Transport
 
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
-            return ReadBytesInternal(this, _lock, connection, data, offset, length);
+            return ReadBytesInternal(this, MutexApi, connection, data, offset, length);
         }
 
-        internal static async Task<int> ReadBytesInternal(IQuasiHttpTransport participant, object lockObj,
+        internal static async Task<int> ReadBytesInternal(IQuasiHttpTransport participant, IMutexApi mutexApi,
             object connection, byte[] data, int offset, int length)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
@@ -111,7 +130,7 @@ namespace Kabomu.QuasiHttp.Transport
             }
 
             Task<int> readTask;
-            lock (lockObj)
+            using (await mutexApi.Synchronize())
             {
                 readTask = typedConnection.ProcessReadRequest(participant, data, offset, length);
             }
@@ -122,10 +141,10 @@ namespace Kabomu.QuasiHttp.Transport
 
         public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
-            return WriteBytesInternal(this, _lock, connection, data, offset, length);
+            return WriteBytesInternal(this, MutexApi, connection, data, offset, length);
         }
 
-        internal static async Task WriteBytesInternal(IQuasiHttpTransport participant, object lockObj,
+        internal static async Task WriteBytesInternal(IQuasiHttpTransport participant, IMutexApi mutexApi,
             object connection, byte[] data, int offset, int length)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
@@ -139,7 +158,7 @@ namespace Kabomu.QuasiHttp.Transport
             }
 
             Task writeTask;
-            lock (lockObj)
+            using (await mutexApi.Synchronize())
             {
                 writeTask = typedConnection.ProcessWriteRequest(participant, data, offset, length);
             }

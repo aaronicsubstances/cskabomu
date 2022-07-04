@@ -2,16 +2,15 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
     public class ByteBufferBody : IQuasiHttpBody
     {
-        private readonly object _lock = new object();
-
+        private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
         private int _bytesRead;
-        private Exception _srcEndError;
 
         public ByteBufferBody(byte[] data, int offset, int length, string contentType)
         {
@@ -32,36 +31,25 @@ namespace Kabomu.QuasiHttp.EntityBody
         public long ContentLength => Length;
         public string ContentType { get; }
 
-        public async Task<int> ReadBytes(byte[] data, int offset, int length)
+        public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
             if (!ByteUtils.IsValidMessagePayload(data, offset, length))
             {
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            lock (_lock)
-            {
-                if (_srcEndError != null)
-                {
-                    throw _srcEndError;
-                }
-                var lengthToUse = Math.Min(Length - _bytesRead, length);
-                Array.Copy(Buffer, Offset + _bytesRead, data, offset, lengthToUse);
-                _bytesRead += lengthToUse;
-                return lengthToUse;
-            }
+            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
+
+            var lengthToUse = Math.Min(Length - _bytesRead, length);
+            Array.Copy(Buffer, Offset + _bytesRead, data, offset, lengthToUse);
+            _bytesRead += lengthToUse;
+            return Task.FromResult(lengthToUse);
         }
 
-        public async Task EndRead(Exception e)
+        public Task EndRead()
         {
-            lock (_lock)
-            {
-                if (_srcEndError != null)
-                {
-                    return;
-                }
-                _srcEndError = e ?? new Exception("end of read");
-            }
+            _readCancellationHandle.Cancel();
+            return Task.CompletedTask;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Concurrency;
+using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -9,7 +10,7 @@ namespace Kabomu.Tests.Shared
 {
     public class ConfigurableQuasiHttpTransport : IQuasiHttpClientTransport, IQuasiHttpServerTransport
     {
-        public bool DirectSendRequestProcessingEnabled { get; set; }
+        public Func<Task<bool>> CanProcessSendRequestDirectlyCallback { get; set; }
 
         public Func<IQuasiHttpRequest, IConnectionAllocationRequest, Task<IQuasiHttpResponse>> ProcessSendRequestCallback { get; set; }
 
@@ -20,6 +21,13 @@ namespace Kabomu.Tests.Shared
         public Func<object, byte[], int, int, Task<int>> ReadBytesCallback { get; set; }
 
         public Func<object, byte[], int, int, Task> WriteBytesCallback { get; set; }
+
+        public IMutexApi MutexApi { get; set; }
+
+        public Task<bool> CanProcessSendRequestDirectly()
+        {
+            return CanProcessSendRequestDirectlyCallback.Invoke();
+        }
 
         public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectionAllocationRequest connectionAllocationInfo)
@@ -57,7 +65,10 @@ namespace Kabomu.Tests.Shared
             throw new NotImplementedException();
         }
 
-        public bool IsRunning => throw new NotImplementedException();
+        public Task<bool> IsRunning()
+        {
+            throw new NotImplementedException();
+        }
 
         public Task Stop()
         {

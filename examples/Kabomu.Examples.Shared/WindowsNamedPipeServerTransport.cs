@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.Concurrency;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,45 +12,42 @@ namespace Kabomu.Examples.Shared
 {
     public class WindowsNamedPipeServerTransport : IQuasiHttpServerTransport
     {
-        private readonly object _lock = new object();
         private readonly string _path;
         private CancellationTokenSource _startCancellationHandle;
 
         public WindowsNamedPipeServerTransport(string path)
         {
             _path = path;
+            MutexApi = new LockBasedMutexApi(new object());
         }
 
-        public Task Start()
+        public IMutexApi MutexApi { get; set; }
+
+        public async Task Start()
         {
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 if (_startCancellationHandle == null)
                 {
                     _startCancellationHandle = new CancellationTokenSource();
                 }
             }
-            return Task.CompletedTask;
         }
 
-        public Task Stop()
+        public async Task Stop()
         {
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 _startCancellationHandle?.Cancel();
                 _startCancellationHandle = null;
             }
-            return Task.CompletedTask;
         }
 
-        public bool IsRunning
+        public async Task<bool> IsRunning()
         {
-            get
+            using (await MutexApi.Synchronize())
             {
-                lock (_lock)
-                {
-                    return _startCancellationHandle != null;
-                }
+                return _startCancellationHandle != null;
             }
         }
 
@@ -57,7 +55,7 @@ namespace Kabomu.Examples.Shared
         {
             NamedPipeServerStream pipeServer;
             Task waitTask;
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 if (_startCancellationHandle == null)
                 {

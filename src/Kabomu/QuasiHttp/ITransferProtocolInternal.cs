@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -14,6 +15,7 @@ namespace Kabomu.QuasiHttp
         int MaxChunkSize { get; set; }
         bool IsAborted { get; set; }
         CancellationTokenSource TimeoutCancellationHandle { get; set; }
-        Task Cancel(Exception e);
+        IMutexApi MutexApi { get; set; }
+        Task Cancel();
     }
 }

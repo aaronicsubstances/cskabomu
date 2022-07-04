@@ -12,8 +12,6 @@ namespace Kabomu.QuasiHttp.EntityBody
         internal static readonly int LengthOfEncodedChunkLength = 3;
         public static readonly int HardMaxChunkSizeLimit = 1 << (8 * LengthOfEncodedChunkLength) - 1;
 
-        private readonly object _lock = new object();
-
         private readonly IQuasiHttpBody _wrappedBody;
         private readonly int _maxChunkSize;
         private bool _endOfReadSeen;
@@ -100,36 +98,33 @@ namespace Kabomu.QuasiHttp.EntityBody
             int bytesRead = await _wrappedBody.ReadBytes(data,
                 offset + reservedBytesToUse, bytesToRead - reservedBytesToUse);
 
-            lock (_lock)
+            if (bytesRead == 0)
             {
-                if (bytesRead == 0)
+                if (_endOfReadSeen)
                 {
-                    if (_endOfReadSeen)
-                    {
-                        return 0;
-                    }
-                    else
-                    {
-                        _endOfReadSeen = true;
-                    }
+                    return 0;
                 }
-                ByteUtils.SerializeUpToInt64BigEndian(bytesRead + chunkPrefixLength, data, offset,
-                    LengthOfEncodedChunkLength);
-                int sliceBytesWritten = 0;
-                foreach (var slice in chunkPrefix)
+                else
                 {
-                    Array.Copy(slice.Data, slice.Offset, 
-                        data, offset + LengthOfEncodedChunkLength + sliceBytesWritten, 
-                        slice.Length);
-                    sliceBytesWritten += slice.Length;
+                    _endOfReadSeen = true;
                 }
-                return bytesRead + reservedBytesToUse;
             }
+            ByteUtils.SerializeUpToInt64BigEndian(bytesRead + chunkPrefixLength, data, offset,
+                LengthOfEncodedChunkLength);
+            int sliceBytesWritten = 0;
+            foreach (var slice in chunkPrefix)
+            {
+                Array.Copy(slice.Data, slice.Offset, 
+                    data, offset + LengthOfEncodedChunkLength + sliceBytesWritten, 
+                    slice.Length);
+                sliceBytesWritten += slice.Length;
+            }
+            return bytesRead + reservedBytesToUse;
         }
 
-        public Task EndRead(Exception e)
+        public Task EndRead()
         {
-            return _wrappedBody.EndRead(e);
+            return _wrappedBody.EndRead();
         }
     }
 }

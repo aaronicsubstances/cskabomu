@@ -11,9 +11,7 @@ namespace Kabomu.QuasiHttp.EntityBody
 {
     public class StreamBackedBody : IQuasiHttpBody
     {
-        private readonly object _lock = new object();
-
-        private Exception _srcEndError;
+        private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
 
         public StreamBackedBody(Stream backingStream, string contentType)
         {
@@ -38,35 +36,25 @@ namespace Kabomu.QuasiHttp.EntityBody
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            Task<int> readTask;
-            lock (_lock)
-            {
-                if (_srcEndError != null)
-                {
-                    throw _srcEndError;
-                }
-                readTask = BackingStream.ReadAsync(data, offset, bytesToRead);
-            }
+            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
 
-            int bytesRead = await readTask;
+            // supplying cancellation token is for the purpose of leveraging
+            // presence of cancellation in C#'s stream interface. Outside code 
+            // should not depend on ability to cancel ongoing reads.
+            int bytesRead = await BackingStream.ReadAsync(data, offset, bytesToRead, _readCancellationHandle.Token);
             return bytesRead;
         }
 
-        public async Task EndRead(Exception e)
+        public async Task EndRead()
         {
-            ValueTask disposeTask;
-            lock (_lock)
+            if (_readCancellationHandle.IsCancellationRequested)
             {
-                if (_srcEndError != null)
-                {
-                    return;
-                }
-
-                _srcEndError = e ?? new Exception("end of read");
-                disposeTask = BackingStream.DisposeAsync();
+                return;
             }
 
-            await disposeTask;
+            _readCancellationHandle.Cancel();
+            // assume that a stream can be disposed concurrently with any ongoing use of it.
+            await BackingStream.DisposeAsync();
         }
     }
 }

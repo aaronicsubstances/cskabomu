@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
@@ -10,12 +11,10 @@ namespace Kabomu.QuasiHttp
 {
     internal class SendProtocolInternal : ITransferProtocolInternal
     {
-        private readonly object _lock;
         private IQuasiHttpBody _requestBody, _responseBody;
 
-        public SendProtocolInternal(object lockObj)
+        public SendProtocolInternal()
         {
-            _lock = lockObj;
         }
 
         public IParentTransferProtocolInternal Parent { get; set; }
@@ -23,19 +22,20 @@ namespace Kabomu.QuasiHttp
         public int MaxChunkSize { get; set; }
         public bool IsAborted { get; set; }
         public CancellationTokenSource TimeoutCancellationHandle { get; set; }
+        public IMutexApi MutexApi { get; set; }
 
-        public async Task Cancel(Exception e)
+        public async Task Cancel()
         {
             Task reqBodyEndTask = null, resBodyEndTask = null;
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 if (_requestBody != null)
                 {
-                    reqBodyEndTask = _requestBody.EndRead(e);
+                    reqBodyEndTask = _requestBody.EndRead();
                 }
                 if (_responseBody != null)
                 {
-                    resBodyEndTask = _responseBody.EndRead(e);
+                    resBodyEndTask = _responseBody.EndRead();
                 }
             }
             if (reqBodyEndTask != null)
@@ -56,7 +56,7 @@ namespace Kabomu.QuasiHttp
         private async Task<IQuasiHttpResponse> SendRequestLeadChunk(IQuasiHttpRequest request)
         {
             Task writeTask;
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 var chunk = new LeadChunk
                 {
@@ -80,7 +80,7 @@ namespace Kabomu.QuasiHttp
 
             Task <IQuasiHttpResponse> responseFetchTask;
             Task bodyTransferTask = null;
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 if (IsAborted)
                 {
@@ -120,7 +120,7 @@ namespace Kabomu.QuasiHttp
 
             Task abortTask = null;
             DefaultQuasiHttpResponse response;
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 if (IsAborted)
                 {
@@ -139,19 +139,8 @@ namespace Kabomu.QuasiHttp
 
                 if (chunk.ContentLength != 0)
                 {
-                    Func<Task> closeCb = () =>
-                    {
-                        lock (_lock)
-                        {
-                            if (!IsAborted)
-                            {
-                                return Parent.AbortTransfer(this, null);
-                            }
-                        }
-                        return Task.CompletedTask;
-                    };
                     var transportBody = new TransportBackedBody(Parent.Transport, Connection,
-                        closeCb, chunk.ContentLength, chunk.ContentType);
+                        CloseTransfer, chunk.ContentLength, chunk.ContentType);
                     if (chunk.ContentLength < 0)
                     {
                         response.Body = new ChunkDecodingBody(transportBody, MaxChunkSize);
@@ -164,7 +153,7 @@ namespace Kabomu.QuasiHttp
                 }
                 else
                 {
-                    abortTask = Parent.AbortTransfer(this, null);
+                    abortTask = Parent.AbortTransfer(this);
                 }
             }
 
@@ -174,6 +163,20 @@ namespace Kabomu.QuasiHttp
             }
 
             return response;
+        }
+
+        private async Task CloseTransfer()
+        {
+            Task abortTask;
+            using (await MutexApi.Synchronize())
+            {
+                if (IsAborted)
+                {
+                    return;
+                }
+                abortTask = Parent.AbortTransfer(this);
+            }
+            await abortTask;
         }
     }
 }

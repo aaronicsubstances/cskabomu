@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.Concurrency;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -6,129 +7,155 @@ namespace Kabomu.QuasiHttp.Transport
 {
     public class MemoryBasedServerTransport : IQuasiHttpServerTransport
     {
-        private readonly object _lock = new object();
+        private readonly LinkedList<ClientConnectRequest> _clientConnectRequests;
+        private ServerConnectRequest _serverConnectRequest;
         private bool _running = false;
-        private readonly LinkedList<ReceiveConnectionRequest> _onReceiveRequests = new LinkedList<ReceiveConnectionRequest>();
-        private ReceiveConnectionRequest _receiveConnectionRequest;
 
-        public bool IsRunning
+        public MemoryBasedServerTransport()
         {
-            get
+            _clientConnectRequests = new LinkedList<ClientConnectRequest>();
+            MutexApi = new LockBasedMutexApi(new object());
+        }
+
+        public IMutexApi MutexApi { get; set; }
+        public IQuasiHttpApplication Application { get; set; }
+
+        public async Task<bool> IsRunning()
+        {
+            using (await MutexApi.Synchronize())
             {
-                lock (_lock)
-                {
-                    return _running;
-                }
+                return _running;
             }
         }
 
-        public IQuasiHttpApplication Application { get; set; }
-
-        public Task Start()
+        public async Task Start()
         {
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 _running = true;
             }
-            return Task.CompletedTask;
         }
 
-        public Task Stop()
+        public async Task Stop()
         {
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 _running = false;
                 var ex = new Exception("transport stopped");
-                _receiveConnectionRequest?.Callback.SetException(ex);
-                _receiveConnectionRequest = null;
-                _onReceiveRequests.Clear();
+                _serverConnectRequest?.Callback.SetException(ex);
+                foreach (var clientConnectRequest in _clientConnectRequests)
+                {
+                    clientConnectRequest.Callback.SetException(ex);
+                }
+                _serverConnectRequest = null;
+                _clientConnectRequests.Clear();
             }
-            return Task.CompletedTask;
         }
 
-        internal void OnReceive(MemoryBasedTransportConnectionInternal connection)
+        internal async Task<MemoryBasedTransportConnectionInternal> Connect(
+            MemoryBasedClientTransport client,
+            IConnectionAllocationRequest connectionRequest)
         {
-            lock (_lock)
+            Task<MemoryBasedTransportConnectionInternal> connectTask;
+            using (await MutexApi.Synchronize())
             {
                 if (!_running)
                 {
                     throw new Exception("transport not started");
                 }
-                var receiveRequest = new ReceiveConnectionRequest
+                var connectRequest = new ClientConnectRequest
                 {
-                    Connection = connection
+                    Client = client,
+                    ConnectionRequest = connectionRequest,
+                    Callback = new TaskCompletionSource<MemoryBasedTransportConnectionInternal>(
+                        TaskCreationOptions.RunContinuationsAsynchronously)
                 };
-                _onReceiveRequests.AddLast(receiveRequest);
-                if (_receiveConnectionRequest != null)
+                _clientConnectRequests.AddLast(connectRequest);
+                connectTask = connectRequest.Callback.Task;
+                if (_serverConnectRequest != null)
                 {
                     ResolvePendingReceiveConnection();
                 }
             }
+            return await connectTask;
         }
 
-        public Task<IConnectionAllocationResponse> ReceiveConnection()
+        public async Task<IConnectionAllocationResponse> ReceiveConnection()
         {
-            lock (_lock)
+            Task<IConnectionAllocationResponse> connectTask;
+            using (await MutexApi.Synchronize())
             {
                 if (!_running)
                 {
                     throw new Exception("transport not started");
                 }
-                if (_receiveConnectionRequest != null)
+                if (_serverConnectRequest != null)
                 {
                     throw new Exception("pending receive connection yet to be resolved");
                 }
-                var receiveRequest = new ReceiveConnectionRequest
+                _serverConnectRequest = new ServerConnectRequest
                 {
                     Callback = new TaskCompletionSource<IConnectionAllocationResponse>(
                         TaskCreationOptions.RunContinuationsAsynchronously)
                 };
-                _receiveConnectionRequest = receiveRequest;
-                if (_onReceiveRequests.Count > 0)
+                connectTask = _serverConnectRequest.Callback.Task;
+                if (_clientConnectRequests.Count > 0)
                 {
                     ResolvePendingReceiveConnection();
                 }
-                return receiveRequest.Callback.Task;
             }
+            return await connectTask;
         }
 
         private void ResolvePendingReceiveConnection()
         {
-            var pendingReceiveConnectionRequest = _receiveConnectionRequest;
-            var pendingOnReceiveRequest = _onReceiveRequests.First.Value;
+            var pendingServerConnectRequest = _serverConnectRequest;
+            var pendingClientConnectRequest = _clientConnectRequests.First.Value;
+
+            var connection = new MemoryBasedTransportConnectionInternal(
+                pendingClientConnectRequest.Client,
+                pendingClientConnectRequest.ConnectionRequest.RemoteEndpoint);
+            // can later add some environment variables.
             var connectionAllocationResponse = new DefaultConnectionAllocationResponse
             {
-                Connection = pendingOnReceiveRequest.Connection
+                Connection = connection
             };
 
             // do not invoke callbacks until state of this transport is updated,
             // to prevent error of re-entrant receive connection requests
             // matching previous on-receives.
-            _receiveConnectionRequest = null;
-            _onReceiveRequests.RemoveFirst();
+            _serverConnectRequest = null;
+            _clientConnectRequests.RemoveFirst();
 
-            pendingReceiveConnectionRequest.Callback.SetResult(connectionAllocationResponse);
+            pendingServerConnectRequest.Callback.SetResult(connectionAllocationResponse);
+            pendingClientConnectRequest.Callback.SetResult(connection);
         }
 
         public Task ReleaseConnection(object connection)
         {
-            return MemoryBasedClientTransport.ReleaseConnectionInternal(_lock, connection);
+            return MemoryBasedClientTransport.ReleaseConnectionInternal(MutexApi, connection);
         }
 
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
-            return MemoryBasedClientTransport.ReadBytesInternal(this, _lock, connection, data, offset, length);
+            return MemoryBasedClientTransport.ReadBytesInternal(this, MutexApi, connection, data, offset, length);
         }
 
         public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
-            return MemoryBasedClientTransport.WriteBytesInternal(this, _lock, connection, data, offset, length);
+            return MemoryBasedClientTransport.WriteBytesInternal(this, MutexApi, connection, data, offset, length);
         }
 
-        class ReceiveConnectionRequest
+        class ServerConnectRequest
         {
             public TaskCompletionSource<IConnectionAllocationResponse> Callback { get; set; }
-            public MemoryBasedTransportConnectionInternal Connection { get; set; }
+        }
+
+        private class ClientConnectRequest
+        {
+            public MemoryBasedClientTransport Client { get; set; }
+            public IConnectionAllocationRequest ConnectionRequest { get; set; }
+            public TaskCompletionSource<MemoryBasedTransportConnectionInternal> Callback { get; set; }
         }
     }
 }
