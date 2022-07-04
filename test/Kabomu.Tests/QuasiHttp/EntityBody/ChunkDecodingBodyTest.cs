@@ -68,7 +68,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                     }
                     return bytesRead;
                 },
-                EndReadCallback = e => Task.CompletedTask
+                EndReadCallback = () => Task.CompletedTask
             };
             return body;
         }

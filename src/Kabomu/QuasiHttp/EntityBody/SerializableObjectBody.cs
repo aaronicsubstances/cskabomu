@@ -2,16 +2,15 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
     public class SerializableObjectBody : IQuasiHttpBody
     {
-        private readonly object _lock = new object();
-
-        private IQuasiHttpBody _byteBufferBody;
-        private Exception _srcEndError;
+        private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
+        private IQuasiHttpBody _backingBody;
 
         public SerializableObjectBody(object content, Func<object, byte[]> serializationHandler, string contentType)
         {
@@ -43,44 +42,25 @@ namespace Kabomu.QuasiHttp.EntityBody
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            Task<int> readTask;
-            lock (_lock)
-            {
-                if (_srcEndError != null)
-                {
-                    throw _srcEndError;
-                }
-                if (_byteBufferBody == null)
-                {
-                    var srcData = SerializationHandler.Invoke(Content);
-                    _byteBufferBody = new ByteBufferBody(srcData, 0, srcData.Length, null);
-                }
-                readTask = _byteBufferBody.ReadBytes(data, offset, bytesToRead);
-            }
+            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
 
-            int bytesRead = await readTask;
+            if (_backingBody == null)
+            {
+                var srcData = SerializationHandler.Invoke(Content);
+                _backingBody = new ByteBufferBody(srcData, 0, srcData.Length, null);
+            }
+            int bytesRead = await _backingBody.ReadBytes(data, offset, bytesToRead);
             return bytesRead;
         }
 
-        public async Task EndRead(Exception e)
+        public async Task EndRead()
         {
-            Task endTask = null;
-            lock (_lock)
+            _readCancellationHandle.Cancel();
+            // take advantage of the fact once backing body is not null,
+            // no code in this class sets it back to null.
+            if (_backingBody != null)
             {
-                if (_srcEndError != null)
-                {
-                    return;
-                }
-                _srcEndError = e ?? new Exception("end of read");
-                if (_byteBufferBody != null)
-                {
-                    endTask = _byteBufferBody.EndRead(_srcEndError);
-                }
-            }
-
-            if (endTask != null)
-            {
-                await endTask;
+                await _backingBody.EndRead();
             }
         }
     }

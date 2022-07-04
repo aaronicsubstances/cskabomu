@@ -19,7 +19,7 @@ namespace Kabomu.QuasiHttp
         {
             if (Body != null)
             {
-                await Body.EndRead(null);
+                await Body.EndRead();
             }
         }
     }

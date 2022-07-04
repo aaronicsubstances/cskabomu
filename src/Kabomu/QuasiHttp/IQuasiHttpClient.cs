@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.Concurrency;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -12,6 +13,8 @@ namespace Kabomu.QuasiHttp
         IQuasiHttpClientTransport Transport { get; set; }
         Task<IQuasiHttpResponse> Send(object remoteEndpoint, IQuasiHttpRequest request,
             IQuasiHttpSendOptions options);
-        Task Reset(Exception cause);
+        Task Reset();
+        IMutexApi MutexApi { get; set; }
+        IMutexApiFactory MutexApiFactory { get; set; }
     }
 }

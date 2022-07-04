@@ -47,8 +47,8 @@ namespace Kabomu.Tests.Shared
                 Assert.Equal(0, bytesRead);
                 Assert.Equal(expectedSuccessData, readAccumulator.ToArray());
 
-                await instance.EndRead(null);
-                await instance.EndRead(new Exception("test"));
+                await instance.EndRead();
+                await instance.EndRead();
 
                 var e = await Assert.ThrowsAnyAsync<Exception>(() =>
                 {

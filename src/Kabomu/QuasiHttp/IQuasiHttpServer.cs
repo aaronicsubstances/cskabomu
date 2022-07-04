@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -16,5 +17,7 @@ namespace Kabomu.QuasiHttp
         IQuasiHttpServerTransport Transport { get; set; }
         Task Start();
         Task Stop();
+        IMutexApi MutexApi { get; set; }
+        IMutexApiFactory MutexApiFactory { get; set; }
     }
 }

@@ -3,19 +3,18 @@ using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
     public class ChunkDecodingBody : IQuasiHttpBody
     {
-        private readonly object _lock = new object();
-
+        private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
         private readonly IQuasiHttpBody _wrappedBody;
         private readonly int _maxChunkSize;
         private SubsequentChunk _lastChunk;
         private int _lastChunkUsedBytes;
-        private Exception _srcEndError;
 
         public ChunkDecodingBody(IQuasiHttpBody wrappedBody, int maxChunkSize)
         {
@@ -98,27 +97,19 @@ namespace Kabomu.QuasiHttp.EntityBody
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            Task readTask;
-            var encodedLength = new byte[ChunkEncodingBody.LengthOfEncodedChunkLength];
-            lock (_lock)
-            {
-                if (_srcEndError != null)
-                {
-                    throw _srcEndError;
-                }
+            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
 
-                // once empty data chunk is seen, return 0 for all subsequent reads.
-                if (_lastChunk != null && (_lastChunk.DataLength == 0 || _lastChunkUsedBytes < _lastChunk.DataLength))
-                {
-                    return SupplyFromLastChunk(data, offset, bytesToRead);
-                }
-                readTask = TransportUtils.ReadBodyBytesFully(_wrappedBody,
-                    encodedLength, 0, encodedLength.Length);
-            }
+            var encodedLength = new byte[ChunkEncodingBody.LengthOfEncodedChunkLength];
+            // once empty data chunk is seen, return 0 for all subsequent reads.
+            if (_lastChunk != null && (_lastChunk.DataLength == 0 || _lastChunkUsedBytes < _lastChunk.DataLength))
+            {
+                return SupplyFromLastChunk(data, offset, bytesToRead);
+            }            
 
             try
             {
-                await readTask;
+                await TransportUtils.ReadBodyBytesFully(_wrappedBody,
+                   encodedLength, 0, encodedLength.Length);
             }
             catch (Exception e)
             {
@@ -126,25 +117,17 @@ namespace Kabomu.QuasiHttp.EntityBody
                     "reading a chunk length specification: " + e.Message, e);
             }
 
-            byte[] chunkBytes;
-            lock (_lock)
-            {
-                if (_srcEndError != null)
-                {
-                    throw _srcEndError;
-                }
+            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
 
-                var chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
-                    encodedLength.Length);
-                ValidateChunkLength(chunkLen, _maxChunkSize, "Failed to decode quasi http body");
-                chunkBytes = new byte[chunkLen];
-                readTask = TransportUtils.ReadBodyBytesFully(_wrappedBody,
-                    chunkBytes, 0, chunkBytes.Length);
-            }
+            var chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
+                encodedLength.Length);
+            ValidateChunkLength(chunkLen, _maxChunkSize, "Failed to decode quasi http body");
+            var chunkBytes = new byte[chunkLen];
 
             try
             {
-                await readTask;
+                await TransportUtils.ReadBodyBytesFully(_wrappedBody,
+                    chunkBytes, 0, chunkBytes.Length);
             }
             catch (Exception e)
             {
@@ -152,24 +135,18 @@ namespace Kabomu.QuasiHttp.EntityBody
                     "reading in chunk data: " + e.Message, e);
             }
 
-            lock (_lock)
-            {
-                if (_srcEndError != null)
-                {
-                    throw _srcEndError;
-                }
+            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
 
-                try
-                {
-                    _lastChunk = SubsequentChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
-                }
-                catch (Exception e)
-                {
-                    throw new ChunkDecodingException("Encountered invalid chunked quasi http body: " + e.Message, e);
-                }
-                _lastChunkUsedBytes = 0;
-                return SupplyFromLastChunk(data, offset, bytesToRead);
+            try
+            {
+                _lastChunk = SubsequentChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
             }
+            catch (Exception e)
+            {
+                throw new ChunkDecodingException("Encountered invalid chunked quasi http body: " + e.Message, e);
+            }
+            _lastChunkUsedBytes = 0;
+            return SupplyFromLastChunk(data, offset, bytesToRead);
         }
 
         private int SupplyFromLastChunk(byte[] data, int offset, int bytesToRead)
@@ -180,20 +157,15 @@ namespace Kabomu.QuasiHttp.EntityBody
             return lengthToUse;
         }
 
-        public async Task EndRead(Exception e)
+        public async Task EndRead()
         {
-            Task endTask = null;
-            lock (_lock)
+            _readCancellationHandle.Cancel();
+            // take advantage of the fact once wrapped body is not null,
+            // no code in this class sets it back to null.
+            if (_wrappedBody != null)
             {
-                if (_srcEndError != null)
-                {
-                    return;
-                }
-                _srcEndError = e ?? new Exception("end of read");
-                endTask = _wrappedBody.EndRead(_srcEndError);
+                await _wrappedBody.EndRead();
             }
-
-            await endTask;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.Concurrency;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,18 +12,24 @@ namespace Kabomu.Examples.Shared
 {
     public class LocalhostTcpServerTransport : IQuasiHttpServerTransport
     {
-        private readonly object _lock = new object();
         private readonly int _port;
         private TcpListener _tcpServer;
+
+        public LocalhostTcpServerTransport()
+        {
+            MutexApi = new LockBasedMutexApi(new object());
+        }
+
+        public IMutexApi MutexApi { get; set; }
 
         public LocalhostTcpServerTransport(int port)
         {
             _port = port;
         }
 
-        public Task Start()
+        public async Task Start()
         {
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 if (_tcpServer == null)
                 {
@@ -42,12 +49,11 @@ namespace Kabomu.Examples.Shared
                     }
                 }
             }
-            return Task.CompletedTask;
         }
 
-        public Task Stop()
+        public async Task Stop()
         {
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 try
                 {
@@ -58,24 +64,20 @@ namespace Kabomu.Examples.Shared
                     _tcpServer = null;
                 }
             }
-            return Task.CompletedTask;
         }
 
-        public bool IsRunning
+        public async Task<bool> IsRunning()
         {
-            get
+            using (await MutexApi.Synchronize())
             {
-                lock (_lock)
-                {
-                    return _tcpServer != null;
-                }
+                return _tcpServer != null;
             }
         }
 
         public async Task<IConnectionAllocationResponse> ReceiveConnection()
         {
             Task<TcpClient> acceptTask;
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 if (_tcpServer == null)
                 {

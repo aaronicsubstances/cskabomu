@@ -10,7 +10,7 @@ namespace Kabomu.Examples.Shared
 {
     public class WindowsNamedPipeClientTransport : IQuasiHttpClientTransport
     {
-        public bool DirectSendRequestProcessingEnabled => false;
+        public Task<bool> CanProcessSendRequestDirectly() => Task.FromResult(false);
 
         public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectionAllocationRequest connectionAllocationInfo)

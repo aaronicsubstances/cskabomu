@@ -64,7 +64,7 @@ namespace WindowsNamedPipe.FileClient
             finally
             {
                 LOG.Debug("Stopping WindowsNamedPipe.FileClient...");
-                await instance.Reset(null);
+                await instance.Reset();
             }
         }
     }

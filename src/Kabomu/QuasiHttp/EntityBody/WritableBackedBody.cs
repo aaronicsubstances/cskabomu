@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -8,22 +9,22 @@ namespace Kabomu.QuasiHttp.EntityBody
 {
     public class WritableBackedBody : IQuasiHttpBody
     {
-        private readonly object _lock = new object();
-
         private readonly LinkedList<ReadWriteRequest> _writeRequests;
         private ReadWriteRequest _readRequest;
-        private bool _endOfWriteSeen;
-        private Exception _srcEndError;
+        private bool _endOfReadSeen, _endOfWriteSeen;
 
         public WritableBackedBody(string contentType)
         {
             ContentType = contentType;
             _writeRequests = new LinkedList<ReadWriteRequest>();
+            MutexApi = new LockBasedMutexApi(new object());
         }
 
         public long ContentLength => -1;
 
         public string ContentType { get; }
+
+        public IMutexApi MutexApi { get; set; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
@@ -33,12 +34,10 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
 
             Task<int> readTask;
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
-                if (_srcEndError != null)
-                {
-                    throw _srcEndError;
-                }
+                EntityBodyUtilsInternal.TryCancelRead(_endOfReadSeen);
+
                 if (_readRequest != null)
                 {
                     throw new Exception("pending read exists");
@@ -84,12 +83,10 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
 
             Task writeTask;
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
-                if (_srcEndError != null)
-                {
-                    throw _srcEndError;
-                }
+                EntityBodyUtilsInternal.TryCancelRead(_endOfReadSeen);
+
                 if (_endOfWriteSeen)
                 {
                     throw new Exception("end of write");
@@ -173,19 +170,20 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
         }
 
-        public async Task EndRead(Exception e)
+        public async Task EndRead()
         {
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
-                if (_srcEndError != null)
+                if (_endOfReadSeen)
                 {
                     return;
                 }
-                _srcEndError = e ?? new Exception("end of read");
-                _readRequest?.ReadCallback.SetException(_srcEndError);
+                _endOfReadSeen = true;
+                var srcEndError = EntityBodyUtilsInternal.ReadCancellationException;
+                _readRequest?.ReadCallback.SetException(srcEndError);
                 foreach (var writeReq in _writeRequests)
                 {
-                    writeReq.WriteCallback.SetException(_srcEndError);
+                    writeReq.WriteCallback.SetException(srcEndError);
                 }
                 _readRequest = null;
                 _writeRequests.Clear();

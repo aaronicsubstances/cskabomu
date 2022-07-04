@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Concurrency;
+using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -11,9 +12,15 @@ namespace Kabomu.Examples.Shared
 {
     public class UnixDomainSocketServerTransport : IQuasiHttpServerTransport
     {
-        private readonly object _lock = new object();
         private readonly string _path;
         private Socket _serverSocket;
+
+        public UnixDomainSocketServerTransport()
+        {
+            MutexApi = new LockBasedMutexApi(new object());
+        }
+
+        public IMutexApi MutexApi { get; set; }
 
         public UnixDomainSocketServerTransport(string path)
         {
@@ -24,9 +31,9 @@ namespace Kabomu.Examples.Shared
             _path = path;
         }
 
-        public Task Start()
+        public async Task Start()
         {
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 if (_serverSocket == null)
                 {
@@ -36,7 +43,7 @@ namespace Kabomu.Examples.Shared
                         _serverSocket.Bind(new UnixDomainSocketEndPoint(_path));
                         _serverSocket.Listen(5);
                     }
-                    catch(Exception)
+                    catch (Exception)
                     {
                         try
                         {
@@ -47,12 +54,11 @@ namespace Kabomu.Examples.Shared
                     }
                 }
             }
-            return Task.CompletedTask;
         }
 
-        public Task Stop()
+        public async Task Stop()
         {
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 try
                 {
@@ -63,24 +69,20 @@ namespace Kabomu.Examples.Shared
                     _serverSocket = null;
                 }
             }
-            return Task.CompletedTask;
         }
 
-        public bool IsRunning
+        public async Task<bool> IsRunning()
         {
-            get
+            using (await MutexApi.Synchronize())
             {
-                lock (_lock)
-                {
-                    return _serverSocket != null;
-                }
+                return _serverSocket != null;
             }
         }
 
         public async Task<IConnectionAllocationResponse> ReceiveConnection()
         {
             Task<Socket> acceptTask;
-            lock (_lock)
+            using (await MutexApi.Synchronize())
             {
                 if (_serverSocket == null)
                 {

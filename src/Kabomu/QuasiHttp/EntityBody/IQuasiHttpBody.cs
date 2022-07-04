@@ -10,6 +10,6 @@ namespace Kabomu.QuasiHttp.EntityBody
         long ContentLength { get; }
         string ContentType { get; }
         Task<int> ReadBytes(byte[] data, int offset, int bytesToRead);
-        Task EndRead(Exception e);
+        Task EndRead();
     }
 }

@@ -58,7 +58,7 @@ namespace Kabomu.Common
                     break;
                 }
             }
-            await body.EndRead(null);
+            await body.EndRead();
             return byteStream.ToArray();
         }
 
@@ -124,7 +124,7 @@ namespace Kabomu.Common
                     break;
                 }
             }
-            await body.EndRead(null);
+            await body.EndRead();
         }
 
         public static async Task WriteByteSlices(IQuasiHttpTransport transport, object connection,

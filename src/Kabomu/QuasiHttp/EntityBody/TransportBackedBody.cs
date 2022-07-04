@@ -3,19 +3,18 @@ using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
     public class TransportBackedBody : IQuasiHttpBody
     {
-        private readonly object _lock = new object();
-
+        private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
         private readonly IQuasiHttpTransport _transport;
         private readonly object _connection;
         private readonly Func<Task> _closeCallback;
         private long _bytesRemaining;
-        private Exception _srcEndError;
 
         public TransportBackedBody(IQuasiHttpTransport transport, object connection,
              Func<Task> closeCallback, long contentLength, string contentType)
@@ -47,66 +46,44 @@ namespace Kabomu.QuasiHttp.EntityBody
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            Task<int> readTask;
-            lock (_lock)
-            {
-                if (_srcEndError != null)
-                {
-                    throw _srcEndError;
-                }
-                if (bytesToRead == 0 || _bytesRemaining == 0)
-                {
-                    return 0;
-                }
-                if (_bytesRemaining > 0)
-                {
-                    bytesToRead = (int)Math.Min(bytesToRead, _bytesRemaining);
-                }
-                readTask = _transport.ReadBytes(_connection, data, offset, bytesToRead);
-            }
+            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
 
-            int bytesRead = await readTask;
-
-            lock (_lock)
+            if (bytesToRead == 0 || _bytesRemaining == 0)
             {
-                if (_srcEndError != null)
-                {
-                    throw _srcEndError;
-                }
-                if (_bytesRemaining > 0)
-                {
-                    if (bytesRead == 0)
-                    {
-                        var e = new Exception($"could not read remaining {_bytesRemaining} " +
-                            $"bytes before end of read");
-                        throw e;
-                    }
-                    _bytesRemaining -= bytesRead;
-                }
-                return bytesRead;
+                return 0;
             }
+            if (_bytesRemaining > 0)
+            {
+                bytesToRead = (int)Math.Min(bytesToRead, _bytesRemaining);
+            }
+            int bytesRead = await _transport.ReadBytes(_connection, data, offset, bytesToRead);
+
+            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
+
+            if (_bytesRemaining > 0)
+            {
+                if (bytesRead == 0)
+                {
+                    var e = new Exception($"could not read remaining {_bytesRemaining} " +
+                        $"bytes before end of read");
+                    throw e;
+                }
+                _bytesRemaining -= bytesRead;
+            }
+            return bytesRead;
         }
 
-        public async Task EndRead(Exception e)
+        public async Task EndRead()
         {
-            Task closeCbTask = null;
-            lock (_lock)
+            if (_readCancellationHandle.IsCancellationRequested)
             {
-                if (_srcEndError != null)
-                {
-                    return;
-                }
-
-                _srcEndError = e ?? new Exception("end of read");
-                if (_closeCallback != null)
-                {
-                    closeCbTask = _closeCallback.Invoke();
-                }
+                return;
             }
 
-            if (closeCbTask != null)
+            _readCancellationHandle.Cancel();
+            if (_closeCallback != null)
             {
-                await closeCbTask;
+                await _closeCallback.Invoke();
             }
         }
     }
