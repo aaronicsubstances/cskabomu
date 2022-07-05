@@ -37,6 +37,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/csv",
                 new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
+            // could omit WhenAny (equivalent to JS promise.race), but it is there so as to detect
+            // any errors which can cause one of the tasks to hang forever.
+            await await Task.WhenAny(tasks);
             await Task.WhenAll(tasks);
         }
 

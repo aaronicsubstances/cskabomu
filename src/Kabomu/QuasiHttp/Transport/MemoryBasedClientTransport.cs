@@ -41,17 +41,17 @@ namespace Kabomu.QuasiHttp.Transport
 
         public Task ReleaseConnection(object connection)
         {
-            return MemoryBasedServerTransport.ReleaseConnectionInternal(MutexApi, connection);
+            return MemoryBasedServerTransport.ReleaseConnectionInternal(connection);
         }
 
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
-            return MemoryBasedServerTransport.ReadBytesInternal(false, MutexApi, connection, data, offset, length);
+            return MemoryBasedServerTransport.ReadBytesInternal(false, connection, data, offset, length);
         }
 
         public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
-            return MemoryBasedServerTransport.WriteBytesInternal(false, MutexApi, connection, data, offset, length);
+            return MemoryBasedServerTransport.WriteBytesInternal(false, connection, data, offset, length);
         }
     }
 }
