@@ -11,17 +11,15 @@ namespace Kabomu.Tests.Shared
     public class ConfigurableQuasiHttpTransport : IQuasiHttpClientTransport, IQuasiHttpServerTransport
     {
         public Func<Task<bool>> CanProcessSendRequestDirectlyCallback { get; set; }
-
         public Func<IQuasiHttpRequest, IConnectionAllocationRequest, Task<IQuasiHttpResponse>> ProcessSendRequestCallback { get; set; }
-
         public Func<IConnectionAllocationRequest, Task<object>> AllocateConnectionCallback { get; set; }
-
         public Func<object, Task> ReleaseConnectionCallback { get; set; }
-
         public Func<object, byte[], int, int, Task<int>> ReadBytesCallback { get; set; }
-
         public Func<object, byte[], int, int, Task> WriteBytesCallback { get; set; }
-
+        public Func<Task> StartCallback { get;  set; }
+        public Func<Task<bool>> IsRunningCallback { get; set; }
+        public Func<Task> StopCallback { get; set; }
+        public Func<Task<IConnectionAllocationResponse>> ReceiveConnectionCallback { get; set; }
         public IMutexApi MutexApi { get; set; }
 
         public Task<bool> CanProcessSendRequestDirectly()
@@ -57,22 +55,22 @@ namespace Kabomu.Tests.Shared
 
         public Task<IConnectionAllocationResponse> ReceiveConnection()
         {
-            throw new NotImplementedException();
+            return ReceiveConnectionCallback.Invoke();
         }
 
         public Task Start()
         {
-            throw new NotImplementedException();
+            return StartCallback.Invoke();
         }
 
         public Task<bool> IsRunning()
         {
-            throw new NotImplementedException();
+            return IsRunningCallback.Invoke();
         }
 
         public Task Stop()
         {
-            throw new NotImplementedException();
+            return StopCallback.Invoke();
         }
     }
 }

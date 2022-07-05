@@ -1,4 +1,5 @@
-﻿using Kabomu.Concurrency;
+﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -52,11 +53,10 @@ namespace Kabomu.QuasiHttp.Transport
             }
         }
 
-        internal async Task<MemoryBasedTransportConnectionInternal> Connect(
-            MemoryBasedClientTransport client,
-            IConnectionAllocationRequest connectionRequest)
+        public async Task<object> CreateConnectionForClient(IConnectionAllocationRequest connectionRequest,
+            string clientEndpoint, IMutexApi clientMutex)
         {
-            Task<MemoryBasedTransportConnectionInternal> connectTask;
+            Task<object> connectTask;
             using (await MutexApi.Synchronize())
             {
                 if (!_running)
@@ -65,9 +65,10 @@ namespace Kabomu.QuasiHttp.Transport
                 }
                 var connectRequest = new ClientConnectRequest
                 {
-                    Client = client,
                     ConnectionRequest = connectionRequest,
-                    Callback = new TaskCompletionSource<MemoryBasedTransportConnectionInternal>(
+                    ClientEndpoint = clientEndpoint,
+                    ClientMutex = clientMutex,
+                    Callback = new TaskCompletionSource<object>(
                         TaskCreationOptions.RunContinuationsAsynchronously)
                 };
                 _clientConnectRequests.AddLast(connectRequest);
@@ -80,7 +81,12 @@ namespace Kabomu.QuasiHttp.Transport
             return await connectTask;
         }
 
-        public async Task<IConnectionAllocationResponse> ReceiveConnection()
+        public Task<IConnectionAllocationResponse> ReceiveConnection()
+        {
+            return CreateConnectionForServer();
+        }
+
+        private async Task<IConnectionAllocationResponse> CreateConnectionForServer()
         {
             Task<IConnectionAllocationResponse> connectTask;
             using (await MutexApi.Synchronize())
@@ -91,7 +97,7 @@ namespace Kabomu.QuasiHttp.Transport
                 }
                 if (_serverConnectRequest != null)
                 {
-                    throw new Exception("pending receive connection yet to be resolved");
+                    throw new Exception("pending server connect request yet to be resolved");
                 }
                 _serverConnectRequest = new ServerConnectRequest
                 {
@@ -113,37 +119,99 @@ namespace Kabomu.QuasiHttp.Transport
             var pendingClientConnectRequest = _clientConnectRequests.First.Value;
 
             var connection = new MemoryBasedTransportConnectionInternal(
-                pendingClientConnectRequest.Client,
-                pendingClientConnectRequest.ConnectionRequest.RemoteEndpoint);
-            // can later add some environment variables.
+                MutexApi, pendingClientConnectRequest.ClientMutex);
             var connectionAllocationResponse = new DefaultConnectionAllocationResponse
             {
                 Connection = connection
             };
 
             // do not invoke callbacks until state of this transport is updated,
-            // to prevent error of re-entrant receive connection requests
-            // matching previous on-receives.
+            // to prevent error of re-entrant connection requests
+            // matching previous ones.
+            // (not really necessary for promise-based implementations).
             _serverConnectRequest = null;
             _clientConnectRequests.RemoveFirst();
 
+            // can later pass local and remote endpoint information in response environment.
             pendingServerConnectRequest.Callback.SetResult(connectionAllocationResponse);
             pendingClientConnectRequest.Callback.SetResult(connection);
         }
 
         public Task ReleaseConnection(object connection)
         {
-            return MemoryBasedClientTransport.ReleaseConnectionInternal(MutexApi, connection);
+            return ReleaseConnectionInternal(MutexApi, connection);
+        }
+
+        internal static async Task ReleaseConnectionInternal(IMutexApi mutexApi, object connection)
+        {
+            Task releaseTask = null;
+            using (await mutexApi.Synchronize())
+            {
+                if (connection is MemoryBasedTransportConnectionInternal typedConnection)
+                {
+                    releaseTask = typedConnection.Release();
+                }
+            }
+
+            if (releaseTask != null)
+            {
+                await releaseTask;
+            }
         }
 
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
-            return MemoryBasedClientTransport.ReadBytesInternal(this, MutexApi, connection, data, offset, length);
+            return ReadBytesInternal(true, MutexApi, connection, data, offset, length);
+        }
+
+        internal static async Task<int> ReadBytesInternal(bool fromServer, IMutexApi mutexApi,
+            object connection, byte[] data, int offset, int length)
+        {
+            var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
+            if (typedConnection == null)
+            {
+                throw new ArgumentException("null connection");
+            }
+            if (!ByteUtils.IsValidMessagePayload(data, offset, length))
+            {
+                throw new ArgumentException("invalid payload");
+            }
+
+            Task<int> readTask;
+            using (await mutexApi.Synchronize())
+            {
+                readTask = typedConnection.ProcessReadRequest(fromServer, data, offset, length);
+            }
+
+            int bytesRead = await readTask;
+            return bytesRead;
         }
 
         public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
-            return MemoryBasedClientTransport.WriteBytesInternal(this, MutexApi, connection, data, offset, length);
+            return WriteBytesInternal(true, MutexApi, connection, data, offset, length);
+        }
+
+        internal static async Task WriteBytesInternal(bool fromServer, IMutexApi mutexApi,
+            object connection, byte[] data, int offset, int length)
+        {
+            var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
+            if (typedConnection == null)
+            {
+                throw new ArgumentException("null connection");
+            }
+            if (!ByteUtils.IsValidMessagePayload(data, offset, length))
+            {
+                throw new ArgumentException("invalid payload");
+            }
+
+            Task writeTask;
+            using (await mutexApi.Synchronize())
+            {
+                writeTask = typedConnection.ProcessWriteRequest(fromServer, data, offset, length);
+            }
+
+            await writeTask;
         }
 
         class ServerConnectRequest
@@ -153,9 +221,10 @@ namespace Kabomu.QuasiHttp.Transport
 
         private class ClientConnectRequest
         {
-            public MemoryBasedClientTransport Client { get; set; }
             public IConnectionAllocationRequest ConnectionRequest { get; set; }
-            public TaskCompletionSource<MemoryBasedTransportConnectionInternal> Callback { get; set; }
+            public object ClientEndpoint { get; set; }
+            public IMutexApi ClientMutex { get; set; }
+            public TaskCompletionSource<object> Callback { get; set; }
         }
     }
 }
