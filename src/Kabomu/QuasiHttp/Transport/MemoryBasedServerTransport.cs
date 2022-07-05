@@ -56,6 +56,18 @@ namespace Kabomu.QuasiHttp.Transport
         public async Task<object> CreateConnectionForClient(IConnectionAllocationRequest connectionRequest,
             string clientEndpoint, IMutexApi clientMutex)
         {
+            if (connectionRequest?.RemoteEndpoint == null)
+            {
+                throw new ArgumentException("null server endpoint");
+            }
+            if (clientEndpoint == null)
+            {
+                throw new ArgumentException("null client endpoint");
+            }
+            if (clientMutex == null)
+            {
+                throw new ArgumentException("null client mutex");
+            }
             Task<object> connectTask;
             using (await MutexApi.Synchronize())
             {
@@ -139,32 +151,23 @@ namespace Kabomu.QuasiHttp.Transport
 
         public Task ReleaseConnection(object connection)
         {
-            return ReleaseConnectionInternal(MutexApi, connection);
+            return ReleaseConnectionInternal(connection);
         }
 
-        internal static async Task ReleaseConnectionInternal(IMutexApi mutexApi, object connection)
+        internal static async Task ReleaseConnectionInternal(object connection)
         {
-            Task releaseTask = null;
-            using (await mutexApi.Synchronize())
+            if (connection is MemoryBasedTransportConnectionInternal typedConnection)
             {
-                if (connection is MemoryBasedTransportConnectionInternal typedConnection)
-                {
-                    releaseTask = typedConnection.Release();
-                }
-            }
-
-            if (releaseTask != null)
-            {
-                await releaseTask;
+                await typedConnection.Release();
             }
         }
 
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
-            return ReadBytesInternal(true, MutexApi, connection, data, offset, length);
+            return ReadBytesInternal(true, connection, data, offset, length);
         }
 
-        internal static async Task<int> ReadBytesInternal(bool fromServer, IMutexApi mutexApi,
+        internal static async Task<int> ReadBytesInternal(bool fromServer,
             object connection, byte[] data, int offset, int length)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
@@ -176,23 +179,16 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 throw new ArgumentException("invalid payload");
             }
-
-            Task<int> readTask;
-            using (await mutexApi.Synchronize())
-            {
-                readTask = typedConnection.ProcessReadRequest(fromServer, data, offset, length);
-            }
-
-            int bytesRead = await readTask;
+            int bytesRead = await typedConnection.ProcessReadRequest(fromServer, data, offset, length);
             return bytesRead;
         }
 
         public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
-            return WriteBytesInternal(true, MutexApi, connection, data, offset, length);
+            return WriteBytesInternal(true, connection, data, offset, length);
         }
 
-        internal static async Task WriteBytesInternal(bool fromServer, IMutexApi mutexApi,
+        internal static async Task WriteBytesInternal(bool fromServer,
             object connection, byte[] data, int offset, int length)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
@@ -204,14 +200,7 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 throw new ArgumentException("invalid payload");
             }
-
-            Task writeTask;
-            using (await mutexApi.Synchronize())
-            {
-                writeTask = typedConnection.ProcessWriteRequest(fromServer, data, offset, length);
-            }
-
-            await writeTask;
+            await typedConnection.ProcessWriteRequest(fromServer, data, offset, length);
         }
 
         class ServerConnectRequest

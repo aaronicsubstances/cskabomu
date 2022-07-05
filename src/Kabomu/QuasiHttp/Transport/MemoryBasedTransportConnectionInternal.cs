@@ -3,15 +3,16 @@ using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.Transport
 {
     internal class MemoryBasedTransportConnectionInternal
     {
+        private readonly CancellationTokenSource _connectionCancellationHandle = new CancellationTokenSource();
         private readonly WritableBackedBody _serverReadReqProcessor;
         private readonly WritableBackedBody _clientReadReqProcessor;
-        private bool _released;
 
         public MemoryBasedTransportConnectionInternal(IMutexApi serverMutex, IMutexApi clientMutex)
         {
@@ -27,8 +28,8 @@ namespace Kabomu.QuasiHttp.Transport
 
         public async Task<int> ProcessReadRequest(bool fromServer, byte[] data, int offset, int length)
         {
-            // Rely on caller to supply valid arguments as well ensure proper mutex.
-            if (_released)
+            // Rely on caller to supply valid arguments.
+            if (_connectionCancellationHandle.IsCancellationRequested)
             {
                 throw new Exception("connection reset");
             }
@@ -38,8 +39,8 @@ namespace Kabomu.QuasiHttp.Transport
 
         public async Task ProcessWriteRequest(bool fromServer, byte[] data, int offset, int length)
         {
-            // Rely on caller to supply valid arguments as well ensure proper mutex.
-            if (_released)
+            // Rely on caller to supply valid arguments.
+            if (_connectionCancellationHandle.IsCancellationRequested)
             {
                 throw new Exception("connection reset");
             }
@@ -52,12 +53,11 @@ namespace Kabomu.QuasiHttp.Transport
 
         public async Task Release()
         {
-            // Rely on caller to ensure proper mutex.
-            if (_released)
+            if (_connectionCancellationHandle.IsCancellationRequested)
             {
                 return;
             }
-            _released = true;
+            _connectionCancellationHandle.Cancel();
             await _serverReadReqProcessor.EndRead();
             await _clientReadReqProcessor.EndRead();
         }

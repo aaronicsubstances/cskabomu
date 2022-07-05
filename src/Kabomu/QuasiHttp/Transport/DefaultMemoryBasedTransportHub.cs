@@ -17,10 +17,12 @@ namespace Kabomu.QuasiHttp.Transport
         public IMutexApi MutexApi { get; set; }
         public Dictionary<object, MemoryBasedServerTransport> Servers { get; set; }
 
-        public Task AddServer(string endpoint, MemoryBasedServerTransport server)
+        public async Task AddServer(string endpoint, MemoryBasedServerTransport server)
         {
-            Servers.Add(endpoint, server);
-            return Task.CompletedTask;
+            using (await MutexApi.Synchronize())
+            {
+                Servers.Add(endpoint, server);
+            }
         }
 
         public async Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
