@@ -10,7 +10,6 @@ namespace Kabomu.Tests.Shared
     {
         public Func<byte[], int, int, Task<int>> ReadBytesCallback { get; set; }
         public Func<Task> EndReadCallback { get; set; }
-
         public long ContentLength { get; set; }
         public string ContentType { get; set; }
 

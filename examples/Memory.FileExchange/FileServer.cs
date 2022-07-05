@@ -16,7 +16,7 @@ namespace Memory.FileExchange
         static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
         public static async Task RunMain(string endpoint, string uploadDirPath,
-            MemoryBasedTransportHub hub)
+            IMemoryBasedTransportHub hub)
         {
             var eventLoop = new DefaultEventLoopApi();
             var transport = new MemoryBasedServerTransport();
@@ -34,7 +34,7 @@ namespace Memory.FileExchange
             instance.Application = new FileReceiver(endpoint, uploadDirPath);
             transport.Application = instance.Application;
 
-            hub.Servers.Add(endpoint, transport);
+            await hub.AddServer(endpoint, transport);
 
             await instance.Start();
             LOG.Info("Started Memory.FileServer at {0}", endpoint);

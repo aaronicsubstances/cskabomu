@@ -30,7 +30,7 @@ namespace Memory.FileExchange
                    {
                        var clientEndpoint = "takoradi";
                        var serverEndpoint = "kumasi";
-                       var hub = new MemoryBasedTransportHub();
+                       var hub = new DefaultMemoryBasedTransportHub();
                        var serverTask = FileServer.RunMain(serverEndpoint, o.ServerUploadDirPath ?? ".",
                            hub);
                        var clientTask = FileClient.RunMain(clientEndpoint, serverEndpoint,
