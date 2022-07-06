@@ -92,7 +92,8 @@ namespace Kabomu.QuasiHttp.Transport
                 remoteTransport = Servers[connectionRequest.RemoteEndpoint];
             }
 
-            var connection = await remoteTransport.CreateConnectionForClient(client.LocalEndpoint, client.MutexApi);
+            var connection = await remoteTransport.CreateConnectionForClient(client.LocalEndpoint,
+                connectionRequest?.ConnectionMutexApi);
             return connection;
         }
     }

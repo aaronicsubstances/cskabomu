@@ -15,7 +15,6 @@ namespace Kabomu.QuasiHttp
         int MaxChunkSize { get; set; }
         bool IsAborted { get; set; }
         CancellationTokenSource TimeoutCancellationHandle { get; set; }
-        IMutexApi MutexApi { get; set; }
         Task Cancel();
     }
 }

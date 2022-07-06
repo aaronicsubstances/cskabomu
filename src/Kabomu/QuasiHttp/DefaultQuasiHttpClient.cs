@@ -25,7 +25,6 @@ namespace Kabomu.QuasiHttp
             _transfersWithoutConnections = new HashSet<ITransferProtocolInternal>();
             _representative = new ParentTransferProtocolImpl(this);
             MutexApi = new LockBasedMutexApi();
-            MutexApiFactory = new WrapperMutexApiFactory(MutexApi);
         }
 
         public IQuasiHttpSendOptions DefaultSendOptions { get; set; }
@@ -52,11 +51,15 @@ namespace Kabomu.QuasiHttp
             Task<IMutexApi> transferMutexTask;
             using (await MutexApi.Synchronize())
             {
-                transferMutexTask = MutexApiFactory.Create();
+                transferMutexTask = MutexApiFactory?.Create();
                 canProcessSendRequestTask = Transport.CanProcessSendRequestDirectly();
             }
 
-            var transferMutex = await transferMutexTask;
+            IMutexApi transferMutex = null;
+            if (transferMutexTask != null)
+            {
+                transferMutex = await transferMutexTask;
+            }
             var canProcessSendRequest = await canProcessSendRequestTask;
 
             Task<IQuasiHttpResponse> workTask;
@@ -64,10 +67,9 @@ namespace Kabomu.QuasiHttp
             SendProtocolInternal transfer;
             using (await MutexApi.Synchronize())
             {
-                transfer = new SendProtocolInternal
+                transfer = new SendProtocolInternal(transferMutex)
                 {
-                    Parent = _representative,
-                    MutexApi = transferMutex
+                    Parent = _representative
                 };
                 transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(
                     options, DefaultSendOptions, 0, TransportUtils.DefaultMaxChunkSize);
@@ -83,7 +85,8 @@ namespace Kabomu.QuasiHttp
                 var connectionAllocationRequest = new DefaultConnectionAllocationRequest
                 {
                     RemoteEndpoint = remoteEndpoint,
-                    Environment = requestEnvironment
+                    Environment = requestEnvironment,
+                    ConnectionMutexApi = transferMutex
                 };
                 if (canProcessSendRequest)
                 {
@@ -183,6 +186,10 @@ namespace Kabomu.QuasiHttp
 
         public async Task Reset()
         {
+            // since it is desired to clear all pending transfers under lock,
+            // and disabling of transfer is an async transfer, we choose
+            // not to await on each disabling, but rather to wait on them
+            // after clearing the transfers.
             var tasks = new List<Task>();
             using (await MutexApi.Synchronize())
             {

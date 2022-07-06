@@ -21,6 +21,7 @@ namespace Kabomu.QuasiHttp.Transport
         public string LocalEndpoint { get; set; }
         public IQuasiHttpApplication Application { get; set; }
         public IMutexApi MutexApi { get; set; }
+        public IMutexApiFactory MutexApiFactory { get; set; }
 
         public async Task<bool> IsRunning()
         {
@@ -56,11 +57,8 @@ namespace Kabomu.QuasiHttp.Transport
 
         public async Task<object> CreateConnectionForClient(string clientEndpoint, IMutexApi clientMutex)
         {
-            if (clientMutex == null)
-            {
-                throw new ArgumentException("null client mutex");
-            }
             Task<object> connectTask;
+            Task resolveTask = null;
             using (await MutexApi.Synchronize())
             {
                 if (!_running)
@@ -78,8 +76,12 @@ namespace Kabomu.QuasiHttp.Transport
                 connectTask = connectRequest.Callback.Task;
                 if (_serverConnectRequest != null)
                 {
-                    ResolvePendingReceiveConnection();
+                    resolveTask = ResolvePendingReceiveConnection();
                 }
+            }
+            if (resolveTask != null)
+            {
+                await resolveTask;
             }
             return await connectTask;
         }
@@ -92,6 +94,7 @@ namespace Kabomu.QuasiHttp.Transport
         private async Task<IConnectionAllocationResponse> CreateConnectionForServer()
         {
             Task<IConnectionAllocationResponse> connectTask;
+            Task resolveTask = null;
             using (await MutexApi.Synchronize())
             {
                 if (!_running)
@@ -110,23 +113,20 @@ namespace Kabomu.QuasiHttp.Transport
                 connectTask = _serverConnectRequest.Callback.Task;
                 if (_clientConnectRequests.Count > 0)
                 {
-                    ResolvePendingReceiveConnection();
+                    resolveTask = ResolvePendingReceiveConnection();
                 }
+            }
+            if (resolveTask != null)
+            {
+                await resolveTask;
             }
             return await connectTask;
         }
 
-        private void ResolvePendingReceiveConnection()
+        private async Task ResolvePendingReceiveConnection()
         {
             var pendingServerConnectRequest = _serverConnectRequest;
             var pendingClientConnectRequest = _clientConnectRequests.First.Value;
-
-            var connection = new MemoryBasedTransportConnectionInternal(
-                MutexApi, pendingClientConnectRequest.ClientMutex);
-            var connectionAllocationResponse = new DefaultConnectionAllocationResponse
-            {
-                Connection = connection
-            };
 
             // do not invoke callbacks until state of this transport is updated,
             // to prevent error of re-entrant connection requests
@@ -134,6 +134,19 @@ namespace Kabomu.QuasiHttp.Transport
             // (not really necessary for promise-based implementations).
             _serverConnectRequest = null;
             _clientConnectRequests.RemoveFirst();
+
+            IMutexApi serverSideMutexApi = null;
+            if (MutexApiFactory != null)
+            {
+                serverSideMutexApi = await MutexApiFactory.Create();
+            }
+            var connection = new MemoryBasedTransportConnectionInternal(
+                serverSideMutexApi, pendingClientConnectRequest.ClientMutex);
+            var connectionAllocationResponse = new DefaultConnectionAllocationResponse
+            {
+                ConnectionMutexApi = serverSideMutexApi,
+                Connection = connection
+            };
 
             // can later pass local and remote endpoint information in response environment.
             pendingServerConnectRequest.Callback.SetResult(connectionAllocationResponse);

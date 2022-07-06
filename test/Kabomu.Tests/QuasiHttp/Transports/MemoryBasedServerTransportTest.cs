@@ -14,10 +14,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
         [Fact]
         public async Task TestOperations()
         {
-            var instance = new MemoryBasedServerTransport
-            {
-                LocalEndpoint = "Kumasi"
-            };
+            var instance = new MemoryBasedServerTransport();
             var running = await instance.IsRunning();
             Assert.False(running);
             await instance.Start();
@@ -32,15 +29,12 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             running = await instance.IsRunning();
             Assert.True(running);
 
-            var clientEndpoint = "Accra";
-
             var serverConnectTask = instance.ReceiveConnection();
             await Assert.ThrowsAnyAsync<Exception>(() =>
             {
                 return instance.ReceiveConnection();
             });
-            var expectedConnection = await instance.CreateConnectionForClient(clientEndpoint,
-                new LockBasedMutexApi());
+            var expectedConnection = await instance.CreateConnectionForClient(null, null);
             var receiveConnectionResponse = await serverConnectTask;
             Assert.Equal(expectedConnection, receiveConnectionResponse.Connection);
 
