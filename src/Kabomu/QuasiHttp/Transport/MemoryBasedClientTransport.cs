@@ -22,12 +22,12 @@ namespace Kabomu.QuasiHttp.Transport
         public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectionAllocationRequest connectionAllocationInfo)
         {
-            return Hub.ProcessSendRequest(request, connectionAllocationInfo);
+            return Hub.ProcessSendRequest(LocalEndpoint, connectionAllocationInfo, request);
         }
 
         public Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest)
         {
-            return Hub.AllocateConnection(this, connectionRequest);
+            return Hub.AllocateConnection(LocalEndpoint, connectionRequest);
         }
 
         public Task ReleaseConnection(object connection)

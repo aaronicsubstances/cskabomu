@@ -9,9 +9,9 @@ namespace Kabomu.QuasiHttp.Transport
     {
         Task AddServer(MemoryBasedServerTransport server);
         Task<bool> CanProcessSendRequestDirectly();
-        Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
-            IConnectionAllocationRequest connectionAllocationInfo);
-        Task<object> AllocateConnection(MemoryBasedClientTransport client, 
+        Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,
+            IConnectionAllocationRequest connectionAllocationInfo, IQuasiHttpRequest request);
+        Task<object> AllocateConnection(object clientEndpoint, 
             IConnectionAllocationRequest connectionRequest);
     }
 }
