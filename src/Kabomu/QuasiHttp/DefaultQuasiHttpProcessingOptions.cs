@@ -8,7 +8,6 @@ namespace Kabomu.QuasiHttp
     public class DefaultQuasiHttpProcessingOptions : IQuasiHttpProcessingOptions
     {
         public IDictionary<string, object> Environment { get; set; }
-
         public IMutexApi ProcessingMutexApi { get; set; }
     }
 }
