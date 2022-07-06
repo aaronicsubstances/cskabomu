@@ -18,8 +18,9 @@ namespace Kabomu.QuasiHttp.Transport
             MutexApi = new LockBasedMutexApi();
         }
 
-        public IMutexApi MutexApi { get; set; }
+        public string LocalEndpoint { get; set; }
         public IQuasiHttpApplication Application { get; set; }
+        public IMutexApi MutexApi { get; set; }
 
         public async Task<bool> IsRunning()
         {
@@ -53,17 +54,8 @@ namespace Kabomu.QuasiHttp.Transport
             }
         }
 
-        public async Task<object> CreateConnectionForClient(IConnectionAllocationRequest connectionRequest,
-            string clientEndpoint, IMutexApi clientMutex)
+        public async Task<object> CreateConnectionForClient(string clientEndpoint, IMutexApi clientMutex)
         {
-            if (connectionRequest?.RemoteEndpoint == null)
-            {
-                throw new ArgumentException("null server endpoint");
-            }
-            if (clientEndpoint == null)
-            {
-                throw new ArgumentException("null client endpoint");
-            }
             if (clientMutex == null)
             {
                 throw new ArgumentException("null client mutex");
@@ -77,7 +69,6 @@ namespace Kabomu.QuasiHttp.Transport
                 }
                 var connectRequest = new ClientConnectRequest
                 {
-                    ConnectionRequest = connectionRequest,
                     ClientEndpoint = clientEndpoint,
                     ClientMutex = clientMutex,
                     Callback = new TaskCompletionSource<object>(

@@ -7,7 +7,8 @@ namespace Kabomu.QuasiHttp.Transport
 {
     public interface IMemoryBasedTransportHub
     {
-        Task AddServer(string endpoint, MemoryBasedServerTransport server);
+        Task AddServer(MemoryBasedServerTransport server);
+        Task<bool> CanProcessSendRequestDirectly();
         Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectionAllocationRequest connectionAllocationInfo);
         Task<object> AllocateConnection(MemoryBasedClientTransport client, 
