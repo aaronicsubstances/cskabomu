@@ -18,7 +18,7 @@ namespace Kabomu.Examples.Shared
         public WindowsNamedPipeServerTransport(string path)
         {
             _path = path;
-            MutexApi = new LockBasedMutexApi(new object());
+            MutexApi = new LockBasedMutexApi();
         }
 
         public IMutexApi MutexApi { get; set; }

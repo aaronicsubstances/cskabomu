@@ -10,6 +10,10 @@ namespace Kabomu.Concurrency
     {
         private readonly object _lockObj;
 
+        public LockBasedMutexApi() :
+            this (new object())
+        { }
+
         public LockBasedMutexApi(object lockObj)
         {
             _lockObj = lockObj;

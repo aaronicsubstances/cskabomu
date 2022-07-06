@@ -36,7 +36,7 @@ namespace Kabomu.Tests.Concurrency
         public async Task TestLockBasedMutex()
         {
             // arrange.
-            IMutexApi lockBased = new LockBasedMutexApi(new object());
+            IMutexApi lockBased = new LockBasedMutexApi();
 
             // act.
             Thread t = Thread.CurrentThread, u, v;

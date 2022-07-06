@@ -10,7 +10,7 @@ namespace Kabomu.QuasiHttp.Transport
     {
         public DefaultMemoryBasedTransportHub()
         {
-            MutexApi = new LockBasedMutexApi(new object());
+            MutexApi = new LockBasedMutexApi();
             Servers = new Dictionary<object, MemoryBasedServerTransport>();
         }
 

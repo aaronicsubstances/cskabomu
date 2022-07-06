@@ -24,7 +24,7 @@ namespace Kabomu.QuasiHttp
             _transfersWithConnections = new Dictionary<object, ITransferProtocolInternal>();
             _transfersWithoutConnections = new HashSet<ITransferProtocolInternal>();
             _representative = new ParentTransferProtocolImpl(this);
-            MutexApi = new LockBasedMutexApi(new object());
+            MutexApi = new LockBasedMutexApi();
             MutexApiFactory = new WrapperMutexApiFactory(MutexApi);
         }
 

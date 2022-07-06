@@ -12,7 +12,7 @@ namespace Kabomu.QuasiHttp.Transport
 
         public MemoryBasedClientTransport()
         {
-            MutexApi = new LockBasedMutexApi(new object());
+            MutexApi = new LockBasedMutexApi();
         }
 
         public string LocalEndpoint { get; set; }

@@ -17,7 +17,7 @@ namespace Kabomu.Examples.Shared
 
         public LocalhostTcpServerTransport()
         {
-            MutexApi = new LockBasedMutexApi(new object());
+            MutexApi = new LockBasedMutexApi();
         }
 
         public IMutexApi MutexApi { get; set; }

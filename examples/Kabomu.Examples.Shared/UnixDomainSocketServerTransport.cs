@@ -16,7 +16,7 @@ namespace Kabomu.Examples.Shared
 
         public UnixDomainSocketServerTransport()
         {
-            MutexApi = new LockBasedMutexApi(new object());
+            MutexApi = new LockBasedMutexApi();
         }
 
         public IMutexApi MutexApi { get; set; }

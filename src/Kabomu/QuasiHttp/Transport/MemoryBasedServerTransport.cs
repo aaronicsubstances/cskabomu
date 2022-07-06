@@ -15,7 +15,7 @@ namespace Kabomu.QuasiHttp.Transport
         public MemoryBasedServerTransport()
         {
             _clientConnectRequests = new LinkedList<ClientConnectRequest>();
-            MutexApi = new LockBasedMutexApi(new object());
+            MutexApi = new LockBasedMutexApi();
         }
 
         public IMutexApi MutexApi { get; set; }
