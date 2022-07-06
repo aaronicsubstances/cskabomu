@@ -28,36 +28,17 @@ namespace Kabomu.Examples.Shared
 
         public Task ReleaseConnection(object connection)
         {
-            return ReleaseConnectionInternal(connection);
-        }
-
-        internal static Task ReleaseConnectionInternal(object connection)
-        {
-            var pipeStream = (PipeStream)connection;
-            pipeStream.Dispose();
-            return Task.CompletedTask;
+            return WindowsNamedPipeServerTransport.ReleaseConnectionInternal(connection);
         }
 
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
-            return ReadBytesInternal(connection, data, offset, length);
-        }
-
-        internal static Task<int> ReadBytesInternal(object connection, byte[] data, int offset, int length)
-        {
-            var networkStream = (PipeStream)connection;
-            return networkStream.ReadAsync(data, offset, length);
+            return WindowsNamedPipeServerTransport.ReadBytesInternal(connection, data, offset, length);
         }
 
         public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
-            return WriteBytesInternal(connection, data, offset, length);
-        }
-
-        internal static Task WriteBytesInternal(object connection, byte[] data, int offset, int length)
-        {
-            var networkStream = (PipeStream)connection;
-            return networkStream.WriteAsync(data, offset, length);
+            return WindowsNamedPipeServerTransport.WriteBytesInternal(connection, data, offset, length);
         }
     }
 }

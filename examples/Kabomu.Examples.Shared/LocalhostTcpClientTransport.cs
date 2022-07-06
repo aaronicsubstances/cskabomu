@@ -31,38 +31,17 @@ namespace Kabomu.Examples.Shared
 
         public Task ReleaseConnection(object connection)
         {
-            return ReleaseConnectionInternal(connection);
-        }
-
-        internal static Task ReleaseConnectionInternal(object connection)
-        {
-            var tcpClient = (TcpClient)connection;
-            tcpClient.Dispose();
-            return Task.CompletedTask;
+            return LocalhostTcpServerTransport.ReleaseConnectionInternal(connection);
         }
 
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
-            return ReadBytesInternal(connection, data, offset, length);
-        }
-
-        internal static Task<int> ReadBytesInternal(object connection, byte[] data, int offset, int length)
-        {
-            var tcpClient = (TcpClient)connection;
-            Stream networkStream = tcpClient.GetStream();
-            return networkStream.ReadAsync(data, offset, length);
+            return LocalhostTcpServerTransport.ReadBytesInternal(connection, data, offset, length);
         }
 
         public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
-            return WriteBytesInternal(connection, data, offset, length);
-        }
-
-        internal static Task WriteBytesInternal(object connection, byte[] data, int offset, int length)
-        {
-            var tcpClient = (TcpClient)connection;
-            Stream networkStream = tcpClient.GetStream();
-            return networkStream.WriteAsync(data, offset, length);
+            return LocalhostTcpServerTransport.WriteBytesInternal(connection, data, offset, length);
         }
     }
 }
