@@ -1,4 +1,7 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.Concurrency;
+using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Transport;
+using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -81,16 +84,44 @@ namespace Kabomu.Tests.QuasiHttp.Transports
 
         private async Task ForkOperations(bool connectToClientFirst)
         {
+            var expectedReq = new DefaultQuasiHttpRequest();
+            var expectedRes = new DefaultQuasiHttpResponse();
+            var expectedMutex = new LockBasedMutexApi();
+            var app = new ConfigurableQuasiHttpApplication
+            {
+                ProcessRequestCallback = (req, opt) =>
+                {
+                    Assert.Equal(expectedReq, req);
+                    Assert.Equal(expectedMutex, opt.ProcessingMutexApi);
+                    return Task.FromResult<IQuasiHttpResponse>(expectedRes);
+                }
+            };
             var instance = new MemoryBasedServerTransport
             {
-                LocalEndpoint = "Accra"
+                LocalEndpoint = "Accra",
+                Application = app
             };
             var running = await instance.IsRunning();
             Assert.False(running);
+
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+            {
+                return instance.ProcessDirectSendRequest("Tafo", expectedMutex, new DefaultQuasiHttpRequest());
+            });
+
             await instance.Start();
             await instance.Start();
             running = await instance.IsRunning();
             Assert.True(running);
+
+            var res = await instance.ProcessDirectSendRequest("Accra",
+                expectedMutex, expectedReq);
+            Assert.Equal(expectedRes, res);
+
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+            {
+                return instance.ProcessDirectSendRequest("Tafo", expectedMutex, null);
+            });
 
             Task<IConnectionAllocationResponse> serverConnectTask;
             Task<object> clientConnectTask;

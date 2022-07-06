@@ -16,7 +16,6 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             var hub = new TestHub();
             var instance = new MemoryBasedClientTransport
             {
-                LocalEndpoint = "Accra",
                 Hub = hub
             };
 
@@ -40,6 +39,8 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             canSendDirectly = await instance.CanProcessSendRequestDirectly();
             Assert.False(canSendDirectly);
 
+            instance.LocalEndpoint = "Lome";
+            hub.ExpectedClientEndpoint = instance.LocalEndpoint;
             hub.ExpectedRequest = new DefaultQuasiHttpRequest();
             hub.ExpectedConnectionAllocationRequest = new DefaultConnectionAllocationRequest();
             hub.ProcessSendRequestResult = new DefaultQuasiHttpResponse();
@@ -47,6 +48,8 @@ namespace Kabomu.Tests.QuasiHttp.Transports
                 hub.ExpectedConnectionAllocationRequest);
             Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
 
+            instance.LocalEndpoint = "Accra";
+            hub.ExpectedClientEndpoint = instance.LocalEndpoint;
             hub.ExpectedRequest = new DefaultQuasiHttpRequest();
             hub.ExpectedConnectionAllocationRequest = null;
             hub.ProcessSendRequestResult = null;
@@ -54,6 +57,8 @@ namespace Kabomu.Tests.QuasiHttp.Transports
                 hub.ExpectedConnectionAllocationRequest);
             Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
 
+            instance.LocalEndpoint = null;
+            hub.ExpectedClientEndpoint = instance.LocalEndpoint;
             hub.ExpectedRequest = null;
             hub.ExpectedConnectionAllocationRequest = new DefaultConnectionAllocationRequest();
             hub.ProcessSendRequestResult = new DefaultQuasiHttpResponse();
@@ -61,7 +66,8 @@ namespace Kabomu.Tests.QuasiHttp.Transports
                 hub.ExpectedConnectionAllocationRequest);
             Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
 
-            hub.ExpectedClient = instance;
+            instance.LocalEndpoint = "Abuja";
+            hub.ExpectedClientEndpoint = instance.LocalEndpoint;
             hub.ExpectedConnectionAllocationRequest = new DefaultConnectionAllocationRequest();
             var connection = await instance.AllocateConnection(hub.ExpectedConnectionAllocationRequest);
             Assert.True(connection is MemoryBasedTransportConnectionInternal);
@@ -97,22 +103,22 @@ namespace Kabomu.Tests.QuasiHttp.Transports
         public async Task TestInterleavedOperations()
         {
             var hub = new TestHub();
-            var task1 = ForkOperations(hub);
-            var task2 = ForkOperations(hub);
+            var task1 = ForkOperations(hub, "Abidjan");
+            var task2 = ForkOperations(hub, "Lagos");
             // use whenany before whenall to catch any task exceptions which may
             // cause another task to hang forever.
             await await Task.WhenAny(task1, task2);
             await Task.WhenAll(task1, task2);
         }
 
-        private async Task ForkOperations(TestHub hub)
+        private async Task ForkOperations(TestHub hub, string localEndpoint)
         {
             var instance = new MemoryBasedClientTransport
             {
-                LocalEndpoint = "Accra",
+                LocalEndpoint = localEndpoint,
                 Hub = hub
             };
-            hub.ExpectedClient = instance;
+            hub.ExpectedClientEndpoint = localEndpoint;
             hub.ExpectedConnectionAllocationRequest = new DefaultConnectionAllocationRequest();
             var connection = await instance.AllocateConnection(hub.ExpectedConnectionAllocationRequest);
             Assert.True(connection is MemoryBasedTransportConnectionInternal);
@@ -225,7 +231,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             public IQuasiHttpResponse ProcessSendRequestResult { get; set; }
             public DefaultQuasiHttpRequest ExpectedRequest { get; set; }
             public DefaultConnectionAllocationRequest ExpectedConnectionAllocationRequest { get;  set; }
-            public MemoryBasedClientTransport ExpectedClient { get; set; }
+            public object ExpectedClientEndpoint { get; set; }
 
             public Task AddServer(MemoryBasedServerTransport server)
             {
@@ -237,18 +243,19 @@ namespace Kabomu.Tests.QuasiHttp.Transports
                 return Task.FromResult(ReturnTrueForCanSendRequestDirectly);
             }
 
-            public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
-                IConnectionAllocationRequest connectionAllocationInfo)
+            public Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,
+                IConnectionAllocationRequest connectionAllocationInfo, IQuasiHttpRequest request)
             {
+                Assert.Equal(ExpectedClientEndpoint, clientEndpoint);
                 Assert.Equal(ExpectedRequest, request);
                 Assert.Equal(ExpectedConnectionAllocationRequest, connectionAllocationInfo);
                 return Task.FromResult(ProcessSendRequestResult);
             }
 
-            public Task<object> AllocateConnection(MemoryBasedClientTransport client,
+            public Task<object> AllocateConnection(object clientEndpoint,
                 IConnectionAllocationRequest connectionRequest)
             {
-                Assert.Equal(ExpectedClient, client);
+                Assert.Equal(ExpectedClientEndpoint, clientEndpoint);
                 Assert.Equal(ExpectedConnectionAllocationRequest, connectionRequest);
                 var connection = new MemoryBasedTransportConnectionInternal(null,
                     connectionRequest?.ProcessingMutexApi);

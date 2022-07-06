@@ -44,16 +44,16 @@ namespace Kabomu.QuasiHttp.Transport
             }
         }
 
-        public async Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
-            IConnectionAllocationRequest connectionAllocationInfo)
+        public async Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,
+            IConnectionAllocationRequest connectionAllocationInfo, IQuasiHttpRequest request)
         {
-            if (request == null)
-            {
-                throw new ArgumentException("null request");
-            }
             if (connectionAllocationInfo?.RemoteEndpoint == null)
             {
                 throw new ArgumentException("null remote endpoint");
+            }
+            if (request == null)
+            {
+                throw new ArgumentException("null request");
             }
 
             MemoryBasedServerTransport server;
@@ -62,28 +62,12 @@ namespace Kabomu.QuasiHttp.Transport
                 server = Servers[connectionAllocationInfo.RemoteEndpoint];
             }
 
-            // ensure remote transport is running, so as to have comparable behaviour
-            // with allocate connection
-            if (!await server.IsRunning())
-            {
-                throw new Exception("destination server not started");
-            }
-            var destApp = server.Application;
-            if (destApp == null)
-            {
-                throw new Exception("destination application not set");
-            }
-            // can later pass local and remote endpoint information in from request environment.
-            var processingOptions = new DefaultQuasiHttpProcessingOptions
-            {
-                ProcessingMutexApi = connectionAllocationInfo.ProcessingMutexApi,
-                Environment = new Dictionary<string, object>()
-            };
-            var response = await destApp.ProcessRequest(request, processingOptions);
+            var response = await server.ProcessDirectSendRequest(clientEndpoint, 
+                connectionAllocationInfo.ProcessingMutexApi, request);
             return response;
         }
 
-        public async Task<object> AllocateConnection(MemoryBasedClientTransport client,
+        public async Task<object> AllocateConnection(object clientEndpoint,
             IConnectionAllocationRequest connectionRequest)
         {
             if (connectionRequest?.RemoteEndpoint == null)
@@ -97,8 +81,8 @@ namespace Kabomu.QuasiHttp.Transport
                 server = Servers[connectionRequest.RemoteEndpoint];
             }
 
-            var connection = await server.CreateConnectionForClient(client.LocalEndpoint,
-                connectionRequest?.ProcessingMutexApi);
+            var connection = await server.CreateConnectionForClient(clientEndpoint,
+                connectionRequest.ProcessingMutexApi);
             return connection;
         }
     }
