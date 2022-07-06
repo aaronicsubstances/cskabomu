@@ -24,7 +24,6 @@ namespace Kabomu.QuasiHttp
             _transfers = new Dictionary<object, ITransferProtocolInternal>();
             _representative = new ParentTransferProtocolImpl(this);
             MutexApi = new LockBasedMutexApi();
-            MutexApiFactory = new WrapperMutexApiFactory(MutexApi);
         }
 
         public int OverallReqRespTimeoutMillis { get; set; }
@@ -93,6 +92,10 @@ namespace Kabomu.QuasiHttp
 
         private async Task Reset()
         {
+            // since it is desired to clear all pending transfers under lock,
+            // and disabling of transfer is an async transfer, we choose
+            // not to await on each disabling, but rather to wait on them
+            // after clearing the transfers.
             var tasks = new List<Task>();
             using (await MutexApi.Synchronize())
             {
@@ -117,16 +120,19 @@ namespace Kabomu.QuasiHttp
                 throw new ArgumentException("null connection");
             }
 
-            var transferMutex = await MutexApiFactory.Create();
+            IMutexApi transferMutex = connectionAllocationResponse.ConnectionMutexApi;
+            if (transferMutex == null && MutexApiFactory != null)
+            {
+                transferMutex = await MutexApiFactory.Create();
+            }
 
             ReceiveProtocolInternal transfer;
             Task timeoutTask = null, workTask;
             using (await MutexApi.Synchronize())
             {
-                transfer = new ReceiveProtocolInternal
+                transfer = new ReceiveProtocolInternal(transferMutex)
                 {
                     Parent = _representative,
-                    MutexApi = transferMutex,
                     Connection = connectionAllocationResponse.Connection,
                     RequestEnvironment = connectionAllocationResponse.Environment
                 };

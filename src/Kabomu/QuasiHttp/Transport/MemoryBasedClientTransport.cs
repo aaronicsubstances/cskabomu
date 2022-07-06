@@ -1,5 +1,4 @@
-﻿using Kabomu.Concurrency;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -10,12 +9,10 @@ namespace Kabomu.QuasiHttp.Transport
     {
         public MemoryBasedClientTransport()
         {
-            MutexApi = new LockBasedMutexApi();
         }
 
         public string LocalEndpoint { get; set; }
         public IMemoryBasedTransportHub Hub { get; set; }
-        public IMutexApi MutexApi { get; set; }
 
         public Task<bool> CanProcessSendRequestDirectly()
         {
