@@ -30,42 +30,17 @@ namespace Kabomu.Examples.Shared
 
         public Task ReleaseConnection(object connection)
         {
-            return ReleaseConnectionInternal(connection);
-        }
-
-        internal static Task ReleaseConnectionInternal(object connection)
-        {
-            var socket = (Socket)connection;
-            socket.Dispose();
-            return Task.CompletedTask;
+            return UnixDomainSocketServerTransport.ReleaseConnectionInternal(connection);
         }
 
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
-            return ReadBytesInternal(connection, data, offset, length);
-        }
-
-        internal static Task<int> ReadBytesInternal(object connection, byte[] data, int offset, int length)
-        {
-            var networkStream = (Socket)connection;
-            return networkStream.ReceiveAsync(new Memory<byte>(data, offset, length), SocketFlags.None).AsTask();
+            return UnixDomainSocketServerTransport.ReadBytesInternal(connection, data, offset, length);
         }
 
         public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
-            return WriteBytesInternal(connection, data, offset, length);
-        }
-
-        internal static async Task WriteBytesInternal(object connection, byte[] data, int offset, int length)
-        {
-            var networkStream = (Socket)connection;
-            int totalBytesSent = 0;
-            while (totalBytesSent < length)
-            {
-                int bytesSent = await networkStream.SendAsync(
-                    new ReadOnlyMemory<byte>(data, offset + totalBytesSent, length - totalBytesSent), SocketFlags.None);
-                totalBytesSent += bytesSent;
-            }
+            return UnixDomainSocketServerTransport.WriteBytesInternal(connection, data, offset, length);
         }
     }
 }
