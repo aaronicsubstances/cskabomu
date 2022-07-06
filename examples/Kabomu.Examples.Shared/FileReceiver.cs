@@ -22,7 +22,7 @@ namespace Kabomu.Examples.Shared
             _uploadDirPath = uploadDirPath;
         }
 
-        public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
+        public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options)
         {
             var fileName = request.Headers["f"][0];
             LOG.Debug("Starting receipt of file {0} from {1}...", fileName, _remoteEndpoint);

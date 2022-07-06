@@ -94,8 +94,12 @@ namespace Kabomu.QuasiHttp
                     }
                 }
                 _requestBody = request.Body;
-                appTask = Parent.Application.ProcessRequest(request,
-                    RequestEnvironment ?? new Dictionary<string, object>());
+                var processingOptions = new DefaultQuasiHttpProcessingOptions
+                {
+                    ProcessingMutexApi = _mutexApi,
+                    Environment = RequestEnvironment ?? new Dictionary<string, object>()
+                };
+                appTask = Parent.Application.ProcessRequest(request, processingOptions);
             }
 
             var response = await appTask;

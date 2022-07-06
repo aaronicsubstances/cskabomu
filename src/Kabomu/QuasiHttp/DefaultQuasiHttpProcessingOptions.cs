@@ -3,12 +3,12 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Transport
+namespace Kabomu.QuasiHttp
 {
-    public class DefaultConnectionAllocationResponse : IConnectionAllocationResponse
+    public class DefaultQuasiHttpProcessingOptions : IQuasiHttpProcessingOptions
     {
-        public object Connection { get; set; }
         public IDictionary<string, object> Environment { get; set; }
+
         public IMutexApi ProcessingMutexApi { get; set; }
     }
 }

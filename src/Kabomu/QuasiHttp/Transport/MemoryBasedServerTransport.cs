@@ -144,7 +144,7 @@ namespace Kabomu.QuasiHttp.Transport
                 serverSideMutexApi, pendingClientConnectRequest.ClientMutex);
             var connectionAllocationResponse = new DefaultConnectionAllocationResponse
             {
-                ConnectionMutexApi = serverSideMutexApi,
+                ProcessingMutexApi = serverSideMutexApi,
                 Connection = connection
             };
 

@@ -120,7 +120,7 @@ namespace Kabomu.QuasiHttp
                 throw new ArgumentException("null connection");
             }
 
-            IMutexApi transferMutex = connectionAllocationResponse.ConnectionMutexApi;
+            IMutexApi transferMutex = connectionAllocationResponse.ProcessingMutexApi;
             if (transferMutex == null && MutexApiFactory != null)
             {
                 transferMutex = await MutexApiFactory.Create();

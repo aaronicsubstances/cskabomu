@@ -47,16 +47,19 @@ namespace Kabomu.QuasiHttp
         private async Task<IQuasiHttpResponse> ProcessSend(object remoteEndpoint,
             IQuasiHttpRequest request, IQuasiHttpSendOptions options)
         {
+            IMutexApi transferMutex = options?.ProcessingMutexApi;
             Task<bool> canProcessSendRequestTask;
-            Task<IMutexApi> transferMutexTask;
+            Task<IMutexApi> transferMutexTask = null;
             using (await MutexApi.Synchronize())
             {
-                transferMutexTask = MutexApiFactory?.Create();
+                if (transferMutex == null)
+                {
+                    transferMutexTask = MutexApiFactory?.Create();
+                }
                 canProcessSendRequestTask = Transport.CanProcessSendRequestDirectly();
             }
 
-            IMutexApi transferMutex = null;
-            if (transferMutexTask != null)
+            if (transferMutex == null && transferMutexTask != null)
             {
                 transferMutex = await transferMutexTask;
             }
@@ -86,7 +89,7 @@ namespace Kabomu.QuasiHttp
                 {
                     RemoteEndpoint = remoteEndpoint,
                     Environment = requestEnvironment,
-                    ConnectionMutexApi = transferMutex
+                    ProcessingMutexApi = transferMutex
                 };
                 if (canProcessSendRequest)
                 {
