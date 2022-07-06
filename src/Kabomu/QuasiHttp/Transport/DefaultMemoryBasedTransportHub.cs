@@ -47,31 +47,31 @@ namespace Kabomu.QuasiHttp.Transport
         public async Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectionAllocationRequest connectionAllocationInfo)
         {
-            if (connectionAllocationInfo?.RemoteEndpoint == null)
-            {
-                throw new ArgumentException("null remote endpoint");
-            }
             if (request == null)
             {
                 throw new ArgumentException("null request");
             }
+            if (connectionAllocationInfo?.RemoteEndpoint == null)
+            {
+                throw new ArgumentException("null remote endpoint");
+            }
 
-            MemoryBasedServerTransport remoteTransport;
+            MemoryBasedServerTransport server;
             using (await MutexApi.Synchronize())
             {
-                remoteTransport = Servers[connectionAllocationInfo.RemoteEndpoint];
+                server = Servers[connectionAllocationInfo.RemoteEndpoint];
             }
 
             // ensure remote transport is running, so as to have comparable behaviour
             // with allocate connection
-            if (!await remoteTransport.IsRunning())
+            if (!await server.IsRunning())
             {
-                throw new Exception("remote transport not started");
+                throw new Exception("destination server not started");
             }
-            var remoteApp = remoteTransport.Application;
-            if (remoteApp == null)
+            var destApp = server.Application;
+            if (destApp == null)
             {
-                throw new Exception("remote application not set");
+                throw new Exception("destination application not set");
             }
             // can later pass local and remote endpoint information in from request environment.
             var processingOptions = new DefaultQuasiHttpProcessingOptions
@@ -79,7 +79,7 @@ namespace Kabomu.QuasiHttp.Transport
                 ProcessingMutexApi = connectionAllocationInfo.ProcessingMutexApi,
                 Environment = new Dictionary<string, object>()
             };
-            var response = await remoteApp.ProcessRequest(request, processingOptions);
+            var response = await destApp.ProcessRequest(request, processingOptions);
             return response;
         }
 
@@ -91,13 +91,13 @@ namespace Kabomu.QuasiHttp.Transport
                 throw new ArgumentException("null remote endpoint");
             }
 
-            MemoryBasedServerTransport remoteTransport;
+            MemoryBasedServerTransport server;
             using (await MutexApi.Synchronize())
             {
-                remoteTransport = Servers[connectionRequest.RemoteEndpoint];
+                server = Servers[connectionRequest.RemoteEndpoint];
             }
 
-            var connection = await remoteTransport.CreateConnectionForClient(client.LocalEndpoint,
+            var connection = await server.CreateConnectionForClient(client.LocalEndpoint,
                 connectionRequest?.ProcessingMutexApi);
             return connection;
         }

@@ -1,7 +1,5 @@
 remaining
 ==========
--MemoryBasedClientTransport
--DefaultMemoryBasedTransportHub
 -DefaultQuasiHttpClient
 -DefaultQuasiHttpServer
 
