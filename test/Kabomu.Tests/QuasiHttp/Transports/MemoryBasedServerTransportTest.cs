@@ -29,10 +29,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             running = await instance.IsRunning();
             Assert.True(running);
 
-            var clientPeer = new MemoryBasedClientTransport
-            {
-                LocalEndpoint = "Accra"
-            };
+            var clientEndpoint = "Accra";
             var connectionRequest = new DefaultConnectionAllocationRequest
             {
                 RemoteEndpoint = "Kumasi"
@@ -43,45 +40,45 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             {
                 return instance.ReceiveConnection();
             });
-            var expectedClientConnection = await instance.CreateConnectionForClient(
-                connectionRequest, clientPeer.LocalEndpoint, clientPeer.MutexApi);
+            var expectedConnection = await instance.CreateConnectionForClient(
+                connectionRequest, clientEndpoint, new LockBasedMutexApi(new object()));
             var receiveConnectionResponse = await serverConnectTask;
-            Assert.Equal(expectedClientConnection, receiveConnectionResponse.Connection);
+            Assert.Equal(expectedConnection, receiveConnectionResponse.Connection);
 
             // test for sequential read/write request processing.
             var workItems1 = CreateWorkItems();
-            await ProcessWorkItems(instance, clientPeer, expectedClientConnection, true, workItems1);
+            await ProcessWorkItems(instance, expectedConnection, true, workItems1);
             var workItems2 = CreateWorkItems();
-            await ProcessWorkItems(instance, clientPeer, expectedClientConnection, false, workItems2);
+            await ProcessWorkItems(instance, expectedConnection, false, workItems2);
             
             // test for interleaved read/write request processing.
             workItems1 = CreateWorkItems();
             workItems2 = CreateWorkItems();
-            var task1 = ProcessWorkItems(instance, clientPeer, expectedClientConnection, true, workItems1);
-            var task2 = ProcessWorkItems(instance, clientPeer, expectedClientConnection, false, workItems2);
+            var task1 = ProcessWorkItems(instance, expectedConnection, true, workItems1);
+            var task2 = ProcessWorkItems(instance, expectedConnection, false, workItems2);
             // use whenAny to check for any exceptions.
             await await Task.WhenAny(task1, task2);
             await Task.WhenAll(task1, task2);
 
             // test that release connection works.
-            var exTask1 = instance.ReadBytes(expectedClientConnection, new byte[2], 0, 2);
-            var exTask2 = instance.WriteBytes(expectedClientConnection, new byte[3], 1, 2);
-            await clientPeer.ReleaseConnection(expectedClientConnection);
+            var exTask1 = instance.ReadBytes(expectedConnection, new byte[2], 0, 2);
+            var exTask2 = instance.WriteBytes(expectedConnection, new byte[3], 1, 2);
+            await instance.ReleaseConnection(expectedConnection);
             await Assert.ThrowsAnyAsync<Exception>(() => exTask1);
             await Assert.ThrowsAnyAsync<Exception>(() => exTask2);
 
             // test that all attempts to read leads to exceptions.
             await Assert.ThrowsAnyAsync<Exception>(() =>
             {
-                return clientPeer.ReadBytes(expectedClientConnection, new byte[1], 0, 1);
+                return instance.ReadBytes(expectedConnection, new byte[1], 0, 1);
             });
             await Assert.ThrowsAnyAsync<Exception>(() =>
             {
-                return clientPeer.WriteBytes(expectedClientConnection, new byte[1], 0, 1);
+                return instance.WriteBytes(expectedConnection, new byte[1], 0, 1);
             });
 
             // test that repeated call doesn't have effect.
-            await instance.ReleaseConnection(expectedClientConnection);
+            await instance.ReleaseConnection(expectedConnection);
 
             await instance.Stop();
             await instance.Stop();
@@ -202,8 +199,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
         }
 
         private async Task ProcessWorkItems(MemoryBasedServerTransport server,
-            MemoryBasedClientTransport client, object connection, bool writeToServer,
-            List<WorkItem> workItems)
+            object connection, bool writeToServer, List<WorkItem> workItems)
         {
             var uncompletedWorkItems = new List<WorkItem>();
             foreach (var pendingWork in workItems)
@@ -217,7 +213,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
                     }
                     else
                     {
-                        pendingWork.WriteTask = client.WriteBytes(connection,
+                        pendingWork.WriteTask = MemoryBasedServerTransport.WriteBytesInternal(false, connection,
                             pendingWork.WriteData, pendingWork.WriteOffset, pendingWork.WriteLength);
                     }
                 }
@@ -225,7 +221,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
                 {
                     if (writeToServer)
                     {
-                        pendingWork.ReadTask = client.ReadBytes(connection,
+                        pendingWork.ReadTask = MemoryBasedServerTransport.ReadBytesInternal(false, connection,
                             pendingWork.ReadBuffer, pendingWork.ReadOffset, pendingWork.BytesToRead);
                     }
                     else
