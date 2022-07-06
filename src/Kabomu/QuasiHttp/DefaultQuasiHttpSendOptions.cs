@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Kabomu.Concurrency;
+using System.Collections.Generic;
 
 namespace Kabomu.QuasiHttp
 {
@@ -7,5 +8,7 @@ namespace Kabomu.QuasiHttp
         public int OverallReqRespTimeoutMillis { get; set; }
         public int MaxChunkSize { get; set; }
         public IDictionary<string, object> RequestEnvironment { get; set; }
+
+        public IMutexApi ProcessingMutexApi { get; set; }
     }
 }

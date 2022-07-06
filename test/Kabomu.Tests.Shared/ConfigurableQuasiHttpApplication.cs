@@ -8,11 +8,11 @@ namespace Kabomu.Tests.Shared
 {
     public class ConfigurableQuasiHttpApplication : IQuasiHttpApplication
     {
-        public Func<IQuasiHttpRequest, IDictionary<string, object>, Task<IQuasiHttpResponse>> ProcessRequestCallback { get; set; }
+        public Func<IQuasiHttpRequest, IQuasiHttpProcessingOptions, Task<IQuasiHttpResponse>> ProcessRequestCallback { get; set; }
 
-        public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
+        public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options)
         {
-            return ProcessRequestCallback.Invoke(request, requestEnvironment);
+            return ProcessRequestCallback.Invoke(request, options);
         }
     }
 }

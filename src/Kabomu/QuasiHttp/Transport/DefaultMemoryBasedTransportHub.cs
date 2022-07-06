@@ -73,8 +73,13 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 throw new Exception("remote application not set");
             }
-            // can later pass local and remote endpoint information in request environment.
-            var response = await remoteApp.ProcessRequest(request, connectionAllocationInfo.Environment);
+            // can later pass local and remote endpoint information in from request environment.
+            var processingOptions = new DefaultQuasiHttpProcessingOptions
+            {
+                ProcessingMutexApi = connectionAllocationInfo.ProcessingMutexApi,
+                Environment = new Dictionary<string, object>()
+            };
+            var response = await remoteApp.ProcessRequest(request, processingOptions);
             return response;
         }
 
@@ -93,7 +98,7 @@ namespace Kabomu.QuasiHttp.Transport
             }
 
             var connection = await remoteTransport.CreateConnectionForClient(client.LocalEndpoint,
-                connectionRequest?.ConnectionMutexApi);
+                connectionRequest?.ProcessingMutexApi);
             return connection;
         }
     }
