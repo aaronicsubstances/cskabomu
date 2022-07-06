@@ -93,7 +93,7 @@ namespace Kabomu.Tests.QuasiHttp
                 }
             };
             var instance = new ReceiveProtocolInternal();
-            instance.MutexApi = new LockBasedMutexApi(new object());
+            instance.MutexApi = new LockBasedMutexApi();
             instance.Connection = connection;
             instance.RequestEnvironment = reqEnv;
             instance.MaxChunkSize = maxChunkSize;

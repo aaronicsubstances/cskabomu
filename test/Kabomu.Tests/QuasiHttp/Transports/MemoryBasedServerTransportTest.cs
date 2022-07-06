@@ -41,7 +41,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
                 return instance.ReceiveConnection();
             });
             var expectedConnection = await instance.CreateConnectionForClient(
-                connectionRequest, clientEndpoint, new LockBasedMutexApi(new object()));
+                connectionRequest, clientEndpoint, new LockBasedMutexApi());
             var receiveConnectionResponse = await serverConnectTask;
             Assert.Equal(expectedConnection, receiveConnectionResponse.Connection);
 

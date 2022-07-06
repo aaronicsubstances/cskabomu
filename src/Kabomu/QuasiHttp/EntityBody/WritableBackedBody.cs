@@ -17,7 +17,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         {
             ContentType = contentType;
             _writeRequests = new LinkedList<ReadWriteRequest>();
-            MutexApi = new LockBasedMutexApi(new object());
+            MutexApi = new LockBasedMutexApi();
         }
 
         public long ContentLength => -1;
