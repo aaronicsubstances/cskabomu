@@ -30,11 +30,14 @@ namespace Memory.FileExchange
                    {
                        var clientEndpoint = "takoradi";
                        var serverEndpoint = "kumasi";
-                       var hub = new DefaultMemoryBasedTransportHub();
+                       var hub = new DefaultMemoryBasedTransportHub
+                       {
+                           DirectSendRequestProcessingProbability = o.DirectSendProbability ?? 0
+                       };
                        var serverTask = FileServer.RunMain(serverEndpoint, o.ServerUploadDirPath ?? ".",
                            hub);
                        var clientTask = FileClient.RunMain(clientEndpoint, serverEndpoint,
-                           o.ClientUploadDirPath ?? "images", hub, o.DirectSendProbability ?? 0);
+                           o.ClientUploadDirPath ?? "images", hub);
                        Task.WaitAll(serverTask, clientTask);
                    });
         }

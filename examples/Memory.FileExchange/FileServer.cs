@@ -19,7 +19,10 @@ namespace Memory.FileExchange
             IMemoryBasedTransportHub hub)
         {
             var eventLoop = new DefaultEventLoopApi();
-            var transport = new MemoryBasedServerTransport();
+            var transport = new MemoryBasedServerTransport
+            {
+                LocalEndpoint = endpoint
+            };
             UncaughtErrorCallback errorHandler = (e, m) =>
             {
                 LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
@@ -29,12 +32,12 @@ namespace Memory.FileExchange
                 OverallReqRespTimeoutMillis = 5_000,
                 Transport = transport,
                 EventLoop = eventLoop,
-                ErrorHandler = errorHandler
+                ErrorHandler = errorHandler,
             };
             instance.Application = new FileReceiver(endpoint, uploadDirPath);
             transport.Application = instance.Application;
 
-            await hub.AddServer(endpoint, transport);
+            await hub.AddServer(transport);
 
             await instance.Start();
             LOG.Info("Started Memory.FileServer at {0}", endpoint);

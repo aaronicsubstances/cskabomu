@@ -8,8 +8,6 @@ namespace Kabomu.QuasiHttp.Transport
 {
     public class MemoryBasedClientTransport : IQuasiHttpClientTransport
     {
-        private readonly Random _randGen = new Random();
-
         public MemoryBasedClientTransport()
         {
             MutexApi = new LockBasedMutexApi();
@@ -17,15 +15,11 @@ namespace Kabomu.QuasiHttp.Transport
 
         public string LocalEndpoint { get; set; }
         public IMemoryBasedTransportHub Hub { get; set; }
-        public double DirectSendRequestProcessingProbability { get; set; }
         public IMutexApi MutexApi { get; set; }
 
-        public async Task<bool> CanProcessSendRequestDirectly()
+        public Task<bool> CanProcessSendRequestDirectly()
         {
-            using (await MutexApi.Synchronize())
-            {
-                return _randGen.NextDouble() < DirectSendRequestProcessingProbability;
-            }
+            return Hub.CanProcessSendRequestDirectly();
         }
 
         public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,

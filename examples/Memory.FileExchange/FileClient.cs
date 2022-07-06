@@ -17,13 +17,12 @@ namespace Memory.FileExchange
         static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
         public static async Task RunMain(string clientEndpoint, string serverEndpoint,
-            string uploadDirPath, IMemoryBasedTransportHub hub, double directSendProb)
+            string uploadDirPath, IMemoryBasedTransportHub hub)
         {
             var eventLoop = new DefaultEventLoopApi();
             var transport = new MemoryBasedClientTransport
             {
                 LocalEndpoint = clientEndpoint,
-                DirectSendRequestProcessingProbability = directSendProb,
                 Hub = hub
             };
             var defaultSendOptions = new DefaultQuasiHttpSendOptions
