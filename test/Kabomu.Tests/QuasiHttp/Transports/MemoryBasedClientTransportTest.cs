@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -97,6 +98,42 @@ namespace Kabomu.Tests.QuasiHttp.Transports
 
             // test that repeated call doesn't have effect.
             await instance.ReleaseConnection(connection);
+        }
+
+        [Fact]
+        public async Task TestErrorUsage()
+        {
+            var instance = new MemoryBasedClientTransport();
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+                instance.ProcessSendRequest(null, null));
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+                instance.CanProcessSendRequestDirectly());
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+                instance.AllocateConnection(null));
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+            {
+                return instance.ReadBytes(null, new byte[0], 0, 0);
+            });
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+            {
+                return instance.ReadBytes(4, new byte[2], 0, 1);
+            });
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+            {
+                return instance.ReadBytes(new MemoryBasedTransportConnectionInternal(null, null), new byte[1], 1, 1);
+            });
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+            {
+                return instance.WriteBytes(null, new byte[0], 0, 0);
+            });
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+            {
+                return instance.WriteBytes(4, new byte[2], 0, 1);
+            });
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+            {
+                return instance.WriteBytes(new MemoryBasedTransportConnectionInternal(null, null), new byte[1], 1, 1);
+            });
         }
 
         [Fact]
