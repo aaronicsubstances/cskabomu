@@ -36,7 +36,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             Task<int> readTask;
             using (await MutexApi.Synchronize())
             {
-                EntityBodyUtilsInternal.TryCancelRead(_endOfReadSeen);
+                EntityBodyUtilsInternal.ThrowIfReadCancelled(_endOfReadSeen);
 
                 if (_readRequest != null)
                 {
@@ -85,7 +85,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             Task writeTask;
             using (await MutexApi.Synchronize())
             {
-                EntityBodyUtilsInternal.TryCancelRead(_endOfReadSeen);
+                EntityBodyUtilsInternal.ThrowIfReadCancelled(_endOfReadSeen);
 
                 if (_endOfWriteSeen)
                 {

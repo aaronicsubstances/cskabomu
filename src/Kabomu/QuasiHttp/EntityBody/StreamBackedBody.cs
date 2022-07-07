@@ -36,7 +36,7 @@ namespace Kabomu.QuasiHttp.EntityBody
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
+            EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
             // supplying cancellation token is for the purpose of leveraging
             // presence of cancellation in C#'s stream interface. Outside code 
