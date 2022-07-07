@@ -1,4 +1,5 @@
-﻿using Kabomu.Concurrency;
+﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared;
@@ -69,6 +70,55 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             await instance.Stop();
             running = await instance.IsRunning();
             Assert.False(running);
+        }
+
+        [Fact]
+        public async Task TestErrorUsage()
+        {
+            var instance = new MemoryBasedServerTransport();
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+            {
+                return instance.ProcessDirectSendRequest(null, null, null, null);
+            });
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+            {
+                return instance.CreateConnectionForClient(null, null, null);
+            });
+            
+            await instance.Start();
+
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+            {
+                return instance.ProcessDirectSendRequest(null, null, null, null);
+            });
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+            {
+                return instance.ProcessDirectSendRequest(null, null, null, new DefaultQuasiHttpRequest());
+            });
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+            {
+                return instance.ReadBytes(null, new byte[0], 0, 0);
+            });
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+            {
+                return instance.ReadBytes(4, new byte[2], 0, 1);
+            });
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+            {
+                return instance.ReadBytes(new MemoryBasedTransportConnectionInternal(null, null), new byte[1], 1, 1);
+            });
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+            {
+                return instance.WriteBytes(null, new byte[0], 0, 0);
+            });
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+            {
+                return instance.WriteBytes(4, new byte[2], 0, 1);
+            });
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+            {
+                return instance.WriteBytes(new MemoryBasedTransportConnectionInternal(null, null), new byte[1], 1, 1);
+            });
         }
 
         [Fact]

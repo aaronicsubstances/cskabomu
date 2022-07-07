@@ -127,7 +127,10 @@ namespace Kabomu.QuasiHttp.EntityBody
             // do not invoke callbacks until state of this body is updated,
             // to prevent error of re-entrant read byte requests
             // matching previous writes.
-            // (not really necessary for promise-based implementations).
+            // NB: not really necessary for promise-based implementations.
+            // in fact as a historical note, problem with re-entrancy and
+            // excessive stack size growth during looping callbacks, sped up work to 
+            // promisify this entire library.
             _readRequest = null;
             List<ReadWriteRequest> writesToFail = null;
             if (bytesToReturn < pendingWrite.Length)
