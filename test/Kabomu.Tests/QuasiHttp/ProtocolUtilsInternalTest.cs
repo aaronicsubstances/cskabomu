@@ -1,4 +1,4 @@
-﻿using Kabomu.Common;
+﻿using Kabomu.Concurrency;
 using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
@@ -267,6 +267,92 @@ namespace Kabomu.Tests.QuasiHttp
             testData.Add(new object[] { firstOptions, fallbackOptions, expected });
 
             return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestDetermineEffectiveMutexApiData))]
+        public async Task TestDetermineEffectiveMutexApi(IMutexApi preferred,
+            IMutexApiFactory fallbackFactory, IMutexApi fallback2, IMutexApi expected)
+        {
+            var actual = await ProtocolUtilsInternal.DetermineEffectiveMutexApi(preferred,
+                fallbackFactory, fallback2);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateTestDetermineEffectiveMutexApiData()
+        {
+            var testData = new List<object[]>();
+
+            IMutexApi preffered = new LockBasedMutexApi();
+            TestMutexApiFactory factory = null;
+            IMutexApi fallback2 = null;
+            IMutexApi expected = preffered;
+            testData.Add(new object[] { preffered, factory, fallback2, expected });
+
+            preffered = null;
+            factory = null;
+            fallback2 = new LockBasedMutexApi();
+            expected = fallback2;
+            testData.Add(new object[] { preffered, factory, fallback2, expected });
+
+            preffered = new LockBasedMutexApi();
+            factory = null;
+            fallback2 = new LockBasedMutexApi();
+            expected = preffered;
+            testData.Add(new object[] { preffered, factory, fallback2, expected });
+
+            preffered = new LockBasedMutexApi();
+            factory = new TestMutexApiFactory(new LockBasedMutexApi());
+            fallback2 = new LockBasedMutexApi();
+            expected = preffered;
+            testData.Add(new object[] { preffered, factory, fallback2, expected });
+
+            preffered = null;
+            factory = new TestMutexApiFactory(new LockBasedMutexApi());
+            fallback2 = new LockBasedMutexApi();
+            expected = factory.SoleMutexApi;
+            testData.Add(new object[] { preffered, factory, fallback2, expected });
+
+            preffered = null;
+            factory = new TestMutexApiFactory(new LockBasedMutexApi());
+            fallback2 = null;
+            expected = factory.SoleMutexApi;
+            testData.Add(new object[] { preffered, factory, fallback2, expected });
+
+            preffered = null;
+            factory = new TestMutexApiFactory(null);
+            fallback2 = new LockBasedMutexApi();
+            expected = fallback2;
+            testData.Add(new object[] { preffered, factory, fallback2, expected });
+
+            preffered = null;
+            factory = new TestMutexApiFactory(null);
+            fallback2 = null;
+            expected = null;
+            testData.Add(new object[] { preffered, factory, fallback2, expected });
+
+            preffered = null;
+            factory = null;
+            fallback2 = null;
+            expected = null;
+            testData.Add(new object[] { preffered, factory, fallback2, expected });
+
+            return testData;
+        }
+
+        private class TestMutexApiFactory : IMutexApiFactory
+        {
+            public TestMutexApiFactory(IMutexApi soleMutexApi)
+            {
+                SoleMutexApi = soleMutexApi;
+            }
+
+            public IMutexApi SoleMutexApi { get; }
+
+            public Task<IMutexApi> Create()
+            {
+                return Task.FromResult(SoleMutexApi);
+            }
         }
     }
 }
