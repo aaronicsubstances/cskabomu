@@ -20,6 +20,24 @@ namespace Kabomu.Tests.Concurrency
         }
 
         [Fact]
+        public async Task TestRunExclusively()
+        {
+            // arrange.
+            var instance = new DefaultEventLoopApi();
+            var expected = true;
+
+            // act.
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            instance.RunExclusively(() =>
+            {
+                tcs.SetResult(instance.IsInterimEventLoopThread);
+            });
+
+            var actual = await tcs.Task;
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
         public async Task TestSetImmediate()
         {
             // arrange.
@@ -28,16 +46,17 @@ namespace Kabomu.Tests.Concurrency
             var actual = new List<string>();
             var tasks = new List<Task>();
             var cancelledTasks = new List<Task>();
-            int i;
-            for (i = 0; i < 100; i++)
+
+            // act
+            for (int i = 0; i < 100; i++)
             {
                 var capturedIndex = i;
-                expected.Add("" + capturedIndex);
+                expected.Add("" + capturedIndex + true);
                 var cancellationTokenSource = new CancellationTokenSource();
                 Func<Task<int>> cb = () =>
                 {
                     cancellationTokenSource.Cancel();
-                    actual.Add("" + capturedIndex);
+                    actual.Add("" + capturedIndex + instance.IsInterimEventLoopThread);
                     return Task.FromResult(capturedIndex);
                 };
                 tasks.Add(instance.SetImmediate(CancellationToken.None, cb));
@@ -48,30 +67,30 @@ namespace Kabomu.Tests.Concurrency
                 }));
             }
 
-            // this should finish executing after all previous tasks have executed.
-            await instance.SetImmediate(CancellationToken.None, () => Task.CompletedTask);
-
             // assert
-            // check cancellations
-            foreach (var t in cancelledTasks)
+            // this must run after all previous callbacks have run.
+            await instance.SetImmediate(CancellationToken.None, () =>
             {
-                Assert.False(t.IsCompleted);
-            }
-
-            // check for correct return values.
-            i = 0;
-            foreach (var task in tasks)
-            {
-                Assert.True(task.IsCompleted);
-                if (!task.IsCompletedSuccessfully)
+                // check cancellations
+                foreach (var t in cancelledTasks)
                 {
-                    Assert.True(task.IsCompletedSuccessfully, "Didn't expect: " + task.Exception);
+                    Assert.False(t.IsCompleted);
                 }
-                i++;
-            }
 
-            // finally ensure correct ordering of execution of tasks.
-            new OutputEventLogger { Logs = actual }.AssertEqual(expected, _outputHelper);
+                // check for correct return values.
+                foreach (var task in tasks)
+                {
+                    Assert.True(task.IsCompleted);
+                    if (!task.IsCompletedSuccessfully)
+                    {
+                        Assert.True(task.IsCompletedSuccessfully, "Didn't expect: " + task.Exception);
+                    }
+                }
+
+                // finally ensure correct ordering of execution of tasks.
+                new OutputEventLogger { Logs = actual }.AssertEqual(expected, _outputHelper);
+                return Task.CompletedTask;
+            });
         }
 
         [Fact]
@@ -82,16 +101,17 @@ namespace Kabomu.Tests.Concurrency
             var expected = new List<string>();
             var actual = new List<string>();
             var tasks = new List<List<Task>>();
-            int i;
-            for (i = 0; i < 50; i++)
+
+            // act
+            for (int i = 0; i < 50; i++)
             {
                 var capturedIndex = i;
-                expected.Add("" + capturedIndex);
+                expected.Add("" + capturedIndex + true);
                 var cancellationTokenSource = new CancellationTokenSource();
                 Func<Task<int>> cb = () =>
                 {
                     cancellationTokenSource.Cancel();
-                    actual.Add("" + capturedIndex);
+                    actual.Add("" + capturedIndex + instance.IsInterimEventLoopThread);
                     return Task.FromResult(capturedIndex);
                 };
                 // Since it is not deterministic as to which call to setTimeout will execute first,

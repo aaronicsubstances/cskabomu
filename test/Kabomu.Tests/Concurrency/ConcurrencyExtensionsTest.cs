@@ -17,19 +17,65 @@ namespace Kabomu.Tests.Concurrency
             IMutexApi eventLoopBased = new DefaultEventLoopApi();
 
             // act.
-            Thread t = Thread.CurrentThread, u, v;
+            Thread t = Thread.CurrentThread, u, v, w, x;
+            string expectedError = "error";
+            string actualError3 = null, actualError4 = null;
             using (await eventLoopBased.Synchronize())
             {
                 u = Thread.CurrentThread;
+                await ExtraneousProcessing1();
                 using (await eventLoopBased.Synchronize())
                 {
+                    await ExtraneousProcessing2();
                     v = Thread.CurrentThread;
+                    try
+                    {
+                        await ExtraneousProcessing3();
+                    }
+                    catch (Exception e)
+                    {
+                        actualError3 = e.Message;
+                    }
+                    w = Thread.CurrentThread;
+                    try
+                    {
+                        await ExtraneousProcessing4();
+                    }
+                    catch (Exception e)
+                    {
+                        actualError4 = e.Message;
+                    }
+                    x = Thread.CurrentThread;
                 }
             }
 
             // assert.
+            Assert.Equal(expectedError, actualError3);
+            Assert.Equal(expectedError, actualError4);
             Assert.NotEqual(t, u);
             Assert.Equal(u, v);
+            Assert.Equal(u, w);
+            Assert.Equal(u, x);
+        }
+
+        private Task ExtraneousProcessing1()
+        {
+            return Task.CompletedTask;
+        }
+
+        private async Task ExtraneousProcessing2()
+        {
+            await ExtraneousProcessing1();
+        }
+
+        private Task ExtraneousProcessing3()
+        {
+            throw new Exception("error");
+        }
+
+        private async Task ExtraneousProcessing4()
+        {
+            await ExtraneousProcessing3();
         }
 
         [Fact]

@@ -11,9 +11,11 @@ namespace Kabomu.Concurrency
     /// </summary>
     public class DefaultEventLoopApi : IEventLoopApi
     {
+        [ThreadStatic]
+        private static Thread _postCallbackExecutionThread;
+
         private readonly Action<object> UnwrapAndRunExclusivelyCallback;
         private readonly LimitedConcurrencyLevelTaskSchedulerInternal _throttledTaskScheduler;
-        private int _interimEventLoopThreadId;
 
         public DefaultEventLoopApi()
         {
@@ -21,17 +23,7 @@ namespace Kabomu.Concurrency
             _throttledTaskScheduler = new LimitedConcurrencyLevelTaskSchedulerInternal(1);
         }
 
-        private void UnwrapAndRunExclusively(object cbState)
-        {
-            Interlocked.Exchange(ref _interimEventLoopThreadId, Thread.CurrentThread.ManagedThreadId);
-
-            var continuation = (Action)cbState;
-            continuation.Invoke();
-        }
-
-        public bool IsInterimEventLoopThread => Thread.CurrentThread.ManagedThreadId == _interimEventLoopThreadId;
-
-        public bool IsExclusiveRunRequired => !IsInterimEventLoopThread;
+        public bool IsInterimEventLoopThread => Thread.CurrentThread == _postCallbackExecutionThread;
 
         public void RunExclusively(Action cb)
         {
@@ -40,11 +32,24 @@ namespace Kabomu.Concurrency
                 throw new ArgumentException("null cb");
             }
             // try to reduce garbage collection by not reusing SetImmediate.
+            // also let TaskScheduler.UnobservedTaskException handle any uncaught task exceptions.
             Task.Factory.StartNew(UnwrapAndRunExclusivelyCallback, cb, CancellationToken.None,
                 TaskCreationOptions.None, _throttledTaskScheduler);
         }
 
-        public IDisposable CreateMutexContextManager() => null;
+        private void UnwrapAndRunExclusively(object cbState)
+        {
+            var continuation = (Action)cbState;
+            try
+            {
+                _postCallbackExecutionThread = Thread.CurrentThread;
+                continuation.Invoke();
+            }
+            finally
+            {
+                _postCallbackExecutionThread = null;
+            }
+        }
 
         public Task SetImmediate(CancellationToken cancellationToken, Func<Task> cb)
         {
@@ -52,22 +57,31 @@ namespace Kabomu.Concurrency
             {
                 throw new ArgumentException("null cb");
             }
-            var tcs = new TaskCompletionSource<object>();
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return tcs.Task;
-            }
+            var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
             Func<Task> cbWrapper = async () =>
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
                     return;
                 }
+                Task outcome;
                 try
                 {
-                    Interlocked.Exchange(ref _interimEventLoopThreadId, Thread.CurrentThread.ManagedThreadId);
-
-                    await cb.Invoke();
+                    _postCallbackExecutionThread = Thread.CurrentThread;
+                    outcome = cb.Invoke();
+                }
+                catch (Exception e)
+                {
+                    tcs.SetException(e);
+                    return;
+                }
+                finally
+                {
+                    _postCallbackExecutionThread = null;
+                }
+                try
+                {
+                    await outcome;
                     tcs.SetResult(null);
                 }
                 catch (Exception e)

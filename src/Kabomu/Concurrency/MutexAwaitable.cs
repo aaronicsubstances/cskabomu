@@ -32,9 +32,13 @@ namespace Kabomu.Concurrency
             {
                 get
                 {
-                    if (_mutexApi != null)
+                    if (_mutexApi is IMutexContextFactory mutexContextFactory)
                     {
-                        return !_mutexApi.IsExclusiveRunRequired;
+                        return !mutexContextFactory.IsExclusiveRunRequired;
+                    }
+                    else if (_mutexApi is IEventLoopApi eventLoopApi)
+                    {
+                        return eventLoopApi.IsInterimEventLoopThread;
                     }
                     else
                     {
@@ -50,7 +54,14 @@ namespace Kabomu.Concurrency
 
             public IDisposable GetResult()
             {
-                return _mutexApi?.CreateMutexContextManager();
+                if (_mutexApi is IMutexContextFactory mutexContextFactory)
+                {
+                    return mutexContextFactory.CreateMutexContext();
+                }
+                else
+                {
+                    return null;
+                }
             }
         }
     }

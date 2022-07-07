@@ -1,6 +1,7 @@
 ﻿using Kabomu.Concurrency;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
@@ -98,6 +99,20 @@ namespace Kabomu.QuasiHttp
                 }
             }
             return fallback2;
+        }
+
+        public static Task SetResponseTimeout(IEventLoopApi ev, ITransferProtocolInternal transfer, int transferTimeoutMillis,
+            string errorMessage)
+        {
+            if (ev == null || transferTimeoutMillis <= 0)
+            {
+                return null;
+            }
+            transfer.TimeoutCancellationHandle = new CancellationTokenSource();
+            return ev.SetTimeout(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
+            {
+                throw new Exception(errorMessage);
+            });
         }
     }
 }
