@@ -38,7 +38,7 @@ namespace Kabomu.QuasiHttp.EntityBody
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
+            EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
             var lengthToUse = Math.Min(Length - _bytesRead, length);
             Array.Copy(Buffer, Offset + _bytesRead, data, offset, lengthToUse);

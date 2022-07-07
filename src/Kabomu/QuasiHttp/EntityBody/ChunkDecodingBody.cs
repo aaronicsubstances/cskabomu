@@ -97,7 +97,7 @@ namespace Kabomu.QuasiHttp.EntityBody
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
+            EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
             var encodedLength = new byte[ChunkEncodingBody.LengthOfEncodedChunkLength];
             // once empty data chunk is seen, return 0 for all subsequent reads.
@@ -117,7 +117,7 @@ namespace Kabomu.QuasiHttp.EntityBody
                     "reading a chunk length specification: " + e.Message, e);
             }
 
-            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
+            EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
             var chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                 encodedLength.Length);
@@ -135,7 +135,7 @@ namespace Kabomu.QuasiHttp.EntityBody
                     "reading in chunk data: " + e.Message, e);
             }
 
-            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
+            EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
             try
             {

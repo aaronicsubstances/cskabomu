@@ -42,7 +42,7 @@ namespace Kabomu.QuasiHttp.EntityBody
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
+            EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
             if (_backingBody == null)
             {

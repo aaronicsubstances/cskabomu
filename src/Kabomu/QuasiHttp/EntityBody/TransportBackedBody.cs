@@ -46,7 +46,7 @@ namespace Kabomu.QuasiHttp.EntityBody
                 throw new ArgumentException("invalid destination buffer");
             }
 
-            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
+            EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
             if (bytesToRead == 0 || _bytesRemaining == 0)
             {
@@ -58,7 +58,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
             int bytesRead = await _transport.ReadBytes(_connection, data, offset, bytesToRead);
 
-            EntityBodyUtilsInternal.TryCancelRead(_readCancellationHandle);
+            EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
             if (_bytesRemaining > 0)
             {

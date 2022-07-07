@@ -9,12 +9,12 @@ namespace Kabomu.QuasiHttp.EntityBody
     {
         public static readonly Exception ReadCancellationException = new Exception("end of read");
 
-        public static void TryCancelRead(CancellationTokenSource cts)
+        public static void ThrowIfReadCancelled(CancellationTokenSource cts)
         {
-            TryCancelRead(cts.IsCancellationRequested);
+            ThrowIfReadCancelled(cts.IsCancellationRequested);
         }
 
-        public static void TryCancelRead(bool endOfReadSeen)
+        public static void ThrowIfReadCancelled(bool endOfReadSeen)
         {
             if (endOfReadSeen)
             {
