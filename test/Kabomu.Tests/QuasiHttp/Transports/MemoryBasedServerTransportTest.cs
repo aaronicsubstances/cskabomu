@@ -35,7 +35,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             {
                 return instance.ReceiveConnection();
             });
-            var expectedConnection = await instance.CreateConnectionForClient(null, null);
+            var expectedConnection = await instance.CreateConnectionForClient(null, null, null);
             var receiveConnectionResponse = await serverConnectTask;
             Assert.Equal(expectedConnection, receiveConnectionResponse.Connection);
 
@@ -98,15 +98,15 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             };
             var instance = new MemoryBasedServerTransport
             {
-                LocalEndpoint = "Accra",
                 Application = app
             };
             var running = await instance.IsRunning();
             Assert.False(running);
 
+            // test for error if not running.
             await Assert.ThrowsAnyAsync<Exception>(() =>
             {
-                return instance.ProcessDirectSendRequest("Tafo", expectedMutex, new DefaultQuasiHttpRequest());
+                return instance.ProcessDirectSendRequest("Accra", "Tafo", expectedMutex, new DefaultQuasiHttpRequest());
             });
 
             await instance.Start();
@@ -114,26 +114,26 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             running = await instance.IsRunning();
             Assert.True(running);
 
-            var res = await instance.ProcessDirectSendRequest("Accra",
+            var res = await instance.ProcessDirectSendRequest("Accra", "Koforidua",
                 expectedMutex, expectedReq);
             Assert.Equal(expectedRes, res);
 
-            await Assert.ThrowsAnyAsync<Exception>(() =>
+            await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                return instance.ProcessDirectSendRequest("Tafo", expectedMutex, null);
+                return instance.ProcessDirectSendRequest("Tafo", "Ho", expectedMutex, null);
             });
 
             Task<IConnectionAllocationResponse> serverConnectTask;
             Task<object> clientConnectTask;
             if (connectToClientFirst)
             {
-                clientConnectTask = instance.CreateConnectionForClient("Kumasi", null);
+                clientConnectTask = instance.CreateConnectionForClient("Accra", "Kumasi", null);
                 serverConnectTask = instance.ReceiveConnection();
             }
             else
             {
                 serverConnectTask = instance.ReceiveConnection();
-                clientConnectTask = instance.CreateConnectionForClient("Kumasi", null);
+                clientConnectTask = instance.CreateConnectionForClient("Accra", "Kumasi", null);
             }
 
             // use whenany before whenall to catch any task exceptions which may

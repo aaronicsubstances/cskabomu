@@ -18,7 +18,6 @@ namespace Kabomu.QuasiHttp.Transport
             MutexApi = new LockBasedMutexApi();
         }
 
-        public string LocalEndpoint { get; set; }
         public IQuasiHttpApplication Application { get; set; }
         public IMutexApi MutexApi { get; set; }
         public IMutexApiFactory MutexApiFactory { get; set; }
@@ -55,7 +54,8 @@ namespace Kabomu.QuasiHttp.Transport
             }
         }
 
-        public async Task<object> CreateConnectionForClient(object clientEndpoint, IMutexApi clientMutex)
+        public async Task<object> CreateConnectionForClient(object serverEndpoint, object clientEndpoint,
+            IMutexApi clientMutex)
         {
             Task<object> connectTask;
             Task resolveTask = null;
@@ -67,6 +67,7 @@ namespace Kabomu.QuasiHttp.Transport
                 }
                 var connectRequest = new ClientConnectRequest
                 {
+                    ServerEndpoint = serverEndpoint,
                     ClientEndpoint = clientEndpoint,
                     ClientMutex = clientMutex,
                     Callback = new TaskCompletionSource<object>(
@@ -86,8 +87,8 @@ namespace Kabomu.QuasiHttp.Transport
             return await connectTask;
         }
 
-        public async Task<IQuasiHttpResponse> ProcessDirectSendRequest(
-            object clientEndpoint, IMutexApi processingMutexApi, IQuasiHttpRequest request)
+        public async Task<IQuasiHttpResponse> ProcessDirectSendRequest(object serverEndpoint, object clientEndpoint, 
+            IMutexApi processingMutexApi, IQuasiHttpRequest request)
         {
             if (request == null)
             {
@@ -106,7 +107,7 @@ namespace Kabomu.QuasiHttp.Transport
                 destApp = Application;
                 if (destApp == null)
                 {
-                    throw new Exception("destination application not set");
+                    throw new MissingDependencyException("server application");
                 }
             }
             IMutexApi serverSideMutexApi = processingMutexApi;
@@ -118,7 +119,8 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 serverSideMutexApi = new LockBasedMutexApi();
             }
-            var environment = CreateEnvironment(clientEndpoint);
+            var environment = CreateInitialEnvironmentForQuasiHttpProcessingOptions(
+                serverEndpoint, clientEndpoint);
             var processingOptions = new DefaultQuasiHttpProcessingOptions
             {
                 ProcessingMutexApi = serverSideMutexApi,
@@ -128,9 +130,10 @@ namespace Kabomu.QuasiHttp.Transport
             return response;
         }
 
-        private Dictionary<string, object> CreateEnvironment(object clientEndpoint)
+        private Dictionary<string, object> CreateInitialEnvironmentForQuasiHttpProcessingOptions(
+            object serverEndpoint, object clientEndpoint)
         {
-            // can later pass local and remote endpoint information in from request environment.
+            // can later pass in server and client endpoint information.
             var environment = new Dictionary<string, object>();
             return environment;
         }
@@ -191,7 +194,9 @@ namespace Kabomu.QuasiHttp.Transport
             }
             var connection = new MemoryBasedTransportConnectionInternal(
                 serverSideMutexApi, pendingClientConnectRequest.ClientMutex);
-            var environment = CreateEnvironment(pendingClientConnectRequest.ClientEndpoint);
+            var environment = CreateInitialEnvironmentForQuasiHttpProcessingOptions(
+                pendingClientConnectRequest.ServerEndpoint,
+                pendingClientConnectRequest.ClientEndpoint);
             var connectionAllocationResponse = new DefaultConnectionAllocationResponse
             {
                 ProcessingMutexApi = serverSideMutexApi,
@@ -265,7 +270,7 @@ namespace Kabomu.QuasiHttp.Transport
 
         private class ClientConnectRequest
         {
-            public IConnectionAllocationRequest ConnectionRequest { get; set; }
+            public object ServerEndpoint { get; set; }
             public object ClientEndpoint { get; set; }
             public IMutexApi ClientMutex { get; set; }
             public TaskCompletionSource<object> Callback { get; set; }

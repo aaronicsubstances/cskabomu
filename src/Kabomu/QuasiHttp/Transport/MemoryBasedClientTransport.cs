@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.Common;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,18 +17,33 @@ namespace Kabomu.QuasiHttp.Transport
 
         public Task<bool> CanProcessSendRequestDirectly()
         {
-            return Hub.CanProcessSendRequestDirectly();
+            var hub = Hub;
+            if (hub == null)
+            {
+                throw new MissingDependencyException("transport hub");
+            }
+            return hub.CanProcessSendRequestDirectly();
         }
 
         public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectionAllocationRequest connectionAllocationInfo)
         {
-            return Hub.ProcessSendRequest(LocalEndpoint, connectionAllocationInfo, request);
+            var hub = Hub;
+            if (hub == null)
+            {
+                throw new MissingDependencyException("transport hub");
+            }
+            return hub.ProcessSendRequest(LocalEndpoint, connectionAllocationInfo, request);
         }
 
         public Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest)
         {
-            return Hub.AllocateConnection(LocalEndpoint, connectionRequest);
+            var hub = Hub;
+            if (hub == null)
+            {
+                throw new MissingDependencyException("transport hub");
+            }
+            return hub.AllocateConnection(LocalEndpoint, connectionRequest);
         }
 
         public Task ReleaseConnection(object connection)

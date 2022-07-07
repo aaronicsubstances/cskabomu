@@ -1,4 +1,5 @@
-﻿using Kabomu.Concurrency;
+﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,30 +10,30 @@ namespace Kabomu.QuasiHttp.Transport
     public class DefaultMemoryBasedTransportHub : IMemoryBasedTransportHub
     {
         private readonly Random _randGen = new Random();
+        private readonly Dictionary<object, MemoryBasedServerTransport> _servers;
 
         public DefaultMemoryBasedTransportHub()
         {
             MutexApi = new LockBasedMutexApi();
-            Servers = new Dictionary<object, MemoryBasedServerTransport>();
+            _servers = new Dictionary<object, MemoryBasedServerTransport>();
         }
 
         public double DirectSendRequestProcessingProbability { get; set; }
         public IMutexApi MutexApi { get; set; }
-        public Dictionary<object, MemoryBasedServerTransport> Servers { get; set; }
 
-        public async Task AddServer(MemoryBasedServerTransport server)
+        public async Task AddServer(object endpoint, MemoryBasedServerTransport server)
         {
+            if (endpoint == null)
+            {
+                throw new ArgumentException("null server endpoint");
+            }
             if (server == null)
             {
                 throw new ArgumentException("null server");
             }
-            if (server.LocalEndpoint == null)
-            {
-                throw new ArgumentException("null endpoint");
-            }
             using (await MutexApi.Synchronize())
             {
-                Servers.Add(server.LocalEndpoint, server);
+                _servers.Add(endpoint, server);
             }
         }
 
@@ -47,9 +48,10 @@ namespace Kabomu.QuasiHttp.Transport
         public async Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,
             IConnectionAllocationRequest connectionAllocationInfo, IQuasiHttpRequest request)
         {
-            if (connectionAllocationInfo?.RemoteEndpoint == null)
+            var serverEndpoint = connectionAllocationInfo?.RemoteEndpoint;
+            if (serverEndpoint == null)
             {
-                throw new ArgumentException("null remote endpoint");
+                throw new ArgumentException("null server endpoint");
             }
             if (request == null)
             {
@@ -59,10 +61,14 @@ namespace Kabomu.QuasiHttp.Transport
             MemoryBasedServerTransport server;
             using (await MutexApi.Synchronize())
             {
-                server = Servers[connectionAllocationInfo.RemoteEndpoint];
+                if (!_servers.ContainsKey(serverEndpoint))
+                {
+                    throw new MissingDependencyException("missing server for given endpoint: " + serverEndpoint);
+                }
+                server = _servers[serverEndpoint];
             }
 
-            var response = await server.ProcessDirectSendRequest(clientEndpoint, 
+            var response = await server.ProcessDirectSendRequest(serverEndpoint, clientEndpoint, 
                 connectionAllocationInfo.ProcessingMutexApi, request);
             return response;
         }
@@ -70,18 +76,23 @@ namespace Kabomu.QuasiHttp.Transport
         public async Task<object> AllocateConnection(object clientEndpoint,
             IConnectionAllocationRequest connectionRequest)
         {
-            if (connectionRequest?.RemoteEndpoint == null)
+            var serverEndpoint = connectionRequest?.RemoteEndpoint;
+            if (serverEndpoint == null)
             {
-                throw new ArgumentException("null remote endpoint");
+                throw new ArgumentException("null server endpoint");
             }
 
             MemoryBasedServerTransport server;
             using (await MutexApi.Synchronize())
             {
-                server = Servers[connectionRequest.RemoteEndpoint];
+                if (!_servers.ContainsKey(serverEndpoint))
+                {
+                    throw new MissingDependencyException("missing server for given endpoint: " + serverEndpoint);
+                }
+                server = _servers[connectionRequest.RemoteEndpoint];
             }
 
-            var connection = await server.CreateConnectionForClient(clientEndpoint,
+            var connection = await server.CreateConnectionForClient(serverEndpoint, clientEndpoint,
                 connectionRequest.ProcessingMutexApi);
             return connection;
         }
