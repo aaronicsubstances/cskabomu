@@ -112,6 +112,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                     Assert.Null(actualConnection);
                     if (readIndex >= dataList.Length)
                     {
+                        // return a task which will never be completed.
                         return new TaskCompletionSource<int>().Task;
                     }
                     var srcBytes = Encoding.UTF8.GetBytes(dataList[readIndex++]);

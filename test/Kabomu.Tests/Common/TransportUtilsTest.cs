@@ -271,7 +271,6 @@ namespace Kabomu.Tests.Common
         public async Task TestTransferBodyToTransport(object connection, string bodyData,
             int chunkSize, int maxWriteCount, string expectedError)
         {
-            var tcs = new TaskCompletionSource<int>();
             var savedWrites = new StringBuilder();
             var transport = CreateTransportForBodyTransfer(connection, chunkSize, savedWrites, maxWriteCount);
             var bodyBytes = Encoding.UTF8.GetBytes(bodyData);
