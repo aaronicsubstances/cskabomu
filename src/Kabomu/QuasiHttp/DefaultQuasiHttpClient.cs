@@ -78,7 +78,8 @@ namespace Kabomu.QuasiHttp
                 var requestEnvironment = ProtocolUtilsInternal.DetermineEffectiveRequestEnvironment(
                     options, DefaultSendOptions);
                 _transfersWithoutConnections.Add(transfer);
-                timeoutTask = SetResponseTimeout(transfer, transferTimeoutMillis);
+                timeoutTask = ProtocolUtilsInternal.SetResponseTimeout(EventLoop, transfer, transferTimeoutMillis,
+                    "send timeout");
                 var connectionAllocationRequest = new DefaultConnectionAllocationRequest
                 {
                     RemoteEndpoint = remoteEndpoint,
@@ -203,17 +204,6 @@ namespace Kabomu.QuasiHttp
             }
 
             await Task.WhenAll(tasks);
-        }
-
-        private Task SetResponseTimeout(ITransferProtocolInternal transfer, int transferTimeoutMillis)
-        {
-            if (transferTimeoutMillis <= 0)
-            {
-                return null;
-            }
-            transfer.TimeoutCancellationHandle = new CancellationTokenSource();
-            return EventLoop?.SetTimeout(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
-                throw new Exception("send timeout"));
         }
 
         private async Task AbortTransfer(ITransferProtocolInternal transfer)

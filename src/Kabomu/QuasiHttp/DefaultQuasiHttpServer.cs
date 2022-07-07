@@ -49,10 +49,11 @@ namespace Kabomu.QuasiHttp
                 startTask = Transport.Start();
             }
             await startTask;
-            AcceptConnections();
+            // let TaskScheduler.UnobservedTaskException handle any uncaught task exceptions.
+            _ = StartAcceptingConnections();
         }
 
-        private async void AcceptConnections()
+        private async Task StartAcceptingConnections()
         {
             while (true)
             {
@@ -72,16 +73,33 @@ namespace Kabomu.QuasiHttp
                         break;
                     }
                     var connectionAllocationResponse = await connectTask;
-                    await Receive(connectionAllocationResponse);
+                    // let TaskScheduler.UnobservedTaskException handle any uncaught task exceptions.
+                    _ = AcceptConnection(connectionAllocationResponse);
                 }
                 catch (Exception e)
                 {
-                    try
+                    if (ErrorHandler == null)
                     {
-                        ErrorHandler?.Invoke(e, "error encountered during receiving");
+                        throw;
                     }
-                    catch (Exception) { }
+                    ErrorHandler?.Invoke(e, "error encountered while accepting connections");
                 }
+            }
+        }
+
+        private async Task AcceptConnection(IConnectionAllocationResponse connectionAllocationResponse)
+        {
+            try
+            {
+                await Receive(connectionAllocationResponse);
+            }
+            catch (Exception e)
+            {
+                if (ErrorHandler == null)
+                {
+                    throw;
+                }
+                ErrorHandler?.Invoke(e, "error encountered while receiving a connection");
             }
         }
 
@@ -149,7 +167,8 @@ namespace Kabomu.QuasiHttp
                     null, null, MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
                 _transfers.Add(transfer.Connection, transfer);
                 var transferTimeoutMillis = OverallReqRespTimeoutMillis;
-                timeoutTask = SetResponseTimeout(transfer, transferTimeoutMillis);
+                timeoutTask = ProtocolUtilsInternal.SetResponseTimeout(EventLoop, transfer, transferTimeoutMillis,
+                    "receive timeout");
                 workTask = transfer.Receive();
             }
             ExceptionDispatchInfo capturedError = null;
@@ -185,17 +204,6 @@ namespace Kabomu.QuasiHttp
             }
             capturedError?.Throw();
             await workTask;
-        }
-
-        private Task SetResponseTimeout(ITransferProtocolInternal transfer, int transferTimeoutMillis)
-        {
-            if (transferTimeoutMillis <= 0)
-            {
-                return null;
-            }
-            transfer.TimeoutCancellationHandle = new CancellationTokenSource();
-            return EventLoop?.SetTimeout(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
-                throw new Exception("receive timeout"));
         }
 
         private async Task AbortTransfer(ITransferProtocolInternal transfer)

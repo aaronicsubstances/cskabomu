@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Concurrency
 {
-    public class LockBasedMutexApi : IMutexApi
+    public class LockBasedMutexApi : IMutexApi, IMutexContextFactory
     {
         private readonly object _lockObj;
 
@@ -40,7 +40,7 @@ namespace Kabomu.Concurrency
             }
         }
 
-        public IDisposable CreateMutexContextManager()
+        public IDisposable CreateMutexContext()
         {
             if (_lockObj == null)
             {
