@@ -17,9 +17,6 @@ namespace Kabomu.Tests.Internals
             _expectedTransfer = expectedTransfer;
         }
 
-        public IQuasiHttpApplication Application { get; set; }
-
-        public IQuasiHttpTransport Transport { get; set; }
         public bool AbortCalled { get; private set; }
 
         public Task AbortTransfer(ITransferProtocolInternal transfer)

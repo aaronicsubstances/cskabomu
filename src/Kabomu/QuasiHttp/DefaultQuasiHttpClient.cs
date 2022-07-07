@@ -25,6 +25,7 @@ namespace Kabomu.QuasiHttp
             _transfersWithoutConnections = new HashSet<ITransferProtocolInternal>();
             _representative = new ParentTransferProtocolImpl(this);
             MutexApi = new LockBasedMutexApi();
+            MutexApiFactory = new LockBasedMutexApiFactory();
         }
 
         public IQuasiHttpSendOptions DefaultSendOptions { get; set; }
@@ -47,32 +48,28 @@ namespace Kabomu.QuasiHttp
         private async Task<IQuasiHttpResponse> ProcessSend(object remoteEndpoint,
             IQuasiHttpRequest request, IQuasiHttpSendOptions options)
         {
-            IMutexApi transferMutex = options?.ProcessingMutexApi;
+            Task<IMutexApi> transferMutexTask;
             Task<bool> canProcessSendRequestTask;
-            Task<IMutexApi> transferMutexTask = null;
             using (await MutexApi.Synchronize())
             {
-                if (transferMutex == null)
-                {
-                    transferMutexTask = MutexApiFactory?.Create();
-                }
+                transferMutexTask = ProtocolUtilsInternal.DetermineEffectiveMutexApi(
+                    options?.ProcessingMutexApi, MutexApiFactory, MutexApi);
                 canProcessSendRequestTask = Transport.CanProcessSendRequestDirectly();
             }
 
-            if (transferMutex == null && transferMutexTask != null)
-            {
-                transferMutex = await transferMutexTask;
-            }
+            var transferMutex = await transferMutexTask;
             var canProcessSendRequest = await canProcessSendRequestTask;
 
             Task<IQuasiHttpResponse> workTask;
-            Task timeoutTask = null;
+            Task timeoutTask;
             SendProtocolInternal transfer;
             using (await MutexApi.Synchronize())
             {
-                transfer = new SendProtocolInternal(transferMutex)
+                transfer = new SendProtocolInternal
                 {
-                    Parent = _representative
+                    Parent = _representative,
+                    Transport = Transport,
+                    MutexApi = transferMutex
                 };
                 transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(
                     options, DefaultSendOptions, 0, TransportUtils.DefaultMaxChunkSize);
@@ -81,10 +78,7 @@ namespace Kabomu.QuasiHttp
                 var requestEnvironment = ProtocolUtilsInternal.DetermineEffectiveRequestEnvironment(
                     options, DefaultSendOptions);
                 _transfersWithoutConnections.Add(transfer);
-                if (transferTimeoutMillis > 0)
-                {
-                    timeoutTask = SetResponseTimeout(transfer, transferTimeoutMillis);
-                }
+                timeoutTask = SetResponseTimeout(transfer, transferTimeoutMillis);
                 var connectionAllocationRequest = new DefaultConnectionAllocationRequest
                 {
                     RemoteEndpoint = remoteEndpoint,
@@ -213,8 +207,12 @@ namespace Kabomu.QuasiHttp
 
         private Task SetResponseTimeout(ITransferProtocolInternal transfer, int transferTimeoutMillis)
         {
+            if (transferTimeoutMillis <= 0)
+            {
+                return null;
+            }
             transfer.TimeoutCancellationHandle = new CancellationTokenSource();
-            return EventLoop.SetTimeout(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
+            return EventLoop?.SetTimeout(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
                 throw new Exception("send timeout"));
         }
 
@@ -261,10 +259,6 @@ namespace Kabomu.QuasiHttp
             {
                 _delegate = passThrough;
             }
-
-            public IQuasiHttpApplication Application => throw new NotImplementedException();
-
-            public IQuasiHttpTransport Transport => _delegate.Transport;
 
             public Task AbortTransfer(ITransferProtocolInternal transfer)
             {

@@ -24,6 +24,7 @@ namespace Kabomu.QuasiHttp
             _transfers = new Dictionary<object, ITransferProtocolInternal>();
             _representative = new ParentTransferProtocolImpl(this);
             MutexApi = new LockBasedMutexApi();
+            MutexApiFactory = new LockBasedMutexApiFactory();
         }
 
         public int OverallReqRespTimeoutMillis { get; set; }
@@ -64,14 +65,22 @@ namespace Kabomu.QuasiHttp
                         {
                             break;
                         }
-                        connectTask = Transport.ReceiveConnection();
+                        connectTask = Transport?.ReceiveConnection();
+                    }
+                    if (connectTask == null)
+                    {
+                        break;
                     }
                     var connectionAllocationResponse = await connectTask;
                     await Receive(connectionAllocationResponse);
                 }
                 catch (Exception e)
                 {
-                    ErrorHandler?.Invoke(e, "error encountered during receiving");
+                    try
+                    {
+                        ErrorHandler?.Invoke(e, "error encountered during receiving");
+                    }
+                    catch (Exception) { }
                 }
             }
         }
@@ -120,30 +129,27 @@ namespace Kabomu.QuasiHttp
                 throw new ArgumentException("null connection");
             }
 
-            IMutexApi transferMutex = connectionAllocationResponse.ProcessingMutexApi;
-            if (transferMutex == null && MutexApiFactory != null)
-            {
-                transferMutex = await MutexApiFactory.Create();
-            }
+            IMutexApi transferMutex = await ProtocolUtilsInternal.DetermineEffectiveMutexApi(
+                connectionAllocationResponse.ProcessingMutexApi, MutexApiFactory, MutexApi);
 
             ReceiveProtocolInternal transfer;
-            Task timeoutTask = null, workTask;
+            Task timeoutTask, workTask;
             using (await MutexApi.Synchronize())
             {
-                transfer = new ReceiveProtocolInternal(transferMutex)
+                transfer = new ReceiveProtocolInternal
                 {
                     Parent = _representative,
+                    Application = Application,
+                    Transport = Transport,
                     Connection = connectionAllocationResponse.Connection,
-                    RequestEnvironment = connectionAllocationResponse.Environment
+                    RequestEnvironment = connectionAllocationResponse.Environment,
+                    MutexApi = transferMutex
                 };
                 transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(
                     null, null, MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
                 _transfers.Add(transfer.Connection, transfer);
                 var transferTimeoutMillis = OverallReqRespTimeoutMillis;
-                if (transferTimeoutMillis > 0)
-                {
-                    timeoutTask = SetResponseTimeout(transfer, transferTimeoutMillis);
-                }
+                timeoutTask = SetResponseTimeout(transfer, transferTimeoutMillis);
                 workTask = transfer.Receive();
             }
             ExceptionDispatchInfo capturedError = null;
@@ -183,8 +189,12 @@ namespace Kabomu.QuasiHttp
 
         private Task SetResponseTimeout(ITransferProtocolInternal transfer, int transferTimeoutMillis)
         {
+            if (transferTimeoutMillis <= 0)
+            {
+                return null;
+            }
             transfer.TimeoutCancellationHandle = new CancellationTokenSource();
-            return EventLoop.SetTimeout(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
+            return EventLoop?.SetTimeout(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token, () =>
                 throw new Exception("receive timeout"));
         }
 
@@ -227,10 +237,6 @@ namespace Kabomu.QuasiHttp
             {
                 _delegate = passThrough;
             }
-
-            public IQuasiHttpApplication Application => _delegate.Application;
-
-            public IQuasiHttpTransport Transport => _delegate.Transport;
 
             public Task AbortTransfer(ITransferProtocolInternal transfer)
             {
