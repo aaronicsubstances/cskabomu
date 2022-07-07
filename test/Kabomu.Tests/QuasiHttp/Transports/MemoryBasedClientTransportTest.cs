@@ -233,7 +233,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             public DefaultConnectionAllocationRequest ExpectedConnectionAllocationRequest { get;  set; }
             public object ExpectedClientEndpoint { get; set; }
 
-            public Task AddServer(MemoryBasedServerTransport server)
+            public Task AddServer(object endpoint, MemoryBasedServerTransport server)
             {
                 throw new NotImplementedException();
             }

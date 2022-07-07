@@ -7,7 +7,14 @@ namespace Kabomu.QuasiHttp.Transport
 {
     public interface IMemoryBasedTransportHub
     {
-        Task AddServer(MemoryBasedServerTransport server);
+        /// <summary>
+        /// Separation of endpoint from server enables multiple endpoints to be associated to
+        /// a single server.
+        /// </summary>
+        /// <param name="endpoint">the endpoint associated with this server.</param>
+        /// <param name="server"></param>
+        /// <returns></returns>
+        Task AddServer(object endpoint, MemoryBasedServerTransport server);
         Task<bool> CanProcessSendRequestDirectly();
         Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,
             IConnectionAllocationRequest connectionAllocationInfo, IQuasiHttpRequest request);
