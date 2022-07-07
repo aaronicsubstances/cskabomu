@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.Concurrency;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -11,25 +12,26 @@ namespace Kabomu.QuasiHttp
 {
     internal class ReceiveProtocolInternal : ITransferProtocolInternal
     {
-        private readonly IMutexApi _mutexApi;
         private IQuasiHttpBody _requestBody, _responseBody;
 
-        public ReceiveProtocolInternal(IMutexApi mutexApi)
+        public ReceiveProtocolInternal()
         {
-            _mutexApi = mutexApi ?? new LockBasedMutexApi();
         }
 
         public IParentTransferProtocolInternal Parent { get; set; }
+        public IQuasiHttpApplication Application { get; set; }
+        public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
         public int MaxChunkSize { get; set; }
         public IDictionary<string, object> RequestEnvironment { get; set; }
         public bool IsAborted { get; set; }
         public CancellationTokenSource TimeoutCancellationHandle { get; set; }
+        public IMutexApi MutexApi { get; set; }
 
         public async Task Cancel()
         {
             Task reqBodyEndTask = null, resBodyEndTask = null;
-            using (await _mutexApi.Synchronize())
+            using (await MutexApi.Synchronize())
             {
                 if (_requestBody != null)
                 {
@@ -52,21 +54,30 @@ namespace Kabomu.QuasiHttp
 
         public Task Receive()
         {
+            // assume properties are set correctly aside the transport and application.
+            if (Transport == null)
+            {
+                throw new MissingDependencyException("server transport");
+            }
+            if (Application == null)
+            {
+                throw new MissingDependencyException("server application");
+            }
             return ReadRequestLeadChunk();
         }
 
         private async Task ReadRequestLeadChunk()
         {
             Task<LeadChunk> readTask;
-            using (await _mutexApi.Synchronize())
+            using (await MutexApi.Synchronize())
             {
-                readTask = ChunkDecodingBody.ReadLeadChunk(Parent.Transport, Connection, MaxChunkSize);
+                readTask = ChunkDecodingBody.ReadLeadChunk(Transport, Connection, MaxChunkSize);
             }
 
             var chunk = await readTask;
 
             Task<IQuasiHttpResponse> appTask;
-            using (await _mutexApi.Synchronize())
+            using (await MutexApi.Synchronize())
             {
                 if (IsAborted)
                 {
@@ -82,7 +93,7 @@ namespace Kabomu.QuasiHttp
                 };
                 if (chunk.ContentLength != 0)
                 {
-                    var transportBody = new TransportBackedBody(Parent.Transport, Connection,
+                    var transportBody = new TransportBackedBody(Transport, Connection,
                         null, chunk.ContentLength, chunk.ContentType);
                     if (chunk.ContentLength < 0)
                     {
@@ -96,16 +107,16 @@ namespace Kabomu.QuasiHttp
                 _requestBody = request.Body;
                 var processingOptions = new DefaultQuasiHttpProcessingOptions
                 {
-                    ProcessingMutexApi = _mutexApi,
+                    ProcessingMutexApi = MutexApi,
                     Environment = RequestEnvironment ?? new Dictionary<string, object>()
                 };
-                appTask = Parent.Application.ProcessRequest(request, processingOptions);
+                appTask = Application.ProcessRequest(request, processingOptions);
             }
 
             var response = await appTask;
 
             Task sendTask;
-            using (await _mutexApi.Synchronize())
+            using (await MutexApi.Synchronize())
             {
                 if (IsAborted)
                 {
@@ -141,11 +152,11 @@ namespace Kabomu.QuasiHttp
                 chunk.ContentType = response.Body.ContentType;
             }
 
-            await ChunkEncodingBody.WriteLeadChunk(Parent.Transport, Connection,
+            await ChunkEncodingBody.WriteLeadChunk(Transport, Connection,
                 MaxChunkSize, chunk);
 
             Task bodyTransferTask = null;
-            using (await _mutexApi.Synchronize())
+            using (await MutexApi.Synchronize())
             {
                 if (IsAborted)
                 {
@@ -157,7 +168,7 @@ namespace Kabomu.QuasiHttp
                     {
                         _responseBody = new ChunkEncodingBody(_responseBody, MaxChunkSize);
                     }
-                    bodyTransferTask = TransportUtils.TransferBodyToTransport(Parent.Transport,
+                    bodyTransferTask = TransportUtils.TransferBodyToTransport(Transport,
                         Connection, _responseBody, MaxChunkSize);
                 }
             }
@@ -168,7 +179,7 @@ namespace Kabomu.QuasiHttp
             }
 
             Task abortTask;
-            using (await _mutexApi.Synchronize())
+            using (await MutexApi.Synchronize())
             {
                 if (IsAborted)
                 {

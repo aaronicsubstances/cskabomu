@@ -92,14 +92,16 @@ namespace Kabomu.Tests.QuasiHttp
                     outputStream.Write(data, offset, length);
                 }
             };
-            var instance = new ReceiveProtocolInternal(null);
+            var instance = new ReceiveProtocolInternal();
+            instance.MutexApi = new LockBasedMutexApi();
+            instance.Transport = transport;
             instance.Connection = connection;
             instance.RequestEnvironment = reqEnv;
             instance.MaxChunkSize = maxChunkSize;
 
             IQuasiHttpRequest actualRequest = null;
             IQuasiHttpProcessingOptions actualRequestProcessingOptions = null;
-            IQuasiHttpApplication app = new ConfigurableQuasiHttpApplication
+            instance.Application = new ConfigurableQuasiHttpApplication
             {
                 ProcessRequestCallback = async (req, options) =>
                 {
@@ -108,11 +110,7 @@ namespace Kabomu.Tests.QuasiHttp
                     return expectedResponse;
                 }
             };
-            instance.Parent = new TestParentTransferProtocol(instance)
-            {
-                Application = app,
-                Transport = transport
-            };
+            instance.Parent = new TestParentTransferProtocol(instance);
 
             // act
             await instance.Receive();

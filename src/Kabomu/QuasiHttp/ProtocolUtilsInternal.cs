@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.Concurrency;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -79,6 +80,24 @@ namespace Kabomu.QuasiHttp
                 }
             }
             return dest;
+        }
+
+        public static async Task<IMutexApi> DetermineEffectiveMutexApi(IMutexApi preferred,
+            IMutexApiFactory fallbackFactory, IMutexApi fallback2)
+        {
+            if (preferred != null)
+            {
+                return preferred;
+            }
+            if (fallbackFactory != null)
+            {
+                var mutexApi = await fallbackFactory.Create();
+                if (mutexApi != null)
+                {
+                    return mutexApi;
+                }
+            }
+            return fallback2;
         }
     }
 }
