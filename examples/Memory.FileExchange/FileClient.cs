@@ -1,6 +1,4 @@
-﻿using Kabomu.Common;
-using Kabomu.Concurrency;
-using Kabomu.Examples.Shared;
+﻿using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Transport;
 using NLog;
@@ -17,9 +15,8 @@ namespace Memory.FileExchange
         static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
         public static async Task RunMain(string clientEndpoint, string serverEndpoint,
-            string uploadDirPath, IMemoryBasedTransportHub hub)
+            string uploadDirPath, IMemoryBasedTransportHub hub, double directSendProbability)
         {
-            var eventLoop = new DefaultEventLoopApi();
             var transport = new MemoryBasedClientTransport
             {
                 LocalEndpoint = clientEndpoint,
@@ -32,8 +29,9 @@ namespace Memory.FileExchange
             var instance = new DefaultQuasiHttpClient
             {
                 DefaultSendOptions = defaultSendOptions,
-                EventLoop = eventLoop,
-                Transport = transport
+                Transport = transport,
+                TransportBypass = transport,
+                TransportBypassProbabilty = directSendProbability
             };
 
             try

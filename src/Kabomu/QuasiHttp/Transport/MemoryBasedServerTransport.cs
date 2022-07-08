@@ -115,10 +115,6 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 serverSideMutexApi = await MutexApiFactory.Create();
             }
-            if (serverSideMutexApi == null)
-            {
-                serverSideMutexApi = new LockBasedMutexApi();
-            }
             var environment = CreateInitialEnvironmentForQuasiHttpProcessingOptions(
                 serverEndpoint, clientEndpoint);
             var processingOptions = new DefaultQuasiHttpProcessingOptions

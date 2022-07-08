@@ -1,6 +1,5 @@
 ﻿using CommandLine;
 using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using NLog;
@@ -35,7 +34,6 @@ namespace UnixDomainSocket.FileServer
 
         static async Task RunMain(string path, string uploadDirPath)
         {
-            var eventLoop = new DefaultEventLoopApi();
             var transport = new UnixDomainSocketServerTransport(path);
             UncaughtErrorCallback errorHandler = (e, m) =>
             {
@@ -45,7 +43,6 @@ namespace UnixDomainSocket.FileServer
             {
                 OverallReqRespTimeoutMillis = 5_000,
                 Transport = transport,
-                EventLoop = eventLoop,
                 ErrorHandler = errorHandler
             };
             instance.Application = new FileReceiver(path, uploadDirPath);

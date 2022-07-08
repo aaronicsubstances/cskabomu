@@ -20,26 +20,6 @@ namespace Kabomu.Tests.QuasiHttp.Transports
                 Hub = hub
             };
 
-            hub.ReturnTrueForCanSendRequestDirectly = true;
-            var canSendDirectly = await instance.CanProcessSendRequestDirectly();
-            Assert.Equal(hub.ReturnTrueForCanSendRequestDirectly, canSendDirectly);
-
-            hub.ReturnTrueForCanSendRequestDirectly = false;
-            canSendDirectly = await instance.CanProcessSendRequestDirectly();
-            Assert.Equal(hub.ReturnTrueForCanSendRequestDirectly, canSendDirectly);
-
-            hub.ReturnTrueForCanSendRequestDirectly = false;
-            canSendDirectly = await instance.CanProcessSendRequestDirectly();
-            Assert.Equal(hub.ReturnTrueForCanSendRequestDirectly, canSendDirectly);
-
-            hub.ReturnTrueForCanSendRequestDirectly = true;
-            canSendDirectly = await instance.CanProcessSendRequestDirectly();
-            Assert.Equal(hub.ReturnTrueForCanSendRequestDirectly, canSendDirectly);
-
-            hub.ReturnTrueForCanSendRequestDirectly = false;
-            canSendDirectly = await instance.CanProcessSendRequestDirectly();
-            Assert.False(canSendDirectly);
-
             instance.LocalEndpoint = "Lome";
             hub.ExpectedClientEndpoint = instance.LocalEndpoint;
             hub.ExpectedRequest = new DefaultQuasiHttpRequest();
@@ -106,8 +86,6 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             var instance = new MemoryBasedClientTransport();
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
                 instance.ProcessSendRequest(null, null));
-            await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.CanProcessSendRequestDirectly());
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
                 instance.AllocateConnection(null));
             await Assert.ThrowsAsync<ArgumentException>(() =>
@@ -264,7 +242,6 @@ namespace Kabomu.Tests.QuasiHttp.Transports
 
         private class TestHub : IMemoryBasedTransportHub
         {
-            public bool ReturnTrueForCanSendRequestDirectly { get; set; }
             public IQuasiHttpResponse ProcessSendRequestResult { get; set; }
             public DefaultQuasiHttpRequest ExpectedRequest { get; set; }
             public DefaultConnectionAllocationRequest ExpectedConnectionAllocationRequest { get;  set; }
@@ -273,11 +250,6 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             public Task AddServer(object endpoint, MemoryBasedServerTransport server)
             {
                 throw new NotImplementedException();
-            }
-
-            public Task<bool> CanProcessSendRequestDirectly()
-            {
-                return Task.FromResult(ReturnTrueForCanSendRequestDirectly);
             }
 
             public Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,

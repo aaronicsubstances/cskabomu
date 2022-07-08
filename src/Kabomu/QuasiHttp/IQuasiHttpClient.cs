@@ -11,6 +11,8 @@ namespace Kabomu.QuasiHttp
     {
         IQuasiHttpSendOptions DefaultSendOptions { get; set; }
         IQuasiHttpClientTransport Transport { get; set; }
+        IQuasiHttpTransportBypass TransportBypass { get; set; }
+        double TransportBypassProbabilty { get; set; }
         Task<IQuasiHttpResponse> Send(object remoteEndpoint, IQuasiHttpRequest request,
             IQuasiHttpSendOptions options);
         Task Reset();

@@ -10,35 +10,43 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
 {
-    internal class SendProtocolInternal : ITransferProtocolInternal
+    internal class SendProtocolInternal
     {
+        private bool _cancelled;
         private IQuasiHttpBody _requestBody, _responseBody;
 
         public SendProtocolInternal()
         {
         }
 
-        public IParentTransferProtocolInternal Parent { get; set; }
+        public SendTransferInternal Parent { get; set; }
+        public Func<SendTransferInternal, Exception, Task> AbortCallback { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
         public int MaxChunkSize { get; set; }
-        public bool IsAborted { get; set; }
-        public CancellationTokenSource TimeoutCancellationHandle { get; set; }
         public IMutexApi MutexApi { get; set; }
 
         public async Task Cancel()
         {
-            Task reqBodyEndTask = null, resBodyEndTask = null;
+            Task reqBodyEndTask = null, resBodyEndTask = null, releaseTask = null;
             using (await MutexApi.Synchronize())
             {
-                if (_requestBody != null)
+                /* always cancel so that if no mutex api is being used,
+                 * at least the transfer connection will be closed, in order
+                 * to forcefully abort the transfer.
+                 */
+                //if (_cancelled)
+                //{
+                //    return;
+                //}
+                reqBodyEndTask = _requestBody?.EndRead();
+                resBodyEndTask = _responseBody?.EndRead();
+                if (Connection != null)
                 {
-                    reqBodyEndTask = _requestBody.EndRead();
+                    releaseTask = Transport.ReleaseConnection(Connection);
                 }
-                if (_responseBody != null)
-                {
-                    resBodyEndTask = _responseBody.EndRead();
-                }
+
+                _cancelled = true;
             }
             if (reqBodyEndTask != null)
             {
@@ -47,6 +55,10 @@ namespace Kabomu.QuasiHttp
             if (resBodyEndTask != null)
             {
                 await resBodyEndTask;
+            }
+            if (releaseTask != null)
+            {
+                await releaseTask;
             }
         }
 
@@ -86,15 +98,12 @@ namespace Kabomu.QuasiHttp
             await writeTask;
 
             Task <IQuasiHttpResponse> responseFetchTask;
-            Task bodyTransferTask = null;
             using (await MutexApi.Synchronize())
             {
-                if (IsAborted)
+                if (_cancelled)
                 {
                     return null;
                 }
-
-                responseFetchTask = StartFetchingResponse();
 
                 if (_requestBody != null)
                 {
@@ -102,22 +111,28 @@ namespace Kabomu.QuasiHttp
                     {
                         _requestBody = new ChunkEncodingBody(_requestBody, MaxChunkSize);
                     }
-                    bodyTransferTask = TransportUtils.TransferBodyToTransport(Transport,
-                        Connection, _requestBody, MaxChunkSize);
+                    // let any error be handled by abort callback, or
+                    // TaskScheduler.UnobservedTaskException as a last resort.
+                    _ = TransferRequestBodyToTransport();
                 }
+
+                responseFetchTask = StartFetchingResponse();
             }
 
-            if (_requestBody == null)
-            {
-                return await responseFetchTask;
-            }
-
-            // Run a race for pending tasks to obtain any error.
-            // if any task finishes first and was successful, then return the result of the response fetch regardless of 
-            // any subsequent errors.
-            var firstCompletedTask = await Task.WhenAny(bodyTransferTask, responseFetchTask);
-            await firstCompletedTask;
             return await responseFetchTask;
+        }
+
+        private async Task TransferRequestBodyToTransport()
+        {
+            try
+            {
+                await TransportUtils.TransferBodyToTransport(Transport,
+                    Connection, _requestBody, MaxChunkSize);
+            }
+            catch (Exception e)
+            {
+                await AbortCallback.Invoke(Parent, e);
+            }
         }
 
         private async Task<IQuasiHttpResponse> StartFetchingResponse()
@@ -129,7 +144,7 @@ namespace Kabomu.QuasiHttp
             DefaultQuasiHttpResponse response;
             using (await MutexApi.Synchronize())
             {
-                if (IsAborted)
+                if (_cancelled)
                 {
                     return null;
                 }
@@ -160,7 +175,7 @@ namespace Kabomu.QuasiHttp
                 }
                 else
                 {
-                    abortTask = Parent.AbortTransfer(this);
+                    abortTask = AbortCallback.Invoke(Parent, null);
                 }
             }
 
@@ -177,11 +192,11 @@ namespace Kabomu.QuasiHttp
             Task abortTask;
             using (await MutexApi.Synchronize())
             {
-                if (IsAborted)
+                if (_cancelled)
                 {
                     return;
                 }
-                abortTask = Parent.AbortTransfer(this);
+                abortTask = AbortCallback.Invoke(Parent, null);
             }
             await abortTask;
         }

@@ -1,5 +1,4 @@
-﻿using Kabomu.QuasiHttp;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO.Pipes;
@@ -10,14 +9,6 @@ namespace Kabomu.Examples.Shared
 {
     public class WindowsNamedPipeClientTransport : IQuasiHttpClientTransport
     {
-        public Task<bool> CanProcessSendRequestDirectly() => Task.FromResult(false);
-
-        public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
-            IConnectionAllocationRequest connectionAllocationInfo)
-        {
-            throw new NotImplementedException();
-        }
-
         public async Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest)
         {
             var path = (string)connectionRequest.RemoteEndpoint;

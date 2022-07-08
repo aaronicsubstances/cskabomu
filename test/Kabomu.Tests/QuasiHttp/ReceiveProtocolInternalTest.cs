@@ -110,13 +110,23 @@ namespace Kabomu.Tests.QuasiHttp
                     return expectedResponse;
                 }
             };
-            instance.Parent = new TestParentTransferProtocol(instance);
+            bool abortCalled = false;
+            ReceiveTransferInternal actualProtocolParentSeen = null;
+            instance.Parent = new ReceiveTransferInternal();
+            instance.AbortCallback = (transfer, e) =>
+            {
+                Assert.False(abortCalled);
+                actualProtocolParentSeen = transfer;
+                abortCalled = true;
+                return Task.CompletedTask;
+            };
 
             // act
             await instance.Receive();
 
             // assert
-            Assert.True(((TestParentTransferProtocol)instance.Parent).AbortCalled);
+            Assert.True(abortCalled);
+            Assert.Equal(instance.Parent, actualProtocolParentSeen);
             await ComparisonUtils.CompareRequests(maxChunkSize, request, actualRequest,
                 requestBodyBytes);
             Assert.NotNull(actualRequestProcessingOptions.ProcessingMutexApi);
