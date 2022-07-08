@@ -1,69 +1,59 @@
-﻿using Kabomu.Tests.Shared;
+﻿using Kabomu.Common;
+using Kabomu.Concurrency;
+using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Transport;
+using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp
 {
-    /*public class DefaultQuasiHttpClientTest
+    public class DefaultQuasiHttpClientTest
     {
         [Theory]
         [MemberData(nameof(CreateTestDirectSendData))]
-        public void TestDirectSend(object remoteEndpoint, IQuasiHttpRequest request, IQuasiHttpSendOptions options,
+        public async Task TestDirectSend(object remoteEndpoint, IQuasiHttpRequest request, IQuasiHttpSendOptions options,
             int responseTimeMillis, string expectedResponseError, IQuasiHttpResponse expectedResponse)
         {
             // arrange.
-            var eventLoop = new TestEventLoopApiPrev
+            IQuasiHttpTransportBypass directProcessingTransport = new ConfigurableQuasiHttpTransport
             {
-                RunMutexApiThroughPostCallback = true
-            };
-            UncaughtErrorCallback errorHandler = (e, m) =>
-            {
-                Assert.Equal(expectedResponseError, e?.Message);
-            };
-            var directProcessingTransport = new ConfigurableQuasiHttpTransport
-            {
-                DirectSendRequestProcessingEnabled = true,
-                ProcessSendRequestCallback = (actualRemoteEndpoint, req, resCb) =>
+                ProcessSendRequestCallback = async (req, connectionAllocationInfo) =>
                 {
-                    Assert.Equal(remoteEndpoint, actualRemoteEndpoint);
+                    Assert.Equal(remoteEndpoint, connectionAllocationInfo?.RemoteEndpoint);
                     Assert.Equal(request, req);
-                    eventLoop.ScheduleTimeout(responseTimeMillis, _ =>
-                    {
-                        resCb.Invoke(null, expectedResponse);
-                        // test handling of multiple callback invocations.
-                        resCb.Invoke(null, expectedResponse);
-                    }, null);
+                    await Task.Delay(responseTimeMillis);
+                    return expectedResponse;
                 }
             };
             var instance = new DefaultQuasiHttpClient
             {
-                DefaultTimeoutMillis = 100,
-                ErrorHandler = errorHandler,
-                EventLoop = eventLoop,
-                Transport = directProcessingTransport
+                DefaultSendOptions = new DefaultQuasiHttpSendOptions
+                {
+                    OverallReqRespTimeoutMillis = 100
+                },
+                TransportBypass = directProcessingTransport
             };
             IQuasiHttpResponse actualResponse = null;
             string actualResponseError = null;
 
             // act.
-            var cbCalled = false;
-            eventLoop.RunExclusively(_ =>
+            try
             {
-                instance.Send(remoteEndpoint, request, options, (e, res) =>
-                {
-                    Assert.False(cbCalled);
-                    actualResponseError = e?.Message;
-                    actualResponse = res;
-                    cbCalled = true;
-                });
-            }, null);
-            eventLoop.AdvanceTimeTo(1000);
+                actualResponse = await instance.Send(remoteEndpoint, request, options);
+            }
+            catch (Exception e)
+            {
+                actualResponseError = e.Message;
+            }
 
             // assert.
-            Assert.True(cbCalled);
             if (expectedResponseError != null)
             {
                 Assert.NotNull(actualResponseError);
@@ -111,7 +101,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 OverallReqRespTimeoutMillis = 200
             };
-            responseTimeMillis = 190;
+            responseTimeMillis = 180;
             expectedResponseError = null;
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -131,7 +121,7 @@ namespace Kabomu.Tests.QuasiHttp
                 Path = "/long",
             };
             options = null;
-            responseTimeMillis = 105;
+            responseTimeMillis = 127;
             expectedResponseError = "send timeout";
             expectedResponse = null;
             testData.Add(new object[] { remoteEndpoint, request, options,
@@ -153,127 +143,156 @@ namespace Kabomu.Tests.QuasiHttp
         }
 
         [Fact]
-        public void TestResetOfTransfersWithoutConnections()
+        public async Task TestResetOfTransfersWithoutConnections()
         {
             // arrange.
-            var eventLoop = new TestEventLoopApiPrev
-            {
-                RunMutexApiThroughPostCallback = true
-            };
-            var transport = new ConfigurableQuasiHttpTransport();
-            var client = new DefaultQuasiHttpClient
-            {
-                DefaultTimeoutMillis = 20,
-                Application = new ConfigurableQuasiHttpApplication(),
-                EventLoop = eventLoop,
-                Transport = transport
-            };
-            var expectedErrors = new string[] { "send timeout", "send timeout",
-                "send timeout", "shutdown", "shutdown" };
-            var actualResponseErrors = new Exception[expectedErrors.Length];
-            for (int i = 0; i < expectedErrors.Length; i++)
-            {
-                eventLoop.ScheduleTimeout(i * 2, s =>
-                {
-                    var capturedIndex = (int)s;
-                    var options = new DefaultQuasiHttpSendOptions
-                    {
-                        OverallReqRespTimeoutMillis = 5
-                    };
-                    transport.DirectSendRequestProcessingEnabled = capturedIndex == 0;
-                    client.Send(null, new DefaultQuasiHttpRequest(), options, (e, res) =>
-                    {
-                        actualResponseErrors[capturedIndex] = e;
-                    });
-                }, i);
-            }
-            var resetCbCalled = false;
-            eventLoop.ScheduleTimeout(10, _ =>
-            {
-                client.Reset(new Exception("shutdown"), e =>
-                {
-                    Assert.False(resetCbCalled);
-                    Assert.Null(e);
-                    resetCbCalled = true;
-                });
-            }, null);
-
-            // act.
-            eventLoop.AdvanceTimeTo(1000);
-
-            // assert.
-            Assert.True(resetCbCalled);
-            for (int i = 0; i < expectedErrors.Length; i++)
-            {
-                Assert.NotNull(actualResponseErrors[i]);
-                Assert.Equal(expectedErrors[i], actualResponseErrors[i].Message);
-            }
-        }
-
-        [Fact]
-        public void TestResetOfTransfersWithConnections()
-        {
-            // arrange.
-            var eventLoop = new TestEventLoopApiPrev
-            {
-                RunMutexApiThroughPostCallback = true
-            };
+            var cancellationHandle = new CancellationTokenSource();
             var transport = new ConfigurableQuasiHttpTransport
             {
-                MaxChunkSize = 100,
-                AllocateConnectionCallback = (remoteEndpoint, cb) =>
+                AllocateConnectionCallback = async (connectionAllocationRequest) =>
                 {
-                    cb.Invoke(null, new object());
+                    await Task.Delay(200_000, cancellationHandle.Token);
+                    return null;
+                },
+                ProcessSendRequestCallback = async (req, connectionAllocationInfo) =>
+                {
+                    await Task.Delay(200_000, cancellationHandle.Token);
+                    return null;
                 }
             };
             var client = new DefaultQuasiHttpClient
             {
-                DefaultTimeoutMillis = 20,
-                Application = new ConfigurableQuasiHttpApplication(),
-                EventLoop = eventLoop,
-                Transport = transport
+                DefaultSendOptions = new DefaultQuasiHttpSendOptions
+                {
+                    OverallReqRespTimeoutMillis = 20
+                }
             };
             var expectedErrors = new string[] { "send timeout", "send timeout",
-                "send timeout", "shutdown", "shutdown" };
+                "send timeout", "client reset", "client reset" };
             var actualResponseErrors = new Exception[expectedErrors.Length];
+
+            var eventLoop = new DefaultEventLoopApi();
+            var tasks = new List<Task>();
+
+            // act
             for (int i = 0; i < expectedErrors.Length; i++)
             {
-                eventLoop.ScheduleTimeout(i * 2, s =>
+                var capturedIndex = i;
+                // 30 ms should be enough to distinguish callback firing times
+                // on the common operating systems (15ms max on Windows, 10ms max on Linux).
+                var sendTime = Math.Min(i * 30, 95);
+                tasks.Add(eventLoop.SetTimeout(sendTime, CancellationToken.None, async () =>
                 {
-                    var capturedIndex = (int)s;
                     var options = new DefaultQuasiHttpSendOptions
                     {
-                        OverallReqRespTimeoutMillis = 5
+                        OverallReqRespTimeoutMillis = capturedIndex > 2 ? 40 : 15
                     };
-                    transport.DirectSendRequestProcessingEnabled = capturedIndex == 0;
-                    client.Send(null, new DefaultQuasiHttpRequest(), options, (e, res) =>
+                    client.Transport = null;
+                    client.TransportBypass = null;
+                    if (capturedIndex == 0)
+                    {
+                        client.TransportBypass = transport;
+                    }
+                    else
+                    {
+                        client.Transport = transport;
+                    }
+                    try
+                    {
+                        await client.Send(null, new DefaultQuasiHttpRequest(), options);
+                        actualResponseErrors[capturedIndex] = null;
+                    }
+                    catch (Exception e)
                     {
                         actualResponseErrors[capturedIndex] = e;
-                    });
-                }, i);
+                    }
+                }));
             }
-            var resetCbCalled = false;
-            eventLoop.ScheduleTimeout(10, _ =>
-            {
-                client.Reset(new Exception("shutdown"), e =>
-                {
-                    Assert.False(resetCbCalled);
-                    Assert.Null(e);
-                    resetCbCalled = true;
-                });
-            }, null);
 
-            // act.
-            eventLoop.AdvanceTimeTo(1000);
+            tasks.Add(eventLoop.SetTimeout(110, CancellationToken.None, () => client.Reset()));
+
+            // wait for actions to complete.
+            await Task.WhenAll(tasks);
+            cancellationHandle.Cancel();
 
             // assert.
-            Assert.True(resetCbCalled);
             for (int i = 0; i < expectedErrors.Length; i++)
             {
                 Assert.NotNull(actualResponseErrors[i]);
-                Assert.Equal(expectedErrors[i], actualResponseErrors[i].Message);
+                Assert.Equal(i + ". " + expectedErrors[i], i + ". " + actualResponseErrors[i].Message);
             }
         }
+
+        [Fact]
+        public async Task TestResetOfTransfersWithConnections()
+        {
+            // arrange.
+            var cancellationHandle = new CancellationTokenSource();
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                AllocateConnectionCallback = async (connectionAllocationRequest) =>
+                {
+                    return new object();
+                },
+                WriteBytesCallback = async (c, d, o, l) =>
+                {
+                    await Task.Delay(200_000, cancellationHandle.Token);
+                }, 
+                ReleaseConnectionCallback = c => Task.CompletedTask
+            };
+            var client = new DefaultQuasiHttpClient
+            {
+                DefaultSendOptions = new DefaultQuasiHttpSendOptions
+                {
+                    OverallReqRespTimeoutMillis = 20
+                },
+                Transport = transport
+            };
+            var expectedErrors = new string[] { "send timeout", "send timeout",
+                "send timeout", "client reset", "client reset" };
+            var actualResponseErrors = new Exception[expectedErrors.Length];
+
+            var eventLoop = new DefaultEventLoopApi();
+            var tasks = new List<Task>();
+
+            // act
+            for (int i = 0; i < expectedErrors.Length; i++)
+            {
+                var capturedIndex = i;
+                // 30 ms should be enough to distinguish callback firing times
+                // on the common operating systems (15ms max on Windows, 10ms max on Linux).
+                var sendTime = Math.Min(i * 30, 95);
+                tasks.Add(eventLoop.SetTimeout(sendTime, CancellationToken.None, async () =>
+                {
+                    var options = new DefaultQuasiHttpSendOptions
+                    {
+                        OverallReqRespTimeoutMillis = capturedIndex > 2 ? 40 : 15
+                    };
+                    try
+                    {
+                        await client.Send(null, new DefaultQuasiHttpRequest(), options);
+                        actualResponseErrors[capturedIndex] = null;
+                    }
+                    catch (Exception e)
+                    {
+                        actualResponseErrors[capturedIndex] = e;
+                    }
+                }));
+            }
+
+            tasks.Add(eventLoop.SetTimeout(110, CancellationToken.None, () => client.Reset()));
+
+            // wait for actions to complete.
+            await Task.WhenAll(tasks);
+            cancellationHandle.Cancel();
+
+            // assert.
+            for (int i = 0; i < expectedErrors.Length; i++)
+            {
+                Assert.NotNull(actualResponseErrors[i]);
+                Assert.Equal(i + ". " + expectedErrors[i], i + ". " + actualResponseErrors[i].Message);
+            }
+        }/*
 
         [Theory]
         [MemberData(nameof(CreateTestNormalSendAndReceiveData))]
@@ -662,12 +681,12 @@ namespace Kabomu.Tests.QuasiHttp
             return testData;
         }
 
-        private IQuasiHttpApplication CreateEndpointApplication(IEventLoopApi eventLoop, string endpoint,
+        */private IQuasiHttpApplication CreateEndpointApplication(string endpoint,
             int maxChunkSize, int processingDelay)
         {
             var app = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = (req, resCb) =>
+                ProcessRequestCallback = async (req, options) =>
                 {
                     Func<byte, byte> selectedOp = null;
                     if (req.Headers != null && req.Headers.ContainsKey("second") &&
@@ -738,37 +757,27 @@ namespace Kabomu.Tests.QuasiHttp
                         }
                         if (req.Body != null)
                         {
-                            TransportUtils.ReadBodyToEnd(eventLoop, req.Body, maxChunkSize, (e, reqBodyBytes) =>
+                            var requestBodyBytes = await TransportUtils.ReadBodyToEnd(req.Body, maxChunkSize);
+                            var resBodyBytes = new byte[requestBodyBytes.Length];
+                            for (int i = 0; i < requestBodyBytes.Length; i++)
                             {
-                                Assert.Null(e);
-                                var resBodyBytes = new byte[reqBodyBytes.Length];
-                                for (int i = 0; i < reqBodyBytes.Length; i++)
-                                {
-                                    resBodyBytes[i] = selectedOp.Invoke(reqBodyBytes[i]);
-                                }
-                                if (req.Body.ContentLength < 0)
-                                {
-                                    res.Body = new StreamBackedBody(new MemoryStream(resBodyBytes), null);
-                                }
-                                else
-                                {
-                                    res.Body = new ByteBufferBody(resBodyBytes, 0, resBodyBytes.Length, null);
-                                }
-                                eventLoop.ScheduleTimeout(processingDelay, _ =>
-                                {
-                                    resCb.Invoke(null, res);
-                                }, null);
-                            });
-                            return;
+                                resBodyBytes[i] = selectedOp.Invoke(requestBodyBytes[i]);
+                            }
+                            if (req.Body.ContentLength < 0)
+                            {
+                                res.Body = new StreamBackedBody(new MemoryStream(resBodyBytes), null);
+                            }
+                            else
+                            {
+                                res.Body = new ByteBufferBody(resBodyBytes, 0, resBodyBytes.Length, null);
+                            }
                         }
                     }
-                    eventLoop.ScheduleTimeout(processingDelay, _ =>
-                    {
-                        resCb.Invoke(null, res);
-                    }, null);
+                    await Task.Delay(processingDelay);
+                    return res;
                 }
             };
             return app;
         }
-    }*/
+    }
 }
