@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.Transport
 {
-    public class MemoryBasedClientTransport : IQuasiHttpClientTransport
+    public class MemoryBasedClientTransport : IQuasiHttpClientTransport, IQuasiHttpTransportBypass
     {
         public MemoryBasedClientTransport()
         {
@@ -14,16 +14,6 @@ namespace Kabomu.QuasiHttp.Transport
 
         public string LocalEndpoint { get; set; }
         public IMemoryBasedTransportHub Hub { get; set; }
-
-        public Task<bool> CanProcessSendRequestDirectly()
-        {
-            var hub = Hub;
-            if (hub == null)
-            {
-                throw new MissingDependencyException("transport hub");
-            }
-            return hub.CanProcessSendRequestDirectly();
-        }
 
         public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectionAllocationRequest connectionAllocationInfo)

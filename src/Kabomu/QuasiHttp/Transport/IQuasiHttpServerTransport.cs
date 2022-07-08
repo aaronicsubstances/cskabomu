@@ -9,7 +9,6 @@ namespace Kabomu.QuasiHttp.Transport
     public interface IQuasiHttpServerTransport : IQuasiHttpTransport
     {
         IMutexApi MutexApi { get; set; }
-
         Task Start();
         Task Stop();
         Task<bool> IsRunning();

@@ -87,20 +87,6 @@ namespace Kabomu.Tests.QuasiHttp.Transports
         }
 
         [Fact]
-        public async Task TestCanProcessSendRequestDirectly()
-        {
-            var instance = new DefaultMemoryBasedTransportHub();
-
-            instance.DirectSendRequestProcessingProbability = 0;
-            bool canSendDirectly = await instance.CanProcessSendRequestDirectly();
-            Assert.False(canSendDirectly);
-
-            instance.DirectSendRequestProcessingProbability = 1;
-            canSendDirectly = await instance.CanProcessSendRequestDirectly();
-            Assert.True(canSendDirectly);
-        }
-
-        [Fact]
         public async Task TestProcessSendRequest()
         {
             var instance = new DefaultMemoryBasedTransportHub();

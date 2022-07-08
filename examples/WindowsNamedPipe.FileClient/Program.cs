@@ -1,6 +1,4 @@
 ﻿using CommandLine;
-using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using NLog;
@@ -38,7 +36,6 @@ namespace WindowsNamedPipe.FileClient
 
         static async Task RunMain(string serverPath, string uploadDirPath)
         {
-            var eventLoop = new DefaultEventLoopApi();
             var transport = new WindowsNamedPipeClientTransport();
             var defaultSendOptions = new DefaultQuasiHttpSendOptions
             {
@@ -47,7 +44,6 @@ namespace WindowsNamedPipe.FileClient
             var instance = new DefaultQuasiHttpClient
             {
                 DefaultSendOptions = defaultSendOptions,
-                EventLoop = eventLoop,
                 Transport = transport
             };
 

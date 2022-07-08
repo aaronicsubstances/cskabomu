@@ -9,7 +9,6 @@ namespace Kabomu.QuasiHttp.Transport
 {
     public class DefaultMemoryBasedTransportHub : IMemoryBasedTransportHub
     {
-        private readonly Random _randGen = new Random();
         private readonly Dictionary<object, MemoryBasedServerTransport> _servers;
 
         public DefaultMemoryBasedTransportHub()
@@ -18,7 +17,6 @@ namespace Kabomu.QuasiHttp.Transport
             _servers = new Dictionary<object, MemoryBasedServerTransport>();
         }
 
-        public double DirectSendRequestProcessingProbability { get; set; }
         public IMutexApi MutexApi { get; set; }
 
         public async Task AddServer(object endpoint, MemoryBasedServerTransport server)
@@ -34,14 +32,6 @@ namespace Kabomu.QuasiHttp.Transport
             using (await MutexApi.Synchronize())
             {
                 _servers.Add(endpoint, server);
-            }
-        }
-
-        public async Task<bool> CanProcessSendRequestDirectly()
-        {
-            using (await MutexApi.Synchronize())
-            {
-                return _randGen.NextDouble() < DirectSendRequestProcessingProbability;
             }
         }
 

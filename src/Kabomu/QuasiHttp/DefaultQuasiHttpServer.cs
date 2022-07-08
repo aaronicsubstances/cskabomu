@@ -15,16 +15,16 @@ namespace Kabomu.QuasiHttp
 {
     public class DefaultQuasiHttpServer : IQuasiHttpServer
     {
-        private readonly Dictionary<object, ITransferProtocolInternal> _transfers;
-        private readonly IParentTransferProtocolInternal _representative;
+        private readonly ISet<ReceiveTransferInternal> _transfers;
         private bool _running;
+        private readonly Func<ReceiveTransferInternal, Exception, Task> AbortTransferCallback;
 
         public DefaultQuasiHttpServer()
         {
-            _transfers = new Dictionary<object, ITransferProtocolInternal>();
-            _representative = new ParentTransferProtocolImpl(this);
+            AbortTransferCallback = AbortTransfer;
+            _transfers = new HashSet<ReceiveTransferInternal>();
             MutexApi = new LockBasedMutexApi();
-            MutexApiFactory = new LockBasedMutexApiFactory();
+            MutexApiFactory = null;
         }
 
         public int OverallReqRespTimeoutMillis { get; set; }
@@ -32,7 +32,6 @@ namespace Kabomu.QuasiHttp
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpServerTransport Transport { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
-        public IEventLoopApi EventLoop { get; set; }
         public IMutexApi MutexApi { get; set; }
         public IMutexApiFactory MutexApiFactory { get; set; }
 
@@ -49,15 +48,16 @@ namespace Kabomu.QuasiHttp
                 startTask = Transport.Start();
             }
             await startTask;
-            // let TaskScheduler.UnobservedTaskException handle any uncaught task exceptions.
+            // let error handler or TaskScheduler.UnobservedTaskException handle 
+            // any uncaught task exceptions.
             _ = StartAcceptingConnections();
         }
 
         private async Task StartAcceptingConnections()
         {
-            while (true)
+            try
             {
-                try
+                while (true)
                 {
                     Task<IConnectionAllocationResponse> connectTask;
                     using (await MutexApi.Synchronize())
@@ -66,24 +66,24 @@ namespace Kabomu.QuasiHttp
                         {
                             break;
                         }
-                        connectTask = Transport?.ReceiveConnection();
-                    }
-                    if (connectTask == null)
-                    {
-                        break;
+                        connectTask = Transport.ReceiveConnection();
                     }
                     var connectionAllocationResponse = await connectTask;
+                    if (connectionAllocationResponse == null)
+                    {
+                        throw new Exception("received null for connection allocation response");
+                    }
                     // let TaskScheduler.UnobservedTaskException handle any uncaught task exceptions.
                     _ = AcceptConnection(connectionAllocationResponse);
                 }
-                catch (Exception e)
+            }
+            catch (Exception e)
+            {
+                if (ErrorHandler == null)
                 {
-                    if (ErrorHandler == null)
-                    {
-                        throw;
-                    }
-                    ErrorHandler?.Invoke(e, "error encountered while accepting connections");
+                    throw;
                 }
+                ErrorHandler?.Invoke(e, "error encountered while accepting connections");
             }
         }
 
@@ -103,6 +103,75 @@ namespace Kabomu.QuasiHttp
             }
         }
 
+        private async Task Receive(IConnectionAllocationResponse connectionAllocationResponse)
+        {
+            if (connectionAllocationResponse == null)
+            {
+                throw new ArgumentException("null connection allocation");
+            }
+            if (connectionAllocationResponse.Connection == null)
+            {
+                throw new ArgumentException("null connection");
+            }
+
+            var transfer = new ReceiveTransferInternal
+            {
+                CancellationTcs = new TaskCompletionSource<object>(
+                    TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+
+            IMutexApi transferMutex = await ProtocolUtilsInternal.DetermineEffectiveMutexApi(
+                connectionAllocationResponse.ProcessingMutexApi, MutexApiFactory, null);
+
+            Task workTask;
+            using (await MutexApi.Synchronize())
+            {
+                _transfers.Add(transfer);
+                // let any error be handled by abort callback, or
+                // TaskScheduler.UnobservedTaskException as a last resort.
+                _ = SetResponseTimeout(transfer, OverallReqRespTimeoutMillis);
+
+                var effectiveMaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(
+                    null, null, MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
+                transfer.Protocol = new ReceiveProtocolInternal
+                {
+                    Parent = transfer,
+                    AbortCallback = AbortTransferCallback,
+                    MaxChunkSize = effectiveMaxChunkSize,
+                    Application = Application,
+                    Transport = Transport,
+                    Connection = connectionAllocationResponse.Connection,
+                    RequestEnvironment = connectionAllocationResponse.Environment,
+                    MutexApi = transferMutex
+                };
+                workTask = transfer.Protocol.Receive();
+            }
+            var firstCompletedTask = await Task.WhenAny(transfer.CancellationTcs.Task, workTask);
+            ExceptionDispatchInfo capturedError = null;
+            try
+            {
+                await firstCompletedTask;
+            }
+            catch (Exception e)
+            {
+                capturedError = ExceptionDispatchInfo.Capture(e);
+            }
+
+            Task abortTask = null;
+            if (capturedError != null)
+            {
+                using (await MutexApi.Synchronize())
+                {
+                    abortTask = AbortTransfer(transfer, capturedError.SourceException);
+                }
+            }
+            if (abortTask != null)
+            {
+                await abortTask;
+            }
+            capturedError?.Throw();
+        }
+
         public async Task Stop()
         {
             using (await MutexApi.Synchronize())
@@ -119,6 +188,8 @@ namespace Kabomu.QuasiHttp
 
         private async Task Reset()
         {
+            var cancellationException = new Exception("server reset");
+
             // since it is desired to clear all pending transfers under lock,
             // and disabling of transfer is an async transfer, we choose
             // not to await on each disabling, but rather to wait on them
@@ -126,130 +197,64 @@ namespace Kabomu.QuasiHttp
             var tasks = new List<Task>();
             using (await MutexApi.Synchronize())
             {
-                foreach (var transfer in _transfers.Values)
+                try
                 {
-                    tasks.Add(DisableTransfer(transfer));
+                    foreach (var transfer in _transfers)
+                    {
+                        tasks.Add(DisableTransfer(transfer, cancellationException));
+                    }
                 }
-                _transfers.Clear();
+                finally
+                {
+                    _transfers.Clear();
+                }
             }
 
             await Task.WhenAll(tasks);
         }
 
-        private async Task Receive(IConnectionAllocationResponse connectionAllocationResponse)
+        private async Task SetResponseTimeout(ReceiveTransferInternal transfer, int transferTimeoutMillis)
         {
-            if (connectionAllocationResponse == null)
-            {
-                throw new ArgumentException("null connection allocation");
-            }
-            if (connectionAllocationResponse.Connection == null)
-            {
-                throw new ArgumentException("null connection");
-            }
-
-            IMutexApi transferMutex = await ProtocolUtilsInternal.DetermineEffectiveMutexApi(
-                connectionAllocationResponse.ProcessingMutexApi, MutexApiFactory, MutexApi);
-
-            ReceiveProtocolInternal transfer;
-            Task timeoutTask, workTask;
-            using (await MutexApi.Synchronize())
-            {
-                transfer = new ReceiveProtocolInternal
-                {
-                    Parent = _representative,
-                    Application = Application,
-                    Transport = Transport,
-                    Connection = connectionAllocationResponse.Connection,
-                    RequestEnvironment = connectionAllocationResponse.Environment,
-                    MutexApi = transferMutex
-                };
-                transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(
-                    null, null, MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
-                _transfers.Add(transfer.Connection, transfer);
-                var transferTimeoutMillis = OverallReqRespTimeoutMillis;
-                timeoutTask = ProtocolUtilsInternal.SetResponseTimeout(EventLoop, transfer, transferTimeoutMillis,
-                    "receive timeout");
-                workTask = transfer.Receive();
-            }
-            ExceptionDispatchInfo capturedError = null;
-            Task firstCompletedTask;
-            if (timeoutTask != null)
-            {
-                firstCompletedTask = await Task.WhenAny(timeoutTask, workTask);
-            }
-            else
-            {
-                firstCompletedTask = workTask;
-            }
-            try
-            {
-                await firstCompletedTask;
-            }
-            catch (Exception e)
-            {
-                capturedError = ExceptionDispatchInfo.Capture(e);
-            }
-
-            Task abortTask = null;
-            using (await MutexApi.Synchronize())
-            {
-                if (capturedError != null)
-                {
-                    abortTask = AbortTransfer(transfer);
-                }
-            }
-            if (abortTask != null)
-            {
-                await abortTask;
-            }
-            capturedError?.Throw();
-            await workTask;
-        }
-
-        private async Task AbortTransfer(ITransferProtocolInternal transfer)
-        {
-            if (transfer.IsAborted)
+            if (transferTimeoutMillis <= 0)
             {
                 return;
             }
-            _transfers.Remove(transfer.Connection);
-            await DisableTransfer(transfer);
+            transfer.TimeoutCancellationHandle = new CancellationTokenSource();
+            try
+            {
+                await Task.Delay(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token);
+            }
+            catch (Exception)
+            {
+                return;
+            }
+            await AbortTransfer(transfer, new Exception("receive timeout"));
         }
 
-        private async Task DisableTransfer(ITransferProtocolInternal transfer)
+        private async Task AbortTransfer(ReceiveTransferInternal transfer, Exception cancellationError)
         {
-            await transfer.Cancel();
-
-            Task releaseTask = null;
+            Task disableTransferTask;
             using (await MutexApi.Synchronize())
             {
-                transfer.TimeoutCancellationHandle?.Cancel();
-                transfer.IsAborted = true;
-
-                if (transfer.Connection != null)
+                if (transfer.IsAborted)
                 {
-                    releaseTask = Transport.ReleaseConnection(transfer.Connection);
+                    return;
                 }
+                _transfers.Remove(transfer);
+                disableTransferTask = DisableTransfer(transfer, cancellationError);
             }
-            if (releaseTask != null)
-            {
-                await releaseTask;
-            }
+            await disableTransferTask;
         }
 
-        private class ParentTransferProtocolImpl : IParentTransferProtocolInternal
+        private async Task DisableTransfer(ReceiveTransferInternal transfer, Exception cancellationError)
         {
-            private readonly DefaultQuasiHttpServer _delegate;
-
-            public ParentTransferProtocolImpl(DefaultQuasiHttpServer passThrough)
+            transfer.TimeoutCancellationHandle?.Cancel();
+            transfer.IsAborted = true;
+            if (cancellationError != null)
             {
-                _delegate = passThrough;
+                transfer.CancellationTcs.SetException(cancellationError);
             }
-
-            public Task AbortTransfer(ITransferProtocolInternal transfer)
-            {
-                return _delegate.AbortTransfer(transfer);
-            }
+            await transfer.Protocol.Cancel();
         }
     }
 }

@@ -1,6 +1,5 @@
 ﻿using CommandLine;
 using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using NLog;
@@ -35,7 +34,6 @@ namespace Tcp.FileServer
 
         static async Task RunMain(int port, string uploadDirPath)
         {
-            var eventLoop = new DefaultEventLoopApi();
             var transport = new LocalhostTcpServerTransport(port);
             UncaughtErrorCallback errorHandler = (e, m) =>
             {
@@ -45,7 +43,6 @@ namespace Tcp.FileServer
             {
                 OverallReqRespTimeoutMillis = 5_000,
                 Transport = transport,
-                EventLoop = eventLoop,
                 ErrorHandler = errorHandler
             };
             instance.Application = new FileReceiver(port, uploadDirPath);

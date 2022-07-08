@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Transport;
@@ -18,7 +17,6 @@ namespace Memory.FileExchange
         public static async Task RunMain(string endpoint, string uploadDirPath,
             IMemoryBasedTransportHub hub)
         {
-            var eventLoop = new DefaultEventLoopApi();
             var transport = new MemoryBasedServerTransport();
             UncaughtErrorCallback errorHandler = (e, m) =>
             {
@@ -28,7 +26,6 @@ namespace Memory.FileExchange
             {
                 OverallReqRespTimeoutMillis = 5_000,
                 Transport = transport,
-                EventLoop = eventLoop,
                 ErrorHandler = errorHandler,
             };
             instance.Application = new FileReceiver(endpoint, uploadDirPath);

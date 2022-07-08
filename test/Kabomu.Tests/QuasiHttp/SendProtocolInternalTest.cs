@@ -97,16 +97,26 @@ namespace Kabomu.Tests.QuasiHttp
             instance.Transport = transport;
             instance.Connection = connection;
             instance.MaxChunkSize = maxChunkSize;
-            instance.Parent = new TestParentTransferProtocol(instance);
+            bool abortCalled = false;
+            SendTransferInternal actualProtocolParentSeen = null;
+            instance.Parent = new SendTransferInternal();
+            instance.AbortCallback = (transfer, e) =>
+            {
+                Assert.False(abortCalled);
+                actualProtocolParentSeen = transfer;
+                abortCalled = true;
+                return Task.CompletedTask;
+            };
 
             // act.
             IQuasiHttpResponse actualResponse = await instance.Send(expectedRequest);
 
             // assert.
-            Assert.Equal(response.Body == null, ((TestParentTransferProtocol)instance.Parent).AbortCalled);
+            Assert.Equal(response.Body == null, abortCalled);
             await ComparisonUtils.CompareResponses(maxChunkSize, response, actualResponse,
                 responseBodyBytes);
-            Assert.True(((TestParentTransferProtocol)instance.Parent).AbortCalled);
+            Assert.True(abortCalled);
+            Assert.Equal(instance.Parent, actualProtocolParentSeen);
             var actualReq = outputStream.ToArray();
             Assert.NotEmpty(actualReq);
             var actualReqChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualReq, 0,
