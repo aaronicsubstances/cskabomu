@@ -38,10 +38,10 @@ namespace Kabomu.Tests.QuasiHttp
             testData.Add(new object[] { firstOptions, fallbackOptions, defaultValue,
                 expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions { OverallReqRespTimeoutMillis = 15 };
+            firstOptions = new DefaultQuasiHttpSendOptions { OverallReqRespTimeoutMillis = -15 };
             fallbackOptions = new DefaultQuasiHttpSendOptions { OverallReqRespTimeoutMillis = 3 };
             defaultValue = -1;
-            expected = 15;
+            expected = -15;
             testData.Add(new object[] { firstOptions, fallbackOptions, defaultValue,
                 expected });
 
@@ -49,6 +49,13 @@ namespace Kabomu.Tests.QuasiHttp
             fallbackOptions = new DefaultQuasiHttpSendOptions { OverallReqRespTimeoutMillis = 3 };
             defaultValue = -1;
             expected = 3;
+            testData.Add(new object[] { firstOptions, fallbackOptions, defaultValue,
+                expected });
+
+            firstOptions = new DefaultQuasiHttpSendOptions();
+            fallbackOptions = new DefaultQuasiHttpSendOptions { OverallReqRespTimeoutMillis = -3 };
+            defaultValue = -1;
+            expected = -3;
             testData.Add(new object[] { firstOptions, fallbackOptions, defaultValue,
                 expected });
 

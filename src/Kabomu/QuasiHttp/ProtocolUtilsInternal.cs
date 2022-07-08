@@ -13,7 +13,7 @@ namespace Kabomu.QuasiHttp
             if (firstOptions != null)
             {
                 int effectiveValue = firstOptions.OverallReqRespTimeoutMillis;
-                if (effectiveValue > 0)
+                if (effectiveValue != 0)
                 {
                     return effectiveValue;
                 }
@@ -21,7 +21,7 @@ namespace Kabomu.QuasiHttp
             if (fallbackOptions != null)
             {
                 int effectiveValue = fallbackOptions.OverallReqRespTimeoutMillis;
-                if (effectiveValue > 0)
+                if (effectiveValue != 0)
                 {
                     return effectiveValue;
                 }
