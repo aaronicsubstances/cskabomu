@@ -7,9 +7,10 @@ using System.Threading.Tasks;
 namespace Kabomu.Concurrency
 {
     /// <summary>
-    /// Provides default implementation of event loop that runs on the system thread pool.
+    /// Provides implementation of event loop that runs on the system thread pool, and runs
+    /// all callbacks under mutual exclusion.
     /// </summary>
-    public class DefaultEventLoopApi : IEventLoopApi
+    public class DefaultSynchronizedEventLoopApi : ISynchronizedEventLoopApi
     {
         [ThreadStatic]
         private static Thread _postCallbackExecutionThread;
@@ -17,7 +18,7 @@ namespace Kabomu.Concurrency
         private readonly Action<object> UnwrapAndRunExclusivelyCallback;
         private readonly LimitedConcurrencyLevelTaskSchedulerInternal _throttledTaskScheduler;
 
-        public DefaultEventLoopApi()
+        public DefaultSynchronizedEventLoopApi()
         {
             UnwrapAndRunExclusivelyCallback = UnwrapAndRunExclusively;
             _throttledTaskScheduler = new LimitedConcurrencyLevelTaskSchedulerInternal(1);
@@ -51,58 +52,78 @@ namespace Kabomu.Concurrency
             }
         }
 
-        public Task SetImmediate(CancellationToken cancellationToken, Func<Task> cb)
+        public Tuple<Task, object> SetImmediate(Func<Task> cb)
         {
-            if (cb == null)
-            {
-                throw new ArgumentException("null cb");
-            }
-            var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Func<Task> cbWrapper = async () =>
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    return;
-                }
-                Task outcome;
-                try
-                {
-                    _postCallbackExecutionThread = Thread.CurrentThread;
-                    outcome = cb.Invoke();
-                }
-                catch (Exception e)
-                {
-                    tcs.SetException(e);
-                    return;
-                }
-                finally
-                {
-                    _postCallbackExecutionThread = null;
-                }
-                try
-                {
-                    await outcome;
-                    tcs.SetResult(null);
-                }
-                catch (Exception e)
-                {
-                    tcs.SetException(e);
-                }
-            };
-            PostCallback(Task.CompletedTask, cbWrapper, null);
-            return tcs.Task;
+            return SetImmediate(new CancellationTokenSource(), cb);
         }
 
-        public Task SetTimeout(int millis, CancellationToken cancellationToken, Func<Task> cb)
+        private Tuple<Task, object> SetImmediate(CancellationTokenSource cancellationHandle, Func<Task> cb)
         {
             if (cb == null)
             {
                 throw new ArgumentException("null cb");
             }
-            return Task.Delay(millis, cancellationToken).ContinueWith(t =>
+            var tcs = new TaskCompletionSource<object>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Func<Task> cbWrapper = () =>
             {
-                return SetImmediate(cancellationToken, cb);
+                if (!cancellationHandle.IsCancellationRequested)
+                {
+                    // invoke without waiting to prevent deadlock.
+                    _ = ProcessCallback(cb, tcs);
+                }
+                return Task.CompletedTask;
+            };
+            PostCallback(Task.CompletedTask, cbWrapper, null);
+            return Tuple.Create<Task, object>(tcs.Task, 
+                new SetImmediateCancellationHandleWrapper(cancellationHandle));
+        }
+
+        private async Task ProcessCallback(Func<Task> cb, TaskCompletionSource<object> tcs)
+        {
+            Task outcome;
+            try
+            {
+                _postCallbackExecutionThread = Thread.CurrentThread;
+                outcome = cb.Invoke();
+            }
+            catch (Exception e)
+            {
+                tcs.SetException(e);
+                return;
+            }
+            finally
+            {
+                _postCallbackExecutionThread = null;
+            }
+            try
+            {
+                await outcome;
+                tcs.SetResult(null);
+            }
+            catch (Exception e)
+            {
+                tcs.SetException(e);
+            }
+        }
+
+        public Tuple<Task, object> SetTimeout(int millis, Func<Task> cb)
+        {
+            if (millis < 0)
+            {
+                throw new ArgumentException("negative timeout value: " + millis);
+            }
+            if (cb == null)
+            {
+                throw new ArgumentException("null cb");
+            }
+            var cancellationHandle = new CancellationTokenSource();
+            var task = Task.Delay(millis, cancellationHandle.Token).ContinueWith(t =>
+            {
+                return SetImmediate(cancellationHandle, cb).Item1;
             }).Unwrap();
+            return Tuple.Create<Task, object>(task,
+                new SetTimeoutCancellationHandleWrapper(cancellationHandle));
         }
 
         private Task PostCallback(Task antecedent, Func<Task> successCallback,
@@ -164,6 +185,42 @@ namespace Kabomu.Concurrency
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 equivalentFailureTask.SetException(ex.InnerExceptions);
                 return equivalentFailureTask.Task;
+            }
+        }
+
+        public void ClearImmediate(object immediateHandle)
+        {
+            if (immediateHandle is SetImmediateCancellationHandleWrapper w)
+            {
+                w.Cts.Cancel();
+            }
+        }
+
+        public void ClearTimeout(object timeoutHandle)
+        {
+            if (timeoutHandle is SetTimeoutCancellationHandleWrapper w)
+            {
+                w.Cts.Cancel();
+            }
+        }
+
+        private struct SetImmediateCancellationHandleWrapper
+        {
+            public CancellationTokenSource Cts;
+
+            public SetImmediateCancellationHandleWrapper(CancellationTokenSource cts)
+            {
+                Cts = cts;
+            }
+        }
+
+        private struct SetTimeoutCancellationHandleWrapper
+        {
+            public CancellationTokenSource Cts;
+
+            public SetTimeoutCancellationHandleWrapper(CancellationTokenSource cts)
+            {
+                Cts = cts;
             }
         }
     }

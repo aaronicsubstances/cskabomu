@@ -25,6 +25,7 @@ namespace Kabomu.QuasiHttp
             _transfers = new HashSet<ReceiveTransferInternal>();
             MutexApi = new LockBasedMutexApi();
             MutexApiFactory = null;
+            EventLoopApi = new UnsynchronizedEventLoopApi();
         }
 
         public int OverallReqRespTimeoutMillis { get; set; }
@@ -34,6 +35,7 @@ namespace Kabomu.QuasiHttp
         public UncaughtErrorCallback ErrorHandler { get; set; }
         public IMutexApi MutexApi { get; set; }
         public IMutexApiFactory MutexApiFactory { get; set; }
+        public IEventLoopApi EventLoopApi { get; set; }
 
         public async Task Start()
         {
@@ -116,6 +118,7 @@ namespace Kabomu.QuasiHttp
 
             var transfer = new ReceiveTransferInternal
             {
+                TransferCancellationHandle = new CancellationTokenSource(),
                 CancellationTcs = new TaskCompletionSource<object>(
                     TaskCreationOptions.RunContinuationsAsynchronously)
             };
@@ -127,9 +130,7 @@ namespace Kabomu.QuasiHttp
             using (await MutexApi.Synchronize())
             {
                 _transfers.Add(transfer);
-                // let any error be handled by abort callback, or
-                // TaskScheduler.UnobservedTaskException as a last resort.
-                _ = SetResponseTimeout(transfer, OverallReqRespTimeoutMillis);
+                SetResponseTimeout(transfer, OverallReqRespTimeoutMillis);
 
                 var effectiveMaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(
                     null, null, MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
@@ -213,22 +214,17 @@ namespace Kabomu.QuasiHttp
             await Task.WhenAll(tasks);
         }
 
-        private async Task SetResponseTimeout(ReceiveTransferInternal transfer, int transferTimeoutMillis)
+        private void SetResponseTimeout(ReceiveTransferInternal transfer, int transferTimeoutMillis)
         {
-            if (transferTimeoutMillis <= 0)
+            var ev = EventLoopApi;
+            if (ev == null || transferTimeoutMillis <= 0)
             {
                 return;
             }
-            transfer.TimeoutCancellationHandle = new CancellationTokenSource();
-            try
+            transfer.TimeoutId = ev.SetTimeout(transferTimeoutMillis, async () =>
             {
-                await Task.Delay(transferTimeoutMillis, transfer.TimeoutCancellationHandle.Token);
-            }
-            catch (Exception)
-            {
-                return;
-            }
-            await AbortTransfer(transfer, new Exception("receive timeout"));
+                await AbortTransfer(transfer, new Exception("receive timeout"));
+            }).Item2;
         }
 
         private async Task AbortTransfer(ReceiveTransferInternal transfer, Exception cancellationError)
@@ -248,7 +244,8 @@ namespace Kabomu.QuasiHttp
 
         private async Task DisableTransfer(ReceiveTransferInternal transfer, Exception cancellationError)
         {
-            transfer.TimeoutCancellationHandle?.Cancel();
+            transfer.TransferCancellationHandle.Cancel();
+            EventLoopApi?.ClearTimeout(transfer.TimeoutId);
             transfer.IsAborted = true;
             if (cancellationError != null)
             {

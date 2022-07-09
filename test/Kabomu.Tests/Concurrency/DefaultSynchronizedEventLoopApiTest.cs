@@ -10,11 +10,11 @@ using Xunit.Abstractions;
 
 namespace Kabomu.Tests.Concurrency
 {
-    public class DefaultEventLoopApiTest
+    public class DefaultSynchronizedEventLoopApiTest
     {
         private readonly ITestOutputHelper _outputHelper;
 
-        public DefaultEventLoopApiTest(ITestOutputHelper outputHelper)
+        public DefaultSynchronizedEventLoopApiTest(ITestOutputHelper outputHelper)
         {
             _outputHelper = outputHelper;
         }
@@ -23,11 +23,12 @@ namespace Kabomu.Tests.Concurrency
         public async Task TestRunExclusively()
         {
             // arrange.
-            var instance = new DefaultEventLoopApi();
+            var instance = new DefaultSynchronizedEventLoopApi();
             var expected = true;
 
             // act.
-            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             instance.RunExclusively(() =>
             {
                 tcs.SetResult(instance.IsInterimEventLoopThread);
@@ -38,13 +39,12 @@ namespace Kabomu.Tests.Concurrency
         }
 
         [Fact]
-        public async Task TestSetImmediate()
+        public Task TestSetImmediate()
         {
             // arrange.
-            var instance = new DefaultEventLoopApi();
+            var instance = new DefaultSynchronizedEventLoopApi();
             var expected = new List<string>();
             var actual = new List<string>();
-            var tasks = new List<Task>();
             var cancelledTasks = new List<Task>();
 
             // act
@@ -52,52 +52,59 @@ namespace Kabomu.Tests.Concurrency
             {
                 var capturedIndex = i;
                 expected.Add("" + capturedIndex + true);
-                var cancellationTokenSource = new CancellationTokenSource();
+                var cancellationHandles = new List<object>();
                 Func<Task<int>> cb = () =>
                 {
-                    cancellationTokenSource.Cancel();
+                    cancellationHandles.ForEach(h => instance.ClearImmediate(h));
                     actual.Add("" + capturedIndex + instance.IsInterimEventLoopThread);
                     return Task.FromResult(capturedIndex);
                 };
-                tasks.Add(instance.SetImmediate(CancellationToken.None, cb));
-                cancelledTasks.Add(instance.SetImmediate(cancellationTokenSource.Token, cb));
-                cancelledTasks.Add(instance.SetImmediate(cancellationTokenSource.Token, async () =>
+                instance.SetImmediate(() =>
                 {
-                    await cb.Invoke();
-                }));
+                    var result = instance.SetImmediate(cb);
+                    cancellationHandles.Add(result.Item2);
+
+                    // the rest should not execute.
+                    result = instance.SetImmediate(cb);
+                    cancelledTasks.Add(result.Item1);
+                    cancellationHandles.Add(result.Item2);
+                    result = instance.SetImmediate(async () =>
+                    {
+                        await cb.Invoke();
+                    });
+                    cancelledTasks.Add(result.Item1);
+                    cancellationHandles.Add(result.Item2);
+
+                    return Task.CompletedTask;
+                });
             }
 
             // assert
             // this must run after all previous callbacks have run.
-            await instance.SetImmediate(CancellationToken.None, () =>
+            // due to how the actual additions are done by a nested setImmediate call,
+            // we have to wrap our assertions inside a nested setImmediate as well.
+            return instance.SetImmediate(() =>
             {
-                // check cancellations
-                foreach (var t in cancelledTasks)
+                return instance.SetImmediate(() =>
                 {
-                    Assert.False(t.IsCompleted);
-                }
-
-                // check for correct return values.
-                foreach (var task in tasks)
-                {
-                    Assert.True(task.IsCompleted);
-                    if (!task.IsCompletedSuccessfully)
+                    // check cancellations
+                    foreach (var t in cancelledTasks)
                     {
-                        Assert.True(task.IsCompletedSuccessfully, "Didn't expect: " + task.Exception);
+                        Assert.False(t.IsCompleted);
                     }
-                }
 
-                // finally ensure correct ordering of execution of tasks.
-                new OutputEventLogger { Logs = actual }.AssertEqual(expected, _outputHelper);
-                return Task.CompletedTask;
-            });
+                    // finally ensure correct ordering of execution of tasks.
+                    new OutputEventLogger { Logs = actual }.AssertEqual(expected, _outputHelper);
+                    return Task.CompletedTask;
+                }).Item1;
+            }).Item1;
         }
 
         [Fact]
         public async Task TestSetTimeout()
         {
             // arrange.
-            var instance = new DefaultEventLoopApi();
+            var instance = new DefaultSynchronizedEventLoopApi();
             var expected = new List<string>();
             var actual = new List<string>();
             var tasks = new List<List<Task>>();
@@ -106,33 +113,42 @@ namespace Kabomu.Tests.Concurrency
             for (int i = 0; i < 50; i++)
             {
                 var capturedIndex = i;
-                expected.Add("" + capturedIndex + true);
-                var cancellationTokenSource = new CancellationTokenSource();
+                expected.Insert(0, "" + capturedIndex + true); // ie reverse.
+                var cancellationHandles = new List<object>();
                 Func<Task<int>> cb = () =>
                 {
-                    cancellationTokenSource.Cancel();
+                    cancellationHandles.ForEach(h => instance.ClearTimeout(h));
                     actual.Add("" + capturedIndex + instance.IsInterimEventLoopThread);
                     return Task.FromResult(capturedIndex);
                 };
                 // Since it is not deterministic as to which call to setTimeout will execute first,
                 // race multiple tasks with cancellation.
+                // NB: depends on correct working of setImmediate
                 // Also 50 ms is more than enough to distinguish callback firing times
                 // on the common operating systems (15ms max on Windows, 10ms max on Linux).
-                int timeoutValue = 50 * i + 500;
-                var related = new List<Task>();
-                related.Add(instance.SetTimeout(timeoutValue, cancellationTokenSource.Token, cb));
-                related.Add(instance.SetTimeout(timeoutValue, cancellationTokenSource.Token, cb));
-                related.Add(instance.SetTimeout(timeoutValue, cancellationTokenSource.Token, async () =>
+                int timeoutValue = 2500 - 50 * i;
+                instance.SetImmediate(() =>
                 {
-                    await cb.Invoke();
-                }));
-                tasks.Add(related);
+                    var related = new List<Task>();
+                    for (int i = 0; i < 3; i++)
+                    {
+                        var result = instance.SetTimeout(timeoutValue, cb);
+                        related.Add(result.Item1);
+                        cancellationHandles.Add(result.Item2);
+                    }
+                    tasks.Add(related);
+                    return Task.CompletedTask;
+                });
             }
 
             // this should finish executing after all previous tasks have executed.
-            await instance.SetTimeout(3000, CancellationToken.None, () => Task.CompletedTask);
+            var starTime = DateTime.Now;
+            await instance.SetTimeout(3000, () => Task.CompletedTask).Item1;
+            var overallTimeTakenMs = (DateTime.Now - starTime).TotalMilliseconds;
 
             // assert
+            Assert.True(Math.Abs(overallTimeTakenMs - 3000) < 1500);
+
             // check cancellations
             foreach (var related in tasks)
             {
