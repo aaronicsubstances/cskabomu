@@ -172,6 +172,9 @@ namespace Kabomu.QuasiHttp
                         response.Body = transportBody;
                     }
                     _responseBody = response.Body;
+
+                    // close request body nonetheless
+                    abortTask = _requestBody?.EndRead();
                 }
                 else
                 {
