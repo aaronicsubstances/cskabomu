@@ -65,14 +65,13 @@ namespace Kabomu.Concurrency
             }
             var tcs = new TaskCompletionSource<object>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            Func<Task> cbWrapper = () =>
+            Func<Task> cbWrapper = async () =>
             {
-                if (!cancellationHandle.IsCancellationRequested)
+                if (cancellationHandle.IsCancellationRequested)
                 {
-                    // invoke without waiting to prevent deadlock.
-                    _ = ProcessCallback(cb, tcs);
+                    return;
                 }
-                return Task.CompletedTask;
+                await ProcessCallback(cb, tcs);
             };
             PostCallback(Task.CompletedTask, cbWrapper, null);
             return Tuple.Create<Task, object>(tcs.Task, 
