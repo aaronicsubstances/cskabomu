@@ -191,5 +191,55 @@ namespace Kabomu.Tests.Concurrency
             // finally ensure correct ordering of execution of tasks.
             new OutputEventLogger { Logs = actual }.AssertEqual(expected, _outputHelper);
         }
+
+        [Fact]
+        public async Task TestForDeadlockAvoidance()
+        {
+            // arrange.
+            var instance = new VirtualTimeBasedEventLoopApi();
+            var tcs = new TaskCompletionSource<object>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var laterTask = instance.SetTimeout(1800, () =>
+            {
+                tcs.SetResult(null);
+                return Task.CompletedTask;
+            }).Item1;
+            var dependentTask = instance.SetTimeout(500, async () =>
+            {
+                await tcs.Task;
+            }).Item1;
+
+            // act
+            await instance.AdvanceTimeTo(2_000);
+            
+            // assert completion.
+            await dependentTask;
+            await laterTask;
+        }
+
+        [Fact]
+        public async Task TestAdvanceTimeIndefinitely()
+        {
+            // arrange.
+            var instance = new VirtualTimeBasedEventLoopApi();
+            var tcs = new TaskCompletionSource<object>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var laterTask = instance.SetTimeout(1800, () =>
+            {
+                tcs.SetResult(null);
+                return Task.CompletedTask;
+            }).Item1;
+            var dependentTask = instance.SetTimeout(500, async () =>
+            {
+                await tcs.Task;
+            }).Item1;
+
+            // act
+            await instance.AdvanceTimeIndefinitely(500);
+
+            // assert completion.
+            await dependentTask;
+            await laterTask;
+        }
     }
 }

@@ -17,6 +17,9 @@ namespace Kabomu.Concurrency
         private int _idSeq = 0;
         private long _currentTimestamp;
 
+        // use to prevent interleaving of trigger actions by cancelling previous triggers
+        private bool[] _triggerActionsCancellationHandle = new bool[1];
+
         public long CurrentTimestamp
         {
             get
@@ -61,68 +64,112 @@ namespace Kabomu.Concurrency
             {
                 throw new ArgumentException("negative timestamp value: " + newTimestamp);
             }
-            TriggerActions(newTimestamp);
-            lock (_lock)
-            {
-                _currentTimestamp = newTimestamp;
-            }
-            return Task.CompletedTask;
+            return TriggerActions(newTimestamp, new bool[1], true);
         }
 
-        private void TriggerActions(long stoppageTimestamp)
+        public async Task AdvanceTimeIndefinitely(int pollDelayMillis)
         {
+            while (true)
+            {
+                // look for earliest non-cancelled task descriptor,
+                // and that is found toward the end of the task queue.
+                long stoppageTime;
+                lock (this)
+                {
+                    int idx = -1;
+                    for (int i = _taskQueue.Count - 1; i >= 0; i--)
+                    {
+                        if (!_taskQueue[i].Cancelled)
+                        {
+                            idx = i;
+                            break;
+                        }
+                    }
+                    if (idx == -1)
+                    {
+                        break;
+                    }
+                    stoppageTime = _taskQueue[idx].ScheduledAt;
+                }
+                // wait for some time in order to avoid being blocked by any callback waiting for
+                // a later or future task queue member to complete.
+                await await Task.WhenAny(TriggerActions(stoppageTime, new bool[1], false),
+                    Task.Delay(pollDelayMillis));
+            }
+        }
+
+        private async Task TriggerActions(long stoppageTimestamp, bool[] cancellationHandle, bool advancingNormally)
+        {
+            lock (_lock)
+            {
+                _triggerActionsCancellationHandle[0] = true;
+                _triggerActionsCancellationHandle = cancellationHandle;
+            }
             // invoke task queue actions starting with tail of queue
             // and stop if item's time is in the future.
             // use tail instead of head since removing at end of array-backed list
             // is faster that from front, because of the shifting required
             while (true)
             {
-                TaskDescriptor lastTask;
+                TaskDescriptor earliestTaskDescriptor;
                 lock (_lock)
                 {
-                    if (_taskQueue.Count == 0)
+                    if (cancellationHandle[0])
                     {
                         break;
                     }
-                    lastTask = _taskQueue[_taskQueue.Count - 1];
-                    if (!lastTask.Cancelled && lastTask.ScheduledAt > stoppageTimestamp)
+                    if (_taskQueue.Count == 0)
                     {
+                        cancellationHandle[0] = true;
+                        _currentTimestamp = stoppageTimestamp;
+                        break;
+                    }
+                    earliestTaskDescriptor = _taskQueue[_taskQueue.Count - 1];
+                    if (!earliestTaskDescriptor.Cancelled && earliestTaskDescriptor.ScheduledAt > stoppageTimestamp)
+                    {
+                        cancellationHandle[0] = true;
+                        _currentTimestamp = stoppageTimestamp;
                         break;
                     }
 
                     _taskQueue.RemoveAt(_taskQueue.Count - 1);
-                    if (lastTask.Cancelled)
+                    if (earliestTaskDescriptor.Cancelled)
                     {
                         _cancelledTaskCount--;
                     }
                     else
                     {
-                        _currentTimestamp = lastTask.ScheduledAt;
+                        _currentTimestamp = earliestTaskDescriptor.ScheduledAt;
                     }
                 }
 
-                if (lastTask.Cancelled)
+                if (earliestTaskDescriptor.Cancelled)
                 {
                     continue;
                 }
                 else
                 {
-                    // invoke without waiting to prevent deadlock.
-                    _  = ProcessTaskDescriptor(lastTask);
+                    // invoke without waiting to prevent deadlock,
+                    // unless we are advancing indefinitely.
+                    var t = ProcessTaskDescriptor(earliestTaskDescriptor);
+                    if (!advancingNormally)
+                    {
+                        await t;
+                    }
                 }
             }
         }
 
-        private static async Task ProcessTaskDescriptor(TaskDescriptor lastTask)
+        private static async Task ProcessTaskDescriptor(TaskDescriptor taskDescriptor)
         {
             try
             {
-                await lastTask.Callback.Invoke();
-                lastTask.Tcs.SetResult(null);
+                await taskDescriptor.Callback.Invoke();
+                taskDescriptor.Tcs.SetResult(null);
             }
             catch (Exception e)
             {
-                lastTask.Tcs.SetException(e);
+                taskDescriptor.Tcs.SetException(e);
             }
         }
 
