@@ -207,10 +207,14 @@ namespace Kabomu.QuasiHttp
 
         private void SetResponseTimeout(SendTransferInternal transfer, int transferTimeoutMillis)
         {
-            var ev = EventLoopApi;
-            if (ev == null || transferTimeoutMillis <= 0)
+            if (transferTimeoutMillis <= 0)
             {
                 return;
+            }
+            var ev = EventLoopApi;
+            if (ev == null)
+            {
+                throw new MissingDependencyException("event loop");
             }
             transfer.TimeoutId = ev.SetTimeout(transferTimeoutMillis, async () =>
             {

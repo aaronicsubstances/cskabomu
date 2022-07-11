@@ -9,5 +9,6 @@ namespace Kabomu.QuasiHttp
     {
         public IDictionary<string, object> Environment { get; set; }
         public IMutexApi ProcessingMutexApi { get; set; }
+        public int MaxChunkSize { get; set; }
     }
 }
