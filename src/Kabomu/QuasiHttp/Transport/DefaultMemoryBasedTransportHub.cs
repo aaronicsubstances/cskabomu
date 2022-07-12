@@ -19,7 +19,7 @@ namespace Kabomu.QuasiHttp.Transport
 
         public IMutexApi MutexApi { get; set; }
 
-        public async Task AddServer(object endpoint, MemoryBasedServerTransport server)
+        public async Task AddServer(object endpoint, IQuasiHttpServerTransport server)
         {
             if (endpoint == null)
             {
@@ -29,9 +29,16 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 throw new ArgumentException("null server");
             }
-            using (await MutexApi.Synchronize())
+            if (server is MemoryBasedServerTransport memoryBased)
             {
-                _servers.Add(endpoint, server);
+                using (await MutexApi.Synchronize())
+                {
+                    _servers.Add(endpoint, memoryBased);
+                }
+            }
+            else
+            {
+                throw new ArgumentException("server must be memory based");
             }
         }
 
