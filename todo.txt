@@ -45,6 +45,18 @@ create default middleware - create in examples after v1.1.0, later migrate to St
 -string
 -byte buffer
 
+-URL Path validation middleware (based on https://datatracker.ietf.org/doc/html/rfc1630). 
+    1. Valid path characters aside forward slash and percent encoding %xx (ISO-8859-1): A–Z a–z 0–9 . - _ ~ ! $ & ' ( ) * + , ; = : @
+
+-Header validation middleware
+    1. key or value cannot contain newlines
+    2. case sensitive keys only
+    3. keys starts with English alphabet, and can contain other English alphabets, hyphens or decimal digits.
+    4. values: only printable ASCII.
+    3. the following headers are reserved for use by HTTP protocol, and hence will be ignored or lead to errors if set by clients for transmission over HTTP: content-length, transfer-encoding (fixed to "chunked"), trailer, te, upgrade, connection, keep-alive, proxy-authenticate, proxy-authorization, accept-encoding (fixed to "identity"), content-encoding.
+    4. See also https://datatracker.ietf.org/doc/html/rfc7230#section-3.3.3
+
+
 Optimize - reduce zero byte copy - v1.2.0?
 -----------------------------------------
 Created ExtendedTransport interface
