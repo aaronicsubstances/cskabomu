@@ -4,7 +4,6 @@ using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,7 +24,7 @@ namespace Kabomu.QuasiHttp
             _transfers = new HashSet<ReceiveTransferInternal>();
             MutexApi = new LockBasedMutexApi();
             MutexApiFactory = null;
-            EventLoopApi = new UnsynchronizedEventLoopApi();
+            TimerApi = new DefaultTimerApi();
         }
 
         public int OverallReqRespTimeoutMillis { get; set; }
@@ -35,7 +34,7 @@ namespace Kabomu.QuasiHttp
         public UncaughtErrorCallback ErrorHandler { get; set; }
         public IMutexApi MutexApi { get; set; }
         public IMutexApiFactory MutexApiFactory { get; set; }
-        public IEventLoopApi EventLoopApi { get; set; }
+        public ITimerApi TimerApi { get; set; }
 
         public async Task Start()
         {
@@ -68,7 +67,12 @@ namespace Kabomu.QuasiHttp
                         {
                             break;
                         }
-                        connectTask = Transport.ReceiveConnection();
+                        var transport = Transport;
+                        if (transport == null)
+                        {
+                            throw new MissingDependencyException("transport");
+                        }
+                        connectTask = transport.ReceiveConnection();
                     }
                     var connectionAllocationResponse = await connectTask;
                     if (connectionAllocationResponse == null)
@@ -81,11 +85,12 @@ namespace Kabomu.QuasiHttp
             }
             catch (Exception e)
             {
-                if (ErrorHandler == null)
+                var eh = ErrorHandler;
+                if (eh == null)
                 {
                     throw;
                 }
-                ErrorHandler?.Invoke(e, "error encountered while accepting connections");
+                eh.Invoke(e, "error encountered while accepting connections");
             }
         }
 
@@ -97,11 +102,12 @@ namespace Kabomu.QuasiHttp
             }
             catch (Exception e)
             {
-                if (ErrorHandler == null)
+                var eh = ErrorHandler;
+                if (eh == null)
                 {
                     throw;
                 }
-                ErrorHandler?.Invoke(e, "error encountered while receiving a connection");
+                eh.Invoke(e, "error encountered while receiving a connection");
             }
         }
 
@@ -147,30 +153,17 @@ namespace Kabomu.QuasiHttp
                 };
                 workTask = transfer.Protocol.Receive();
             }
+
             var firstCompletedTask = await Task.WhenAny(transfer.CancellationTcs.Task, workTask);
-            ExceptionDispatchInfo capturedError = null;
             try
             {
                 await firstCompletedTask;
             }
             catch (Exception e)
             {
-                capturedError = ExceptionDispatchInfo.Capture(e);
+                await AbortTransfer(transfer, e);
+                throw;
             }
-
-            Task abortTask = null;
-            if (capturedError != null)
-            {
-                using (await MutexApi.Synchronize())
-                {
-                    abortTask = AbortTransfer(transfer, capturedError.SourceException);
-                }
-            }
-            if (abortTask != null)
-            {
-                await abortTask;
-            }
-            capturedError?.Throw();
         }
 
         public async Task Stop()
@@ -220,12 +213,12 @@ namespace Kabomu.QuasiHttp
             {
                 return;
             }
-            var ev = EventLoopApi;
-            if (ev == null)
+            var timer = TimerApi;
+            if (timer == null)
             {
-                throw new MissingDependencyException("event loop");
+                throw new MissingDependencyException("timer api");
             }
-            transfer.TimeoutId = ev.SetTimeout(transferTimeoutMillis, async () =>
+            transfer.TimeoutId = timer.SetTimeout(transferTimeoutMillis, async () =>
             {
                 await AbortTransfer(transfer, new Exception("receive timeout"));
             }).Item2;
@@ -249,13 +242,16 @@ namespace Kabomu.QuasiHttp
         private async Task DisableTransfer(ReceiveTransferInternal transfer, Exception cancellationError)
         {
             transfer.TransferCancellationHandle.Cancel();
-            EventLoopApi?.ClearTimeout(transfer.TimeoutId);
+            TimerApi?.ClearTimeout(transfer.TimeoutId);
             transfer.IsAborted = true;
             if (cancellationError != null)
             {
                 transfer.CancellationTcs.SetException(cancellationError);
             }
-            await transfer.Protocol.Cancel();
+            if (transfer.Protocol != null)
+            {
+                await transfer.Protocol.Cancel();
+            }
         }
     }
 }

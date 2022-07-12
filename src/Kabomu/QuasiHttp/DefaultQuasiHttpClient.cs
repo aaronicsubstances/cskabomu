@@ -4,7 +4,6 @@ using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,7 +23,7 @@ namespace Kabomu.QuasiHttp
             AbortTransferCallback = AbortTransfer;
             MutexApi = new LockBasedMutexApi();
             MutexApiFactory = null;
-            EventLoopApi = new UnsynchronizedEventLoopApi();
+            TimerApi = new DefaultTimerApi();
         }
 
         public IQuasiHttpSendOptions DefaultSendOptions { get; set; }
@@ -33,7 +32,7 @@ namespace Kabomu.QuasiHttp
         public double TransportBypassProbabilty { get; set; }
         public IMutexApi MutexApi { get; set; }
         public IMutexApiFactory MutexApiFactory { get; set; }
-        public IEventLoopApi EventLoopApi { get; set; }
+        public ITimerApi TimerApi { get; set; }
 
         public Task<IQuasiHttpResponse> Send(object remoteEndpoint,
             IQuasiHttpRequest request, IQuasiHttpSendOptions options)
@@ -94,46 +93,31 @@ namespace Kabomu.QuasiHttp
                         protocolMaxChunkSize);
                 }
             }
+
             var firstCompletedTask = await Task.WhenAny(transfer.CancellationTcs.Task, workTask);
-            ExceptionDispatchInfo capturedError = null;
             try
             {
-                await firstCompletedTask;
+                return await firstCompletedTask;
             }
             catch (Exception e)
             {
-                capturedError = ExceptionDispatchInfo.Capture(e);
+                await AbortTransfer(transfer, e);
+                throw;
             }
-
-            Task abortTask = null;
-            if (capturedError != null)
-            {
-                using (await MutexApi.Synchronize())
-                {
-                    abortTask = AbortTransfer(transfer, capturedError.SourceException);
-                }
-            }
-            if (abortTask != null)
-            {
-                await abortTask;
-            }
-            capturedError?.Throw();
-            return await firstCompletedTask;
         }
 
         private async Task<IQuasiHttpResponse> ProcessSendRequestDirectly(
             IConnectionAllocationRequest connectionAllocationRequest,
             SendTransferInternal transfer, IQuasiHttpRequest request)
         {
-            IQuasiHttpResponse res = await TransportBypass.ProcessSendRequest(request, connectionAllocationRequest);
-
-            Task abortTask;
-            using (await MutexApi.Synchronize())
+            var transportBypass = TransportBypass;
+            if (transportBypass == null)
             {
-                abortTask = AbortTransfer(transfer, null);
+                throw new MissingDependencyException("transport bypass");
             }
+            IQuasiHttpResponse res = await transportBypass.ProcessSendRequest(request, connectionAllocationRequest);
 
-            await abortTask;
+            await AbortTransfer(transfer, null);
 
             if (res == null)
             {
@@ -147,7 +131,12 @@ namespace Kabomu.QuasiHttp
             IConnectionAllocationRequest connectionAllocationRequest,
             SendTransferInternal transfer, IQuasiHttpRequest request, int protocolMaxChunkSize)
         {
-            object connection = await Transport.AllocateConnection(connectionAllocationRequest);
+            var transport = Transport;
+            if (transport == null)
+            {
+                throw new MissingDependencyException("transport");
+            }
+            object connection = await transport.AllocateConnection(connectionAllocationRequest);
 
             Task<IQuasiHttpResponse> resTask;
             using (await MutexApi.Synchronize())
@@ -165,7 +154,7 @@ namespace Kabomu.QuasiHttp
                 transfer.Protocol = new SendProtocolInternal
                 {
                     Parent = transfer,
-                    Transport = Transport,
+                    Transport = transport,
                     Connection = connection,
                     MutexApi = connectionAllocationRequest.ProcessingMutexApi,
                     MaxChunkSize = protocolMaxChunkSize,
@@ -211,12 +200,12 @@ namespace Kabomu.QuasiHttp
             {
                 return;
             }
-            var ev = EventLoopApi;
-            if (ev == null)
+            var timer = TimerApi;
+            if (timer == null)
             {
-                throw new MissingDependencyException("event loop");
+                throw new MissingDependencyException("timer api");
             }
-            transfer.TimeoutId = ev.SetTimeout(transferTimeoutMillis, async () =>
+            transfer.TimeoutId = timer.SetTimeout(transferTimeoutMillis, async () =>
             {
                 await AbortTransfer(transfer, new Exception("send timeout"));
             }).Item2;
@@ -240,7 +229,7 @@ namespace Kabomu.QuasiHttp
         private async Task DisableTransfer(SendTransferInternal transfer, Exception cancellationError)
         {
             transfer.TransferCancellationHandle.Cancel();
-            EventLoopApi?.ClearTimeout(transfer.TimeoutId);
+            TimerApi?.ClearTimeout(transfer.TimeoutId);
             transfer.IsAborted = true;
             if (cancellationError != null)
             {
