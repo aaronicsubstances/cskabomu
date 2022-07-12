@@ -10,7 +10,7 @@ namespace Kabomu.Concurrency
     /// Provides implementation of event loop that runs on the system thread pool, and runs
     /// all callbacks under mutual exclusion.
     /// </summary>
-    public class DefaultSynchronizedEventLoopApi : ISynchronizedEventLoopApi
+    public class DefaultEventLoopApi : IEventLoopApi
     {
         [ThreadStatic]
         private static Thread _postCallbackExecutionThread;
@@ -18,7 +18,7 @@ namespace Kabomu.Concurrency
         private readonly Action<object> UnwrapAndRunExclusivelyCallback;
         private readonly LimitedConcurrencyLevelTaskSchedulerInternal _throttledTaskScheduler;
 
-        public DefaultSynchronizedEventLoopApi()
+        public DefaultEventLoopApi()
         {
             UnwrapAndRunExclusivelyCallback = UnwrapAndRunExclusively;
             _throttledTaskScheduler = new LimitedConcurrencyLevelTaskSchedulerInternal(1);

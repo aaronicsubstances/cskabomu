@@ -36,7 +36,7 @@ namespace Kabomu.Concurrency
                     {
                         return !mutexContextFactory.IsExclusiveRunRequired;
                     }
-                    else if (_mutexApi is ISynchronizedEventLoopApi eventLoopApi)
+                    else if (_mutexApi is IEventLoopApi eventLoopApi)
                     {
                         return eventLoopApi.IsInterimEventLoopThread;
                     }

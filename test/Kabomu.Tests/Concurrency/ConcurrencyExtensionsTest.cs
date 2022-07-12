@@ -14,7 +14,7 @@ namespace Kabomu.Tests.Concurrency
         public async Task TestEventLoopBasedMutex()
         {
             // arrange.
-            IMutexApi eventLoopBased = new DefaultSynchronizedEventLoopApi();
+            IMutexApi eventLoopBased = new DefaultEventLoopApi();
 
             // act.
             Thread t = Thread.CurrentThread, u, v, w, x;

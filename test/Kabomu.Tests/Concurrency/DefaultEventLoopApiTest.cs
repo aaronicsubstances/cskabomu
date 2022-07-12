@@ -10,11 +10,11 @@ using Xunit.Abstractions;
 
 namespace Kabomu.Tests.Concurrency
 {
-    public class DefaultSynchronizedEventLoopApiTest
+    public class DefaultEventLoopApiTest
     {
         private readonly ITestOutputHelper _outputHelper;
 
-        public DefaultSynchronizedEventLoopApiTest(ITestOutputHelper outputHelper)
+        public DefaultEventLoopApiTest(ITestOutputHelper outputHelper)
         {
             _outputHelper = outputHelper;
         }
@@ -23,7 +23,7 @@ namespace Kabomu.Tests.Concurrency
         public async Task TestRunExclusively()
         {
             // arrange.
-            var instance = new DefaultSynchronizedEventLoopApi();
+            var instance = new DefaultEventLoopApi();
             var expected = true;
 
             // act.
@@ -42,7 +42,7 @@ namespace Kabomu.Tests.Concurrency
         public Task TestSetImmediate()
         {
             // arrange.
-            var instance = new DefaultSynchronizedEventLoopApi();
+            var instance = new DefaultEventLoopApi();
             var expected = new List<string>();
             var actual = new List<string>();
             var cancelledTasks = new List<Task>();
@@ -104,7 +104,7 @@ namespace Kabomu.Tests.Concurrency
         public async Task TestSetTimeout()
         {
             // arrange.
-            var instance = new DefaultSynchronizedEventLoopApi();
+            var instance = new DefaultEventLoopApi();
             var expected = new List<string>();
             var actual = new List<string>();
             var tasks = new List<List<Task>>();
@@ -174,7 +174,7 @@ namespace Kabomu.Tests.Concurrency
         public async Task TestForDeadlockAvoidance()
         {
             // arrange.
-            var instance = new DefaultSynchronizedEventLoopApi();
+            var instance = new DefaultEventLoopApi();
             var tcs = new TaskCompletionSource<object>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var laterTask = instance.SetTimeout(1800, () =>

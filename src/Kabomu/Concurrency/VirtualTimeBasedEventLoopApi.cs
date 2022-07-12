@@ -9,7 +9,7 @@ namespace Kabomu.Concurrency
     /// Event loop implementation which doesn't use real time.
     /// Useful for testing main components of library.
     /// </summary>
-    public class VirtualTimeBasedEventLoopApi : ISynchronizedEventLoopApi
+    public class VirtualTimeBasedEventLoopApi : IEventLoopApi
     {
         private readonly object _lock = new object();
         private readonly List<TaskDescriptor> _taskQueue = new List<TaskDescriptor>();

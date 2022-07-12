@@ -7,33 +7,13 @@ using Xunit;
 
 namespace Kabomu.Tests.Concurrency
 {
-    public class UnsynchronizedEventLoopApiTest
+    public class DefaultTimerApiTest
     {
-        [Fact]
-        public async Task TestSetImmediate()
-        {
-            // arrange.
-            var instance = new UnsynchronizedEventLoopApi();
-            var cbCalled = false;
-            var result = instance.SetImmediate(() =>
-            {
-                cbCalled = true;
-                return Task.CompletedTask;
-            });
-
-            // act.
-            await result.Item1;
-
-            // assert.
-            Assert.Null(result.Item2);
-            Assert.True(cbCalled);
-        }
-
         [Fact]
         public async Task TestSetTimeout()
         {
             // arrange
-            var instance = new UnsynchronizedEventLoopApi();
+            var instance = new DefaultTimerApi();
             var expected = new List<int> { 3, 2 };
             var actual = new List<int>();
 
@@ -73,7 +53,7 @@ namespace Kabomu.Tests.Concurrency
         public async Task TestForDeadlockAvoidance()
         {
             // arrange.
-            var instance = new UnsynchronizedEventLoopApi();
+            var instance = new DefaultTimerApi();
             var tcs = new TaskCompletionSource<object>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var laterTask = instance.SetTimeout(1800, () =>
