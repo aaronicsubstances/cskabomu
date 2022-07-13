@@ -49,7 +49,7 @@ namespace UnixDomainSocket.FileServer
 
             try
             {
-                await transport.Start();
+                await instance.Start();
                 LOG.Info("Started UnixDomainSocket.FileServer at {0}", path);
 
                 Console.ReadLine();
@@ -61,7 +61,7 @@ namespace UnixDomainSocket.FileServer
             finally
             {
                 LOG.Debug("Stopping UnixDomainSocket.FileServer...");
-                await transport.Stop();
+                await instance.Stop();
             }
         }
     }

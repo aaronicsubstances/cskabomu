@@ -49,7 +49,7 @@ namespace Tcp.FileServer
 
             try
             {
-                await transport.Start();
+                await instance.Start();
                 LOG.Info("Started Tcp.FileServer at {0}", port);
 
                 Console.ReadLine();
@@ -61,7 +61,7 @@ namespace Tcp.FileServer
             finally
             {
                 LOG.Debug("Stopping Tcp.FileServer...");
-                await transport.Stop();
+                await instance.Stop();
             }
         }
     }
