@@ -14,7 +14,7 @@ namespace Memory.FileExchange
             public string ServerUploadDirPath { get; set; }
 
             [Option('d', "client-upload-dir", Required = false,
-                HelpText = "Path to directory for saving uploaded files. Defaults to images/ folder in current directory")]
+                HelpText = "Path to directory for saving uploaded files. Defaults to current directory")]
             public string ClientUploadDirPath { get; set; }
 
             [Option('p', "direct-send-probability (0-1)", Required = false,
@@ -34,7 +34,7 @@ namespace Memory.FileExchange
                        var serverTask = FileServer.RunMain(serverEndpoint, o.ServerUploadDirPath ?? ".",
                            hub);
                        var clientTask = FileClient.RunMain(clientEndpoint, serverEndpoint,
-                           o.ClientUploadDirPath ?? "images", hub, o.DirectSendProbability ?? 0);
+                           o.ClientUploadDirPath ?? ".", hub, o.DirectSendProbability ?? 0);
                        Task.WaitAll(serverTask, clientTask);
                    });
         }
