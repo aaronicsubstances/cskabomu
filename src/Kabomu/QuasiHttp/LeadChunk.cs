@@ -20,7 +20,7 @@ namespace Kabomu.QuasiHttp
         public string HttpMethod { get; set; }
         public string HttpVersion { get; set; }
         public int HttpStatusCode { get; set; }
-        public Dictionary<string, List<string>> Headers { get; set; }
+        public IDictionary<string, List<string>> Headers { get; set; }
 
         public ByteBufferSlice[] Serialize()
         {

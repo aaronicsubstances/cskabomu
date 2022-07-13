@@ -120,8 +120,7 @@ namespace Kabomu.QuasiHttp
                 var processingOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     ProcessingMutexApi = MutexApi,
-                    Environment = RequestEnvironment ?? new Dictionary<string, object>(),
-                    MaxChunkSize = MaxChunkSize
+                    Environment = RequestEnvironment ?? new Dictionary<string, object>()
                 };
                 appTask = Application.ProcessRequest(request, processingOptions);
             }

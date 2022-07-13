@@ -8,7 +8,7 @@ namespace Kabomu.QuasiHttp.Transport
     public class DefaultConnectionAllocationRequest : IConnectionAllocationRequest
     {
         public object RemoteEndpoint { get; set; }
-        public IDictionary<string, object> Environment { get; set; }
+        public IDictionary<string, object> ConnectivityParameters { get; set; }
         public IMutexApi ProcessingMutexApi { get; set; }
     }
 }

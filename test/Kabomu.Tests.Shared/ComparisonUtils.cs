@@ -80,8 +80,8 @@ namespace Kabomu.Tests.Shared
             }
         }
 
-        public static void CompareHeaders(Dictionary<string, List<string>> expected,
-            Dictionary<string, List<string>> actual)
+        public static void CompareHeaders(IDictionary<string, List<string>> expected,
+            IDictionary<string, List<string>> actual)
         {
             var expectedKeys = new List<string>();
             if (expected != null)
