@@ -20,8 +20,9 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 1. Quasi Web transport type: connection-oriented, byte-oriented.
 
-1. Quasi Web transports: memory, localhost TCP, unix domain socket, windows named pipe, HTTP.
+1. Quasi Web transports provided by default: memory, localhost TCP, unix domain socket, windows named pipe, HTTP.
    1. *Support for HTTP makes it possible to use Kabomu with any HTTP client library.*
+   2. Interfaces are provided for the creation of any custom quasi web transport.
 
 3. Quasi Web Protocol: resembles HTTP/1.1 chunk encoding, in which request and response headers are sent in "lead" chunks.
 
@@ -30,3 +31,12 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 3. Quasi Web request processing strategy: middleware-based; resembles [ExpressJS](https://expressjs.com/), [Ratpack](https://ratpack.io/)
    1. *Provision of a middleware-based request processing pipeline makes it possible to use Kabomu with any Web application framework*
+
+
+## Usage
+
+See [Examples](https://github.com/aaronicsubstances/cskabomu/tree/main/examples) folder for sample file serving programs based on each default quasi web transport.
+
+The sample programs come in pairs (with the exception of the memory-based one):  a client program and corresponding server program. The server program must be started first. By default a client program uploads all files from the its current directory to a folder created in the server program's current directory.  
+
+The Program.cs source file of each sample program indicates how to change the default client and server endpoints (TCP ports or paths) with command line arguments. The directories of upload and saving can also be changed with command line arguments.
