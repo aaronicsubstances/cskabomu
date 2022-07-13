@@ -78,7 +78,7 @@ namespace Kabomu.QuasiHttp
                 var connectionAllocationRequest = new DefaultConnectionAllocationRequest
                 {
                     RemoteEndpoint = remoteEndpoint,
-                    Environment = requestEnvironment,
+                    ConnectivityParameters = requestEnvironment,
                     ProcessingMutexApi = transferMutex
                 };
                 if (TransportBypass != null && (Transport == null || _randGen.NextDouble() < TransportBypassProbabilty))

@@ -9,7 +9,7 @@ namespace Kabomu.QuasiHttp
     public interface IQuasiHttpRequest
     {
         string Path { get; }
-        Dictionary<string, List<string>> Headers { get; }
+        IDictionary<string, List<string>> Headers { get; }
         IQuasiHttpBody Body { get; }
         string HttpMethod { get; }
         string HttpVersion { get; }
