@@ -3,6 +3,7 @@ remaining
 -introduce enough timeout gaps to remove flakiness of DefaultQuasiHttpServerClient
 -DefaultQuasiHttpClient
 -DefaultQuasiHttpServer
+*can skip above if library works with all examples
 
 Release
 -------
@@ -10,8 +11,7 @@ copyright
 author
 readme
 xml documentation
-.net standard targets?
-debug or release
+release config
 https://docs.microsoft.com/en-us/nuget/create-packages/creating-a-package#the-role-and-structure-of-the-nuspec-file
 
 other default transports - keep in examples, later migrate to Kabomu.StandardAddons
