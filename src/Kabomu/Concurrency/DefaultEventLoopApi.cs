@@ -134,7 +134,7 @@ namespace Kabomu.Concurrency
             }
             Func<Task, Task> continuation = t =>
             {
-                if (t.IsCompletedSuccessfully)
+                if (t.Status == TaskStatus.RanToCompletion)
                 {
                     if (successCallback != null)
                     {

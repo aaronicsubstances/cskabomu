@@ -54,7 +54,11 @@ namespace Kabomu.QuasiHttp.EntityBody
 
             _readCancellationHandle.Cancel();
             // assume that a stream can be disposed concurrently with any ongoing use of it.
+#if NETCOREAPP3_1
             await BackingStream.DisposeAsync();
+#else
+            BackingStream.Dispose();
+#endif
         }
     }
 }
