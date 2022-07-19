@@ -4,75 +4,79 @@ using System.Text;
 
 namespace Kabomu.Common
 {
+    /// <summary>
+    /// Provides CSV parsing functions for the Kabomu library.
+    /// </summary>
+    /// <remarks>
+    /// The variant of CSV supported resembles that of Microsoft Exccel, in which
+    /// <list type="bullet">
+    /// <item>the character for separating columns is the comma</item>
+    /// <item>the character for escaping commas and newlines is the double quote.</item>
+    /// <item>there is the caveat that empty strings are always encoded as two double quotes</item>
+    /// </list>
+    /// </remarks>
     public static class CsvUtils
     {
-        private static readonly int TOKEN_EOF = -1;
+        private static readonly int TOKEN_EOI = -1;
         private static readonly int TOKEN_COMMA = 1;
         private static readonly int TOKEN_QUOTE = 2;
         private static readonly int TOKEN_CRLF = 3;
         private static readonly int TOKEN_LF = 4;
         private static readonly int TOKEN_CR = 5;
 
-        private static bool LocateNextToken(string csv, int start,
-            bool searchForQuote, bool searchForQuoteOnly, int[] tokenInfo)
+        /// <summary>
+        /// Acts as a lexing function during CSV parsing.
+        /// </summary>
+        /// <param name="csv">CSV string to lex</param>
+        /// <param name="start">the position in the CSV source string from which to search for next token</param>
+        /// <param name="insideQuotedValue">provides context from tokenizer function on whether parsing is currently in the midst of
+        /// a quoted value</param>
+        /// <param name="tokenInfo">Required 2-element array which will be filled with the token type and token position.</param>
+        /// <returns>true if a token was found; false if end of input was reached.</returns>
+        private static bool LocateNextToken(string csv, int start, bool insideQuotedValue, int[] tokenInfo)
         {
-            if (tokenInfo != null)
-            {
-                tokenInfo[0] = TOKEN_EOF;
-                tokenInfo[1] = -1;
-            }
+            // set to end of input by default
+            tokenInfo[0] = TOKEN_EOI;
+            tokenInfo[1] = -1;
             for (int i = start; i < csv.Length; i++)
             {
                 char c = csv[i];
-                if (!searchForQuoteOnly && c == ',')
+                if (!insideQuotedValue && c == ',')
                 {
-                    if (tokenInfo != null)
-                    {
-                        tokenInfo[0] = TOKEN_COMMA;
-                        tokenInfo[1] = i;
-                    }
+                    tokenInfo[0] = TOKEN_COMMA;
+                    tokenInfo[1] = i;
                     return true;
                 }
-                if (!searchForQuoteOnly && c == '\n')
+                if (!insideQuotedValue && c == '\n')
                 {
-                    if (tokenInfo != null)
-                    {
-                        tokenInfo[0] = TOKEN_LF;
-                        tokenInfo[1] = i;
-                    }
+                    tokenInfo[0] = TOKEN_LF;
+                    tokenInfo[1] = i;
                     return true;
                 }
-                if (!searchForQuoteOnly && c == '\r')
+                if (!insideQuotedValue && c == '\r')
                 {
-                    if (tokenInfo != null)
+                    if (i + 1 < csv.Length && csv[i + 1] == '\n')
                     {
-                        if (i + 1 < csv.Length && csv[i + 1] == '\n')
-                        {
-                            tokenInfo[0] = TOKEN_CRLF;
-                        }
-                        else
-                        {
-                            tokenInfo[0] = TOKEN_CR;
-                        }
-                        tokenInfo[1] = i;
+                        tokenInfo[0] = TOKEN_CRLF;
                     }
+                    else
+                    {
+                        tokenInfo[0] = TOKEN_CR;
+                    }
+                    tokenInfo[1] = i;
                     return true;
                 }
-                if (searchForQuote && c == '"')
+                if (insideQuotedValue && c == '"')
                 {
-                    if (searchForQuoteOnly && i + 1 < csv.Length &&
-                        csv[i + 1] == '"')
+                    if (i + 1 < csv.Length && csv[i + 1] == '"')
                     {
                         // skip quote pair.
                         i++;
                     }
                     else
                     {
-                        if (tokenInfo != null)
-                        {
-                            tokenInfo[0] = TOKEN_QUOTE;
-                            tokenInfo[1] = i;
-                        }
+                        tokenInfo[0] = TOKEN_QUOTE;
+                        tokenInfo[1] = i;
                         return true;
                     }
                 }
@@ -80,6 +84,12 @@ namespace Kabomu.Common
             return false;
         }
 
+        /// <summary>
+        /// Parses a CSV string.
+        /// </summary>
+        /// <param name="csv">the csv string to parse.</param>
+        /// <returns>CSV parse results as a list of rows, in which each row is represented as a list of values
+        /// corresponding to the row's columns.</returns>
         public static List<List<string>> Deserialize(string csv)
         {
             var parsedCsv = new List<List<string>>();
@@ -107,7 +117,7 @@ namespace Kabomu.Common
                     tokenType = TOKEN_QUOTE;
                     // locate ending quote, while skipping over
                     // double occurences of quotes.
-                    if (!LocateNextToken(csv, nextValueStartIdx + 1, true, true, tokenInfo))
+                    if (!LocateNextToken(csv, nextValueStartIdx + 1, true, tokenInfo))
                     {
                         throw CreateCsvParseError(parsedCsv.Count, currentRow.Count,
                             "ending double quote not found", null);
@@ -116,7 +126,7 @@ namespace Kabomu.Common
                 }
                 else
                 {
-                    LocateNextToken(csv, nextValueStartIdx, false, false, tokenInfo);
+                    LocateNextToken(csv, nextValueStartIdx, false, tokenInfo);
                     tokenType = tokenInfo[0];
                     if (tokenType == TOKEN_COMMA)
                     {
@@ -134,7 +144,7 @@ namespace Kabomu.Common
                         tokenIsNewline = true;
                         newlineLen = 2;
                     }
-                    else if (tokenType == TOKEN_EOF)
+                    else if (tokenType == TOKEN_EOI)
                     {
                         nextValueEndIdx = csv.Length;
                     }
@@ -245,6 +255,12 @@ namespace Kabomu.Common
                 row + 1, column + 1, errorMessage ?? ""), innerException);
         }
 
+        /// <summary>
+        /// Generates a CSV string.
+        /// </summary>
+        /// <param name="rows">Data for CSV generation. Each row is a list whose entries will be treated as the values of
+        /// columns in the row. Also no row is treated specially.</param>
+        /// <returns>CSV string corresponding to rows</returns>
         public static string Serialize(List<List<string>> rows)
         {
             var csvBuilder = new StringBuilder();
@@ -265,21 +281,32 @@ namespace Kabomu.Common
             return csvBuilder.ToString();
         }
 
+        /// <summary>
+        /// Escapes a CSV value. Note that empty strings are always encoded as two double quotes.
+        /// </summary>
+        /// <param name="raw">CSV value to escape.</param>
+        /// <returns>Escaped CSV value.</returns>
         public static string EscapeValue(string raw)
         {
-            if (!LocateNextToken(raw, 0, true, false, null))
+            if (!DoesValueContainSpecialCharacters(raw))
             {
                 // escape empty strings with double quotes to resolve ambiguity
-                // of empty rows and singleton containing row serializing to the same
-                // CSV output.
+                // between an empty row and a row containing an empty string - otherwise both
+                // serialize to the same CSV output.
                 return raw == "" ? "\"\"" : raw;
             }
             return '"' + raw.Replace("\"", "\"\"") + '"';
         }
 
+        /// <summary>
+        /// Reverses the escaping of a CSV value. Note that empty strings are expected to be encoded as two double quotes.
+        /// </summary>
+        /// <param name="escaped">CSV escaped value.</param>
+        /// <returns>CSV value which equals escaped argument when escaped.</returns>
+        /// <exception cref="T:System.ArgumentException">The <paramref name="escaped"/> argument is an invalid escaped value.</exception>
         public static string UnescapeValue(string escaped)
         {
-            if (!LocateNextToken(escaped, 0, true, false, null))
+            if (!DoesValueContainSpecialCharacters(escaped))
             {
                 if (escaped == "")
                 {
@@ -306,6 +333,18 @@ namespace Kabomu.Common
                 }
             }
             return unescaped.ToString();
+        }
+
+        private static bool DoesValueContainSpecialCharacters(string s)
+        {
+            foreach (var c in s)
+            {
+                if (c == ',' || c == '"' || c == '\r' || c == '\n')
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }
