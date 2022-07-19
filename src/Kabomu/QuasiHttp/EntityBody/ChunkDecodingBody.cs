@@ -92,7 +92,7 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
-            if (!ByteUtils.IsValidMessagePayload(data, offset, bytesToRead))
+            if (!ByteUtils.IsValidByteBufferSlice(data, offset, bytesToRead))
             {
                 throw new ArgumentException("invalid destination buffer");
             }

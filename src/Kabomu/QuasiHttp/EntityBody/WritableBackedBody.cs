@@ -28,7 +28,7 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
-            if (!ByteUtils.IsValidMessagePayload(data, offset, bytesToRead))
+            if (!ByteUtils.IsValidByteBufferSlice(data, offset, bytesToRead))
             {
                 throw new ArgumentException("invalid destination buffer");
             }
@@ -77,7 +77,7 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         private async Task WritePossiblyLastBytes(bool isLastBytes, byte[] data, int offset, int length)
         {
-            if (!ByteUtils.IsValidMessagePayload(data, offset, length))
+            if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
                 throw new ArgumentException("invalid source buffer");
             }

@@ -14,7 +14,7 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         public ByteBufferBody(byte[] data, int offset, int length, string contentType)
         {
-            if (!ByteUtils.IsValidMessagePayload(data, offset, length))
+            if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
                 throw new ArgumentException("invalid source buffer");
             }
@@ -33,7 +33,7 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
-            if (!ByteUtils.IsValidMessagePayload(data, offset, length))
+            if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
                 throw new ArgumentException("invalid destination buffer");
             }
