@@ -64,7 +64,6 @@ namespace Kabomu.Tests.Common
         {
             return new List<object[]>
             {
-                new object[]{ "" },
                 new object[]{ "\"" },
                 new object[]{ "d\"" },
                 new object[]{ "\"\"\"" },
