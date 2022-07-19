@@ -124,13 +124,12 @@ namespace Kabomu.QuasiHttp
 
             var transfer = new ReceiveTransferInternal
             {
-                TransferCancellationHandle = new CancellationTokenSource(),
                 CancellationTcs = new TaskCompletionSource<object>(
                     TaskCreationOptions.RunContinuationsAsynchronously)
             };
 
             IMutexApi transferMutex = await ProtocolUtilsInternal.DetermineEffectiveMutexApi(
-                connectionAllocationResponse.ProcessingMutexApi, MutexApiFactory, null);
+                connectionAllocationResponse.ProcessingMutexApi, MutexApiFactory);
 
             Task workTask;
             using (await MutexApi.Synchronize())
@@ -241,7 +240,6 @@ namespace Kabomu.QuasiHttp
 
         private async Task DisableTransfer(ReceiveTransferInternal transfer, Exception cancellationError)
         {
-            transfer.TransferCancellationHandle.Cancel();
             TimerApi?.ClearTimeout(transfer.TimeoutId);
             transfer.IsAborted = true;
             if (cancellationError != null)

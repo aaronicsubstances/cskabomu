@@ -119,8 +119,7 @@ namespace Kabomu.QuasiHttp.Transport
                 serverEndpoint, clientEndpoint);
             var processingOptions = new DefaultQuasiHttpProcessingOptions
             {
-                ProcessingMutexApi = serverSideMutexApi,
-                Environment = environment
+                RequestEnvironment = environment
             };
             var response = await destApp.ProcessRequest(request, processingOptions);
             return response;

@@ -95,10 +95,10 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             var expectedMutex = new LockBasedMutexApi();
             var app = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = (req, opt) =>
+                ProcessRequestCallback = (req, env) =>
                 {
                     Assert.Equal(expectedReq, req);
-                    Assert.Equal(expectedMutex, opt.ProcessingMutexApi);
+                    Assert.Equal(new Dictionary<string, object>(), env.RequestEnvironment);
                     return Task.FromResult<IQuasiHttpResponse>(expectedRes);
                 }
             };

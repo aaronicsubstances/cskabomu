@@ -7,7 +7,8 @@ namespace Kabomu.QuasiHttp
 {
     public interface IQuasiHttpProcessingOptions
     {
-        IDictionary<string, object> Environment { get; }
-        IMutexApi ProcessingMutexApi { get; }
+        int OverallReqRespTimeoutMillis { get; set; }
+        int MaxChunkSize { get; set; }
+        IDictionary<string, object> RequestEnvironment { get; set; }
     }
 }
