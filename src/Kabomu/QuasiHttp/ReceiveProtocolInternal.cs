@@ -117,11 +117,7 @@ namespace Kabomu.QuasiHttp
                     }
                 }
                 _requestBody = request.Body;
-                var processingOptions = new DefaultQuasiHttpProcessingOptions
-                {
-                    RequestEnvironment = RequestEnvironment ?? new Dictionary<string, object>()
-                };
-                appTask = Application.ProcessRequest(request, processingOptions);
+                appTask = Application.ProcessRequest(request, RequestEnvironment ?? new Dictionary<string, object>());
             }
 
             var response = await appTask;

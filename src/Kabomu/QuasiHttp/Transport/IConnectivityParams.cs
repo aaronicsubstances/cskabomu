@@ -5,10 +5,9 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp.Transport
 {
-    public interface IConnectionAllocationRequest
+    public interface IConnectivityParams
     {
         object RemoteEndpoint { get; }
-        IDictionary<string, object> ConnectivityParameters { get; }
-        IMutexApi ProcessingMutexApi { get; }
+        IDictionary<string, object> ExtraParams { get; }
     }
 }

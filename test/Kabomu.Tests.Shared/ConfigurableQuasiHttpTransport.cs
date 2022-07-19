@@ -10,8 +10,8 @@ namespace Kabomu.Tests.Shared
 {
     public class ConfigurableQuasiHttpTransport : IQuasiHttpServerTransport, IQuasiHttpClientTransport, IQuasiHttpTransportBypass
     {
-        public Func<IQuasiHttpRequest, IConnectionAllocationRequest, Task<IQuasiHttpResponse>> ProcessSendRequestCallback { get; set; }
-        public Func<IConnectionAllocationRequest, Task<object>> AllocateConnectionCallback { get; set; }
+        public Func<IQuasiHttpRequest, IConnectivityParams, Task<IQuasiHttpResponse>> ProcessSendRequestCallback { get; set; }
+        public Func<IConnectivityParams, Task<IConnectionAllocationResponse>> AllocateConnectionCallback { get; set; }
         public Func<object, Task> ReleaseConnectionCallback { get; set; }
         public Func<object, byte[], int, int, Task<int>> ReadBytesCallback { get; set; }
         public Func<object, byte[], int, int, Task> WriteBytesCallback { get; set; }
@@ -22,14 +22,14 @@ namespace Kabomu.Tests.Shared
         public IMutexApi MutexApi { get; set; }
 
         public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
-            IConnectionAllocationRequest connectionAllocationInfo)
+            IConnectivityParams connectivityParams)
         {
-            return ProcessSendRequestCallback.Invoke(request, connectionAllocationInfo);
+            return ProcessSendRequestCallback.Invoke(request, connectivityParams);
         }
 
-        public Task<object> AllocateConnection(IConnectionAllocationRequest connectionAllocationRequest)
+        public Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)
         {
-            return AllocateConnectionCallback.Invoke(connectionAllocationRequest);
+            return AllocateConnectionCallback.Invoke(connectivityParams);
         }
 
         public Task ReleaseConnection(object connection)

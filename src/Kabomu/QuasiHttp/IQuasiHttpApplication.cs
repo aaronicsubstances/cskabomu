@@ -7,6 +7,6 @@ namespace Kabomu.QuasiHttp
 {
     public interface IQuasiHttpApplication
     {
-        Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options);
+        Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment);
     }
 }

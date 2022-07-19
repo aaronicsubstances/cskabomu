@@ -8,6 +8,6 @@ namespace Kabomu.QuasiHttp.Transport
     public interface IQuasiHttpTransportBypass
     {
         Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
-               IConnectionAllocationRequest connectionAllocationInfo);
+               IConnectivityParams connectivityParams);
     }
 }

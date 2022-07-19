@@ -43,7 +43,7 @@ namespace Kabomu.QuasiHttp.Transport
         }
 
         public async Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,
-            IConnectionAllocationRequest connectionAllocationInfo, IQuasiHttpRequest request)
+            IConnectivityParams connectionAllocationInfo, IQuasiHttpRequest request)
         {
             var serverEndpoint = connectionAllocationInfo?.RemoteEndpoint;
             if (serverEndpoint == null)
@@ -65,15 +65,14 @@ namespace Kabomu.QuasiHttp.Transport
                 server = _servers[serverEndpoint];
             }
 
-            var response = await server.ProcessDirectSendRequest(serverEndpoint, clientEndpoint, 
-                connectionAllocationInfo.ProcessingMutexApi, request);
+            var response = await server.ProcessDirectSendRequest(serverEndpoint, clientEndpoint, request);
             return response;
         }
 
-        public async Task<object> AllocateConnection(object clientEndpoint,
-            IConnectionAllocationRequest connectionRequest)
+        public async Task<IConnectionAllocationResponse> AllocateConnection(object clientEndpoint,
+            IConnectivityParams connectivityParams)
         {
-            var serverEndpoint = connectionRequest?.RemoteEndpoint;
+            var serverEndpoint = connectivityParams?.RemoteEndpoint;
             if (serverEndpoint == null)
             {
                 throw new ArgumentException("null server endpoint");
@@ -86,12 +85,11 @@ namespace Kabomu.QuasiHttp.Transport
                 {
                     throw new MissingDependencyException("missing server for given endpoint: " + serverEndpoint);
                 }
-                server = _servers[connectionRequest.RemoteEndpoint];
+                server = _servers[connectivityParams.RemoteEndpoint];
             }
 
-            var connection = await server.CreateConnectionForClient(serverEndpoint, clientEndpoint,
-                connectionRequest.ProcessingMutexApi);
-            return connection;
+            var connectionAllocationResponse = await server.CreateConnectionForClient(serverEndpoint, clientEndpoint);
+            return connectionAllocationResponse;
         }
     }
 }

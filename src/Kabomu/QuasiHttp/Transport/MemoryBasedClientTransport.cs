@@ -16,24 +16,24 @@ namespace Kabomu.QuasiHttp.Transport
         public IMemoryBasedTransportHub Hub { get; set; }
 
         public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
-            IConnectionAllocationRequest connectionAllocationInfo)
+            IConnectivityParams connectivityParams)
         {
             var hub = Hub;
             if (hub == null)
             {
                 throw new MissingDependencyException("transport hub");
             }
-            return hub.ProcessSendRequest(LocalEndpoint, connectionAllocationInfo, request);
+            return hub.ProcessSendRequest(LocalEndpoint, connectivityParams, request);
         }
 
-        public Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest)
+        public Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)
         {
             var hub = Hub;
             if (hub == null)
             {
                 throw new MissingDependencyException("transport hub");
             }
-            return hub.AllocateConnection(LocalEndpoint, connectionRequest);
+            return hub.AllocateConnection(LocalEndpoint, connectivityParams);
         }
 
         public Task ReleaseConnection(object connection)
