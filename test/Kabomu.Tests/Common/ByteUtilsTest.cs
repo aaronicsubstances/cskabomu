@@ -10,14 +10,14 @@ namespace Kabomu.Tests.Common
     public class ByteUtilsTest
     {
         [Theory]
-        [MemberData(nameof(CreateTestIsValidMessagePayloadData))]
-        public void TestIsValidMessagePayload(byte[] data, int offset, int length, bool expected)
+        [MemberData(nameof(CreateTestIsValidByteBufferSliceData))]
+        public void TestIsValidByteBufferSlice(byte[] data, int offset, int length, bool expected)
         {
-            bool actual = ByteUtils.IsValidMessagePayload(data, offset, length);
+            bool actual = ByteUtils.IsValidByteBufferSlice(data, offset, length);
             Assert.Equal(expected, actual);
         }
 
-        public static List<object[]> CreateTestIsValidMessagePayloadData()
+        public static List<object[]> CreateTestIsValidByteBufferSliceData()
         {
             return new List<object[]>
             {
@@ -90,6 +90,7 @@ namespace Kabomu.Tests.Common
             return new List<object[]>
             {
                 new object[]{ new byte[] { }, 0, 0, "" },
+                new object[]{ new byte[] { 13 }, 0, 1, "0d" },
                 new object[]{ new byte[] { 0xFF }, 0, 1, "ff" },
                 new object[]{ new byte[] { 0, 0x68, 0x65, 0x6c }, 0, 4,
                     "0068656c" },
@@ -113,6 +114,8 @@ namespace Kabomu.Tests.Common
             return new List<object[]>
             {
                 new object[]{ "", new byte[] { } },
+                new object[]{ "d", new byte[] { 13 } },
+                new object[]{ "0d", new byte[] { 13 } },
                 new object[]{ "ff", new byte[] { 0xFF } },
                 new object[]{ "FF", new byte[] { 0xFF } },
                 new object[]{ "0068656c", new byte[] { 0, 0x68, 0x65, 0x6c } },
@@ -124,7 +127,7 @@ namespace Kabomu.Tests.Common
         [Fact]
         public void TestConvertHexToBytesForError()
         {
-            Assert.ThrowsAny<Exception>(() => ByteUtils.ConvertHexToBytes("d"));
+            Assert.ThrowsAny<Exception>(() => ByteUtils.ConvertHexToBytes("g"));
         }
 
         [Theory]
@@ -151,6 +154,14 @@ namespace Kabomu.Tests.Common
                 new object[]{ 72_057_594_037_927_935, new byte[] { 8, 2, 1, 0, 0, 0, 1 },
                     0, 7, new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff } }
             };
+        }
+
+        [Fact]
+        public void TestSerializeUpToInt64BigEndianForErrors()
+        {
+            Assert.Throws<ArgumentException>(() => ByteUtils.SerializeUpToInt64BigEndian(1, new byte[2], -1, 0));
+            Assert.Throws<ArgumentException>(() => ByteUtils.SerializeUpToInt64BigEndian(2, new byte[2], 0, -1));
+            Assert.Throws<ArgumentException>(() => ByteUtils.SerializeUpToInt64BigEndian(3, new byte[20], 0, 10));
         }
 
         [Theory]
@@ -248,6 +259,14 @@ namespace Kabomu.Tests.Common
                 new object[]{ new byte[] { 8, 2, 0xff, 0xff, 0xff, 0xff, 1 }, 2, 4, 4_294_967_295 },
                 new object[]{ new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }, 0, 7, 72_057_594_037_927_935 }
             };
+        }
+
+        [Fact]
+        public void TestDeserializeUpToInt64BigEndianForErrors()
+        {
+            Assert.Throws<ArgumentException>(() => ByteUtils.DeserializeUpToInt64BigEndian(new byte[2], -1, 0));
+            Assert.Throws<ArgumentException>(() => ByteUtils.DeserializeUpToInt64BigEndian(new byte[2], 0, -1));
+            Assert.Throws<ArgumentException>(() => ByteUtils.DeserializeUpToInt64BigEndian(new byte[20], 0, 10));
         }
 
         [Theory]
@@ -394,6 +413,31 @@ namespace Kabomu.Tests.Common
             testData.Add(new object[] { slices, expected });
 
             return testData;
+        }
+
+        [Fact]
+        public void TestCalculateSizeOfSlicesForErrors()
+        {
+            Assert.Throws<ArgumentException>(() =>
+            {
+                var slices = new ByteBufferSlice[]
+                {
+                    new ByteBufferSlice(),
+                    null
+                };
+                ByteUtils.CalculateSizeOfSlices(slices);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                var slices = new ByteBufferSlice[]
+                {
+                    new ByteBufferSlice
+                    {
+                        Length = -1
+                    }
+                };
+                ByteUtils.CalculateSizeOfSlices(slices);
+            });
         }
     }
 }

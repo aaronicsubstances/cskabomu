@@ -231,7 +231,7 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 throw new ArgumentException("null connection");
             }
-            if (!ByteUtils.IsValidMessagePayload(data, offset, length))
+            if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
                 throw new ArgumentException("invalid payload");
             }
@@ -252,7 +252,7 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 throw new ArgumentException("null connection");
             }
-            if (!ByteUtils.IsValidMessagePayload(data, offset, length))
+            if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
                 throw new ArgumentException("invalid payload");
             }
