@@ -550,22 +550,5 @@ namespace Kabomu.Tests.Common
             // assert.
             Assert.Equal(expectedStreamContents, destStream.ToArray());
         }
-
-        [Fact]
-        public async Task TestWriteByteSlicesForArgumentErrors()
-        {
-            await Assert.ThrowsAsync<ArgumentException>(() =>
-            {
-                return TransportUtils.WriteByteSlices(null, null, new ByteBufferSlice[0]);
-            });
-            await Assert.ThrowsAsync<ArgumentException>(() =>
-            {
-                return TransportUtils.WriteByteSlices(new ConfigurableQuasiHttpTransport(), null, null);
-            });
-            await Assert.ThrowsAnyAsync<Exception>(() =>
-            {
-                return TransportUtils.WriteByteSlices(new ConfigurableQuasiHttpTransport(), null, new ByteBufferSlice[] { null });
-            });
-        }
     }
 }
