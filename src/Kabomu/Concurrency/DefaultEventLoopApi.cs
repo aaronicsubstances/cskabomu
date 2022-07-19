@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Kabomu.Concurrency
 {
     /// <summary>
-    /// Provides implementation of event loop that runs on the system thread pool, and runs
+    /// Provides default implementation of event loop api that runs on the system thread pool, and runs
     /// all callbacks under mutual exclusion.
     /// </summary>
     public class DefaultEventLoopApi : IEventLoopApi
@@ -18,19 +18,35 @@ namespace Kabomu.Concurrency
         private readonly Action<object> UnwrapAndRunExclusivelyCallback;
         private readonly LimitedConcurrencyLevelTaskSchedulerInternal _throttledTaskScheduler;
 
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
         public DefaultEventLoopApi()
         {
             UnwrapAndRunExclusivelyCallback = UnwrapAndRunExclusively;
             _throttledTaskScheduler = new LimitedConcurrencyLevelTaskSchedulerInternal(1);
         }
 
+        /// <summary>
+        /// Return true if and only if current thread is the one which was picked for the latest execution of a 
+        /// callback, AND the aftermath of the execution has remained synchronous until this property was caled.
+        /// </summary>
+        /// <remarks>
+        /// This class uses the CLR thread pool, and so even if true is returned for current thread, false will be 
+        /// returned after an async operation is started.
+        /// </remarks>
         public bool IsInterimEventLoopThread => Thread.CurrentThread == _postCallbackExecutionThread;
 
+        /// <summary>
+        /// Runs a callback in a similar way to <see cref="SetImmediate(Func{Task})"/>.
+        /// </summary>
+        /// <param name="cb">callback to run under mutual exclusion</param>
+        /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>
         public void RunExclusively(Action cb)
         {
             if (cb == null)
             {
-                throw new ArgumentException("null cb");
+                throw new ArgumentNullException(nameof(cb));
             }
             // try to reduce garbage collection by not reusing SetImmediate.
             // also let TaskScheduler.UnobservedTaskException handle any uncaught task exceptions.
@@ -52,6 +68,14 @@ namespace Kabomu.Concurrency
             }
         }
 
+        /// <summary>
+        /// Schedules a callback to execute after those currently awaiting execution if not cancelled.
+        /// </summary>
+        /// <param name="cb">the callback to execute soon</param>
+        /// <returns>Pair of a task which can be used to wait for the execution to complete, and an object
+        /// which can be passed to <see cref="ClearImmediate"/> to cancel the execution and cause 
+        /// the returned task to never complete.</returns>
+        /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>
         public Tuple<Task, object> SetImmediate(Func<Task> cb)
         {
             return SetImmediate(new CancellationTokenSource(), cb);
@@ -106,6 +130,16 @@ namespace Kabomu.Concurrency
             }
         }
 
+        /// <summary>
+        /// Schedules a callback to execute after a given time period if not cancelled.
+        /// </summary>
+        /// <param name="millis">wait time period before execution in milliseconds.</param>
+        /// <param name="cb">the callback to execute after some time</param>
+        /// <returns>Pair of a task which can be used to wait for the execution to complete, and an object
+        /// which can be passed to <see cref="ClearTimeout"/> to cancel the execution and cause 
+        /// the returned task to never complete.</returns>
+        /// <exception cref="T:System.ArgumentException">The <paramref name="millis"/> argument is negative.</exception>
+        /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>
         public Tuple<Task, object> SetTimeout(int millis, Func<Task> cb)
         {
             if (millis < 0)
@@ -114,7 +148,7 @@ namespace Kabomu.Concurrency
             }
             if (cb == null)
             {
-                throw new ArgumentException("null cb");
+                throw new ArgumentNullException(nameof(cb));
             }
             var cancellationHandle = new CancellationTokenSource();
             var task = Task.Delay(millis, cancellationHandle.Token).ContinueWith(t =>
@@ -187,6 +221,12 @@ namespace Kabomu.Concurrency
             }
         }
 
+        /// <summary>
+        /// Used to cancel the execution of a callback scheduled with <see cref="SetImmediate(Func{Task})"/>.
+        /// </summary>
+        /// <param name="immediateHandle">cancellation handle. Should be the second item in the pair
+        /// returned by <see cref="SetImmediate(Func{Task})"/>. No exception is thrown if handle is invalid or
+        /// callback execution has already been cancelled.</param>
         public void ClearImmediate(object immediateHandle)
         {
             if (immediateHandle is SetImmediateCancellationHandleWrapper w)
@@ -195,6 +235,12 @@ namespace Kabomu.Concurrency
             }
         }
 
+        /// <summary>
+        /// Used to cancel the execution of a callback scheduled with <see cref="SetTimeout"/>.
+        /// </summary>
+        /// <param name="timeoutHandle">cancellation handle. Should be the second item in the pair
+        /// returned by <see cref="SetTimeout"/>. No exception is thrown if handle is invalid or
+        /// callback execution has already been cancelled.</param>
         public void ClearTimeout(object timeoutHandle)
         {
             if (timeoutHandle is SetTimeoutCancellationHandleWrapper w)

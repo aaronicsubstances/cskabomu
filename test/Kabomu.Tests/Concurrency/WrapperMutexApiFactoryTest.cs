@@ -21,7 +21,7 @@ namespace Kabomu.Tests.Concurrency
         [Fact]
         public void TestCreateForErrors()
         {
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
                 new WrapperMutexApiFactory(null));
         }
     }
