@@ -12,7 +12,6 @@ namespace Kabomu.Common
     /// <list type="bullet">
     /// <item>the character for separating columns is the comma</item>
     /// <item>the character for escaping commas and newlines is the double quote.</item>
-    /// <item>there is the caveat that empty strings are always encoded as two double quotes</item>
     /// </list>
     /// </remarks>
     public static class CsvUtils
@@ -29,7 +28,7 @@ namespace Kabomu.Common
         /// </summary>
         /// <param name="csv">CSV string to lex</param>
         /// <param name="start">the position in the CSV source string from which to search for next token</param>
-        /// <param name="insideQuotedValue">provides context from tokenizer function on whether parsing is currently in the midst of
+        /// <param name="insideQuotedValue">provides context from deserializing function on whether parsing is currently in the midst of
         /// a quoted value</param>
         /// <param name="tokenInfo">Required 2-element array which will be filled with the token type and token position.</param>
         /// <returns>true if a token was found; false if end of input was reached.</returns>
@@ -282,7 +281,7 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Escapes a CSV value. Note that empty strings are always encoded as two double quotes.
+        /// Escapes a CSV value. Note that empty strings are always escaped as two double quotes.
         /// </summary>
         /// <param name="raw">CSV value to escape.</param>
         /// <returns>Escaped CSV value.</returns>
@@ -290,7 +289,7 @@ namespace Kabomu.Common
         {
             if (!DoesValueContainSpecialCharacters(raw))
             {
-                // escape empty strings with double quotes to resolve ambiguity
+                // escape empty strings with two double quotes to resolve ambiguity
                 // between an empty row and a row containing an empty string - otherwise both
                 // serialize to the same CSV output.
                 return raw == "" ? "\"\"" : raw;
@@ -299,7 +298,7 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Reverses the escaping of a CSV value. Note that empty strings are expected to be encoded as two double quotes.
+        /// Reverses the escaping of a CSV value.
         /// </summary>
         /// <param name="escaped">CSV escaped value.</param>
         /// <returns>CSV value which equals escaped argument when escaped.</returns>
@@ -308,10 +307,6 @@ namespace Kabomu.Common
         {
             if (!DoesValueContainSpecialCharacters(escaped))
             {
-                if (escaped == "")
-                {
-                    throw new ArgumentException("missing quotes for empty string");
-                }
                 return escaped;
             }
             if (escaped.Length < 2 || !escaped.StartsWith("\"") || !escaped.EndsWith("\""))
