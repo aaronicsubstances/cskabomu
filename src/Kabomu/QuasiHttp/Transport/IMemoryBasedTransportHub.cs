@@ -16,8 +16,8 @@ namespace Kabomu.QuasiHttp.Transport
         /// <returns></returns>
         Task AddServer(object endpoint, IQuasiHttpServerTransport server);
         Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,
-            IConnectionAllocationRequest connectionAllocationInfo, IQuasiHttpRequest request);
-        Task<object> AllocateConnection(object clientEndpoint, 
-            IConnectionAllocationRequest connectionRequest);
+            IConnectivityParams connectivityParams, IQuasiHttpRequest request);
+        Task<IConnectionAllocationResponse> AllocateConnection(object clientEndpoint, 
+            IConnectivityParams connectivityParams);
     }
 }

@@ -54,15 +54,6 @@ namespace Kabomu.QuasiHttp
                     TaskCreationOptions.RunContinuationsAsynchronously)
             };
 
-            Task<IMutexApi> transferMutexTask;
-            using (await MutexApi.Synchronize())
-            {
-                transferMutexTask = ProtocolUtilsInternal.DetermineEffectiveMutexApi(
-                    null, MutexApiFactory);
-            }
-
-            var transferMutex = await transferMutexTask;
-
             Task<IQuasiHttpResponse> workTask;
             using (await MutexApi.Synchronize())
             {
@@ -72,23 +63,22 @@ namespace Kabomu.QuasiHttp
                     options, DefaultSendOptions, 0);
                 SetResponseTimeout(transfer, transferTimeoutMillis);
 
-                var requestEnvironment = ProtocolUtilsInternal.DetermineEffectiveRequestEnvironment(
+                var extraConnectivityParams = ProtocolUtilsInternal.DetermineEffectiveConnectivityParams(
                     options, DefaultSendOptions);
-                var connectionAllocationRequest = new DefaultConnectionAllocationRequest
+                var connectivityParams = new DefaultConnectivityParams
                 {
                     RemoteEndpoint = remoteEndpoint,
-                    ConnectivityParameters = requestEnvironment,
-                    ProcessingMutexApi = transferMutex
+                    ExtraParams = extraConnectivityParams
                 };
                 if (TransportBypass != null && (Transport == null || _randGen.NextDouble() < TransportBypassProbabilty))
                 {
-                    workTask = ProcessSendRequestDirectly(connectionAllocationRequest, transfer, request);
+                    workTask = ProcessSendRequestDirectly(connectivityParams, transfer, request);
                 }
                 else
                 {
                     int protocolMaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(
                         options, DefaultSendOptions, 0, TransportUtils.DefaultMaxChunkSize);
-                    workTask = AllocateConnectionAndSend(connectionAllocationRequest, transfer, request,
+                    workTask = AllocateConnectionAndSend(connectivityParams, transfer, request,
                         protocolMaxChunkSize);
                 }
             }
@@ -106,7 +96,7 @@ namespace Kabomu.QuasiHttp
         }
 
         private async Task<IQuasiHttpResponse> ProcessSendRequestDirectly(
-            IConnectionAllocationRequest connectionAllocationRequest,
+            IConnectivityParams connectivityParams,
             SendTransferInternal transfer, IQuasiHttpRequest request)
         {
             var transportBypass = TransportBypass;
@@ -114,7 +104,7 @@ namespace Kabomu.QuasiHttp
             {
                 throw new MissingDependencyException("transport bypass");
             }
-            IQuasiHttpResponse res = await transportBypass.ProcessSendRequest(request, connectionAllocationRequest);
+            IQuasiHttpResponse res = await transportBypass.ProcessSendRequest(request, connectivityParams);
 
             await AbortTransfer(transfer, null);
 
@@ -127,7 +117,7 @@ namespace Kabomu.QuasiHttp
         }
 
         private async Task<IQuasiHttpResponse> AllocateConnectionAndSend(
-            IConnectionAllocationRequest connectionAllocationRequest,
+            IConnectivityParams connectivityParams,
             SendTransferInternal transfer, IQuasiHttpRequest request, int protocolMaxChunkSize)
         {
             var transport = Transport;
@@ -135,7 +125,11 @@ namespace Kabomu.QuasiHttp
             {
                 throw new MissingDependencyException("transport");
             }
-            object connection = await transport.AllocateConnection(connectionAllocationRequest);
+
+            var mutexApiFactory = MutexApiFactory;
+            var connectionResponse = await transport.AllocateConnection(connectivityParams);
+            var transferMutex = await ProtocolUtilsInternal.DetermineEffectiveMutexApi(
+                connectionResponse?.ProcessingMutexApi, mutexApiFactory);
 
             Task<IQuasiHttpResponse> resTask;
             using (await MutexApi.Synchronize())
@@ -145,7 +139,7 @@ namespace Kabomu.QuasiHttp
                     return null;
                 }
 
-                if (connection == null)
+                if (connectionResponse?.Connection == null)
                 {
                     throw new Exception("no connection created");
                 }
@@ -154,8 +148,8 @@ namespace Kabomu.QuasiHttp
                 {
                     Parent = transfer,
                     Transport = transport,
-                    Connection = connection,
-                    MutexApi = connectionAllocationRequest.ProcessingMutexApi,
+                    Connection = connectionResponse.Connection,
+                    MutexApi = transferMutex,
                     MaxChunkSize = protocolMaxChunkSize,
                     AbortCallback = AbortTransferCallback
                 };

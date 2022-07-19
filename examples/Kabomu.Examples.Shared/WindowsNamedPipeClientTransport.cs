@@ -9,12 +9,16 @@ namespace Kabomu.Examples.Shared
 {
     public class WindowsNamedPipeClientTransport : IQuasiHttpClientTransport
     {
-        public async Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest)
+        public async Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)
         {
-            var path = (string)connectionRequest.RemoteEndpoint;
+            var path = (string)connectivityParams.RemoteEndpoint;
             var pipeClient = new NamedPipeClientStream(".", path, PipeDirection.InOut, PipeOptions.Asynchronous);
             await pipeClient.ConnectAsync();
-            return pipeClient;
+            var response = new DefaultConnectionAllocationResponse
+            {
+                Connection = pipeClient
+            };
+            return response;
         }
 
         public Task ReleaseConnection(object connection)

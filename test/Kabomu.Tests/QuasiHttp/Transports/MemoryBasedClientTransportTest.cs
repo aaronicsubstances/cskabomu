@@ -23,34 +23,34 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             instance.LocalEndpoint = "Lome";
             hub.ExpectedClientEndpoint = instance.LocalEndpoint;
             hub.ExpectedRequest = new DefaultQuasiHttpRequest();
-            hub.ExpectedConnectionAllocationRequest = new DefaultConnectionAllocationRequest();
+            hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
             hub.ProcessSendRequestResult = new DefaultQuasiHttpResponse();
             var directSendResponse = await instance.ProcessSendRequest(hub.ExpectedRequest,
-                hub.ExpectedConnectionAllocationRequest);
+                hub.ExpectedConnectivityParams);
             Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
 
             instance.LocalEndpoint = "Accra";
             hub.ExpectedClientEndpoint = instance.LocalEndpoint;
             hub.ExpectedRequest = new DefaultQuasiHttpRequest();
-            hub.ExpectedConnectionAllocationRequest = null;
+            hub.ExpectedConnectivityParams = null;
             hub.ProcessSendRequestResult = null;
             directSendResponse = await instance.ProcessSendRequest(hub.ExpectedRequest,
-                hub.ExpectedConnectionAllocationRequest);
+                hub.ExpectedConnectivityParams);
             Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
 
             instance.LocalEndpoint = null;
             hub.ExpectedClientEndpoint = instance.LocalEndpoint;
             hub.ExpectedRequest = null;
-            hub.ExpectedConnectionAllocationRequest = new DefaultConnectionAllocationRequest();
+            hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
             hub.ProcessSendRequestResult = new DefaultQuasiHttpResponse();
             directSendResponse = await instance.ProcessSendRequest(hub.ExpectedRequest,
-                hub.ExpectedConnectionAllocationRequest);
+                hub.ExpectedConnectivityParams);
             Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
 
             instance.LocalEndpoint = "Abuja";
             hub.ExpectedClientEndpoint = instance.LocalEndpoint;
-            hub.ExpectedConnectionAllocationRequest = new DefaultConnectionAllocationRequest();
-            var connection = await instance.AllocateConnection(hub.ExpectedConnectionAllocationRequest);
+            hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
+            var connection = (await instance.AllocateConnection(hub.ExpectedConnectivityParams)).Connection;
             Assert.True(connection is MemoryBasedTransportConnectionInternal);
 
             // test for sequential read/write request processing.
@@ -134,8 +134,8 @@ namespace Kabomu.Tests.QuasiHttp.Transports
                 Hub = hub
             };
             hub.ExpectedClientEndpoint = localEndpoint;
-            hub.ExpectedConnectionAllocationRequest = new DefaultConnectionAllocationRequest();
-            var connection = await instance.AllocateConnection(hub.ExpectedConnectionAllocationRequest);
+            hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
+            var connection = (await instance.AllocateConnection(hub.ExpectedConnectivityParams)).Connection;
             Assert.True(connection is MemoryBasedTransportConnectionInternal);
 
             // test for interleaved read/write request processing.
@@ -244,7 +244,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
         {
             public IQuasiHttpResponse ProcessSendRequestResult { get; set; }
             public DefaultQuasiHttpRequest ExpectedRequest { get; set; }
-            public DefaultConnectionAllocationRequest ExpectedConnectionAllocationRequest { get;  set; }
+            public DefaultConnectivityParams ExpectedConnectivityParams { get;  set; }
             public object ExpectedClientEndpoint { get; set; }
 
             public Task AddServer(object endpoint, IQuasiHttpServerTransport server)
@@ -253,22 +253,25 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             }
 
             public Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,
-                IConnectionAllocationRequest connectionAllocationInfo, IQuasiHttpRequest request)
+                IConnectivityParams connectivityParams, IQuasiHttpRequest request)
             {
                 Assert.Equal(ExpectedClientEndpoint, clientEndpoint);
                 Assert.Equal(ExpectedRequest, request);
-                Assert.Equal(ExpectedConnectionAllocationRequest, connectionAllocationInfo);
+                Assert.Equal(ExpectedConnectivityParams, connectivityParams);
                 return Task.FromResult(ProcessSendRequestResult);
             }
 
-            public Task<object> AllocateConnection(object clientEndpoint,
-                IConnectionAllocationRequest connectionRequest)
+            public Task<IConnectionAllocationResponse> AllocateConnection(object clientEndpoint,
+                IConnectivityParams connectivityParams)
             {
                 Assert.Equal(ExpectedClientEndpoint, clientEndpoint);
-                Assert.Equal(ExpectedConnectionAllocationRequest, connectionRequest);
-                var connection = new MemoryBasedTransportConnectionInternal(null,
-                    connectionRequest?.ProcessingMutexApi);
-                return Task.FromResult<object>(connection);
+                Assert.Equal(ExpectedConnectivityParams, connectivityParams);
+                var connection = new MemoryBasedTransportConnectionInternal(null, null);
+                IConnectionAllocationResponse response = new DefaultConnectionAllocationResponse
+                {
+                    Connection = connection
+                };
+                return Task.FromResult(response);
             }
         }
     }

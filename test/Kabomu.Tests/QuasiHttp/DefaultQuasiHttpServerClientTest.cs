@@ -148,7 +148,7 @@ namespace Kabomu.Tests.QuasiHttp
             var cancellationHandle = new CancellationTokenSource();
             var transport = new ConfigurableQuasiHttpTransport
             {
-                AllocateConnectionCallback = async (connectionAllocationRequest) =>
+                AllocateConnectionCallback = async (connectivityParams) =>
                 {
                     await Task.Delay(200_000, cancellationHandle.Token);
                     return null;
@@ -226,9 +226,12 @@ namespace Kabomu.Tests.QuasiHttp
             var cancellationHandle = new CancellationTokenSource();
             var transport = new ConfigurableQuasiHttpTransport
             {
-                AllocateConnectionCallback = async (connectionAllocationRequest) =>
+                AllocateConnectionCallback = async (connectivityParams) =>
                 {
-                    return new object();
+                    return new DefaultConnectionAllocationResponse
+                    {
+                        Connection = new object()
+                    };
                 },
                 WriteBytesCallback = async (c, d, o, l) =>
                 {

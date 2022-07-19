@@ -100,13 +100,13 @@ namespace Kabomu.Tests.QuasiHttp
             instance.MaxChunkSize = maxChunkSize;
 
             IQuasiHttpRequest actualRequest = null;
-            IQuasiHttpProcessingOptions actualRequestEnvironment = null;
+            IDictionary<string, object> actualRequestEnvironment = null;
             instance.Application = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = async (req, options) =>
+                ProcessRequestCallback = async (req, env) =>
                 {
                     actualRequest = req;
-                    actualRequestEnvironment = options;
+                    actualRequestEnvironment = env;
                     return expectedResponse;
                 }
             };
@@ -129,7 +129,7 @@ namespace Kabomu.Tests.QuasiHttp
             Assert.Equal(instance.Parent, actualProtocolParentSeen);
             await ComparisonUtils.CompareRequests(maxChunkSize, request, actualRequest,
                 requestBodyBytes);
-            Assert.Equal(reqEnv ?? new Dictionary<string, object>(), actualRequestEnvironment.RequestEnvironment);
+            Assert.Equal(reqEnv ?? new Dictionary<string, object>(), actualRequestEnvironment);
             var actualRes = outputStream.ToArray();
             Assert.NotEmpty(actualRes);
             var actualResChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualRes, 0,

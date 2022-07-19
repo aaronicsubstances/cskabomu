@@ -11,13 +11,17 @@ namespace Kabomu.Examples.Shared
 {
     public class LocalhostTcpClientTransport : IQuasiHttpClientTransport
     {
-        public async Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest)
+        public async Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)
         {
-            int port = (int)connectionRequest.RemoteEndpoint;
+            int port = (int)connectivityParams.RemoteEndpoint;
             var tcpClient = new TcpClient();
             tcpClient.NoDelay = true;
             await tcpClient.ConnectAsync("localhost", port);
-            return tcpClient;
+            var response = new DefaultConnectionAllocationResponse
+            {
+                Connection = tcpClient
+            };
+            return response;
         }
 
         public Task ReleaseConnection(object connection)

@@ -54,10 +54,9 @@ namespace Kabomu.QuasiHttp.Transport
             }
         }
 
-        public async Task<object> CreateConnectionForClient(object serverEndpoint, object clientEndpoint,
-            IMutexApi clientMutex)
+        public async Task<IConnectionAllocationResponse> CreateConnectionForClient(object serverEndpoint, object clientEndpoint)
         {
-            Task<object> connectTask;
+            Task<IConnectionAllocationResponse> connectTask;
             Task resolveTask = null;
             using (await MutexApi.Synchronize())
             {
@@ -69,8 +68,7 @@ namespace Kabomu.QuasiHttp.Transport
                 {
                     ServerEndpoint = serverEndpoint,
                     ClientEndpoint = clientEndpoint,
-                    ClientMutex = clientMutex,
-                    Callback = new TaskCompletionSource<object>(
+                    Callback = new TaskCompletionSource<IConnectionAllocationResponse>(
                         TaskCreationOptions.RunContinuationsAsynchronously)
                 };
                 _clientConnectRequests.AddLast(connectRequest);
@@ -88,7 +86,7 @@ namespace Kabomu.QuasiHttp.Transport
         }
 
         public async Task<IQuasiHttpResponse> ProcessDirectSendRequest(object serverEndpoint, object clientEndpoint, 
-            IMutexApi processingMutexApi, IQuasiHttpRequest request)
+            IQuasiHttpRequest request)
         {
             if (request == null)
             {
@@ -110,22 +108,22 @@ namespace Kabomu.QuasiHttp.Transport
                     throw new MissingDependencyException("server application");
                 }
             }
-            IMutexApi serverSideMutexApi = processingMutexApi;
-            if (serverSideMutexApi == null && MutexApiFactory != null)
+            IMutexApi serverSideMutexApi = null;
+            if (MutexApiFactory != null)
             {
                 serverSideMutexApi = await MutexApiFactory.Create();
             }
-            var environment = CreateInitialEnvironmentForQuasiHttpProcessingOptions(
+            var environment = CreateRequestEnvironment(
                 serverEndpoint, clientEndpoint);
             var processingOptions = new DefaultQuasiHttpProcessingOptions
             {
                 RequestEnvironment = environment
             };
-            var response = await destApp.ProcessRequest(request, processingOptions);
+            var response = await destApp.ProcessRequest(request, environment);
             return response;
         }
 
-        private Dictionary<string, object> CreateInitialEnvironmentForQuasiHttpProcessingOptions(
+        private Dictionary<string, object> CreateRequestEnvironment(
             object serverEndpoint, object clientEndpoint)
         {
             // can later pass in server and client endpoint information.
@@ -182,26 +180,32 @@ namespace Kabomu.QuasiHttp.Transport
             _serverConnectRequest = null;
             _clientConnectRequests.RemoveFirst();
 
-            IMutexApi serverSideMutexApi = null;
+            IMutexApi serverSideMutexApi = null, clientSideMutexApi = null;
             if (MutexApiFactory != null)
             {
                 serverSideMutexApi = await MutexApiFactory.Create();
+                clientSideMutexApi = await MutexApiFactory.Create();
             }
             var connection = new MemoryBasedTransportConnectionInternal(
-                serverSideMutexApi, pendingClientConnectRequest.ClientMutex);
-            var environment = CreateInitialEnvironmentForQuasiHttpProcessingOptions(
+                serverSideMutexApi, clientSideMutexApi);
+            var requestEnvironment = CreateRequestEnvironment(
                 pendingClientConnectRequest.ServerEndpoint,
                 pendingClientConnectRequest.ClientEndpoint);
-            var connectionAllocationResponse = new DefaultConnectionAllocationResponse
+            var connectionAllocationResponseForServer = new DefaultConnectionAllocationResponse
             {
                 ProcessingMutexApi = serverSideMutexApi,
                 Connection = connection,
-                Environment = environment
+                Environment = requestEnvironment
+            };
+            var connectionAllocationResponseForClient = new DefaultConnectionAllocationResponse
+            {
+                ProcessingMutexApi = clientSideMutexApi,
+                Connection = connection,
             };
 
             // can later pass local and remote endpoint information in response environment.
-            pendingServerConnectRequest.Callback.SetResult(connectionAllocationResponse);
-            pendingClientConnectRequest.Callback.SetResult(connection);
+            pendingServerConnectRequest.Callback.SetResult(connectionAllocationResponseForServer);
+            pendingClientConnectRequest.Callback.SetResult(connectionAllocationResponseForClient);
         }
 
         public Task ReleaseConnection(object connection)
@@ -267,8 +271,7 @@ namespace Kabomu.QuasiHttp.Transport
         {
             public object ServerEndpoint { get; set; }
             public object ClientEndpoint { get; set; }
-            public IMutexApi ClientMutex { get; set; }
-            public TaskCompletionSource<object> Callback { get; set; }
+            public TaskCompletionSource<IConnectionAllocationResponse> Callback { get; set; }
         }
     }
 }

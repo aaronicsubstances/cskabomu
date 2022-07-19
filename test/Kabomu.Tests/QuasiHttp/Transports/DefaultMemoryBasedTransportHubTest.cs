@@ -19,7 +19,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             var instance = new DefaultMemoryBasedTransportHub();
             var server = new MemoryBasedServerTransport();
             var serverEndpoint = "addr0";
-            var validConnectionRequest = new DefaultConnectionAllocationRequest
+            var validConnectivityParams = new DefaultConnectivityParams
             {
                 RemoteEndpoint = serverEndpoint
             };
@@ -27,9 +27,9 @@ namespace Kabomu.Tests.QuasiHttp.Transports
 
             // test for errors if server is absent fom hub.
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.AllocateConnection("kl", validConnectionRequest));
+                instance.AllocateConnection("kl", validConnectivityParams));
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.ProcessSendRequest("kl", validConnectionRequest, qHttpRequest));
+                instance.ProcessSendRequest("kl", validConnectivityParams, qHttpRequest));
 
             await instance.AddServer(serverEndpoint, server);
             await Assert.ThrowsAsync<ArgumentException>(() =>
@@ -43,24 +43,24 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             await Assert.ThrowsAsync<ArgumentException>(() =>
                 instance.AllocateConnection("kl", null));
             await Assert.ThrowsAsync<ArgumentException>(() =>
-                instance.AllocateConnection("kl", new DefaultConnectionAllocationRequest()));
+                instance.AllocateConnection("kl", new DefaultConnectivityParams()));
             await Assert.ThrowsAsync<ArgumentException>(() =>
                 instance.ProcessSendRequest("kl", null, qHttpRequest));
             await Assert.ThrowsAsync<ArgumentException>(() =>
-                instance.ProcessSendRequest("kl", new DefaultConnectionAllocationRequest(), qHttpRequest));
+                instance.ProcessSendRequest("kl", new DefaultConnectivityParams(), qHttpRequest));
             await Assert.ThrowsAsync<ArgumentException>(() =>
-                instance.ProcessSendRequest("kl", validConnectionRequest, null));
+                instance.ProcessSendRequest("kl", validConnectivityParams, null));
 
             // test for errors if server is not started.
             await Assert.ThrowsAnyAsync<Exception>(() =>
-                instance.AllocateConnection("kl", validConnectionRequest));
+                instance.AllocateConnection("kl", validConnectivityParams));
             await Assert.ThrowsAnyAsync<Exception>(() =>
-                instance.ProcessSendRequest("kl", validConnectionRequest, qHttpRequest));
+                instance.ProcessSendRequest("kl", validConnectivityParams, qHttpRequest));
 
             // test for errors if application is not set after server is started.
             await server.Start();
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.ProcessSendRequest("te", validConnectionRequest, qHttpRequest));
+                instance.ProcessSendRequest("te", validConnectivityParams, qHttpRequest));
         }
 
         [Fact]
@@ -71,18 +71,18 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             var serverEndpoint = "127.1";
             await instance.AddServer(serverEndpoint, server);
             await server.Start();
-            var connectionAllocationRequest = new DefaultConnectionAllocationRequest
+            var connectivityParams = new DefaultConnectivityParams
             {
                 RemoteEndpoint = serverEndpoint
             };
-            var clientConnectTask = instance.AllocateConnection(null, connectionAllocationRequest);
+            var clientConnectTask = instance.AllocateConnection(null, connectivityParams);
             var serverConnectTask = server.ReceiveConnection();
             // use whenany before whenall to catch any task exceptions which may
             // cause another task to hang forever.
             await await Task.WhenAny(clientConnectTask, serverConnectTask);
             await Task.WhenAll(clientConnectTask, serverConnectTask);
             var actualConnectionResponse = await serverConnectTask;
-            var expectedConnection = await clientConnectTask;
+            var expectedConnection = (await clientConnectTask).Connection;
             Assert.Equal(expectedConnection, actualConnectionResponse.Connection);
         }
 
@@ -92,13 +92,12 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             var instance = new DefaultMemoryBasedTransportHub();
             var expectedReq = new DefaultQuasiHttpRequest();
             var expectedRes = new DefaultQuasiHttpResponse();
-            var expectedMutex = new LockBasedMutexApi();
             var app = new ConfigurableQuasiHttpApplication
             {
                 ProcessRequestCallback = (req, env) =>
                 {
                     Assert.Equal(expectedReq, req);
-                    Assert.Equal(new Dictionary<string, object>(), env.RequestEnvironment);
+                    Assert.Equal(new Dictionary<string, object>(), env);
                     return Task.FromResult<IQuasiHttpResponse>(expectedRes);
                 }
             };
@@ -109,12 +108,11 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             var serverEndpoint = "dea";
             await instance.AddServer(serverEndpoint, server);
             await server.Start();
-            var connectionAllocationInfo = new DefaultConnectionAllocationRequest
+            var connectivityParams = new DefaultConnectivityParams
             {
-                RemoteEndpoint = serverEndpoint,
-                ProcessingMutexApi = expectedMutex
+                RemoteEndpoint = serverEndpoint
             };
-            var response = await instance.ProcessSendRequest("cy", connectionAllocationInfo, expectedReq);
+            var response = await instance.ProcessSendRequest("cy", connectivityParams, expectedReq);
             Assert.Equal(expectedRes, response);
         }
     }

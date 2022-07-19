@@ -51,23 +51,23 @@ namespace Kabomu.QuasiHttp
             return  secondFallback > 0 ? secondFallback : defaultValue;
         }
 
-        public static IDictionary<string, object> DetermineEffectiveRequestEnvironment(
+        public static IDictionary<string, object> DetermineEffectiveConnectivityParams(
             IQuasiHttpSendOptions firstOptions,
             IQuasiHttpSendOptions fallbackOptions)
         {
             var dest = new Dictionary<string, object>();
             // since we want first options to overwrite fall back options,
             // set fall back options first.
-            if (fallbackOptions?.RequestEnvironment != null)
+            if (fallbackOptions?.ConnectivityParams != null)
             {
-                foreach (var item in fallbackOptions.RequestEnvironment)
+                foreach (var item in fallbackOptions.ConnectivityParams)
                 {
                     dest.Add(item.Key, item.Value);
                 }
             }
-            if (firstOptions?.RequestEnvironment != null)
+            if (firstOptions?.ConnectivityParams != null)
             {
-                foreach (var item in firstOptions.RequestEnvironment)
+                foreach (var item in firstOptions.ConnectivityParams)
                 {
                     if (dest.ContainsKey(item.Key))
                     {

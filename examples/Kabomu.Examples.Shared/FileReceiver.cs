@@ -1,5 +1,4 @@
-﻿using Kabomu.Common;
-using Kabomu.QuasiHttp;
+﻿using Kabomu.QuasiHttp;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -22,7 +21,7 @@ namespace Kabomu.Examples.Shared
             _uploadDirPath = uploadDirPath;
         }
 
-        public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options)
+        public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
         {
             var fileName = request.Headers["f"][0];
             LOG.Debug("Starting receipt of file {0} from {1}...", fileName, _remoteEndpoint);

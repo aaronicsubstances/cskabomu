@@ -47,7 +47,7 @@ namespace Http.FileServer
                     httpContext.Request.ContentType);
             }
             var quasiResponse = await _wrapped.ProcessRequest(quasiRequest,
-                new DefaultQuasiHttpProcessingOptions());
+                new Dictionary<string, object>());
             SetResponseStatusAndHeaders(quasiResponse, httpContext.Response);
             if (quasiResponse.Body != null)
             {

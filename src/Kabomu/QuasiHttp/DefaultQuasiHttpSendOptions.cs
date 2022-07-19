@@ -7,6 +7,6 @@ namespace Kabomu.QuasiHttp
     {
         public int OverallReqRespTimeoutMillis { get; set; }
         public int MaxChunkSize { get; set; }
-        public IDictionary<string, object> RequestEnvironment { get; set; }
+        public IDictionary<string, object> ConnectivityParams { get; set; }
     }
 }

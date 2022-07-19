@@ -22,7 +22,7 @@ namespace Kabomu.Examples.Shared
         }
 
         public async Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
-            IConnectionAllocationRequest connectionAllocationInfo)
+            IConnectivityParams connectionAllocationInfo)
         {
             var requestWrapper = new HttpRequestMessage
             {
@@ -42,10 +42,10 @@ namespace Kabomu.Examples.Shared
             }
             var authority = (string)connectionAllocationInfo.RemoteEndpoint;
             string scheme = null;
-            if (connectionAllocationInfo.ConnectivityParameters != null &&
-                connectionAllocationInfo.ConnectivityParameters.ContainsKey("scheme"))
+            if (connectionAllocationInfo.ExtraParams != null &&
+                connectionAllocationInfo.ExtraParams.ContainsKey("scheme"))
             {
-                scheme = (string)connectionAllocationInfo.ConnectivityParameters["scheme"];
+                scheme = (string)connectionAllocationInfo.ExtraParams["scheme"];
             }
             requestWrapper.RequestUri = new Uri($"{scheme ?? "http"}://{authority}{request.Path ?? ""}");
             if (request.Body != null)

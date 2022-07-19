@@ -157,15 +157,15 @@ namespace Kabomu.Tests.QuasiHttp
         }
 
         [Theory]
-        [MemberData(nameof(CreateTestDetermineEffectiveRequestEnvironmentData))]
-        public void TestDetermineEffectiveRequestEnvironment(IQuasiHttpSendOptions firstOptions,
+        [MemberData(nameof(CreateTestDetermineEffectiveConnectivityParamsData))]
+        public void TestDetermineEffectiveConnectivityParams(IQuasiHttpSendOptions firstOptions,
             IQuasiHttpSendOptions fallbackOptions, IDictionary<string, object> expected)
         {
-            var actual = ProtocolUtilsInternal.DetermineEffectiveRequestEnvironment(firstOptions, fallbackOptions);
+            var actual = ProtocolUtilsInternal.DetermineEffectiveConnectivityParams(firstOptions, fallbackOptions);
             Assert.Equal(expected, actual);
         }
 
-        public static List<object[]> CreateTestDetermineEffectiveRequestEnvironmentData()
+        public static List<object[]> CreateTestDetermineEffectiveConnectivityParamsData()
         {
             var testData = new List<object[]>();
 
@@ -176,7 +176,7 @@ namespace Kabomu.Tests.QuasiHttp
 
             firstOptions = new DefaultQuasiHttpSendOptions
             {
-                RequestEnvironment = new Dictionary<string, object>
+                ConnectivityParams = new Dictionary<string, object>
                 {
                     { "a", 2 }, { "b", 3 }
                 }
@@ -191,7 +191,7 @@ namespace Kabomu.Tests.QuasiHttp
             firstOptions = null;
             fallbackOptions = new DefaultQuasiHttpSendOptions
             {
-                RequestEnvironment = new Dictionary<string, object>
+                ConnectivityParams = new Dictionary<string, object>
                 {
                     { "a", 2 }, { "b", 3 }
                 }
@@ -204,14 +204,14 @@ namespace Kabomu.Tests.QuasiHttp
 
             firstOptions = new DefaultQuasiHttpSendOptions
             {
-                RequestEnvironment = new Dictionary<string, object>
+                ConnectivityParams = new Dictionary<string, object>
                 {
                     { "a", 2 }, { "b", 3 }
                 }
             };
             fallbackOptions = new DefaultQuasiHttpSendOptions
             {
-                RequestEnvironment = new Dictionary<string, object>
+                ConnectivityParams = new Dictionary<string, object>
                 {
                     { "c", 4 }, { "d", 3 }
                 }
@@ -225,14 +225,14 @@ namespace Kabomu.Tests.QuasiHttp
 
             firstOptions = new DefaultQuasiHttpSendOptions
             {
-                RequestEnvironment = new Dictionary<string, object>
+                ConnectivityParams = new Dictionary<string, object>
                 {
                     { "a", 2 }, { "b", 3 }
                 }
             };
             fallbackOptions = new DefaultQuasiHttpSendOptions
             {
-                RequestEnvironment = new Dictionary<string, object>
+                ConnectivityParams = new Dictionary<string, object>
                 {
                     { "a", 4 }, { "d", 3 }
                 }
@@ -245,14 +245,14 @@ namespace Kabomu.Tests.QuasiHttp
 
             firstOptions = new DefaultQuasiHttpSendOptions
             {
-                RequestEnvironment = new Dictionary<string, object>
+                ConnectivityParams = new Dictionary<string, object>
                 {
                     { "a", 2 }
                 }
             };
             fallbackOptions = new DefaultQuasiHttpSendOptions
             {
-                RequestEnvironment = new Dictionary<string, object>
+                ConnectivityParams = new Dictionary<string, object>
                 {
                     { "a", 4 }, { "d", 3 }
                 }

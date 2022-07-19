@@ -7,6 +7,6 @@ namespace Kabomu.QuasiHttp.Transport
 {
     public interface IQuasiHttpClientTransport : IQuasiHttpTransport
     {
-        Task<object> AllocateConnection(IConnectionAllocationRequest connectionRequest);
+        Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams);
     }
 }
