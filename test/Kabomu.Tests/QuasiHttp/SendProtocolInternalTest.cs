@@ -97,14 +97,21 @@ namespace Kabomu.Tests.QuasiHttp
             instance.Transport = transport;
             instance.Connection = connection;
             instance.MaxChunkSize = maxChunkSize;
-            bool abortCalled = false;
+            bool abortCalled = false, partialAbortCalled = false;
             SendTransferInternal actualProtocolParentSeen = null;
             instance.Parent = new SendTransferInternal();
-            instance.AbortCallback = (transfer, e) =>
+            instance.AbortCallback = (transfer, e, res) =>
             {
                 Assert.False(abortCalled);
                 actualProtocolParentSeen = transfer;
                 abortCalled = true;
+                return Task.CompletedTask;
+            };
+            instance.PartialAbortCallback = (transfer, res) =>
+            {
+                Assert.False(partialAbortCalled);
+                actualProtocolParentSeen = transfer;
+                partialAbortCalled = true;
                 return Task.CompletedTask;
             };
 
@@ -113,6 +120,7 @@ namespace Kabomu.Tests.QuasiHttp
 
             // assert.
             Assert.Equal(response.Body == null, abortCalled);
+            Assert.Equal(response.Body != null, partialAbortCalled);
             await ComparisonUtils.CompareResponses(maxChunkSize, response, actualResponse,
                 responseBodyBytes);
             Assert.True(abortCalled);

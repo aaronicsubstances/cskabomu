@@ -113,7 +113,7 @@ namespace Kabomu.Tests.QuasiHttp
             bool abortCalled = false;
             ReceiveTransferInternal actualProtocolParentSeen = null;
             instance.Parent = new ReceiveTransferInternal();
-            instance.AbortCallback = (transfer, e) =>
+            instance.AbortCallback = (transfer, e, res) =>
             {
                 Assert.False(abortCalled);
                 actualProtocolParentSeen = transfer;
@@ -129,7 +129,7 @@ namespace Kabomu.Tests.QuasiHttp
             Assert.Equal(instance.Parent, actualProtocolParentSeen);
             await ComparisonUtils.CompareRequests(maxChunkSize, request, actualRequest,
                 requestBodyBytes);
-            Assert.Equal(reqEnv ?? new Dictionary<string, object>(), actualRequestEnvironment);
+            Assert.Equal(reqEnv, actualRequestEnvironment);
             var actualRes = outputStream.ToArray();
             Assert.NotEmpty(actualRes);
             var actualResChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualRes, 0,

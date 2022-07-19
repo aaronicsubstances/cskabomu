@@ -7,20 +7,21 @@ namespace Kabomu.QuasiHttp
 {
     internal class ProtocolUtilsInternal
     {
-        public static int DetermineEffectiveOverallReqRespTimeoutMillis(IQuasiHttpSendOptions firstOptions,
-            IQuasiHttpSendOptions fallbackOptions, int defaultValue)
+        public static int DetermineEffectiveOverallReqRespTimeoutMillis(int? preferred,
+            int? fallback1, int defaultValue)
         {
-            if (firstOptions != null)
+            // NB: negative value is an acceptable value which means infinite timeout
+            if (preferred.HasValue)
             {
-                int effectiveValue = firstOptions.OverallReqRespTimeoutMillis;
+                int effectiveValue = preferred.Value;
                 if (effectiveValue != 0)
                 {
                     return effectiveValue;
                 }
             }
-            if (fallbackOptions != null)
+            if (fallback1.HasValue)
             {
-                int effectiveValue = fallbackOptions.OverallReqRespTimeoutMillis;
+                int effectiveValue = fallback1.Value;
                 if (effectiveValue != 0)
                 {
                     return effectiveValue;
@@ -29,45 +30,44 @@ namespace Kabomu.QuasiHttp
             return defaultValue;
         }
 
-        public static int DetermineEffectiveMaxChunkSize(IQuasiHttpSendOptions firstOptions,
-            IQuasiHttpSendOptions fallbackOptions, int secondFallback, int defaultValue)
+        public static int DetermineEffectiveMaxChunkSize(int? preferred,
+            int? fallback1, int defaultValue)
         {
-            if (firstOptions != null)
+            if (preferred.HasValue)
             {
-                int effectiveValue = firstOptions.MaxChunkSize;
+                int effectiveValue = preferred.Value;
                 if (effectiveValue > 0)
                 {
                     return effectiveValue;
                 }
             }
-            if (fallbackOptions != null)
+            if (fallback1.HasValue)
             {
-                int effectiveValue = fallbackOptions.MaxChunkSize;
+                int effectiveValue = fallback1.Value;
                 if (effectiveValue > 0)
                 {
                     return effectiveValue;
                 }
             }
-            return  secondFallback > 0 ? secondFallback : defaultValue;
+            return defaultValue;
         }
 
-        public static IDictionary<string, object> DetermineEffectiveConnectivityParams(
-            IQuasiHttpSendOptions firstOptions,
-            IQuasiHttpSendOptions fallbackOptions)
+        public static IDictionary<string, object> DetermineEffectiveOptions(
+            IDictionary<string, object> preferred, IDictionary<string, object> fallback)
         {
             var dest = new Dictionary<string, object>();
-            // since we want first options to overwrite fall back options,
-            // set fall back options first.
-            if (fallbackOptions?.ConnectivityParams != null)
+            // since we want preferred options to overwrite fallback options,
+            // set fallback options first.
+            if (fallback != null)
             {
-                foreach (var item in fallbackOptions.ConnectivityParams)
+                foreach (var item in fallback)
                 {
                     dest.Add(item.Key, item.Value);
                 }
             }
-            if (firstOptions?.ConnectivityParams != null)
+            if (preferred != null)
             {
-                foreach (var item in firstOptions.ConnectivityParams)
+                foreach (var item in preferred)
                 {
                     if (dest.ContainsKey(item.Key))
                     {

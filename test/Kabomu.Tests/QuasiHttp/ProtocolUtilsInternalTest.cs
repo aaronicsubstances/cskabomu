@@ -12,11 +12,11 @@ namespace Kabomu.Tests.QuasiHttp
     {
         [Theory]
         [MemberData(nameof(CreateTestDetermineEffectiveOverallReqRespTimeoutMillisData))]
-        public void TestDetermineEffectiveOverallReqRespTimeoutMillis(IQuasiHttpSendOptions firstOptions,
-            IQuasiHttpSendOptions fallbackOptions, int defaultValue, int expected)
+        public void TestDetermineEffectiveOverallReqRespTimeoutMillis(int? preferred,
+            int? fallback1, int defaultValue, int expected)
         {
             var actual = ProtocolUtilsInternal.DetermineEffectiveOverallReqRespTimeoutMillis(
-                firstOptions, fallbackOptions, defaultValue);
+                preferred, fallback1, defaultValue);
             Assert.Equal(expected, actual);
         }
 
@@ -24,60 +24,60 @@ namespace Kabomu.Tests.QuasiHttp
         {
             var testData = new List<object[]>();
 
-            IQuasiHttpSendOptions firstOptions = new DefaultQuasiHttpSendOptions { OverallReqRespTimeoutMillis = 1 };
-            IQuasiHttpSendOptions fallbackOptions = null;
-            int defaultValue = 0;
+            int? preferred = 1;
+            int? fallback1 = null;
+            int defaultValue = 20;
             int expected = 1;
-            testData.Add(new object[] { firstOptions, fallbackOptions, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions { OverallReqRespTimeoutMillis = 5 };
-            fallbackOptions = new DefaultQuasiHttpSendOptions { OverallReqRespTimeoutMillis = 3 };
+            preferred = 5;
+            fallback1 = 3;
             defaultValue = 11;
             expected = 5;
-            testData.Add(new object[] { firstOptions, fallbackOptions, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions { OverallReqRespTimeoutMillis = -15 };
-            fallbackOptions = new DefaultQuasiHttpSendOptions { OverallReqRespTimeoutMillis = 3 };
+            preferred = -15;
+            fallback1 = 3;
             defaultValue = -1;
             expected = -15;
-            testData.Add(new object[] { firstOptions, fallbackOptions, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions();
-            fallbackOptions = new DefaultQuasiHttpSendOptions { OverallReqRespTimeoutMillis = 3 };
+            preferred = null;
+            fallback1 = 3;
             defaultValue = -1;
             expected = 3;
-            testData.Add(new object[] { firstOptions, fallbackOptions, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions();
-            fallbackOptions = new DefaultQuasiHttpSendOptions { OverallReqRespTimeoutMillis = -3 };
+            preferred = null;
+            fallback1 = -3;
             defaultValue = -1;
             expected = -3;
-            testData.Add(new object[] { firstOptions, fallbackOptions, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions();
-            fallbackOptions = new DefaultQuasiHttpSendOptions();
+            preferred = null;
+            fallback1 = null;
             defaultValue = 2;
             expected = 2;
-            testData.Add(new object[] { firstOptions, fallbackOptions, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions();
-            fallbackOptions = new DefaultQuasiHttpSendOptions();
+            preferred = null;
+            fallback1 = null;
             defaultValue = -8;
             expected = -8;
-            testData.Add(new object[] { firstOptions, fallbackOptions, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
-            firstOptions = null;
-            fallbackOptions = null;
+            preferred = null;
+            fallback1 = null;
             defaultValue = 0;
             expected = 0;
-            testData.Add(new object[] { firstOptions, fallbackOptions, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
             return testData;
@@ -85,11 +85,11 @@ namespace Kabomu.Tests.QuasiHttp
 
         [Theory]
         [MemberData(nameof(CreateTestDetermineEffectiveMaxChunkSizeData))]
-        public void TestDetermineEffectiveMaxChunkSize(IQuasiHttpSendOptions firstOptions, IQuasiHttpSendOptions fallbackOptions,
-            int secondFallback, int defaultValue, int expected)
+        public void TestDetermineEffectiveMaxChunkSize(int? preferred, int? fallback1,
+            int defaultValue, int expected)
         {
-            var actual = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(firstOptions, fallbackOptions,
-                secondFallback, defaultValue);
+            var actual = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(preferred, fallback1,
+                defaultValue);
             Assert.Equal(expected, actual);
         }
 
@@ -97,181 +97,133 @@ namespace Kabomu.Tests.QuasiHttp
         {
             var testData = new List<object[]>();
 
-            IQuasiHttpSendOptions firstOptions = null;
-            IQuasiHttpSendOptions fallbackOptions = null;
-            int secondFallback = 1;
-            int defaultValue = 0;
+            int? preferred = null;
+            int? fallback1 = 1;
+            int defaultValue = 30;
             int expected = 1;
-            testData.Add(new object[] { firstOptions, fallbackOptions, secondFallback, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions { MaxChunkSize = 5 };
-            fallbackOptions = new DefaultQuasiHttpSendOptions { MaxChunkSize = 3 };
-            secondFallback = 0;
+            preferred = 5;
+            fallback1 = 3;
             defaultValue = 11;
             expected = 5;
-            testData.Add(new object[] { firstOptions, fallbackOptions, secondFallback, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions { MaxChunkSize = 15 };
-            fallbackOptions = new DefaultQuasiHttpSendOptions { MaxChunkSize = 3 };
-            secondFallback = 10;
-            defaultValue = -1;
-            expected = 15;
-            testData.Add(new object[] { firstOptions, fallbackOptions, secondFallback, defaultValue,
-                expected });
-
-            firstOptions = new DefaultQuasiHttpSendOptions();
-            fallbackOptions = new DefaultQuasiHttpSendOptions { MaxChunkSize = 3 };
-            secondFallback = 10;
+            preferred = null;
+            fallback1 = 3;
             defaultValue = -1;
             expected = 3;
-            testData.Add(new object[] { firstOptions, fallbackOptions, secondFallback, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions();
-            fallbackOptions = new DefaultQuasiHttpSendOptions();
-            secondFallback = -4;
+            preferred = null;
+            fallback1 = null;
             defaultValue = 2;
             expected = 2;
-            testData.Add(new object[] { firstOptions, fallbackOptions, secondFallback, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions();
-            fallbackOptions = new DefaultQuasiHttpSendOptions();
-            secondFallback = -4;
+            preferred = null;
+            fallback1 = null;
             defaultValue = -8;
             expected = -8;
-            testData.Add(new object[] { firstOptions, fallbackOptions, secondFallback, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
-            firstOptions = null;
-            fallbackOptions = null;
-            secondFallback = -4;
+            preferred = null;
+            fallback1 = null;
             defaultValue = 0;
             expected = 0;
-            testData.Add(new object[] { firstOptions, fallbackOptions, secondFallback, defaultValue,
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
             return testData;
         }
 
         [Theory]
-        [MemberData(nameof(CreateTestDetermineEffectiveConnectivityParamsData))]
-        public void TestDetermineEffectiveConnectivityParams(IQuasiHttpSendOptions firstOptions,
-            IQuasiHttpSendOptions fallbackOptions, IDictionary<string, object> expected)
+        [MemberData(nameof(CreateTestDetermineEffectiveOptionsData))]
+        public void TestDetermineEffectiveOptions(IDictionary<string, object> preferred,
+            IDictionary<string, object> fallback, IDictionary<string, object> expected)
         {
-            var actual = ProtocolUtilsInternal.DetermineEffectiveConnectivityParams(firstOptions, fallbackOptions);
+            var actual = ProtocolUtilsInternal.DetermineEffectiveOptions(preferred, fallback);
             Assert.Equal(expected, actual);
         }
 
-        public static List<object[]> CreateTestDetermineEffectiveConnectivityParamsData()
+        public static List<object[]> CreateTestDetermineEffectiveOptionsData()
         {
             var testData = new List<object[]>();
 
-            IQuasiHttpSendOptions firstOptions = null;
-            IQuasiHttpSendOptions fallbackOptions = null;
+            IDictionary<string, object> preferred = null;
+            IDictionary<string, object> fallback = null;
             var expected = new Dictionary<string, object>();
-            testData.Add(new object[] { firstOptions, fallbackOptions, expected });
+            testData.Add(new object[] { preferred, fallback, expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions
+            preferred = new Dictionary<string, object>
             {
-                ConnectivityParams = new Dictionary<string, object>
-                {
-                    { "a", 2 }, { "b", 3 }
-                }
+                { "a", 2 }, { "b", 3 }
             };
-            fallbackOptions = null;
+            fallback = null;
             expected = new Dictionary<string, object>
             {
                 { "a", 2 }, { "b", 3 }
             };
-            testData.Add(new object[] { firstOptions, fallbackOptions, expected });
+            testData.Add(new object[] { preferred, fallback, expected });
 
-            firstOptions = null;
-            fallbackOptions = new DefaultQuasiHttpSendOptions
+            preferred = null;
+            fallback = new Dictionary<string, object>
             {
-                ConnectivityParams = new Dictionary<string, object>
-                {
-                    { "a", 2 }, { "b", 3 }
-                }
+                { "a", 2 }, { "b", 3 }
             };
             expected = new Dictionary<string, object>
             {
                 { "a", 2 }, { "b", 3 }
             };
-            testData.Add(new object[] { firstOptions, fallbackOptions, expected });
+            testData.Add(new object[] { preferred, fallback, expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions
+            preferred = new Dictionary<string, object>
             {
-                ConnectivityParams = new Dictionary<string, object>
-                {
-                    { "a", 2 }, { "b", 3 }
-                }
+                { "a", 2 }, { "b", 3 }
             };
-            fallbackOptions = new DefaultQuasiHttpSendOptions
+            fallback = new Dictionary<string, object>
             {
-                ConnectivityParams = new Dictionary<string, object>
-                {
-                    { "c", 4 }, { "d", 3 }
-                }
+                { "c", 4 }, { "d", 3 }
             };
             expected = new Dictionary<string, object>
             {
                 { "a", 2 }, { "b", 3 },
                 { "c", 4 }, { "d", 3 }
             };
-            testData.Add(new object[] { firstOptions, fallbackOptions, expected });
+            testData.Add(new object[] { preferred, fallback, expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions
+            preferred = new Dictionary<string, object>
             {
-                ConnectivityParams = new Dictionary<string, object>
-                {
-                    { "a", 2 }, { "b", 3 }
-                }
+                { "a", 2 }, { "b", 3 }
             };
-            fallbackOptions = new DefaultQuasiHttpSendOptions
+            fallback = new Dictionary<string, object>
             {
-                ConnectivityParams = new Dictionary<string, object>
-                {
-                    { "a", 4 }, { "d", 3 }
-                }
+                { "a", 4 }, { "d", 3 }
             };
             expected = new Dictionary<string, object>
             {
                 { "a", 2 }, { "b", 3 }, { "d", 3 }
             };
-            testData.Add(new object[] { firstOptions, fallbackOptions, expected });
+            testData.Add(new object[] { preferred, fallback, expected });
 
-            firstOptions = new DefaultQuasiHttpSendOptions
+            preferred = new Dictionary<string, object>
             {
-                ConnectivityParams = new Dictionary<string, object>
-                {
-                    { "a", 2 }
-                }
+                { "a", 2 }
             };
-            fallbackOptions = new DefaultQuasiHttpSendOptions
+            fallback = new Dictionary<string, object>
             {
-                ConnectivityParams = new Dictionary<string, object>
-                {
-                    { "a", 4 }, { "d", 3 }
-                }
+                { "a", 4 }, { "d", 3 }
             };
             expected = new Dictionary<string, object>
             {
                 { "a", 2 }, { "d", 3 }
             };
-            testData.Add(new object[] { firstOptions, fallbackOptions, expected });
-
-            firstOptions = new DefaultQuasiHttpSendOptions();
-            fallbackOptions = new DefaultQuasiHttpSendOptions();
-            expected = new Dictionary<string, object>();
-            testData.Add(new object[] { firstOptions, fallbackOptions, expected });
-
-            firstOptions = null;
-            fallbackOptions = null;
-            expected = new Dictionary<string, object>();
-            testData.Add(new object[] { firstOptions, fallbackOptions, expected });
+            testData.Add(new object[] { preferred, fallback, expected });
 
             return testData;
         }

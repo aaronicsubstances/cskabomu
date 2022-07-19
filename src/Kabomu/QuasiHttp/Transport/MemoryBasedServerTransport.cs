@@ -96,29 +96,14 @@ namespace Kabomu.QuasiHttp.Transport
             IQuasiHttpApplication destApp;
             using (await MutexApi.Synchronize())
             {
-                // ensure server is running, so as to have comparable behaviour
-                // with receive connection
-                if (!_running)
-                {
-                    throw new Exception("transport not started");
-                }
                 destApp = Application;
                 if (destApp == null)
                 {
                     throw new MissingDependencyException("server application");
                 }
             }
-            IMutexApi serverSideMutexApi = null;
-            if (MutexApiFactory != null)
-            {
-                serverSideMutexApi = await MutexApiFactory.Create();
-            }
             var environment = CreateRequestEnvironment(
                 serverEndpoint, clientEndpoint);
-            var processingOptions = new DefaultQuasiHttpProcessingOptions
-            {
-                RequestEnvironment = environment
-            };
             var response = await destApp.ProcessRequest(request, environment);
             return response;
         }

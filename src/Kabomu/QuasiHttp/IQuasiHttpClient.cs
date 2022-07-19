@@ -13,10 +13,10 @@ namespace Kabomu.QuasiHttp
         IQuasiHttpClientTransport Transport { get; set; }
         IQuasiHttpTransportBypass TransportBypass { get; set; }
         double TransportBypassProbabilty { get; set; }
-        Task<IQuasiHttpResponse> Send(object remoteEndpoint, IQuasiHttpRequest request,
-            IQuasiHttpSendOptions options);
-        Task Reset();
         IMutexApi MutexApi { get; set; }
         IMutexApiFactory MutexApiFactory { get; set; }
+        Task Reset();
+        Task<IQuasiHttpResponse> Send(object remoteEndpoint, IQuasiHttpRequest request,
+            IQuasiHttpSendOptions options);
     }
 }

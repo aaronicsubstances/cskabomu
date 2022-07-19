@@ -8,6 +8,6 @@ namespace Kabomu.QuasiHttp
         public object TimeoutId { get; set; }
         public bool IsAborted { get; set; }
         public ReceiveProtocolInternal Protocol { get; set; }
-        public TaskCompletionSource<object> CancellationTcs { get; set; }
+        public TaskCompletionSource<IQuasiHttpResponse> CancellationTcs { get; set; }
     }
 }

@@ -328,8 +328,11 @@ namespace Kabomu.Tests.QuasiHttp
                 accraServerMaxChunkSize, 27);
             var accraQuasiHttpServer = new DefaultQuasiHttpServer
             {
-                OverallReqRespTimeoutMillis = 2_100,
-                MaxChunkSize = accraServerMaxChunkSize,
+                DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
+                {
+                    OverallReqRespTimeoutMillis = 2_100,
+                    MaxChunkSize = accraServerMaxChunkSize,
+                },
                 Transport = accraServerTransport,
                 Application = accraServerTransport.Application
             };
@@ -358,8 +361,11 @@ namespace Kabomu.Tests.QuasiHttp
                 kumasiServerMaxChunkSize, 25);
             var kumasiQuasiHttpServer = new DefaultQuasiHttpServer
             {
-                OverallReqRespTimeoutMillis = 1_050,
-                MaxChunkSize = kumasiServerMaxChunkSize,
+                DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
+                {
+                    OverallReqRespTimeoutMillis = 1_050,
+                    MaxChunkSize = kumasiServerMaxChunkSize
+                },
                 Transport = kumasiServerTransport,
                 Application = kumasiServerTransport.Application
             };

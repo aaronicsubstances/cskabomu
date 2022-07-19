@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
 using NLog;
 using System;
@@ -61,8 +62,21 @@ namespace Kabomu.Examples.Shared
             }
             else
             {
-                throw new Exception(string.Format("status code indicates problem from {0}: {1}",
-                    res.StatusIndicatesClientError ? "client" : "server", res.StatusMessage));
+                string responseMsg = "";
+                if (res.Body != null)
+                {
+                    try
+                    {
+                        var responseMsgBytes = await TransportUtils.ReadBodyToEnd(res.Body, 100);
+                        responseMsg = ByteUtils.BytesToString(responseMsgBytes, 0, responseMsgBytes.Length);
+                    }
+                    catch (Exception)
+                    {
+                        // ignore.
+                    }
+                }
+                throw new Exception(string.Format("status code indicates problem from {0}: {1}\n{2}",
+                    res.StatusIndicatesClientError ? "client" : "server", res.StatusMessage, responseMsg));
             }
         }
     }

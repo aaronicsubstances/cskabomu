@@ -16,11 +16,13 @@ namespace Kabomu.QuasiHttp
     {
         private readonly Random _randGen = new Random();
         private readonly ISet<SendTransferInternal> _transfers = new HashSet<SendTransferInternal>();
-        private readonly Func<SendTransferInternal, Exception, Task> AbortTransferCallback;
+        private readonly Func<SendTransferInternal, Exception, IQuasiHttpResponse, Task> AbortTransferCallback;
+        private readonly Func<SendTransferInternal, IQuasiHttpResponse, Task> PartialAbortTransferCallback;
 
         public DefaultQuasiHttpClient()
         {
             AbortTransferCallback = AbortTransfer;
+            PartialAbortTransferCallback = PartialAbortTransfer;
             MutexApi = new LockBasedMutexApi();
             MutexApiFactory = null;
             TimerApi = new DefaultTimerApi();
@@ -54,17 +56,17 @@ namespace Kabomu.QuasiHttp
                     TaskCreationOptions.RunContinuationsAsynchronously)
             };
 
-            Task<IQuasiHttpResponse> workTask;
+            Task workTask;
             using (await MutexApi.Synchronize())
             {
                 _transfers.Add(transfer);
                 
                 int transferTimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveOverallReqRespTimeoutMillis(
-                    options, DefaultSendOptions, 0);
+                    options?.OverallReqRespTimeoutMillis, DefaultSendOptions?.OverallReqRespTimeoutMillis, 0);
                 SetResponseTimeout(transfer, transferTimeoutMillis);
 
-                var extraConnectivityParams = ProtocolUtilsInternal.DetermineEffectiveConnectivityParams(
-                    options, DefaultSendOptions);
+                var extraConnectivityParams = ProtocolUtilsInternal.DetermineEffectiveOptions(
+                    options?.ConnectivityParams, DefaultSendOptions?.ConnectivityParams);
                 var connectivityParams = new DefaultConnectivityParams
                 {
                     RemoteEndpoint = remoteEndpoint,
@@ -77,7 +79,7 @@ namespace Kabomu.QuasiHttp
                 else
                 {
                     int protocolMaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(
-                        options, DefaultSendOptions, 0, TransportUtils.DefaultMaxChunkSize);
+                        options?.MaxChunkSize, DefaultSendOptions?.MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
                     workTask = AllocateConnectionAndSend(connectivityParams, transfer, request,
                         protocolMaxChunkSize);
                 }
@@ -86,16 +88,20 @@ namespace Kabomu.QuasiHttp
             var firstCompletedTask = await Task.WhenAny(transfer.CancellationTcs.Task, workTask);
             try
             {
-                return await firstCompletedTask;
+                await firstCompletedTask;
             }
             catch (Exception e)
             {
-                await AbortTransfer(transfer, e);
-                throw;
+                // let call to abort transfer determine whether exception is significant.
+                await AbortTransfer(transfer, e, null);
             }
+
+            // by awaiting again for transfer cancellation, any significant error will bubble up, and
+            // any insignificant error will be swallowed.
+            return await transfer.CancellationTcs.Task;
         }
 
-        private async Task<IQuasiHttpResponse> ProcessSendRequestDirectly(
+        private async Task ProcessSendRequestDirectly(
             IConnectivityParams connectivityParams,
             SendTransferInternal transfer, IQuasiHttpRequest request)
         {
@@ -106,17 +112,15 @@ namespace Kabomu.QuasiHttp
             }
             IQuasiHttpResponse res = await transportBypass.ProcessSendRequest(request, connectivityParams);
 
-            await AbortTransfer(transfer, null);
-
             if (res == null)
             {
                 throw new Exception("no response");
             }
 
-            return res;
+            await AbortTransfer(transfer, null, res);
         }
 
-        private async Task<IQuasiHttpResponse> AllocateConnectionAndSend(
+        private async Task AllocateConnectionAndSend(
             IConnectivityParams connectivityParams,
             SendTransferInternal transfer, IQuasiHttpRequest request, int protocolMaxChunkSize)
         {
@@ -131,12 +135,12 @@ namespace Kabomu.QuasiHttp
             var transferMutex = await ProtocolUtilsInternal.DetermineEffectiveMutexApi(
                 connectionResponse?.ProcessingMutexApi, mutexApiFactory);
 
-            Task<IQuasiHttpResponse> resTask;
+            Task resTask;
             using (await MutexApi.Synchronize())
             {
                 if (transfer.IsAborted)
                 {
-                    return null;
+                    return;
                 }
 
                 if (connectionResponse?.Connection == null)
@@ -151,13 +155,14 @@ namespace Kabomu.QuasiHttp
                     Connection = connectionResponse.Connection,
                     MutexApi = transferMutex,
                     MaxChunkSize = protocolMaxChunkSize,
-                    AbortCallback = AbortTransferCallback
+                    AbortCallback = AbortTransferCallback,
+                    PartialAbortCallback = PartialAbortTransferCallback
                 };
 
                 resTask = transfer.Protocol.Send(request);
             }
 
-            return await resTask;
+            await resTask;
         }
 
         public async Task Reset()
@@ -175,7 +180,7 @@ namespace Kabomu.QuasiHttp
                 {
                     foreach (var transfer in _transfers)
                     {
-                        tasks.Add(DisableTransfer(transfer, cancellationException));
+                        tasks.Add(DisableTransfer(transfer, cancellationException, null));
                     }
                 }
                 finally
@@ -200,11 +205,12 @@ namespace Kabomu.QuasiHttp
             }
             transfer.TimeoutId = timer.SetTimeout(transferTimeoutMillis, async () =>
             {
-                await AbortTransfer(transfer, new Exception("send timeout"));
+                await AbortTransfer(transfer, new Exception("send timeout"), null);
             }).Item2;
         }
 
-        private async Task AbortTransfer(SendTransferInternal transfer, Exception cancellationError)
+        private async Task AbortTransfer(SendTransferInternal transfer, Exception cancellationError,
+            IQuasiHttpResponse res)
         {
             Task disableTransferTask;
             using (await MutexApi.Synchronize())
@@ -214,19 +220,37 @@ namespace Kabomu.QuasiHttp
                     return;
                 }
                 _transfers.Remove(transfer);
-                disableTransferTask = DisableTransfer(transfer, cancellationError);
+                disableTransferTask = DisableTransfer(transfer, cancellationError, res);
             }
             await disableTransferTask;
         }
 
-        private async Task DisableTransfer(SendTransferInternal transfer, Exception cancellationError)
+        private async Task PartialAbortTransfer(SendTransferInternal transfer, IQuasiHttpResponse res)
         {
-            TimerApi?.ClearTimeout(transfer.TimeoutId);
-            transfer.IsAborted = true;
+            using (await MutexApi.Synchronize())
+            {
+                if (transfer.IsAborted)
+                {
+                    return;
+                }
+                transfer.CancellationTcs.TrySetResult(res);
+            }
+        }
+
+        private async Task DisableTransfer(SendTransferInternal transfer, Exception cancellationError,
+            IQuasiHttpResponse res)
+        {
+            // it is possible task has been completed already, so use TrySet* instead of Set*.
             if (cancellationError != null)
             {
-                transfer.CancellationTcs.SetException(cancellationError);
+                transfer.CancellationTcs.TrySetException(cancellationError);
             }
+            else
+            {
+                transfer.CancellationTcs.TrySetResult(res);
+            }
+            transfer.IsAborted = true;
+            TimerApi?.ClearTimeout(transfer.TimeoutId);
             if (transfer.Protocol != null)
             {
                 await transfer.Protocol.Cancel();
