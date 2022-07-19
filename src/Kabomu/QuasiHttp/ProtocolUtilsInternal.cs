@@ -83,7 +83,7 @@ namespace Kabomu.QuasiHttp
         }
 
         public static async Task<IMutexApi> DetermineEffectiveMutexApi(IMutexApi preferred,
-            IMutexApiFactory fallbackFactory, IMutexApi fallback2)
+            IMutexApiFactory fallbackFactory)
         {
             if (preferred != null)
             {
@@ -91,13 +91,9 @@ namespace Kabomu.QuasiHttp
             }
             if (fallbackFactory != null)
             {
-                var mutexApi = await fallbackFactory.Create();
-                if (mutexApi != null)
-                {
-                    return mutexApi;
-                }
+                return await fallbackFactory.Create();
             }
-            return fallback2;
+            return null;
         }
     }
 }

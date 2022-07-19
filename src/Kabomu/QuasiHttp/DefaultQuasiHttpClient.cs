@@ -50,7 +50,6 @@ namespace Kabomu.QuasiHttp
         {
             var transfer = new SendTransferInternal
             {
-                TransferCancellationHandle = new CancellationTokenSource(),
                 CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
                     TaskCreationOptions.RunContinuationsAsynchronously)
             };
@@ -59,7 +58,7 @@ namespace Kabomu.QuasiHttp
             using (await MutexApi.Synchronize())
             {
                 transferMutexTask = ProtocolUtilsInternal.DetermineEffectiveMutexApi(
-                    options?.ProcessingMutexApi, MutexApiFactory, null);
+                    null, MutexApiFactory);
             }
 
             var transferMutex = await transferMutexTask;
@@ -228,7 +227,6 @@ namespace Kabomu.QuasiHttp
 
         private async Task DisableTransfer(SendTransferInternal transfer, Exception cancellationError)
         {
-            transfer.TransferCancellationHandle.Cancel();
             TimerApi?.ClearTimeout(transfer.TimeoutId);
             transfer.IsAborted = true;
             if (cancellationError != null)

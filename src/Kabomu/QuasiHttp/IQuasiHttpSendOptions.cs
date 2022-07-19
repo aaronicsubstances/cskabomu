@@ -8,6 +8,5 @@ namespace Kabomu.QuasiHttp
         int OverallReqRespTimeoutMillis { get; }
         int MaxChunkSize { get; }
         IDictionary<string, object> RequestEnvironment { get; }
-        IMutexApi ProcessingMutexApi { get; }
     }
 }

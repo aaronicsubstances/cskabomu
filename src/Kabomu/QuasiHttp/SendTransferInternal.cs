@@ -8,7 +8,6 @@ namespace Kabomu.QuasiHttp
 {
     internal class SendTransferInternal
     {
-        public CancellationTokenSource TransferCancellationHandle { get; set; }
         public object TimeoutId { get; set; }
         public bool IsAborted { get; set; }
         public SendProtocolInternal Protocol { get; set; }
