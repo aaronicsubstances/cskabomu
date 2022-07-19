@@ -5,8 +5,25 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Concurrency
 {
+    /// <summary>
+    /// Represents a NodeJS-style single-threaded event loop with timer api like in JS, and whose setImmediate function 
+    /// can also be leveraged for mutual exclusion.
+    /// </summary>
     public interface IEventLoopApi : ITimerApi, IMutexApi
     {
+        /// <summary>
+        /// Returns true if the current thread is an event loop thread, and false if otherwise. Useful for optimizing 
+        /// mutual exclusion in implementations.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Implementations which use a dedicated thread or thread pool, should return true to prevent unnecessary posting
+        /// of event to thread or thread pool. 
+        /// </para>
+        /// <para>
+        ///  For implementations in which this property does not make sense, "false" can always be returned.
+        ///  </para>
+        /// </remarks>
         bool IsInterimEventLoopThread { get; }
 
         /// <summary>

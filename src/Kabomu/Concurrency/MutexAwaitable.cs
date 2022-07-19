@@ -5,6 +5,9 @@ using System.Text;
 
 namespace Kabomu.Concurrency
 {
+    /// <summary>
+    /// Implements awaitable protocol for <see cref="ConcurrencyExtensions.Synchronize(IMutexApi)"/>
+    /// </summary>
     public readonly struct MutexAwaitable
     {
         private readonly IMutexApi _mutexApi;
@@ -19,6 +22,9 @@ namespace Kabomu.Concurrency
             return new MutexAwaiter(_mutexApi);
         }
 
+        /// <summary>
+        /// Implements awaiter protocol for <see cref="ConcurrencyExtensions.Synchronize(IMutexApi)"/>
+        /// </summary>
         public readonly struct MutexAwaiter : INotifyCompletion
         {
             private readonly IMutexApi _mutexApi;

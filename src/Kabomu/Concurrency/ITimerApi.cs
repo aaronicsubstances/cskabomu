@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Concurrency
 {
+    /// <summary>
+    /// Represents a facility that can provide timer-rleated services.
+    /// </summary>
     public interface ITimerApi
     {
         /// <summary>
