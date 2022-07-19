@@ -10,14 +10,15 @@ namespace Kabomu.QuasiHttp
 {
     public interface IQuasiHttpServer
     {
-        int MaxChunkSize { get; set; }
+        IQuasiHttpProcessingOptions DefaultProcessingOptions { get; set; }
         UncaughtErrorCallback ErrorHandler { get; set; }
-        int OverallReqRespTimeoutMillis { get; set; }
         IQuasiHttpApplication Application { get; set; }
         IQuasiHttpServerTransport Transport { get; set; }
-        Task Start();
-        Task Stop();
         IMutexApi MutexApi { get; set; }
         IMutexApiFactory MutexApiFactory { get; set; }
+        Task Start();
+        Task Stop();
+        Task<IQuasiHttpResponse> SendToApplication(IQuasiHttpRequest request,
+            IQuasiHttpProcessingOptions options);
     }
 }

@@ -24,7 +24,10 @@ namespace Memory.FileExchange
             };
             var instance = new DefaultQuasiHttpServer
             {
-                OverallReqRespTimeoutMillis = 5_000,
+                DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
+                {
+                    OverallReqRespTimeoutMillis = 5_000
+                },
                 Transport = transport,
                 ErrorHandler = errorHandler,
             };

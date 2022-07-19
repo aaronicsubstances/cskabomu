@@ -20,7 +20,7 @@ namespace Kabomu.QuasiHttp
         }
 
         public ReceiveTransferInternal Parent { get; set; }
-        public Func<ReceiveTransferInternal, Exception, Task> AbortCallback { get; set; }
+        public Func<ReceiveTransferInternal, Exception, IQuasiHttpResponse, Task> AbortCallback { get; set; }
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
@@ -117,7 +117,7 @@ namespace Kabomu.QuasiHttp
                     }
                 }
                 _requestBody = request.Body;
-                appTask = Application.ProcessRequest(request, RequestEnvironment ?? new Dictionary<string, object>());
+                appTask = Application.ProcessRequest(request, RequestEnvironment);
             }
 
             var response = await appTask;
@@ -192,7 +192,7 @@ namespace Kabomu.QuasiHttp
                 {
                     return;
                 }
-                abortTask = AbortCallback.Invoke(Parent, null);
+                abortTask = AbortCallback.Invoke(Parent, null, null);
             }
 
             await abortTask;

@@ -20,7 +20,8 @@ namespace Kabomu.QuasiHttp
         }
 
         public SendTransferInternal Parent { get; set; }
-        public Func<SendTransferInternal, Exception, Task> AbortCallback { get; set; }
+        public Func<SendTransferInternal, Exception, IQuasiHttpResponse, Task> AbortCallback { get; set; }
+        public Func<SendTransferInternal, IQuasiHttpResponse, Task> PartialAbortCallback { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
         public int MaxChunkSize { get; set; }
@@ -97,7 +98,7 @@ namespace Kabomu.QuasiHttp
 
             await writeTask;
 
-            Task <IQuasiHttpResponse> responseFetchTask;
+            Task<IQuasiHttpResponse> responseFetchTask;
             using (await MutexApi.Synchronize())
             {
                 if (_cancelled)
@@ -131,7 +132,7 @@ namespace Kabomu.QuasiHttp
             }
             catch (Exception e)
             {
-                await AbortCallback.Invoke(Parent, e);
+                await AbortCallback.Invoke(Parent, e, null);
             }
         }
 
@@ -140,7 +141,7 @@ namespace Kabomu.QuasiHttp
             var chunk = await ChunkDecodingBody.ReadLeadChunk(Transport, Connection,
                 MaxChunkSize);
 
-            Task abortTask = null;
+            Task abortTask, requestBodyEndTask = null;
             DefaultQuasiHttpResponse response;
             using (await MutexApi.Synchronize())
             {
@@ -174,19 +175,20 @@ namespace Kabomu.QuasiHttp
                     _responseBody = response.Body;
 
                     // close request body nonetheless
-                    abortTask = _requestBody?.EndRead();
+                    requestBodyEndTask = _requestBody?.EndRead();
+
+                    abortTask = PartialAbortCallback.Invoke(Parent, response);
                 }
                 else
                 {
-                    abortTask = AbortCallback.Invoke(Parent, null);
+                    abortTask = AbortCallback.Invoke(Parent, null, response);
                 }
             }
-
-            if (abortTask != null)
+            await abortTask;
+            if (requestBodyEndTask != null)
             {
-                await abortTask;
+                await requestBodyEndTask;
             }
-
             return response;
         }
 
@@ -199,7 +201,7 @@ namespace Kabomu.QuasiHttp
                 {
                     return;
                 }
-                abortTask = AbortCallback.Invoke(Parent, null);
+                abortTask = AbortCallback.Invoke(Parent, null, null);
             }
             await abortTask;
         }

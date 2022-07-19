@@ -3,21 +3,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Kabomu.Common;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
+using NLog;
 
 namespace Http.FileServer
 {
-    public class HttpBasedApplicationWrapper : IHttpApplication<IFeatureCollection>
+    public class DemoHttpMiddleware : IHttpApplication<IFeatureCollection>
     {
-        private readonly IQuasiHttpApplication _wrapped;
+        private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
-        public HttpBasedApplicationWrapper(IQuasiHttpApplication wrapped)
+        private readonly IQuasiHttpServer _wrapped;
+
+        public DemoHttpMiddleware(IQuasiHttpServer wrapped)
         {
             _wrapped = wrapped;
         }
@@ -46,12 +48,29 @@ namespace Http.FileServer
                 quasiRequest.Body = new StreamBackedBody(httpContext.Request.Body,
                     httpContext.Request.ContentType);
             }
-            var quasiResponse = await _wrapped.ProcessRequest(quasiRequest,
-                new Dictionary<string, object>());
+            var processingOptions = new DefaultQuasiHttpProcessingOptions
+            {
+                OverallReqRespTimeoutMillis = 5_000,
+                MaxChunkSize = 2 * 8192
+            };
+            IQuasiHttpResponse quasiResponse;
+            try
+            {
+                quasiResponse = await _wrapped.SendToApplication(quasiRequest,
+                    processingOptions);
+            }
+            catch (Exception e)
+            {
+                LOG.Error(e, "http request processing failed");
+                quasiResponse = new DefaultQuasiHttpResponse
+                {
+                    Body = new StringBody(e.Message, null)
+                };
+            }
             SetResponseStatusAndHeaders(quasiResponse, httpContext.Response);
             if (quasiResponse.Body != null)
             {
-                var data = new byte[TransportUtils.DefaultMaxChunkSize];
+                var data = new byte[processingOptions.MaxChunkSize];
                 while (true)
                 {
                     var bytesRead = await quasiResponse.Body.ReadBytes(data, 0, data.Length);

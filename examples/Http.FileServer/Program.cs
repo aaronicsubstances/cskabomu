@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommandLine;
 using Kabomu.Examples.Shared;
+using Kabomu.QuasiHttp;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -49,12 +50,19 @@ namespace Http.FileServer
 
             var transportFactory = new SocketTransportFactory(
                 new OptionsWrapper<SocketTransportOptions>(transportOptions), loggerFactory);
-            
-            var application = new FileReceiver(port, uploadDirPath);
+
+            var instance = new DefaultQuasiHttpServer
+            {
+                DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
+                {
+                    OverallReqRespTimeoutMillis = 5_000
+                }
+            };
+            instance.Application = new FileReceiver(port, uploadDirPath);
             using (var server = new KestrelServer(new OptionsWrapper<KestrelServerOptions>(serverOptions),
                 transportFactory, loggerFactory))
             {
-                await server.StartAsync(new HttpBasedApplicationWrapper(application), CancellationToken.None);
+                await server.StartAsync(new DemoHttpMiddleware(instance), CancellationToken.None);
                 LOG.Info("Started Http.FileServer at {0}", port);
 
                 Console.ReadLine();
