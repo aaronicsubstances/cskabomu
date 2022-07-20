@@ -10,7 +10,8 @@ namespace Kabomu.Tests.Shared
 {
     public class ConfigurableQuasiHttpTransport : IQuasiHttpServerTransport, IQuasiHttpClientTransport, IQuasiHttpTransportBypass
     {
-        public Func<IQuasiHttpRequest, IConnectivityParams, Task<IQuasiHttpResponse>> ProcessSendRequestCallback { get; set; }
+        public Func<IQuasiHttpRequest, IConnectivityParams, Tuple<Task<IQuasiHttpResponse>, object>> ProcessSendRequestCallback { get; set; }
+        public Action<object> CancelSendRequestCallback { get; set; }
         public Func<IConnectivityParams, Task<IConnectionAllocationResponse>> AllocateConnectionCallback { get; set; }
         public Func<object, Task> ReleaseConnectionCallback { get; set; }
         public Func<object, byte[], int, int, Task<int>> ReadBytesCallback { get; set; }
@@ -21,10 +22,15 @@ namespace Kabomu.Tests.Shared
         public Func<Task<IConnectionAllocationResponse>> ReceiveConnectionCallback { get; set; }
         public IMutexApi MutexApi { get; set; }
 
-        public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
+        public Tuple<Task<IQuasiHttpResponse>, object> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectivityParams connectivityParams)
         {
             return ProcessSendRequestCallback.Invoke(request, connectivityParams);
+        }
+
+        public void CancelSendRequest(object sendCancellationHandle)
+        {
+            CancelSendRequestCallback.Invoke(sendCancellationHandle);
         }
 
         public Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)

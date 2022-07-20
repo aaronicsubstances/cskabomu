@@ -26,7 +26,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
             hub.ProcessSendRequestResult = new DefaultQuasiHttpResponse();
             var directSendResponse = await instance.ProcessSendRequest(hub.ExpectedRequest,
-                hub.ExpectedConnectivityParams);
+                hub.ExpectedConnectivityParams).Item1;
             Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
 
             instance.LocalEndpoint = "Accra";
@@ -35,7 +35,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             hub.ExpectedConnectivityParams = null;
             hub.ProcessSendRequestResult = null;
             directSendResponse = await instance.ProcessSendRequest(hub.ExpectedRequest,
-                hub.ExpectedConnectivityParams);
+                hub.ExpectedConnectivityParams).Item1;
             Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
 
             instance.LocalEndpoint = null;
@@ -44,7 +44,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
             hub.ProcessSendRequestResult = new DefaultQuasiHttpResponse();
             directSendResponse = await instance.ProcessSendRequest(hub.ExpectedRequest,
-                hub.ExpectedConnectivityParams);
+                hub.ExpectedConnectivityParams).Item1;
             Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
 
             instance.LocalEndpoint = "Abuja";
@@ -87,7 +87,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
         {
             var instance = new MemoryBasedClientTransport();
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.ProcessSendRequest(null, null));
+                instance.ProcessSendRequest(null, null).Item1);
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
                 instance.AllocateConnection(null));
             await Assert.ThrowsAsync<ArgumentException>(() =>

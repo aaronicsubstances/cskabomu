@@ -7,7 +7,8 @@ namespace Kabomu.QuasiHttp.Transport
 {
     public interface IQuasiHttpTransportBypass
     {
-        Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
+        Tuple<Task<IQuasiHttpResponse>, object> ProcessSendRequest(IQuasiHttpRequest request,
                IConnectivityParams connectivityParams);
+        void CancelSendRequest(object sendCancellationHandle);
     }
 }

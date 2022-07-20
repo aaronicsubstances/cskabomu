@@ -13,7 +13,7 @@ using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp
 {
-    public class DefaultQuasiHttpServerClientTest
+    public class QuasiHttpIntegrationTestOne
     {
         [Theory]
         [MemberData(nameof(CreateTestDirectSendData))]
@@ -23,12 +23,17 @@ namespace Kabomu.Tests.QuasiHttp
             // arrange.
             IQuasiHttpTransportBypass directProcessingTransport = new ConfigurableQuasiHttpTransport
             {
-                ProcessSendRequestCallback = async (req, connectionAllocationInfo) =>
+                ProcessSendRequestCallback = (req, connectivityParams) =>
                 {
-                    Assert.Equal(remoteEndpoint, connectionAllocationInfo?.RemoteEndpoint);
-                    Assert.Equal(request, req);
-                    await Task.Delay(responseTimeMillis);
-                    return expectedResponse;
+                    Func<Task<IQuasiHttpResponse>> helperFunc = async () =>
+                    {
+                        Assert.Equal(remoteEndpoint, connectivityParams?.RemoteEndpoint);
+                        Assert.Equal(request, req);
+                        await Task.Delay(responseTimeMillis);
+                        return expectedResponse;
+                    };
+                    var resTask = helperFunc.Invoke();
+                    return Tuple.Create(resTask, (object)null);
                 }
             };
             var instance = new DefaultQuasiHttpClient
@@ -153,10 +158,15 @@ namespace Kabomu.Tests.QuasiHttp
                     await Task.Delay(200_000, cancellationHandle.Token);
                     return null;
                 },
-                ProcessSendRequestCallback = async (req, connectionAllocationInfo) =>
+                ProcessSendRequestCallback = (req, connectivityParams) =>
                 {
-                    await Task.Delay(200_000, cancellationHandle.Token);
-                    return null;
+                    Func<Task<IQuasiHttpResponse>> helperFunc = async () =>
+                    {
+                        await Task.Delay(200_000, cancellationHandle.Token);
+                        return null;
+                    };
+                    var resTask = helperFunc.Invoke();
+                    return Tuple.Create(resTask, (object)null);
                 }
             };
             var client = new DefaultQuasiHttpClient

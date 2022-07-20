@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.Examples.Shared
@@ -21,8 +21,25 @@ namespace Kabomu.Examples.Shared
             _httpClient = httpClient;
         }
 
-        public async Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
-            IConnectivityParams connectionAllocationInfo)
+        public Tuple<Task<IQuasiHttpResponse>,object> ProcessSendRequest(IQuasiHttpRequest request,
+            IConnectivityParams connectivityParams)
+        {
+            var cts = new CancellationTokenSource();
+            var resTask = ProcessSendRequestInternal(request, connectivityParams, cts.Token);
+            object sendCancellationHandle = cts;
+            return Tuple.Create(resTask, sendCancellationHandle);
+        }
+
+        public void CancelSendRequest(object sendCancellationHandle)
+        {
+            if (sendCancellationHandle is CancellationTokenSource cts)
+            {
+                cts.Cancel();
+            }
+        }
+
+        private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(IQuasiHttpRequest request,
+            IConnectivityParams connectivityParams, CancellationToken cancellationToken)
         {
             var requestWrapper = new HttpRequestMessage
             {
@@ -36,16 +53,16 @@ namespace Kabomu.Examples.Shared
             {
                 requestWrapper.Version = Version.Parse(request.HttpVersion);
             }
-            if (connectionAllocationInfo?.RemoteEndpoint == null)
+            if (connectivityParams?.RemoteEndpoint == null)
             {
                 throw new ArgumentException("null remote endpoint - hence no url authority specified");
             }
-            var authority = (string)connectionAllocationInfo.RemoteEndpoint;
+            var authority = (string)connectivityParams.RemoteEndpoint;
             string scheme = null;
-            if (connectionAllocationInfo.ExtraParams != null &&
-                connectionAllocationInfo.ExtraParams.ContainsKey("scheme"))
+            if (connectivityParams.ExtraParams != null &&
+                connectivityParams.ExtraParams.ContainsKey("scheme"))
             {
-                scheme = (string)connectionAllocationInfo.ExtraParams["scheme"];
+                scheme = (string)connectivityParams.ExtraParams["scheme"];
             }
             requestWrapper.RequestUri = new Uri($"{scheme ?? "http"}://{authority}{request.Path ?? ""}");
             if (request.Body != null)
@@ -63,7 +80,7 @@ namespace Kabomu.Examples.Shared
             }
             AddRequestHeaders(requestWrapper, request.Headers);
 
-            var responseWrapper = await _httpClient.SendAsync(requestWrapper);
+            var responseWrapper = await _httpClient.SendAsync(requestWrapper, cancellationToken);
 
             var response = new DefaultQuasiHttpResponse
             {

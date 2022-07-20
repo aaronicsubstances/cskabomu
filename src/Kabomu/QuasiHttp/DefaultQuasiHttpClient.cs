@@ -110,7 +110,11 @@ namespace Kabomu.QuasiHttp
             {
                 throw new MissingDependencyException("transport bypass");
             }
-            IQuasiHttpResponse res = await transportBypass.ProcessSendRequest(request, connectivityParams);
+
+            var cancellableResTask = transportBypass.ProcessSendRequest(request, connectivityParams);
+            transfer.BypassCancellationHandle = cancellableResTask.Item2;
+
+            IQuasiHttpResponse res = await cancellableResTask.Item1;
 
             if (res == null)
             {
@@ -254,6 +258,10 @@ namespace Kabomu.QuasiHttp
             if (transfer.Protocol != null)
             {
                 await transfer.Protocol.Cancel();
+            }
+            if (transfer.BypassCancellationHandle != null)
+            {
+                TransportBypass?.CancelSendRequest(transfer.BypassCancellationHandle);
             }
         }
     }

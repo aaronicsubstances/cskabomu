@@ -15,7 +15,7 @@ namespace Kabomu.QuasiHttp.Transport
         public string LocalEndpoint { get; set; }
         public IMemoryBasedTransportHub Hub { get; set; }
 
-        public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpRequest request,
+        public Tuple<Task<IQuasiHttpResponse>, object> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectivityParams connectivityParams)
         {
             var hub = Hub;
@@ -23,7 +23,14 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 throw new MissingDependencyException("transport hub");
             }
-            return hub.ProcessSendRequest(LocalEndpoint, connectivityParams, request);
+            var resTask = hub.ProcessSendRequest(LocalEndpoint, connectivityParams, request);
+            object sendCancellationHandle = null;
+            return Tuple.Create(resTask, sendCancellationHandle);
+        }
+
+        public void CancelSendRequest(object sendCancellationHandle)
+        {
+            // do nothing.
         }
 
         public Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)

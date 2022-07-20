@@ -36,9 +36,9 @@ namespace Kabomu.QuasiHttp.Transport
         }
 
         public async Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,
-            IConnectivityParams connectionAllocationInfo, IQuasiHttpRequest request)
+            IConnectivityParams connectivityParams, IQuasiHttpRequest request)
         {
-            var serverEndpoint = connectionAllocationInfo?.RemoteEndpoint;
+            var serverEndpoint = connectivityParams?.RemoteEndpoint;
             if (serverEndpoint == null)
             {
                 throw new ArgumentException("null server endpoint");
