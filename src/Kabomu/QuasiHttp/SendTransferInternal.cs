@@ -12,5 +12,6 @@ namespace Kabomu.QuasiHttp
         public bool IsAborted { get; set; }
         public SendProtocolInternal Protocol { get; set; }
         public TaskCompletionSource<IQuasiHttpResponse> CancellationTcs { get; set; }
+        public object BypassCancellationHandle { get; set; }
     }
 }
