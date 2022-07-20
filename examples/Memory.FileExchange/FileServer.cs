@@ -32,9 +32,8 @@ namespace Memory.FileExchange
                 ErrorHandler = errorHandler,
             };
             instance.Application = new FileReceiver(endpoint, uploadDirPath);
-            transport.Application = instance.Application;
 
-            await hub.AddServer(endpoint, transport);
+            await hub.AddServer(endpoint, instance);
 
             await instance.Start();
             LOG.Info("Started Memory.FileServer at {0}", endpoint);

@@ -9,17 +9,17 @@ namespace Kabomu.QuasiHttp.Transport
 {
     public class DefaultMemoryBasedTransportHub : IMemoryBasedTransportHub
     {
-        private readonly Dictionary<object, MemoryBasedServerTransport> _servers;
+        private readonly Dictionary<object, IQuasiHttpServer> _servers;
 
         public DefaultMemoryBasedTransportHub()
         {
             MutexApi = new LockBasedMutexApi();
-            _servers = new Dictionary<object, MemoryBasedServerTransport>();
+            _servers = new Dictionary<object, IQuasiHttpServer>();
         }
 
         public IMutexApi MutexApi { get; set; }
 
-        public async Task AddServer(object endpoint, IQuasiHttpServerTransport server)
+        public async Task AddServer(object endpoint, IQuasiHttpServer server)
         {
             if (endpoint == null)
             {
@@ -29,16 +29,9 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 throw new ArgumentException("null server");
             }
-            if (server is MemoryBasedServerTransport memoryBased)
+            using (await MutexApi.Synchronize())
             {
-                using (await MutexApi.Synchronize())
-                {
-                    _servers.Add(endpoint, memoryBased);
-                }
-            }
-            else
-            {
-                throw new ArgumentException("server must be memory based");
+                _servers.Add(endpoint, server);
             }
         }
 
@@ -55,17 +48,23 @@ namespace Kabomu.QuasiHttp.Transport
                 throw new ArgumentException("null request");
             }
 
-            MemoryBasedServerTransport server;
+            IQuasiHttpApplication destApp;
             using (await MutexApi.Synchronize())
             {
                 if (!_servers.ContainsKey(serverEndpoint))
                 {
                     throw new MissingDependencyException("missing server for given endpoint: " + serverEndpoint);
                 }
-                server = _servers[serverEndpoint];
+                destApp = _servers[serverEndpoint].Application;
             }
 
-            var response = await server.ProcessDirectSendRequest(serverEndpoint, clientEndpoint, request);
+            if (destApp == null)
+            {
+                throw new MissingDependencyException("remote server application");
+            }
+            var environment = MemoryBasedServerTransport.CreateRequestEnvironment(
+                serverEndpoint, clientEndpoint);
+            var response = await destApp.ProcessRequest(request, environment);
             return response;
         }
 
@@ -78,18 +77,31 @@ namespace Kabomu.QuasiHttp.Transport
                 throw new ArgumentException("null server endpoint");
             }
 
-            MemoryBasedServerTransport server;
+            IQuasiHttpServerTransport serverTransport;
             using (await MutexApi.Synchronize())
             {
                 if (!_servers.ContainsKey(serverEndpoint))
                 {
                     throw new MissingDependencyException("missing server for given endpoint: " + serverEndpoint);
                 }
-                server = _servers[connectivityParams.RemoteEndpoint];
+                serverTransport = _servers[connectivityParams.RemoteEndpoint].Transport;
             }
 
-            var connectionAllocationResponse = await server.CreateConnectionForClient(serverEndpoint, clientEndpoint);
-            return connectionAllocationResponse;
+            if (serverTransport == null)
+            {
+                throw new MissingDependencyException("remote server transport");
+            }
+
+            if (serverTransport is MemoryBasedServerTransport memoryBasedServerTransport)
+            {
+                var connectionAllocationResponse = await memoryBasedServerTransport.CreateConnectionForClient(
+                    serverEndpoint, clientEndpoint);
+                return connectionAllocationResponse;
+            }
+            else
+            {
+                throw new MissingDependencyException("remote server transport is not memory based");
+            }
         }
     }
 }
