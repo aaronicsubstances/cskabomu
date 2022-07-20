@@ -323,20 +323,19 @@ namespace Kabomu.Tests.QuasiHttp
 
             var accraEndpoint = "accra";
             var accraServerMaxChunkSize = 150;
-            var accraServerTransport = new MemoryBasedServerTransport();
-            accraServerTransport.Application = CreateEndpointApplication(accraEndpoint,
-                accraServerMaxChunkSize, 27);
             var accraQuasiHttpServer = new DefaultQuasiHttpServer
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     OverallReqRespTimeoutMillis = 2_100,
                     MaxChunkSize = accraServerMaxChunkSize,
-                },
-                Transport = accraServerTransport,
-                Application = accraServerTransport.Application
+                }
             };
-            await hub.AddServer(accraEndpoint, accraServerTransport);
+            var accraServerTransport = new MemoryBasedServerTransport();
+            accraQuasiHttpServer.Transport = accraServerTransport;
+            accraQuasiHttpServer.Application = CreateEndpointApplication(accraEndpoint,
+                accraServerMaxChunkSize, 27);
+            await hub.AddServer(accraEndpoint, accraQuasiHttpServer);
             await accraQuasiHttpServer.Start();
 
             var accraClientTransport = new MemoryBasedClientTransport
@@ -356,20 +355,19 @@ namespace Kabomu.Tests.QuasiHttp
 
             var kumasiEndpoint = "kumasi";
             var kumasiServerMaxChunkSize = 150;
-            var kumasiServerTransport = new MemoryBasedServerTransport();
-            kumasiServerTransport.Application = CreateEndpointApplication(kumasiEndpoint,
-                kumasiServerMaxChunkSize, 25);
             var kumasiQuasiHttpServer = new DefaultQuasiHttpServer
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     OverallReqRespTimeoutMillis = 1_050,
                     MaxChunkSize = kumasiServerMaxChunkSize
-                },
-                Transport = kumasiServerTransport,
-                Application = kumasiServerTransport.Application
+                }
             };
-            await hub.AddServer(kumasiEndpoint, kumasiServerTransport);
+            var kumasiServerTransport = new MemoryBasedServerTransport();
+            kumasiQuasiHttpServer.Transport = kumasiServerTransport;
+            kumasiQuasiHttpServer.Application = CreateEndpointApplication(kumasiEndpoint,
+                kumasiServerMaxChunkSize, 25);
+            await hub.AddServer(kumasiEndpoint, kumasiQuasiHttpServer);
             await kumasiQuasiHttpServer.Start();
 
             var kumasiClientTransport = new MemoryBasedClientTransport

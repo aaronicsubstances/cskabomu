@@ -50,34 +50,36 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             instance.LocalEndpoint = "Abuja";
             hub.ExpectedClientEndpoint = instance.LocalEndpoint;
             hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
-            var connection = (await instance.AllocateConnection(hub.ExpectedConnectivityParams)).Connection;
-            Assert.True(connection is MemoryBasedTransportConnectionInternal);
+            var connectionResponse = await instance.AllocateConnection(hub.ExpectedConnectivityParams);
+            Assert.True(connectionResponse.Connection is MemoryBasedTransportConnectionInternal);
+
+            var establishedConnection = connectionResponse.Connection;
 
             // test for sequential read/write request processing.
             var workItems1 = WorkItem.CreateWorkItems();
-            await ProcessWorkItems(instance, connection, true, workItems1);
+            await ProcessWorkItems(instance, establishedConnection, true, workItems1);
             var workItems2 = WorkItem.CreateWorkItems();
-            await ProcessWorkItems(instance, connection, false, workItems2);
+            await ProcessWorkItems(instance, establishedConnection, false, workItems2);
 
             // test that release connection works.
-            var exTask1 = instance.ReadBytes(connection, new byte[2], 0, 2);
-            var exTask2 = instance.WriteBytes(connection, new byte[3], 1, 2);
-            await instance.ReleaseConnection(connection);
+            var exTask1 = instance.ReadBytes(establishedConnection, new byte[2], 0, 2);
+            var exTask2 = instance.WriteBytes(establishedConnection, new byte[3], 1, 2);
+            await instance.ReleaseConnection(establishedConnection);
             await Assert.ThrowsAnyAsync<Exception>(() => exTask1);
             await Assert.ThrowsAnyAsync<Exception>(() => exTask2);
 
             // test that all attempts to read leads to exceptions.
             await Assert.ThrowsAnyAsync<Exception>(() =>
             {
-                return instance.ReadBytes(connection, new byte[1], 0, 1);
+                return instance.ReadBytes(establishedConnection, new byte[1], 0, 1);
             });
             await Assert.ThrowsAnyAsync<Exception>(() =>
             {
-                return instance.WriteBytes(connection, new byte[1], 0, 1);
+                return instance.WriteBytes(establishedConnection, new byte[1], 0, 1);
             });
 
             // test that repeated call doesn't have effect.
-            await instance.ReleaseConnection(connection);
+            await instance.ReleaseConnection(establishedConnection);
         }
 
         [Fact]
@@ -135,23 +137,25 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             };
             hub.ExpectedClientEndpoint = localEndpoint;
             hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
-            var connection = (await instance.AllocateConnection(hub.ExpectedConnectivityParams)).Connection;
-            Assert.True(connection is MemoryBasedTransportConnectionInternal);
+            var connectionResponse = await instance.AllocateConnection(hub.ExpectedConnectivityParams);
+            Assert.True(connectionResponse.Connection is MemoryBasedTransportConnectionInternal);
+
+            var establishedConnection = connectionResponse.Connection;
 
             // test for interleaved read/write request processing.
             var workItems1 = WorkItem.CreateWorkItems();
             var workItems2 = WorkItem.CreateWorkItems();
-            var task1 = ProcessWorkItems(instance, connection, true, workItems1);
-            var task2 = ProcessWorkItems(instance, connection, false, workItems2);
+            var task1 = ProcessWorkItems(instance, establishedConnection, true, workItems1);
+            var task2 = ProcessWorkItems(instance, establishedConnection, false, workItems2);
             // use whenany before whenall to catch any task exceptions which may
             // cause another task to hang forever.
             await await Task.WhenAny(task1, task2);
             await Task.WhenAll(task1, task2);
 
             // test that release connection works.
-            var exTask1 = instance.ReadBytes(connection, new byte[2], 0, 2);
-            var exTask2 = instance.WriteBytes(connection, new byte[3], 1, 2);
-            await instance.ReleaseConnection(connection);
+            var exTask1 = instance.ReadBytes(establishedConnection, new byte[2], 0, 2);
+            var exTask2 = instance.WriteBytes(establishedConnection, new byte[3], 1, 2);
+            await instance.ReleaseConnection(establishedConnection);
             await Assert.ThrowsAnyAsync<Exception>(() => exTask1);
             await Assert.ThrowsAnyAsync<Exception>(() => exTask2);
         }
@@ -247,7 +251,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             public DefaultConnectivityParams ExpectedConnectivityParams { get;  set; }
             public object ExpectedClientEndpoint { get; set; }
 
-            public Task AddServer(object endpoint, IQuasiHttpServerTransport server)
+            public Task AddServer(object endpoint, IQuasiHttpServer server)
             {
                 throw new NotImplementedException();
             }

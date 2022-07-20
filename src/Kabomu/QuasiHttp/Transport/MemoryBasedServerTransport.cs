@@ -18,7 +18,6 @@ namespace Kabomu.QuasiHttp.Transport
             MutexApi = new LockBasedMutexApi();
         }
 
-        public IQuasiHttpApplication Application { get; set; }
         public IMutexApi MutexApi { get; set; }
         public IMutexApiFactory MutexApiFactory { get; set; }
 
@@ -85,30 +84,7 @@ namespace Kabomu.QuasiHttp.Transport
             return await connectTask;
         }
 
-        public async Task<IQuasiHttpResponse> ProcessDirectSendRequest(object serverEndpoint, object clientEndpoint, 
-            IQuasiHttpRequest request)
-        {
-            if (request == null)
-            {
-                throw new ArgumentException("null request");
-            }
-
-            IQuasiHttpApplication destApp;
-            using (await MutexApi.Synchronize())
-            {
-                destApp = Application;
-                if (destApp == null)
-                {
-                    throw new MissingDependencyException("server application");
-                }
-            }
-            var environment = CreateRequestEnvironment(
-                serverEndpoint, clientEndpoint);
-            var response = await destApp.ProcessRequest(request, environment);
-            return response;
-        }
-
-        private Dictionary<string, object> CreateRequestEnvironment(
+        internal static Dictionary<string, object> CreateRequestEnvironment(
             object serverEndpoint, object clientEndpoint)
         {
             // can later pass in server and client endpoint information.
@@ -252,7 +228,7 @@ namespace Kabomu.QuasiHttp.Transport
             public TaskCompletionSource<IConnectionAllocationResponse> Callback { get; set; }
         }
 
-        private class ClientConnectRequest
+        class ClientConnectRequest
         {
             public object ServerEndpoint { get; set; }
             public object ClientEndpoint { get; set; }
