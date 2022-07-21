@@ -25,7 +25,6 @@ namespace Kabomu.QuasiHttp.Server
             AbortTransferCallback2 = CancelReceive;
             _transfers = new HashSet<ReceiveTransferInternal>();
             MutexApi = new LockBasedMutexApi();
-            MutexApiFactory = null;
             TimerApi = new DefaultTimerApi();
         }
 
@@ -34,7 +33,6 @@ namespace Kabomu.QuasiHttp.Server
         public IQuasiHttpServerTransport Transport { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
         public IMutexApi MutexApi { get; set; }
-        public IMutexApiFactory MutexApiFactory { get; set; }
         public ITimerApi TimerApi { get; set; }
 
         private Task CancelReceive(object transferObj, Exception cancellationError)
@@ -150,7 +148,7 @@ namespace Kabomu.QuasiHttp.Server
 
                 _transfers.Add(transfer);
 
-                transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveNonNegativeIntegerOption(
+                transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     null, DefaultProcessingOptions?.MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
 
                 transfer.RequestEnvironment = ProtocolUtilsInternal.DetermineEffectiveOptions(

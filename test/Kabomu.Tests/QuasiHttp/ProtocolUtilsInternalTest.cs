@@ -83,16 +83,16 @@ namespace Kabomu.Tests.QuasiHttp
         }
 
         [Theory]
-        [MemberData(nameof(CreateTestEffectiveNonNegativeIntegerOptionData))]
-        public void TestEffectiveNonNegativeIntegerOption(int? preferred, int? fallback1,
+        [MemberData(nameof(CreateTestDetermineEffectivePositiveIntegerOptionnData))]
+        public void TestDetermineEffectivePositiveIntegerOption(int? preferred, int? fallback1,
             int defaultValue, int expected)
         {
-            var actual = ProtocolUtilsInternal.DetermineEffectiveNonNegativeIntegerOption(preferred, fallback1,
+            var actual = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(preferred, fallback1,
                 defaultValue);
             Assert.Equal(expected, actual);
         }
 
-        public static List<object[]> CreateTestEffectiveNonNegativeIntegerOptionData()
+        public static List<object[]> CreateTestDetermineEffectivePositiveIntegerOptionnData()
         {
             var testData = new List<object[]>();
 
