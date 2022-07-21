@@ -36,6 +36,31 @@ namespace Kabomu.QuasiHttp
         public IMutexApiFactory MutexApiFactory { get; set; }
         public ITimerApi TimerApi { get; set; }
 
+        public void CancelSend(object sendCancellationHandle)
+        {
+            if (sendCancellationHandle is SendTransferInternal transfer)
+            {
+                _ = AbortTransfer(transfer, new Exception("send cancelled"), null);
+            }
+        }
+
+        public Tuple<Task<IQuasiHttpResponse>, object> Send2(object remoteEndpoint,
+            IQuasiHttpRequest request, IQuasiHttpSendOptions options)
+        {
+            if (request == null)
+            {
+                throw new ArgumentException("null request");
+            }
+
+            var transfer = new SendTransferInternal
+            {
+                CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
+                    TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            var sendTask = ProcessSend(remoteEndpoint, request, options, transfer);
+            return Tuple.Create(sendTask, (object)transfer);
+        }
+
         public Task<IQuasiHttpResponse> Send(object remoteEndpoint,
             IQuasiHttpRequest request, IQuasiHttpSendOptions options)
         {
@@ -44,18 +69,17 @@ namespace Kabomu.QuasiHttp
                 throw new ArgumentException("null request");
             }
 
-            return ProcessSend(remoteEndpoint, request, options);
-        }
-
-        private async Task<IQuasiHttpResponse> ProcessSend(object remoteEndpoint,
-            IQuasiHttpRequest request, IQuasiHttpSendOptions options)
-        {
             var transfer = new SendTransferInternal
             {
                 CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
                     TaskCreationOptions.RunContinuationsAsynchronously)
             };
+            return ProcessSend(remoteEndpoint, request, options, transfer);
+        }
 
+        private async Task<IQuasiHttpResponse> ProcessSend(object remoteEndpoint,
+            IQuasiHttpRequest request, IQuasiHttpSendOptions options, SendTransferInternal transfer)
+        {
             Task workTask;
             using (await MutexApi.Synchronize())
             {

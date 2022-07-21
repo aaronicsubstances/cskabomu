@@ -18,5 +18,8 @@ namespace Kabomu.QuasiHttp
         Task Reset();
         Task<IQuasiHttpResponse> Send(object remoteEndpoint, IQuasiHttpRequest request,
             IQuasiHttpSendOptions options);
+        Tuple<Task<IQuasiHttpResponse>, object> Send2(object remoteEndpoint,
+            IQuasiHttpRequest request, IQuasiHttpSendOptions options);
+        void CancelSend(object sendCancellationHandle);
     }
 }
