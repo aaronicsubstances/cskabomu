@@ -16,11 +16,23 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var backingStream = new MemoryStream();
-            var instance = new StreamBackedBody(backingStream, "text/csv");
+            var instance = new StreamBackedBody(backingStream, 0, "text/csv");
 
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "text/csv",
+            return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "text/csv",
                 new int[0], null, new byte[0]);
+        }
+
+        [Fact]
+        public Task TestNonEmptyReadWithoutContentLength()
+        {
+            // arrange.
+            var backingStream = new MemoryStream(new byte[] { (byte)'A', (byte)'b', (byte)'2' });
+            var instance = new StreamBackedBody(backingStream, -1, null);
+
+            // act and assert.
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "application/octet-stream",
+                new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
         }
 
         [Fact]
@@ -28,10 +40,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var backingStream = new MemoryStream(new byte[] { (byte)'A', (byte)'b', (byte)'2' });
-            var instance = new StreamBackedBody(backingStream, null);
+            var instance = new StreamBackedBody(backingStream, 3, null);
 
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "application/octet-stream",
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "application/octet-stream",
                 new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
         }
 
@@ -40,10 +52,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             Assert.Throws<ArgumentException>(() =>
             {
-                new StreamBackedBody(null, null);
+                new StreamBackedBody(null, -1, null);
             });
             var backingStream = new MemoryStream(new byte[] { (byte)'c', (byte)'2' });
-            var instance = new StreamBackedBody(backingStream, null);
+            var instance = new StreamBackedBody(backingStream, -1, null);
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }

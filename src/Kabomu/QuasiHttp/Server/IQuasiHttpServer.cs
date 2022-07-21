@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp
+namespace Kabomu.QuasiHttp.Server
 {
     public interface IQuasiHttpServer
     {
@@ -15,7 +15,6 @@ namespace Kabomu.QuasiHttp
         IQuasiHttpApplication Application { get; set; }
         IQuasiHttpServerTransport Transport { get; set; }
         IMutexApi MutexApi { get; set; }
-        IMutexApiFactory MutexApiFactory { get; set; }
         Task Start();
         Task Stop();
         Task<IQuasiHttpResponse> SendToApplication(IQuasiHttpRequest request,

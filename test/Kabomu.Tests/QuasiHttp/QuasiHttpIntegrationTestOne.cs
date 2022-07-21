@@ -1,6 +1,8 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared;
 using System;
@@ -34,13 +36,17 @@ namespace Kabomu.Tests.QuasiHttp
                     };
                     var resTask = helperFunc.Invoke();
                     return Tuple.Create(resTask, (object)null);
+                },
+                WillCancelSendMakeResponseBodyUnusableCallback = (ch, res) =>
+                {
+                    return Task.FromResult(false);
                 }
             };
             var instance = new DefaultQuasiHttpClient
             {
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    OverallReqRespTimeoutMillis = 100
+                    TimeoutMillis = 100
                 },
                 TransportBypass = directProcessingTransport
             };
@@ -103,7 +109,7 @@ namespace Kabomu.Tests.QuasiHttp
             };
             options = new DefaultQuasiHttpSendOptions
             {
-                OverallReqRespTimeoutMillis = 200
+                TimeoutMillis = 200
             };
             responseTimeMillis = 160;
             expectedResponseError = null;
@@ -167,13 +173,17 @@ namespace Kabomu.Tests.QuasiHttp
                     };
                     var resTask = helperFunc.Invoke();
                     return Tuple.Create(resTask, (object)null);
+                },
+                WillCancelSendMakeResponseBodyUnusableCallback = (ch, res) =>
+                {
+                    return Task.FromResult(false);
                 }
             };
             var client = new DefaultQuasiHttpClient
             {
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    OverallReqRespTimeoutMillis = 20
+                    TimeoutMillis = 20
                 },
                 Transport = transport,
                 TransportBypass = transport
@@ -196,7 +206,7 @@ namespace Kabomu.Tests.QuasiHttp
                     await Task.Delay(sendTime);
                     var options = new DefaultQuasiHttpSendOptions
                     {
-                        OverallReqRespTimeoutMillis = capturedIndex > 2 ? 40 : 15
+                        TimeoutMillis = capturedIndex > 2 ? 40 : 15
                     };
                     client.TransportBypassProbabilty = capturedIndex == 0 ? 1 : 0;
                     try
@@ -253,7 +263,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    OverallReqRespTimeoutMillis = 20
+                    TimeoutMillis = 20
                 },
                 Transport = transport
             };
@@ -275,7 +285,7 @@ namespace Kabomu.Tests.QuasiHttp
                     await Task.Delay(sendTime);
                     var options = new DefaultQuasiHttpSendOptions
                     {
-                        OverallReqRespTimeoutMillis = capturedIndex > 2 ? 40 : 15
+                        TimeoutMillis = capturedIndex > 2 ? 40 : 15
                     };
                     try
                     {
@@ -337,7 +347,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
-                    OverallReqRespTimeoutMillis = 2_100,
+                    TimeoutMillis = 2_100,
                     MaxChunkSize = accraServerMaxChunkSize,
                 }
             };
@@ -357,7 +367,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    OverallReqRespTimeoutMillis = 2_100,
+                    TimeoutMillis = 2_100,
                     MaxChunkSize = 150
                 },
                 Transport = accraClientTransport
@@ -369,7 +379,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
-                    OverallReqRespTimeoutMillis = 1_050,
+                    TimeoutMillis = 1_050,
                     MaxChunkSize = kumasiServerMaxChunkSize
                 }
             };
@@ -389,7 +399,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    OverallReqRespTimeoutMillis = 1_050,
+                    TimeoutMillis = 1_050,
                     MaxChunkSize = 150
                 },
                 Transport = kumasiClientTransport
@@ -453,14 +463,8 @@ namespace Kabomu.Tests.QuasiHttp
                         HttpStatusCode = res.HttpStatusCode,
                         HttpVersion = res.HttpVersion
                     };
-                    if (res.Body.ContentLength < 0)
-                    {
-                        equivalentRes.Body = new StreamBackedBody(new MemoryStream(d), res.Body.ContentType);
-                    }
-                    else
-                    {
-                        equivalentRes.Body = new ByteBufferBody(d, 0, d.Length, res.Body.ContentType);
-                    }
+                    equivalentRes.Body = new StreamBackedBody(new MemoryStream(d),
+                        res.Body.ContentLength, res.Body.ContentType);
                     actualResponses[testDataIndex] = equivalentRes;
                 }));
             }
@@ -539,7 +543,7 @@ namespace Kabomu.Tests.QuasiHttp
             };
             options = new DefaultQuasiHttpSendOptions
             {
-                OverallReqRespTimeoutMillis = 1_100
+                TimeoutMillis = 1_100
             };
             responseError = null;
             response = new DefaultQuasiHttpResponse
@@ -604,7 +608,7 @@ namespace Kabomu.Tests.QuasiHttp
                     { "second", new List<string>{ "1" } }
                 }
             };
-            request.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0, 0x26, 0 }, 1, 1), null);
+            request.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0, 0x26, 0 }, 1, 1), -1, null);
             options = null;
             responseError = null;
             response = new DefaultQuasiHttpResponse
@@ -620,7 +624,7 @@ namespace Kabomu.Tests.QuasiHttp
                 HttpStatusCode = 200,
                 HttpVersion = "1.1"
             };
-            response.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0x25, 0 }, 0, 1), null);
+            response.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0x25, 0 }, 0, 1), -1, null);
             responseBodyBytes = new byte[] { 0x25 };
             testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
                 responseError, response, responseBodyBytes });
@@ -674,7 +678,7 @@ namespace Kabomu.Tests.QuasiHttp
                     { "second", new List<string>{ "14000" } }
                 }
             };
-            request.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0, 0x26, 0 }, 1, 0), null);
+            request.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0, 0x26, 0 }, 1, 0), -1, null);
             options = null;
             responseError = null;
             response = new DefaultQuasiHttpResponse
@@ -690,7 +694,7 @@ namespace Kabomu.Tests.QuasiHttp
                 HttpStatusCode = 200,
                 HttpVersion = "1.1"
             };
-            response.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0x25, 0 }, 1, 0), null);
+            response.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0x25, 0 }, 1, 0), -1, null);
             responseBodyBytes = new byte[0];
             testData.Add(new object[] { scheduledTime, localEndpoint, request, options,
                 responseError, response, responseBodyBytes });
@@ -709,7 +713,7 @@ namespace Kabomu.Tests.QuasiHttp
             };
             options = new DefaultQuasiHttpSendOptions
             {
-                OverallReqRespTimeoutMillis = 3
+                TimeoutMillis = 3
             };
             responseError = "send timeout";
             response = null;
@@ -802,14 +806,8 @@ namespace Kabomu.Tests.QuasiHttp
                             {
                                 resBodyBytes[i] = selectedOp.Invoke(requestBodyBytes[i]);
                             }
-                            if (req.Body.ContentLength < 0)
-                            {
-                                res.Body = new StreamBackedBody(new MemoryStream(resBodyBytes), null);
-                            }
-                            else
-                            {
-                                res.Body = new ByteBufferBody(resBodyBytes, 0, resBodyBytes.Length, null);
-                            }
+                            res.Body = new StreamBackedBody(new MemoryStream(resBodyBytes),
+                                req.Body.ContentLength < 0 ? -1 : resBodyBytes.Length, null);
                         }
                     }
                     await Task.Delay(processingDelay);

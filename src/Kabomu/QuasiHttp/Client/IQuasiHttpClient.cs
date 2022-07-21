@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp
+namespace Kabomu.QuasiHttp.Client
 {
     public interface IQuasiHttpClient
     {
@@ -14,7 +14,6 @@ namespace Kabomu.QuasiHttp
         IQuasiHttpTransportBypass TransportBypass { get; set; }
         double TransportBypassProbabilty { get; set; }
         IMutexApi MutexApi { get; set; }
-        IMutexApiFactory MutexApiFactory { get; set; }
         Task Reset();
         Task<IQuasiHttpResponse> Send(object remoteEndpoint, IQuasiHttpRequest request,
             IQuasiHttpSendOptions options);

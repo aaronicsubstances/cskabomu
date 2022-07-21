@@ -1,6 +1,6 @@
 ﻿using CommandLine;
 using Kabomu.Examples.Shared;
-using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Client;
 using NLog;
 using System;
 using System.Net.Http;
@@ -39,7 +39,7 @@ namespace Http.FileClient
             var transport = new HttpBasedTransport(httpClient);
             var defaultSendOptions = new DefaultQuasiHttpSendOptions
             {
-                OverallReqRespTimeoutMillis = 5_000
+                TimeoutMillis = 5_000
             };
             var instance = new DefaultQuasiHttpClient
             {

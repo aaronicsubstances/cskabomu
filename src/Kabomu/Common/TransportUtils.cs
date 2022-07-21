@@ -32,6 +32,12 @@ namespace Kabomu.Common
         public static readonly int DefaultMaxChunkSizeLimit = 65_536;
 
         /// <summary>
+        /// The default value for the maximum size of a response body being read fully into memory when
+        /// response body buffering is enabled. Currently equal to 128 MB.
+        /// </summary>
+        public static readonly int DefaultResponseBodyBufferingSizeLimit = 65_536 * 2 * 1024; // 128 MB.
+
+        /// <summary>
         /// Equal to "text/plain"
         /// </summary>
         public static readonly string ContentTypePlainText = "text/plain";
@@ -92,15 +98,52 @@ namespace Kabomu.Common
         /// the data in the quasi http body.</returns>
         public static async Task<byte[]> ReadBodyToEnd(IQuasiHttpBody body, int bufferSize)
         {
+            var byteStream = await ReadBodyToMemoryStreamInternal(body, bufferSize, -1);
+            return byteStream.ToArray();
+        }
+
+        public static async Task<Stream> ReadBodyToMemoryStream(IQuasiHttpBody body, int bufferSize, int bufferingLimit)
+        {
+            var byteStream = await ReadBodyToMemoryStreamInternal(body, bufferSize, bufferingLimit);
+            byteStream.Position = 0; // very important to rewind.
+            return byteStream;
+        }
+
+        private static async Task<MemoryStream> ReadBodyToMemoryStreamInternal(IQuasiHttpBody body, int bufferSize,
+            int bufferingLimit)
+        {
             var readBuffer = new byte[bufferSize];
             var byteStream = new MemoryStream();
 
+            int totalBytesRead = 0;
+
             while (true)
             {
-                int bytesRead = await body.ReadBytes(readBuffer, 0, readBuffer.Length);
+                int bytesToRead = readBuffer.Length;
+                if (bufferingLimit >= 0)
+                {
+                    bytesToRead = Math.Min(bytesToRead, bufferingLimit - totalBytesRead);
+                }
+                // force a read of 1 byte if there are no more bytes to read into memory stream buffer
+                // but still remember that no bytes was expected.
+                var expectedEndOfRead = false;
+                if (bytesToRead == 0)
+                {
+                    bytesToRead = 1;
+                    expectedEndOfRead = true;
+                }
+                int bytesRead = await body.ReadBytes(readBuffer, 0, bytesToRead);
                 if (bytesRead > 0)
                 {
+                    if (expectedEndOfRead)
+                    {
+                        throw new BodySizeLimitExceededException($"buffering limit of {bufferingLimit} bytes exceeded");
+                    }
                     byteStream.Write(readBuffer, 0, bytesRead);
+                    if (bufferingLimit >= 0)
+                    {
+                        totalBytesRead += bytesRead;
+                    }
                 }
                 else
                 {
@@ -108,7 +151,7 @@ namespace Kabomu.Common
                 }
             }
             await body.EndRead();
-            return byteStream.ToArray();
+            return byteStream;
         }
 
         /// <summary>

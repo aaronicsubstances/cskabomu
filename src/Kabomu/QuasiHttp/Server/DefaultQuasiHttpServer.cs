@@ -10,17 +10,19 @@ using System.Threading.Tasks;
 
 [assembly: InternalsVisibleTo("Kabomu.Tests")]
 
-namespace Kabomu.QuasiHttp
+namespace Kabomu.QuasiHttp.Server
 {
     public class DefaultQuasiHttpServer : IQuasiHttpServer
     {
         private readonly ISet<ReceiveTransferInternal> _transfers;
+        private readonly Func<object, Exception, Task> AbortTransferCallback;
+        private readonly Func<object, Exception, IQuasiHttpResponse, Task> AbortTransferCallback2;
         private bool _running;
-        private readonly Func<ReceiveTransferInternal, Exception, IQuasiHttpResponse, Task> AbortTransferCallback;
 
         public DefaultQuasiHttpServer()
         {
-            AbortTransferCallback = AbortTransfer;
+            AbortTransferCallback = CancelReceive;
+            AbortTransferCallback2 = CancelReceive;
             _transfers = new HashSet<ReceiveTransferInternal>();
             MutexApi = new LockBasedMutexApi();
             MutexApiFactory = null;
@@ -34,6 +36,19 @@ namespace Kabomu.QuasiHttp
         public IMutexApi MutexApi { get; set; }
         public IMutexApiFactory MutexApiFactory { get; set; }
         public ITimerApi TimerApi { get; set; }
+
+        private Task CancelReceive(object transferObj, Exception cancellationError)
+        {
+            var transfer = (ReceiveTransferInternal)transferObj;
+            return AbortTransfer(transfer, cancellationError, null);
+        }
+
+        private Task CancelReceive(object transferObj, Exception cancellationError,
+            IQuasiHttpResponse res)
+        {
+            var transfer = (ReceiveTransferInternal)transferObj;
+            return AbortTransfer(transfer, cancellationError, res);
+        }
 
         public async Task Start()
         {
@@ -60,13 +75,14 @@ namespace Kabomu.QuasiHttp
                 while (true)
                 {
                     Task<IConnectionAllocationResponse> connectTask;
+                    IQuasiHttpServerTransport transport;
                     using (await MutexApi.Synchronize())
                     {
                         if (!_running)
                         {
                             break;
                         }
-                        var transport = Transport;
+                        transport = Transport;
                         if (transport == null)
                         {
                             throw new MissingDependencyException("transport");
@@ -79,7 +95,7 @@ namespace Kabomu.QuasiHttp
                         throw new Exception("received null for connection allocation response");
                     }
                     // let TaskScheduler.UnobservedTaskException handle any uncaught task exceptions.
-                    _ = AcceptConnection(connectionAllocationResponse);
+                    _ = AcceptConnection(transport, connectionAllocationResponse);
                 }
             }
             catch (Exception e)
@@ -93,11 +109,11 @@ namespace Kabomu.QuasiHttp
             }
         }
 
-        private async Task AcceptConnection(IConnectionAllocationResponse connectionAllocationResponse)
+        private async Task AcceptConnection(IQuasiHttpTransport transport, IConnectionAllocationResponse connectionAllocationResponse)
         {
             try
             {
-                await Receive(connectionAllocationResponse);
+                await Receive(transport, connectionAllocationResponse);
             }
             catch (Exception e)
             {
@@ -110,53 +126,47 @@ namespace Kabomu.QuasiHttp
             }
         }
 
-        private async Task Receive(IConnectionAllocationResponse connectionAllocationResponse)
+        private async Task Receive(IQuasiHttpTransport transport, IConnectionAllocationResponse connectionResponse)
         {
-            if (connectionAllocationResponse == null)
-            {
-                throw new ArgumentException("null connection allocation");
-            }
-            if (connectionAllocationResponse.Connection == null)
+            if (connectionResponse?.Connection == null)
             {
                 throw new ArgumentException("null connection");
             }
 
             var transfer = new ReceiveTransferInternal
             {
+                Transport = transport,
+                Connection = connectionResponse.Connection,
                 CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
                     TaskCreationOptions.RunContinuationsAsynchronously)
             };
 
-            IMutexApi transferMutex = await ProtocolUtilsInternal.DetermineEffectiveMutexApi(
-                connectionAllocationResponse.ProcessingMutexApi, MutexApiFactory);
-
             Task workTask;
             using (await MutexApi.Synchronize())
             {
+                transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
+                    null, DefaultProcessingOptions?.TimeoutMillis, 0);
+                SetReceiveTimeout(transfer);
+
                 _transfers.Add(transfer);
 
-                int transferTimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveOverallReqRespTimeoutMillis(
-                    null, DefaultProcessingOptions?.OverallReqRespTimeoutMillis, 0);
-                SetResponseTimeout(transfer, transferTimeoutMillis);
-
-                int protocolMaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(
+                transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveNonNegativeIntegerOption(
                     null, DefaultProcessingOptions?.MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
 
-                var effectiveRequestEnvironment = ProtocolUtilsInternal.DetermineEffectiveOptions(
-                    connectionAllocationResponse.Environment, DefaultProcessingOptions?.RequestEnvironment);
+                transfer.RequestEnvironment = ProtocolUtilsInternal.DetermineEffectiveOptions(
+                    connectionResponse.Environment, DefaultProcessingOptions?.RequestEnvironment);
 
-                transfer.Protocol = new ReceiveProtocolInternal
+                var protocol = new DefaultReceiveProtocolInternal
                 {
                     Parent = transfer,
                     AbortCallback = AbortTransferCallback,
-                    MaxChunkSize = protocolMaxChunkSize,
+                    MaxChunkSize = transfer.MaxChunkSize,
                     Application = Application,
-                    Transport = Transport,
-                    Connection = connectionAllocationResponse.Connection,
-                    RequestEnvironment = effectiveRequestEnvironment,
-                    MutexApi = transferMutex
+                    Transport = transfer.Transport,
+                    Connection = transfer.Connection,
+                    RequestEnvironment = transfer.RequestEnvironment
                 };
-                workTask = transfer.Protocol.Receive();
+                workTask = protocol.Receive();
             }
 
             var firstCompletedTask = await Task.WhenAny(transfer.CancellationTcs.Task, workTask);
@@ -175,7 +185,7 @@ namespace Kabomu.QuasiHttp
             await transfer.CancellationTcs.Task;
         }
 
-        public async Task<IQuasiHttpResponse> SendToApplication(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options)
+        public Task<IQuasiHttpResponse> SendToApplication(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options)
         {
             if (request == null)
             {
@@ -183,19 +193,36 @@ namespace Kabomu.QuasiHttp
             }
             var transfer = new ReceiveTransferInternal
             {
+                Request = request,
+                ProcessingOptions = options,
                 CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
                     TaskCreationOptions.RunContinuationsAsynchronously)
             };
+            return ProcessSendToApplication(transfer);
+        }
+
+        private async Task<IQuasiHttpResponse> ProcessSendToApplication(ReceiveTransferInternal transfer)
+        {
             Task workTask;
             using (await MutexApi.Synchronize())
             {
+                transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
+                    transfer.ProcessingOptions?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
+                SetReceiveTimeout(transfer);
+
                 _transfers.Add(transfer);
 
-                int transferTimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveOverallReqRespTimeoutMillis(
-                    options?.OverallReqRespTimeoutMillis, DefaultProcessingOptions?.OverallReqRespTimeoutMillis, 0);
-                SetResponseTimeout(transfer, transferTimeoutMillis);
+                transfer.RequestEnvironment = ProtocolUtilsInternal.DetermineEffectiveOptions(
+                    transfer.ProcessingOptions?.RequestEnvironment, DefaultProcessingOptions?.RequestEnvironment);
 
-                workTask = CompleteProcessWithApplication(options, transfer, request);
+                var protocol = new ApplicationReceiveProtocolInternal
+                {
+                    Parent = transfer,
+                    AbortCallback = AbortTransferCallback2,
+                    Application = Application,
+                    RequestEnvironment = transfer.RequestEnvironment
+                };
+                workTask = protocol.ProcessSendToApplication(transfer.Request);
             }
 
             var firstCompletedTask = await Task.WhenAny(transfer.CancellationTcs.Task, workTask);
@@ -210,28 +237,6 @@ namespace Kabomu.QuasiHttp
             }
 
             return await transfer.CancellationTcs.Task;
-        }
-
-        private async Task CompleteProcessWithApplication(IQuasiHttpProcessingOptions options,
-            ReceiveTransferInternal transfer, IQuasiHttpRequest request)
-        {
-            var destApp = Application;
-            if (destApp == null)
-            {
-                throw new MissingDependencyException("application");
-            }
-
-            var effectiveRequestEnvironment = ProtocolUtilsInternal.DetermineEffectiveOptions(
-                options?.RequestEnvironment, DefaultProcessingOptions?.RequestEnvironment);
-
-            var res = await destApp.ProcessRequest(request, effectiveRequestEnvironment);
-
-            if (res == null)
-            {
-                throw new Exception("no response");
-            }
-
-            await AbortTransfer(transfer, null, res);
         }
 
         public async Task Stop()
@@ -275,9 +280,9 @@ namespace Kabomu.QuasiHttp
             await Task.WhenAll(tasks);
         }
 
-        private void SetResponseTimeout(ReceiveTransferInternal transfer, int transferTimeoutMillis)
+        private void SetReceiveTimeout(ReceiveTransferInternal transfer)
         {
-            if (transferTimeoutMillis <= 0)
+            if (transfer.TimeoutMillis <= 0)
             {
                 return;
             }
@@ -286,7 +291,7 @@ namespace Kabomu.QuasiHttp
             {
                 throw new MissingDependencyException("timer api");
             }
-            transfer.TimeoutId = timer.SetTimeout(transferTimeoutMillis, async () =>
+            transfer.TimeoutId = timer.SetTimeout(transfer.TimeoutMillis, async () =>
             {
                 await AbortTransfer(transfer, new Exception("receive timeout"), null);
             }).Item2;
@@ -321,9 +326,13 @@ namespace Kabomu.QuasiHttp
             }
             transfer.IsAborted = true;
             TimerApi?.ClearTimeout(transfer.TimeoutId);
-            if (transfer.Protocol != null)
+            if (transfer.Connection != null)
             {
-                await transfer.Protocol.Cancel();
+                await transfer.Transport.ReleaseConnection(transfer.Connection);
+            }
+            if (transfer.Request?.Body != null)
+            {
+                await transfer.Request.Body.EndRead();
             }
         }
     }

@@ -13,11 +13,10 @@ namespace Kabomu.QuasiHttp.EntityBody
         private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
         private readonly IQuasiHttpTransport _transport;
         private readonly object _connection;
-        private readonly Func<Task> _closeCallback;
         private long _bytesRemaining;
 
         public TransportBackedBody(IQuasiHttpTransport transport, object connection,
-             Func<Task> closeCallback, long contentLength, string contentType)
+             long contentLength, string contentType)
         {
             if (transport == null)
             {
@@ -25,19 +24,20 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
             _transport = transport;
             _connection = connection;
-            _closeCallback = closeCallback;
             ContentType = contentType;
             ContentLength = contentLength;
-            _bytesRemaining = -1;
             if (ContentLength >= 0)
             {
                 _bytesRemaining = contentLength;
             }
+            else
+            {
+                _bytesRemaining = -1;
+            }
         }
 
-        public long ContentLength { get; private set; }
-
-        public string ContentType { get; private set; }
+        public long ContentLength { get; }
+        public string ContentType { get; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
@@ -81,10 +81,6 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
 
             _readCancellationHandle.Cancel();
-            if (_closeCallback != null)
-            {
-                await _closeCallback.Invoke();
-            }
         }
     }
 }

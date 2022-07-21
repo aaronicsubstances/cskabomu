@@ -13,21 +13,20 @@ namespace Kabomu.QuasiHttp.EntityBody
     {
         private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
 
-        public StreamBackedBody(Stream backingStream, string contentType)
+        public StreamBackedBody(Stream backingStream, long contentLength, string contentType)
         {
             if (backingStream == null)
             {
                 throw new ArgumentException("null backing stream");
             }
             BackingStream = backingStream;
+            ContentLength = contentLength;
             ContentType = contentType ?? TransportUtils.ContentTypeByteStream;
         }
 
-        public long ContentLength => -1;
-
-        public string ContentType { get; }
-
         public Stream BackingStream { get; }
+        public long ContentLength { get; }
+        public string ContentType { get; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {

@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Server;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -46,11 +47,12 @@ namespace Http.FileServer
             if (httpContext.Request.Body != null)
             {
                 quasiRequest.Body = new StreamBackedBody(httpContext.Request.Body,
+                    httpContext.Request.ContentLength ?? -1,
                     httpContext.Request.ContentType);
             }
             var processingOptions = new DefaultQuasiHttpProcessingOptions
             {
-                OverallReqRespTimeoutMillis = 5_000,
+                TimeoutMillis = 5_000,
                 MaxChunkSize = 2 * 8192
             };
             IQuasiHttpResponse quasiResponse;

@@ -31,7 +31,6 @@ namespace Kabomu.QuasiHttp.EntityBody
         }
 
         public long ContentLength => -1;
-
         public string ContentType => _wrappedBody.ContentType;
 
         public static async Task<LeadChunk> ReadLeadChunk(IQuasiHttpTransport transport, object connection,

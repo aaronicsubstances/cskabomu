@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
 {
@@ -14,5 +15,6 @@ namespace Kabomu.QuasiHttp
         IQuasiHttpBody Body { get; }
         int HttpStatusCode { get; }
         string HttpVersion { get; }
+        Task Close();
     }
 }

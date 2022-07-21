@@ -35,7 +35,6 @@ namespace Kabomu.QuasiHttp.EntityBody
         }
 
         public long ContentLength => -1;
-
         public string ContentType => _wrappedBody.ContentType;
 
         public static async Task WriteLeadChunk(IQuasiHttpTransport transport, object connection,

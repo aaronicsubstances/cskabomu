@@ -38,6 +38,11 @@ namespace Kabomu.Examples.Shared
             }
         }
 
+        public Task<bool> WillCancelSendMakeResponseBodyUnusable(object sendCancellationHandle, IQuasiHttpResponse response)
+        {
+            return Task.FromResult(true);
+        }
+
         private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(IQuasiHttpRequest request,
             IConnectivityParams connectivityParams, CancellationToken cancellationToken)
         {
@@ -96,8 +101,9 @@ namespace Kabomu.Examples.Shared
             if (responseWrapper.Content != null)
             {
                 var responseStream = await responseWrapper.Content.ReadAsStreamAsync();
+                var contentLength = responseWrapper.Content.Headers.ContentLength ?? -1;
                 var contentType = responseWrapper.Content.Headers.ContentType?.ToString();
-                response.Body = new StreamBackedBody(responseStream, contentType);
+                response.Body = new StreamBackedBody(responseStream, contentLength, contentType);
             }
             response.Headers = new Dictionary<string, List<string>>();
             AdddResponseHeaders(response.Headers, responseWrapper);
