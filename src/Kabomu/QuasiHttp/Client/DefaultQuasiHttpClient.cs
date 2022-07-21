@@ -110,10 +110,10 @@ namespace Kabomu.QuasiHttp.Client
                 transfer.ResponseStreamingEnabled = ProtocolUtilsInternal.DetermineEffectiveBooleanOption(
                     transfer.SendOptions?.ResponseStreamingEnabled, DefaultSendOptions?.ResponseStreamingEnabled, false);
 
-                transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectiveNonNegativeIntegerOption(
+                transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     transfer.SendOptions?.MaxChunkSize, DefaultSendOptions?.MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
 
-                transfer.ResponseBodyBufferingSizeLimit = ProtocolUtilsInternal.DetermineEffectiveNonNegativeIntegerOption(
+                transfer.ResponseBodyBufferingSizeLimit = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     transfer.SendOptions?.ResponseBodyBufferingSizeLimit,
                     DefaultSendOptions?.ResponseBodyBufferingSizeLimit, 
                     TransportUtils.DefaultResponseBodyBufferingSizeLimit);

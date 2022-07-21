@@ -28,7 +28,7 @@ namespace Kabomu.QuasiHttp
             return defaultValue;
         }
 
-        public static int DetermineEffectiveNonNegativeIntegerOption(int? preferred,
+        public static int DetermineEffectivePositiveIntegerOption(int? preferred,
             int? fallback1, int defaultValue)
         {
             if (preferred.HasValue)
