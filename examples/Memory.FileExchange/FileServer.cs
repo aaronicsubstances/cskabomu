@@ -1,6 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.Examples.Shared;
-using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
 using NLog;
 using System;
@@ -26,7 +26,7 @@ namespace Memory.FileExchange
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
-                    OverallReqRespTimeoutMillis = 5_000
+                    TimeoutMillis = 5_000
                 },
                 Transport = transport,
                 ErrorHandler = errorHandler,

@@ -27,13 +27,10 @@ namespace Kabomu.QuasiHttp.EntityBody
             ContentType = contentType ?? TransportUtils.ContentTypeJson;
         }
 
-        public object Content { get; }
-
-        public long ContentLength => -1;
-
-        public string ContentType { get; }
-
         public Func<object, byte[]> SerializationHandler { get; }
+        public object Content { get; }
+        public long ContentLength => -1;
+        public string ContentType { get; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {

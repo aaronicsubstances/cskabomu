@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.Concurrency;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -16,7 +17,6 @@ namespace Kabomu.Tests.Shared
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpServerTransport Transport { get; set; }
         public IMutexApi MutexApi { get; set; }
-        public IMutexApiFactory MutexApiFactory { get; set; }
         public Func<Task> StartCallback { get; set; }
         public Func<Task> StopCallback { get; set; }
         public Func<IQuasiHttpRequest, IQuasiHttpProcessingOptions, Task<IQuasiHttpResponse>> SendToApplicationCallback { get; set; }

@@ -18,8 +18,6 @@ Overall mission is toward monolithic applications for enforcement of architectur
 
 1. Deployment enviroment: localhost
 
-1. Quasi Web transport type: connection-oriented, byte-oriented.
-
 1. Quasi Web transports provided by default: memory, localhost TCP, unix domain socket, windows named pipe, HTTP.
    1. *Support for HTTP makes it possible to use Kabomu with any HTTP client library.*
    2. Interfaces are provided for the creation of any custom quasi web transport.

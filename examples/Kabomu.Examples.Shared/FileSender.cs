@@ -1,5 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using NLog;
 using System;
@@ -45,7 +46,7 @@ namespace Kabomu.Examples.Shared
             request.Headers.Add("f", new List<string> { f.Name });
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
-            request.Body = new StreamBackedBody(fileStream, null);
+            request.Body = new StreamBackedBody(fileStream, f.Length, null);
             IQuasiHttpResponse res;
             try
             {

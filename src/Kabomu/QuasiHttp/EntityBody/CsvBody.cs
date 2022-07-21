@@ -33,11 +33,9 @@ namespace Kabomu.QuasiHttp.EntityBody
         }
 
         public Dictionary<string, List<string>> Content => (Dictionary<string, List<string>>)_backingBody.Content;
-
-
         public long ContentLength => _backingBody.ContentLength;
-
         public string ContentType => _backingBody.ContentType;
+
 
         public Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {

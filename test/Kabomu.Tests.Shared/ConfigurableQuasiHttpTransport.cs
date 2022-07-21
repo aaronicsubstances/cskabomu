@@ -12,6 +12,7 @@ namespace Kabomu.Tests.Shared
     {
         public Func<IQuasiHttpRequest, IConnectivityParams, Tuple<Task<IQuasiHttpResponse>, object>> ProcessSendRequestCallback { get; set; }
         public Action<object> CancelSendRequestCallback { get; set; }
+        public Func<object, IQuasiHttpResponse, Task<bool>> WillCancelSendMakeResponseBodyUnusableCallback { get; set; }
         public Func<IConnectivityParams, Task<IConnectionAllocationResponse>> AllocateConnectionCallback { get; set; }
         public Func<object, Task> ReleaseConnectionCallback { get; set; }
         public Func<object, byte[], int, int, Task<int>> ReadBytesCallback { get; set; }
@@ -31,6 +32,11 @@ namespace Kabomu.Tests.Shared
         public void CancelSendRequest(object sendCancellationHandle)
         {
             CancelSendRequestCallback.Invoke(sendCancellationHandle);
+        }
+
+        public Task<bool> WillCancelSendMakeResponseBodyUnusable(object sendCancellationHandle, IQuasiHttpResponse response)
+        {
+            return WillCancelSendMakeResponseBodyUnusableCallback.Invoke(sendCancellationHandle, response);
         }
 
         public Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)

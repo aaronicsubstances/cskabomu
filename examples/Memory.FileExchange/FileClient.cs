@@ -1,5 +1,5 @@
 ﻿using Kabomu.Examples.Shared;
-using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.Transport;
 using NLog;
 using System;
@@ -24,7 +24,7 @@ namespace Memory.FileExchange
             };
             var defaultSendOptions = new DefaultQuasiHttpSendOptions
             {
-                OverallReqRespTimeoutMillis = 5_000
+                TimeoutMillis = 5_000
             };
             var instance = new DefaultQuasiHttpClient
             {

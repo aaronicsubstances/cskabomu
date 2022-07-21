@@ -28,6 +28,11 @@ namespace Kabomu.QuasiHttp.Transport
             return Tuple.Create(resTask, sendCancellationHandle);
         }
 
+        public Task<bool> WillCancelSendMakeResponseBodyUnusable(object sendCancellationHandle, IQuasiHttpResponse response)
+        {
+            return Task.FromResult(false);
+        }
+
         public void CancelSendRequest(object sendCancellationHandle)
         {
             // do nothing.

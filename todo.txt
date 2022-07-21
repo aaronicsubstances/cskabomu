@@ -1,6 +1,6 @@
 remaining
 ==========
--introduce enough timeout gaps to remove flakiness of DefaultQuasiHttpServerClient
+-introduce enough timeout gaps to remove flakiness of QuasiHttpIntegrationTestOne
 -DefaultQuasiHttpClient
 -DefaultQuasiHttpServer
 *can skip above if library works with all examples
@@ -20,6 +20,8 @@ LocalhostTcpTransport - making it async may require use of third party library.
 -consider connect/read timeout usage - https://www.baeldung.com/java-socket-connection-read-timeout
 UnixSocketDomainTransport - availability and making it async may require use of third party library
 WindowsNamedPipeTransport - availability and making it async may require use of third party library
+HttpTransport
+UdpTransport
 
 default application pipeline - v1.1.0
 ----------------------------

@@ -154,14 +154,12 @@ namespace Kabomu.QuasiHttp.Transport
                 pendingClientConnectRequest.ClientEndpoint);
             var connectionAllocationResponseForServer = new DefaultConnectionAllocationResponse
             {
-                ProcessingMutexApi = serverSideMutexApi,
                 Connection = connection,
                 Environment = requestEnvironment
             };
             var connectionAllocationResponseForClient = new DefaultConnectionAllocationResponse
             {
-                ProcessingMutexApi = clientSideMutexApi,
-                Connection = connection,
+                Connection = connection
             };
 
             // can later pass local and remote endpoint information in response environment.

@@ -20,11 +20,9 @@ namespace Kabomu.QuasiHttp.EntityBody
             MutexApi = new LockBasedMutexApi();
         }
 
-        public long ContentLength => -1;
-
-        public string ContentType { get; }
-
         public IMutexApi MutexApi { get; set; }
+        public long ContentLength => -1;
+        public string ContentType { get; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {

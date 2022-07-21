@@ -1,5 +1,4 @@
-﻿using Kabomu.Concurrency;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -7,10 +6,9 @@ namespace Kabomu.QuasiHttp
 {
     internal class ProtocolUtilsInternal
     {
-        public static int DetermineEffectiveOverallReqRespTimeoutMillis(int? preferred,
+        public static int DetermineEffectiveNonZeroIntegerOption(int? preferred,
             int? fallback1, int defaultValue)
         {
-            // NB: negative value is an acceptable value which means infinite timeout
             if (preferred.HasValue)
             {
                 int effectiveValue = preferred.Value;
@@ -30,7 +28,7 @@ namespace Kabomu.QuasiHttp
             return defaultValue;
         }
 
-        public static int DetermineEffectiveMaxChunkSize(int? preferred,
+        public static int DetermineEffectiveNonNegativeIntegerOption(int? preferred,
             int? fallback1, int defaultValue)
         {
             if (preferred.HasValue)
@@ -82,18 +80,13 @@ namespace Kabomu.QuasiHttp
             return dest;
         }
 
-        public static async Task<IMutexApi> DetermineEffectiveMutexApi(IMutexApi preferred,
-            IMutexApiFactory fallbackFactory)
+        public static bool DetermineEffectiveBooleanOption(bool? preferred, bool? fallback1, bool defaultValue)
         {
-            if (preferred != null)
+            if (preferred.HasValue)
             {
-                return preferred;
+                return preferred.Value;
             }
-            if (fallbackFactory != null)
-            {
-                return await fallbackFactory.Create();
-            }
-            return null;
+            return fallback1 ?? defaultValue;
         }
     }
 }

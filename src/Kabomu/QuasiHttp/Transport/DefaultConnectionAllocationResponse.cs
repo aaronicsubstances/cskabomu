@@ -9,6 +9,5 @@ namespace Kabomu.QuasiHttp.Transport
     {
         public object Connection { get; set; }
         public IDictionary<string, object> Environment { get; set; }
-        public IMutexApi ProcessingMutexApi { get; set; }
     }
 }

@@ -1,5 +1,4 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.QuasiHttp;
+﻿using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -11,16 +10,16 @@ namespace Kabomu.Tests.QuasiHttp
     public class ProtocolUtilsInternalTest
     {
         [Theory]
-        [MemberData(nameof(CreateTestDetermineEffectiveOverallReqRespTimeoutMillisData))]
-        public void TestDetermineEffectiveOverallReqRespTimeoutMillis(int? preferred,
+        [MemberData(nameof(CreateTestDetermineEffectiveNonZeroIntegerOptionData))]
+        public void TestDetermineEffectiveNonZeroIntegerOption(int? preferred,
             int? fallback1, int defaultValue, int expected)
         {
-            var actual = ProtocolUtilsInternal.DetermineEffectiveOverallReqRespTimeoutMillis(
+            var actual = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                 preferred, fallback1, defaultValue);
             Assert.Equal(expected, actual);
         }
 
-        public static List<object[]> CreateTestDetermineEffectiveOverallReqRespTimeoutMillisData()
+        public static List<object[]> CreateTestDetermineEffectiveNonZeroIntegerOptionData()
         {
             var testData = new List<object[]>();
 
@@ -84,16 +83,16 @@ namespace Kabomu.Tests.QuasiHttp
         }
 
         [Theory]
-        [MemberData(nameof(CreateTestDetermineEffectiveMaxChunkSizeData))]
-        public void TestDetermineEffectiveMaxChunkSize(int? preferred, int? fallback1,
+        [MemberData(nameof(CreateTestEffectiveNonNegativeIntegerOptionData))]
+        public void TestEffectiveNonNegativeIntegerOption(int? preferred, int? fallback1,
             int defaultValue, int expected)
         {
-            var actual = ProtocolUtilsInternal.DetermineEffectiveMaxChunkSize(preferred, fallback1,
+            var actual = ProtocolUtilsInternal.DetermineEffectiveNonNegativeIntegerOption(preferred, fallback1,
                 defaultValue);
             Assert.Equal(expected, actual);
         }
 
-        public static List<object[]> CreateTestDetermineEffectiveMaxChunkSizeData()
+        public static List<object[]> CreateTestEffectiveNonNegativeIntegerOptionData()
         {
             var testData = new List<object[]>();
 
@@ -229,60 +228,76 @@ namespace Kabomu.Tests.QuasiHttp
         }
 
         [Theory]
-        [MemberData(nameof(CreateTestDetermineEffectiveMutexApiData))]
-        public async Task TestDetermineEffectiveMutexApi(IMutexApi preferred,
-            IMutexApiFactory fallbackFactory, IMutexApi expected)
+        [MemberData(nameof(CreateTestDetermineEffectiveBooleanOptionData))]
+        public void TestDetermineEffectiveBooleanOption(bool? preferred,
+            bool? fallback1, bool defaultValue, bool expected)
         {
-            var actual = await ProtocolUtilsInternal.DetermineEffectiveMutexApi(preferred,
-                fallbackFactory);
+            var actual = ProtocolUtilsInternal.DetermineEffectiveBooleanOption(
+                preferred, fallback1, defaultValue);
             Assert.Equal(expected, actual);
         }
 
-        public static List<object[]> CreateTestDetermineEffectiveMutexApiData()
+        public static List<object[]> CreateTestDetermineEffectiveBooleanOptionData()
         {
             var testData = new List<object[]>();
 
-            IMutexApi preffered = new LockBasedMutexApi();
-            TestMutexApiFactory factory = null;
-            IMutexApi expected = preffered;
-            testData.Add(new object[] { preffered, factory, expected });
+            bool? preferred = true;
+            bool? fallback1 = null;
+            bool defaultValue = true;
+            bool expected = true;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
 
-            preffered = null;
-            factory = null;
-            expected = null;
-            testData.Add(new object[] { preffered, factory, expected });
+            preferred = false;
+            fallback1 = true;
+            defaultValue = true;
+            expected = false;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
 
-            preffered = new LockBasedMutexApi();
-            factory = null;
-            expected = preffered;
-            testData.Add(new object[] { preffered, factory, expected });
+            preferred = null;
+            fallback1 = false;
+            defaultValue = true;
+            expected = false;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
 
-            preffered = new LockBasedMutexApi();
-            factory = new TestMutexApiFactory(new LockBasedMutexApi());
-            expected = preffered;
-            testData.Add(new object[] { preffered, factory, expected });
+            preferred = null;
+            fallback1 = true;
+            defaultValue = false;
+            expected = true;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
 
-            preffered = null;
-            factory = new TestMutexApiFactory(new LockBasedMutexApi());
-            expected = factory.SoleMutexApi;
-            testData.Add(new object[] { preffered, factory, expected });
+            preferred = null;
+            fallback1 = true;
+            defaultValue = true;
+            expected = true;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = null;
+            defaultValue = true;
+            expected = true;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = null;
+            defaultValue = false;
+            expected = false;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = true;
+            fallback1 = true;
+            defaultValue = false;
+            expected = true;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
 
             return testData;
-        }
-
-        private class TestMutexApiFactory : IMutexApiFactory
-        {
-            public TestMutexApiFactory(IMutexApi soleMutexApi)
-            {
-                SoleMutexApi = soleMutexApi;
-            }
-
-            public IMutexApi SoleMutexApi { get; }
-
-            public Task<IMutexApi> Create()
-            {
-                return Task.FromResult(SoleMutexApi);
-            }
         }
     }
 }

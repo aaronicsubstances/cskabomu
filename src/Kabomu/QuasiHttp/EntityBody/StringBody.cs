@@ -24,9 +24,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         }
 
         public string Content => (string)_backingBody.Content;
-
         public long ContentLength => _backingBody.ContentLength;
-
         public string ContentType => _backingBody.ContentType;
 
         public Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)

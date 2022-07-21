@@ -1,6 +1,6 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Internals;
@@ -12,56 +12,56 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp
+namespace Kabomu.Tests.QuasiHttp.Client
 {
-    public class ReceiveProtocolInternalTest
+    public class DefaultSendProtocolInternalTest
     {
         [Theory]
-        [MemberData(nameof(CreateTestReceiveData))]
-        public async Task TestReceive(object connection, int maxChunkSize,
-            IQuasiHttpRequest request, byte[] requestBodyBytes, IDictionary<string, object> reqEnv,
-            IQuasiHttpResponse expectedResponse, byte[] expectedResponseBodyBytes)
+        [MemberData(nameof(CreateTestSendData))]
+        public async Task TestSend(object connection, int maxChunkSize,
+            IQuasiHttpRequest expectedRequest, byte[] expectedRequestBodyBytes,
+            IQuasiHttpResponse response, byte[] responseBodyBytes)
         {
             // arrange.
-            var reqChunk = new LeadChunk
+            var expectedReqChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
-                Path = request.Path,
-                Headers = request.Headers,
-                ContentLength = request.Body?.ContentLength ?? 0,
-                ContentType = request.Body?.ContentType,
-                HttpVersion = request.HttpVersion,
-                HttpMethod = request.HttpMethod
+                Path = expectedRequest.Path,
+                Headers = expectedRequest.Headers,
+                ContentLength = expectedRequest.Body?.ContentLength ?? 0,
+                ContentType = expectedRequest.Body?.ContentType,
+                HttpVersion = expectedRequest.HttpVersion,
+                HttpMethod = expectedRequest.HttpMethod
             };
 
-            var expectedResChunk = new LeadChunk
+            var resChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
-                StatusIndicatesSuccess = expectedResponse.StatusIndicatesSuccess,
-                StatusIndicatesClientError = expectedResponse.StatusIndicatesClientError,
-                StatusMessage = expectedResponse.StatusMessage,
-                Headers = expectedResponse.Headers,
-                ContentLength = expectedResponse.Body?.ContentLength ?? 0,
-                ContentType = expectedResponse.Body?.ContentType,
-                HttpVersion = expectedResponse.HttpVersion,
-                HttpStatusCode = expectedResponse.HttpStatusCode
+                StatusIndicatesSuccess = response.StatusIndicatesSuccess,
+                StatusIndicatesClientError = response.StatusIndicatesClientError,
+                StatusMessage = response.StatusMessage,
+                Headers = response.Headers,
+                ContentLength = response.Body?.ContentLength ?? 0,
+                ContentType = response.Body?.ContentType,
+                HttpVersion = response.HttpVersion,
+                HttpStatusCode = response.HttpStatusCode
             };
 
             var inputStream = new MemoryStream();
-            var serializedReq = reqChunk.Serialize();
-            MiscUtils.WriteChunk(serializedReq, (data, offset, length) =>
+            var serializedRes = resChunk.Serialize();
+            MiscUtils.WriteChunk(serializedRes, (data, offset, length) =>
                 inputStream.Write(data, offset, length));
-            if (requestBodyBytes != null)
+            if (responseBodyBytes != null)
             {
-                if (request.Body.ContentLength < 0)
+                if (response.Body.ContentLength < 0)
                 {
-                    var reqBodyChunk = new SubsequentChunk
+                    var resBodyChunk = new SubsequentChunk
                     {
                         Version = LeadChunk.Version01,
-                        Data = requestBodyBytes,
-                        DataLength = requestBodyBytes.Length
+                        Data = responseBodyBytes,
+                        DataLength = responseBodyBytes.Length
                     }.Serialize();
-                    MiscUtils.WriteChunk(reqBodyChunk, (data, offset, length) =>
+                    MiscUtils.WriteChunk(resBodyChunk, (data, offset, length) =>
                         inputStream.Write(data, offset, length));
                     // write trailing empty chunk.
                     var emptyBodyChunk = new SubsequentChunk
@@ -73,7 +73,7 @@ namespace Kabomu.Tests.QuasiHttp
                 }
                 else
                 {
-                    inputStream.Write(requestBodyBytes);
+                    inputStream.Write(responseBodyBytes);
                 }
             }
             inputStream.Position = 0; // rewind read pointer.
@@ -92,82 +92,70 @@ namespace Kabomu.Tests.QuasiHttp
                     outputStream.Write(data, offset, length);
                 }
             };
-            var instance = new ReceiveProtocolInternal();
-            instance.MutexApi = new LockBasedMutexApi();
-            instance.Transport = transport;
-            instance.Connection = connection;
-            instance.RequestEnvironment = reqEnv;
-            instance.MaxChunkSize = maxChunkSize;
-
-            IQuasiHttpRequest actualRequest = null;
-            IDictionary<string, object> actualRequestEnvironment = null;
-            instance.Application = new ConfigurableQuasiHttpApplication
+            var instance = new DefaultSendProtocolInternal
             {
-                ProcessRequestCallback = async (req, env) =>
-                {
-                    actualRequest = req;
-                    actualRequestEnvironment = env;
-                    return expectedResponse;
-                }
+                Parent = new object(),
+                Transport = transport,
+                Connection = connection,
+                MaxChunkSize = maxChunkSize,
+                ResponseBodyBufferingSizeLimit = 100
             };
             bool abortCalled = false;
-            ReceiveTransferInternal actualProtocolParentSeen = null;
-            instance.Parent = new ReceiveTransferInternal();
+            object actualProtocolParentSeen = null;
             instance.AbortCallback = (transfer, e, res) =>
             {
-                Assert.False(abortCalled);
+                // may be called more than once.
                 actualProtocolParentSeen = transfer;
                 abortCalled = true;
                 return Task.CompletedTask;
             };
 
-            // act
-            await instance.Receive();
+            // act.
+            IQuasiHttpResponse actualResponse = await instance.Send(expectedRequest);
 
-            // assert
+            // assert.
             Assert.True(abortCalled);
+            await ComparisonUtils.CompareResponses(maxChunkSize, response, actualResponse,
+                responseBodyBytes);
             Assert.Equal(instance.Parent, actualProtocolParentSeen);
-            await ComparisonUtils.CompareRequests(maxChunkSize, request, actualRequest,
-                requestBodyBytes);
-            Assert.Equal(reqEnv, actualRequestEnvironment);
-            var actualRes = outputStream.ToArray();
-            Assert.NotEmpty(actualRes);
-            var actualResChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualRes, 0,
+            var actualReq = outputStream.ToArray();
+            Assert.NotEmpty(actualReq);
+            var actualReqChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualReq, 0,
                 MiscUtils.LengthOfEncodedChunkLength);
-            var actualResChunk = LeadChunk.Deserialize(actualRes,
-                MiscUtils.LengthOfEncodedChunkLength, actualResChunkLength);
-            ComparisonUtils.CompareLeadChunks(expectedResChunk, actualResChunk);
-            var actualResponseBodyLen = actualRes.Length - 
-                MiscUtils.LengthOfEncodedChunkLength - actualResChunkLength;
-            if (expectedResponseBodyBytes == null)
+            var actualReqChunk = LeadChunk.Deserialize(actualReq,
+                MiscUtils.LengthOfEncodedChunkLength, actualReqChunkLength);
+            ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
+            var actualRequestBodyLen = actualReq.Length -
+                MiscUtils.LengthOfEncodedChunkLength- actualReqChunkLength;
+            if (expectedRequestBodyBytes == null)
             {
-                Assert.Equal(0, actualResponseBodyLen);
+                Assert.Equal(0, actualRequestBodyLen);
             }
             else
             {
-                byte[] actualResBodyBytes;
-                if (actualResChunk.ContentLength < 0)
+                byte[] actualReqBodyBytes;
+                if (actualReqChunk.ContentLength < 0)
                 {
-                    actualResBodyBytes = await MiscUtils.ReadChunkedBody(actualRes,
-                        actualResChunkLength + MiscUtils.LengthOfEncodedChunkLength,
-                        actualResponseBodyLen);
+                    actualReqBodyBytes = await MiscUtils.ReadChunkedBody(actualReq,
+                        actualReqChunkLength + MiscUtils.LengthOfEncodedChunkLength,
+                        actualRequestBodyLen);
                 }
                 else
                 {
-                    actualResBodyBytes = new byte[actualResponseBodyLen];
-                    Array.Copy(actualRes, actualResChunkLength + MiscUtils.LengthOfEncodedChunkLength,
-                        actualResBodyBytes, 0, actualResponseBodyLen);
+                    actualReqBodyBytes = new byte[actualRequestBodyLen];
+                    Array.Copy(actualReq, actualReqChunkLength + MiscUtils.LengthOfEncodedChunkLength,
+                        actualReqBodyBytes, 0, actualRequestBodyLen);
                 }
-                Assert.Equal(expectedResponseBodyBytes, actualResBodyBytes);
+                Assert.Equal(expectedRequestBodyBytes, actualReqBodyBytes);
             }
         }
 
-        public static List<object[]> CreateTestReceiveData()
+        public static List<object[]> CreateTestSendData()
         {
             var testData = new List<object[]>();
 
             object connection = "vgh";
-            int maxChunkSize = 100;
+            int maxChunkSize = 115;
             var request = new DefaultQuasiHttpRequest
             {
                 HttpMethod = "POST",
@@ -180,7 +168,6 @@ namespace Kabomu.Tests.QuasiHttp
             var reqBodyBytes = Encoding.UTF8.GetBytes("this is our king");
             request.Body = new ByteBufferBody(reqBodyBytes, 0, reqBodyBytes.Length,
                 "text/plain");
-            IDictionary<string, object> reqEnv = null;
 
             var expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -195,20 +182,16 @@ namespace Kabomu.Tests.QuasiHttp
             byte[] expectedResBodyBytes = Encoding.UTF8.GetBytes("and this is our queen");
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes, 0, expectedResBodyBytes.Length,
                 "image/png");
-            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
+            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
             connection = 123;
-            maxChunkSize = 95;
+            maxChunkSize = 90;
             request = new DefaultQuasiHttpRequest
             {
                 Path = "/p"
             };
             reqBodyBytes = null;
-            reqEnv = new Dictionary<string, object>
-            {
-                { "is_ssl", "true" }
-            };
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -217,11 +200,11 @@ namespace Kabomu.Tests.QuasiHttp
                 StatusMessage = "not found"
             };
             expectedResBodyBytes = null;
-            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
+            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
             connection = null;
-            maxChunkSize = 90;
+            maxChunkSize = 95;
             request = new DefaultQuasiHttpRequest
             {
                 HttpVersion = "1.1",
@@ -229,7 +212,6 @@ namespace Kabomu.Tests.QuasiHttp
             };
             reqBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
             request.Body = new StringBody("<a>this is news</a>", "application/xml");
-            reqEnv = new Dictionary<string, object>();
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -239,11 +221,11 @@ namespace Kabomu.Tests.QuasiHttp
                 StatusMessage = "server error"
             };
             expectedResBodyBytes = null;
-            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
+            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
             connection = new object();
-            maxChunkSize = 150;
+            maxChunkSize = 100;
             request = new DefaultQuasiHttpRequest
             {
                 Path = "/fxn",
@@ -256,10 +238,6 @@ namespace Kabomu.Tests.QuasiHttp
                 }
             };
             reqBodyBytes = null;
-            reqEnv = new Dictionary<string, object>
-            {
-                { "r", 2 }, { "tea", new byte[3] }
-            };
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -272,9 +250,9 @@ namespace Kabomu.Tests.QuasiHttp
                     { "y", new List<string>{ "B1", "B2", "C1", "C2", "C3" } }
                 }
             };
-            expectedResBodyBytes =  Encoding.UTF8.GetBytes("<a>this is news</a>");
+            expectedResBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
             expectedResponse.Body = new StringBody("<a>this is news</a>", "application/xml");
-            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
+            testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
             return testData;

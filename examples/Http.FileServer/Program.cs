@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommandLine;
 using Kabomu.Examples.Shared;
-using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Server;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -55,7 +55,7 @@ namespace Http.FileServer
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
-                    OverallReqRespTimeoutMillis = 5_000
+                    TimeoutMillis = 5_000
                 }
             };
             instance.Application = new FileReceiver(port, uploadDirPath);
