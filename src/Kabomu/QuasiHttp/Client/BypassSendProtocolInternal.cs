@@ -35,7 +35,7 @@ namespace Kabomu.QuasiHttp.Client
 
         public Task Cancel()
         {
-            // reading these variables is thread safe if caller calls this method within same mutex as
+            // reading these variables is thread safe if caller calls current method within same mutex as
             // Send().
             if (_cancelled)
             {
@@ -51,6 +51,7 @@ namespace Kabomu.QuasiHttp.Client
 
         public async Task<IQuasiHttpResponse> Send(IQuasiHttpRequest request)
         {
+            // assume properties are set correctly aside the transport.
             if (TransportBypass == null)
             {
                 throw new MissingDependencyException("transport bypass");
@@ -58,7 +59,7 @@ namespace Kabomu.QuasiHttp.Client
 
             var cancellableResTask = TransportBypass.ProcessSendRequest(request, ConnectivityParams);
 
-            // writing this variable is thread safe if caller calls this method within same mutex as
+            // writing this variable is thread safe if caller calls current method within same mutex as
             // Cancel().
             _sendCancellationHandle = cancellableResTask.Item2;
 
@@ -77,20 +78,24 @@ namespace Kabomu.QuasiHttp.Client
                         CancelSendCallback);
                     response = CreateEquivalentResponse(response, newResponseBody);
                 }
-                else if (await TransportBypass.WillCancelSendMakeResponseBodyUnusable(_sendCancellationHandle, response))
+                else
                 {
-                    // read in entirety of response body into memory, and respect content length for
-                    // the sake of tests.
-                    if (response.Body.ContentLength > 0 && response.Body.ContentLength > ResponseBodyBufferingSizeLimit)
+                    // NB: not thread-safe to reuse _sendCancellationHandle in conditional check below.
+                    if (await TransportBypass.WillCancelSendMakeResponseBodyUnusable(cancellableResTask.Item2, response))
                     {
-                        throw new BodySizeLimitExceededException($"content length larger than buffering limit of " +
-                            $"{ResponseBodyBufferingSizeLimit} bytes");
+                        // read in entirety of response body into memory, and respect content length for
+                        // the sake of tests.
+                        if (response.Body.ContentLength > 0 && response.Body.ContentLength > ResponseBodyBufferingSizeLimit)
+                        {
+                            throw new BodySizeLimitExceededException($"content length larger than buffering limit of " +
+                                $"{ResponseBodyBufferingSizeLimit} bytes");
+                        }
+                        var inMemStream = await TransportUtils.ReadBodyToMemoryStream(response.Body, MaxChunkSize,
+                            ResponseBodyBufferingSizeLimit);
+                        var newResponseBody = new StreamBackedBody(inMemStream, response.Body.ContentLength,
+                            response.Body.ContentType);
+                        response = CreateEquivalentResponse(response, newResponseBody);
                     }
-                    var inMemStream = await TransportUtils.ReadBodyToMemoryStream(response.Body, MaxChunkSize,
-                        ResponseBodyBufferingSizeLimit);
-                    var newResponseBody = new StreamBackedBody(inMemStream, response.Body.ContentLength,
-                        response.Body.ContentType);
-                    response = CreateEquivalentResponse(response, newResponseBody);
                 }
             }
 

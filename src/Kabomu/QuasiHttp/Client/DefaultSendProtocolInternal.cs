@@ -13,6 +13,8 @@ namespace Kabomu.QuasiHttp.Client
     {
         private readonly Func<Task> CloseConnectionCallback;
 
+        private bool _cancelled;
+
         public DefaultSendProtocolInternal()
         {
             CloseConnectionCallback = CancelTransfer;
@@ -33,6 +35,12 @@ namespace Kabomu.QuasiHttp.Client
 
         public Task Cancel()
         {
+            // reading these variables is thread safe if caller always calls current method within same mutex.
+            if (_cancelled)
+            {
+                return Task.CompletedTask;
+            }
+            _cancelled = true;
             return Transport.ReleaseConnection(Connection);
         }
 

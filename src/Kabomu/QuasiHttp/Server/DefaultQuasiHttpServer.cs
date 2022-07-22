@@ -267,17 +267,17 @@ namespace Kabomu.QuasiHttp.Server
             {
                 return;
             }
-            else if (resetTimeMillis == 0)
-            {
-                await Reset(null);
-            }
-            else
+            if (resetTimeMillis > 0)
             {
                 if (timerApi == null)
                 {
                     throw new MissingDependencyException("timer api");
                 }
                 await timerApi.SetTimeout(resetTimeMillis, () => Reset(null)).Item1;
+            }
+            else
+            {
+                await Reset(null);
             }
         }
 
