@@ -14,6 +14,7 @@ namespace Kabomu.Examples.Shared
     public class FileSender
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
+        private static readonly Random RandGen = new Random();
 
         public static async Task StartTransferringFiles(IQuasiHttpClient instance, object serverEndpoint,
             string uploadDirPath)
@@ -46,7 +47,8 @@ namespace Kabomu.Examples.Shared
             request.Headers.Add("f", new List<string> { f.Name });
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
-            request.Body = new StreamBackedBody(fileStream, f.Length, null);
+            long fLen = RandGen.NextDouble() < 0.5 ? -1 : f.Length;
+            request.Body = new StreamBackedBody(fileStream, fLen, null);
             IQuasiHttpResponse res;
             try
             {

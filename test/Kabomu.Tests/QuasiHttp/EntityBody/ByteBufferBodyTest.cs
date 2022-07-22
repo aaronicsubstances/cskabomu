@@ -25,7 +25,8 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public Task TestNonEmptyRead()
         {
             // arrange.
-            var instance = new ByteBufferBody(new byte[] { (byte)'A', (byte)'b', (byte)'2' }, 0, 3, null);
+            var instance = new ByteBufferBody(new byte[] { (byte)'A', (byte)'b', (byte)'2' }, 0, 3,
+                "application/octet-stream");
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "application/octet-stream",
@@ -35,6 +36,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public Task TestForArgumentErrors()
         {
+            Assert.Throws<ArgumentNullException>(() =>
+            {
+                new ByteBufferBody(null, 1, 2, null);
+            });
             Assert.Throws<ArgumentException>(() =>
             {
                 new ByteBufferBody(new byte[] { 0, 0 }, 1, 2, null);

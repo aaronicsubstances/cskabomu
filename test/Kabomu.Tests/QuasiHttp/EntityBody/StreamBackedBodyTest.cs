@@ -40,7 +40,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var backingStream = new MemoryStream(new byte[] { (byte)'A', (byte)'b', (byte)'2' });
-            var instance = new StreamBackedBody(backingStream, -1, null);
+            var instance = new StreamBackedBody(backingStream, -1, "application/octet-stream");
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "application/octet-stream",
@@ -52,10 +52,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var backingStream = new MemoryStream(new byte[] { (byte)'A', (byte)'b', (byte)'2' });
-            var instance = new StreamBackedBody(backingStream, 3, null);
+            var instance = new StreamBackedBody(backingStream, 3, "image/png");
 
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "application/octet-stream",
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "image/png",
                 new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
         }
 
@@ -67,14 +67,38 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             var instance = new StreamBackedBody(backingStream, 3, null);
 
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "application/octet-stream",
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, null,
                 new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
+        }
+
+        [Fact]
+        public Task TestWithEmptyBodyWhichCannotCompleteReads()
+        {
+            // arrange.
+            var backingStream = new MemoryStream();
+            var instance = new StreamBackedBody(backingStream, 1, "text/csv");
+
+            // act and assert.
+            return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 1, "text/csv",
+                new int[0], "before end of read", null);
+        }
+
+        [Fact]
+        public Task TestWithBodyWhichCannotCompleteReads()
+        {
+            // arrange.
+            var backingStream = new MemoryStream(new byte[] { (byte)'A', (byte)'b' });
+            var instance = new StreamBackedBody(backingStream, 3, null);
+
+            // act and assert.
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, null,
+                new int[] { 2 }, "before end of read", null);
         }
 
         [Fact]
         public Task TestForArgumentErrors()
         {
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
             {
                 new StreamBackedBody(null, -1, null);
             });

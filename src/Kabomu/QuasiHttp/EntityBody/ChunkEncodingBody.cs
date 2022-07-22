@@ -20,7 +20,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         {
             if (wrappedBody == null)
             {
-                throw new ArgumentException("null wrapped body");
+                throw new ArgumentNullException(nameof(wrappedBody));
             }
             if (maxChunkSize < 0)
             {

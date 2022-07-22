@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Kabomu.Examples.Shared
@@ -30,7 +31,9 @@ namespace Kabomu.Examples.Shared
             try
             {
                 // ensure directory exists.
-                var directory = new DirectoryInfo(Path.Combine(_uploadDirPath, _remoteEndpoint.ToString()));
+                // just in case remote endpoint contains invalid file path characters...
+                var pathForRemoteEndpoint = Regex.Replace(_remoteEndpoint.ToString(), @"\W", "_");
+                var directory = new DirectoryInfo(Path.Combine(_uploadDirPath, pathForRemoteEndpoint));
                 directory.Create();
                 string p = Path.Combine(directory.Name, fileName);
                 using (var fileStream = new FileStream(p, FileMode.Create))

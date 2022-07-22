@@ -6,14 +6,11 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
-    public class CsvBody : IQuasiHttpBody
+    public class CsvBody : SerializableObjectBody
     {
-        private readonly SerializableObjectBody _backingBody;
-
-        public CsvBody(Dictionary<string, List<string>> content)
+        public CsvBody(Dictionary<string, List<string>> content, string contentType):
+            base(content, SerializeContent, contentType)
         {
-            _backingBody = new SerializableObjectBody(content,
-                SerializeContent, TransportUtils.ContentTypeCsv);
         }
 
         private static byte[] SerializeContent(object obj)
@@ -32,19 +29,6 @@ namespace Kabomu.QuasiHttp.EntityBody
             return csvBytes;
         }
 
-        public Dictionary<string, List<string>> Content => (Dictionary<string, List<string>>)_backingBody.Content;
-        public long ContentLength => _backingBody.ContentLength;
-        public string ContentType => _backingBody.ContentType;
-
-
-        public Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
-        {
-            return _backingBody.ReadBytes(data, offset, bytesToRead);
-        }
-
-        public Task EndRead()
-        {
-            return _backingBody.EndRead();
-        }
+        public Dictionary<string, List<string>> CsvContent => (Dictionary<string, List<string>>)Content;
     }
 }

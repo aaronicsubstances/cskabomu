@@ -41,7 +41,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public async Task TestForArgumentErrors()
         {
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
             {
                 new ChunkEncodingBody(null, 100);
             });
