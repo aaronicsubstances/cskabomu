@@ -21,7 +21,7 @@ namespace Kabomu.Examples.Shared
             _httpClient = httpClient;
         }
 
-        public Tuple<Task<IQuasiHttpResponse>,object> ProcessSendRequest(IQuasiHttpRequest request,
+        public Tuple<Task<IQuasiHttpResponse>, object> ProcessSendRequest(IQuasiHttpRequest request,
             IConnectivityParams connectivityParams)
         {
             var cts = new CancellationTokenSource();
@@ -60,30 +60,47 @@ namespace Kabomu.Examples.Shared
             }
             if (connectivityParams?.RemoteEndpoint == null)
             {
-                throw new ArgumentException("null remote endpoint - hence no url authority specified");
+                throw new ArgumentException("null Uri or authority (host:port)");
             }
-            var authority = (string)connectivityParams.RemoteEndpoint;
-            string scheme = null;
-            if (connectivityParams.ExtraParams != null &&
-                connectivityParams.ExtraParams.ContainsKey("scheme"))
+            if (connectivityParams.RemoteEndpoint is Uri requestUri)
             {
-                scheme = (string)connectivityParams.ExtraParams["scheme"];
+                requestWrapper.RequestUri = requestUri;
             }
-            requestWrapper.RequestUri = new Uri($"{scheme ?? "http"}://{authority}{request.Path ?? ""}");
+            else
+            {
+                var authority = (string)connectivityParams.RemoteEndpoint;
+                string scheme = null;
+                if (connectivityParams.ExtraParams != null &&
+                    connectivityParams.ExtraParams.ContainsKey("scheme"))
+                {
+                    scheme = (string)connectivityParams.ExtraParams["scheme"];
+                }
+                requestWrapper.RequestUri = new Uri($"{scheme ?? "http"}://{authority}{request.Path ?? ""}");
+            }
             if (request.Body != null)
             {
                 requestWrapper.Content = new QuasiHttpBodyBackedHttpContent(request.Body);
-                requestWrapper.Content.Headers.Add("Content-Type", request.Body.ContentType);
+            }
+            // add request headers from caller before overriding key headers.
+            AddRequestHeaders(requestWrapper, request.Headers);
+            requestWrapper.Headers.TransferEncoding.Clear();
+            if (requestWrapper.Content != null)
+            {
+                requestWrapper.Content.Headers.ContentType = null;
+                requestWrapper.Content.Headers.ContentLength = null;
+                if (request.Body.ContentType != null)
+                {
+                    requestWrapper.Content.Headers.Add("Content-Type", request.Body.ContentType);
+                }
                 if (request.Body.ContentLength >= 0)
                 {
                     requestWrapper.Content.Headers.ContentLength = request.Body.ContentLength;
                 }
                 else
                 {
-                    requestWrapper.Headers.Add("Transfer-Encoding", "chunked");
+                    requestWrapper.Headers.TransferEncodingChunked = true;
                 }
             }
-            AddRequestHeaders(requestWrapper, request.Headers);
 
             var responseWrapper = await _httpClient.SendAsync(requestWrapper, cancellationToken);
 

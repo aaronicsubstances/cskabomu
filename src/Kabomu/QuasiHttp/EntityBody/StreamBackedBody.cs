@@ -18,10 +18,10 @@ namespace Kabomu.QuasiHttp.EntityBody
         {
             if (backingStream == null)
             {
-                throw new ArgumentException("null backing stream");
+                throw new ArgumentNullException(nameof(backingStream));
             }
             BackingStream = backingStream;
-            ContentType = contentType ?? TransportUtils.ContentTypeByteStream;
+            ContentType = contentType;
             ContentLength = contentLength;
             if (ContentLength >= 0)
             {
@@ -46,14 +46,14 @@ namespace Kabomu.QuasiHttp.EntityBody
 
             EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
-            if (bytesToRead == 0 || _bytesRemaining == 0)
-            {
-                return 0;
-            }
-            if (_bytesRemaining > 0)
+            if (_bytesRemaining >= 0)
             {
                 bytesToRead = (int)Math.Min(bytesToRead, _bytesRemaining);
             }
+            
+            // even if bytes to read is zero at this stage, still go ahead and call
+            // wrapped body instead of trying to optimize by returning zero, so that
+            // any end of read error can be thrown.
 
             // supplying cancellation token is for the purpose of leveraging
             // presence of cancellation in C#'s stream interface. Outside code 

@@ -15,7 +15,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var content = new Dictionary<string, List<string>>();
-            var instance = new CsvBody(content);
+            var instance = new CsvBody(content, "text/csv");
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "text/csv",
@@ -33,17 +33,17 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 { "C", new List<string>() },
                 { "D", new List<string>{ "Fire" } }
             };
-            var instance = new CsvBody(content);
+            var instance = new CsvBody(content, "text/plain");
 
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(16, instance, -1, "text/csv",
+            return CommonBodyTestRunner.RunCommonBodyTest(16, instance, -1, "text/plain",
                 new int[] { 16, 3 }, null, Encoding.UTF8.GetBytes("A,b,2\nB,2\nC\nD,Fire\n"));
         }
 
         [Fact]
         public Task TestForArgumentErrors()
         {
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
             {
                 new StringBody(null, null);
             });
@@ -51,7 +51,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             {
                 { "c", new List<string> { "2"} },
             };
-            var instance = new CsvBody(content);
+            var instance = new CsvBody(content, null);
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }

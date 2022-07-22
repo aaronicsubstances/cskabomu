@@ -46,6 +46,11 @@ namespace Http.FileServer
             quasiRequest.Headers = ReconstructRequestHeaders(httpContext.Request.Headers);
             if (httpContext.Request.Body != null)
             {
+                LOG.Debug("incoming file = {0}; transfer-enconding = {1}; content-length = {2}; content-type = {3} ...",
+                    httpContext.Request.Headers["f"],
+                    httpContext.Request.Headers["Transfer-Encoding"],
+                    httpContext.Request.ContentLength,
+                    httpContext.Request.ContentType);
                 quasiRequest.Body = new StreamBackedBody(httpContext.Request.Body,
                     httpContext.Request.ContentLength ?? -1,
                     httpContext.Request.ContentType);
@@ -53,7 +58,8 @@ namespace Http.FileServer
             var processingOptions = new DefaultQuasiHttpProcessingOptions
             {
                 TimeoutMillis = 5_000,
-                MaxChunkSize = 2 * 8192
+                MaxChunkSize = 2 * 8192,
+                RequestEnvironment = null, // can later send in some information about remote and local endpoints
             };
             IQuasiHttpResponse quasiResponse;
             try
@@ -120,7 +126,19 @@ namespace Http.FileServer
             {
                 foreach (var entry in quasiHttpResponse.Headers)
                 {
-                    response.Headers.Add(entry.Key, new StringValues(entry.Value.ToArray()));
+                    // skip key headers.
+                    switch (entry.Key.ToLower())
+                    {
+                        case "transfer-encoding":
+                            break;
+                        case "content-length":
+                            break;
+                        case "content-type":
+                            break;
+                        default:
+                            response.Headers.Add(entry.Key, new StringValues(entry.Value.ToArray()));
+                            break;
+                    }
                 }
             }
             if (quasiHttpResponse.Body != null)
@@ -134,11 +152,11 @@ namespace Http.FileServer
                 {
                     response.Headers.Add("Transfer-Encoding", new StringValues("chunked"));
                 }
-            }
-            if (quasiHttpResponse.Body != null && quasiHttpResponse.Body.ContentType != null)
-            {
-                response.Headers.Add("Content-Type",
-                    new StringValues(quasiHttpResponse.Body.ContentType));
+                if (quasiHttpResponse.Body.ContentType != null)
+                {
+                    response.Headers.Add("Content-Type",
+                        new StringValues(quasiHttpResponse.Body.ContentType));
+                }
             }
         }
     }

@@ -115,16 +115,13 @@ namespace Kabomu.QuasiHttp.Client
             if (chunk.ContentLength != 0)
             {
                 response.Body = new TransportBackedBody(Transport, Connection,
-                    chunk.ContentLength, chunk.ContentType);
+                    chunk.ContentLength, chunk.ContentType,
+                    ResponseStreamingEnabled ? CloseConnectionCallback : null);
                 if (chunk.ContentLength < 0)
                 {
                     response.Body = new ChunkDecodingBody(response.Body, MaxChunkSize);
                 }
-                if (ResponseStreamingEnabled)
-                {
-                    response.Body = new EndOfReadNotifyingBody(response.Body, CloseConnectionCallback);
-                }
-                else
+                if (!ResponseStreamingEnabled)
                 {
                     // read in entirety of response body into memory, and respect content length for
                     // the sake of tests.

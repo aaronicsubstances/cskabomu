@@ -1,19 +1,15 @@
-﻿using Kabomu.Common;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
-    public class StringBody : IQuasiHttpBody
+    public class StringBody : SerializableObjectBody
     {
-        private readonly SerializableObjectBody _backingBody;
-
-        public StringBody(string content, string contentType)
+        public StringBody(string content, string contentType) :
+            base(content, SerializeContent, contentType)
         {
-            _backingBody = new SerializableObjectBody(content,
-                SerializeContent, contentType ?? TransportUtils.ContentTypePlainText);
         }
 
         private static byte[] SerializeContent(object obj)
@@ -23,18 +19,6 @@ namespace Kabomu.QuasiHttp.EntityBody
             return dataBytes;
         }
 
-        public string Content => (string)_backingBody.Content;
-        public long ContentLength => _backingBody.ContentLength;
-        public string ContentType => _backingBody.ContentType;
-
-        public Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
-        {
-            return _backingBody.ReadBytes(data, offset, bytesToRead);
-        }
-
-        public Task EndRead()
-        {
-            return _backingBody.EndRead();
-        }
+        public string StringContent => (string)Content;
     }
 }

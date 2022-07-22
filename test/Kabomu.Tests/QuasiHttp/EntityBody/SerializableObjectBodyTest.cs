@@ -27,7 +27,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             Func<object, byte[]> serializationHandler = obj => Encoding.UTF8.GetBytes((string)obj);
-            var instance = new SerializableObjectBody("Ab2", serializationHandler, null);
+            var instance = new SerializableObjectBody("Ab2", serializationHandler, "application/json");
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "application/json",
@@ -37,11 +37,11 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public async Task TestForArgumentErrors()
         {
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
             {
                 new SerializableObjectBody(null, _ => new byte[0], null);
             });
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
             {
                 new SerializableObjectBody("", null, null);
             });

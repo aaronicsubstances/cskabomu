@@ -16,15 +16,15 @@ namespace Kabomu.QuasiHttp.EntityBody
         {
             if (content == null)
             {
-                throw new ArgumentException("null content");
+                throw new ArgumentNullException(nameof(content));
             }
             if (serializationHandler == null)
             {
-                throw new ArgumentException("null serialization handler");
+                throw new ArgumentNullException(nameof(serializationHandler));
             }
             Content = content;
             SerializationHandler = serializationHandler;
-            ContentType = contentType ?? TransportUtils.ContentTypeJson;
+            ContentType = contentType;
         }
 
         public Func<object, byte[]> SerializationHandler { get; }

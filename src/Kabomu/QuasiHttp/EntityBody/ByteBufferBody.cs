@@ -14,6 +14,10 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         public ByteBufferBody(byte[] data, int offset, int length, string contentType)
         {
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
             if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
                 throw new ArgumentException("invalid source buffer");
@@ -22,7 +26,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             Buffer = data;
             Offset = offset;
             Length = length;
-            ContentType = contentType ?? TransportUtils.ContentTypeByteStream;
+            ContentType = contentType;
         }
 
         public byte[] Buffer { get; }

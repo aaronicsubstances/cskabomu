@@ -168,13 +168,13 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public async Task TestForArgumentErrors()
         {
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
             {
                 new ChunkDecodingBody(null, 100);
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                new ChunkDecodingBody(null, 0);
+                new ChunkDecodingBody(new StringBody("", null), 0);
             });
             var instance = new ChunkDecodingBody(CreateWrappedBody(null, new string[0]), 100);
             await CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);

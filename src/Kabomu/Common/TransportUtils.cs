@@ -38,26 +38,6 @@ namespace Kabomu.Common
         public static readonly int DefaultResponseBodyBufferingSizeLimit = 65_536 * 2 * 1024; // 128 MB.
 
         /// <summary>
-        /// Equal to "text/plain"
-        /// </summary>
-        public static readonly string ContentTypePlainText = "text/plain";
-
-        /// <summary>
-        /// Equal to "application/octet-stream"
-        /// </summary>
-        public static readonly string ContentTypeByteStream = "application/octet-stream";
-
-        /// <summary>
-        /// Equal to "application/json"
-        /// </summary>
-        public static readonly string ContentTypeJson = "application/json";
-
-        /// <summary>
-        /// Equal to "text/csv"
-        /// </summary>
-        public static readonly string ContentTypeCsv = "text/csv";
-
-        /// <summary>
         /// Reads in data from a quasi http body in order to completely fill in a byte buffer slice.
         /// </summary>
         /// <param name="body">source of bytes to read</param>

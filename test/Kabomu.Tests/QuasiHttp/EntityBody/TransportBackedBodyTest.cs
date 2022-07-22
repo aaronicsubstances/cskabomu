@@ -45,13 +45,34 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         }
 
         [Fact]
-        public Task TestEmptyRead()
+        public async Task TestEmptyRead()
         {
             // arrange.
             var connection = "wer";
             var dataList = new string[0];
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection, 0, "text/csv");
+            var cbCalled = false;
+            Func<Task> endOfReadCb = () =>
+            {
+                cbCalled = true;
+                return Task.CompletedTask;
+            };
+            var instance = new TransportBackedBody(transport, connection, 0, "text/csv", endOfReadCb);
+
+            // act and assert.
+            await CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "text/csv",
+                new int[0], null, new byte[0]);
+            Assert.True(cbCalled);
+        }
+
+        [Fact]
+        public Task TestEmptyReadWithExcessData()
+        {
+            // arrange.
+            var connection = "wer";
+            var dataList = new string[] { "3y3", "yoma" };
+            var transport = CreateTransport(connection, dataList);
+            var instance = new TransportBackedBody(transport, connection, 0, "text/csv", null);
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "text/csv",
@@ -65,27 +86,62 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             object connection = null;
             var dataList = new string[] { "Ab", "2" };
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection, -1, "text/plain");
+            var cbCalled = false;
+            Func<Task> endOfReadCb = () =>
+            {
+                cbCalled = true;
+                return Task.CompletedTask;
+            };
+            var instance = new TransportBackedBody(transport, connection, -1, "text/plain", endOfReadCb);
 
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/plain",
                 new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
+            Assert.True(cbCalled);
         }
 
         [Fact]
-        public async Task TestWithEmptyTransportWhichDoesNotCompleteReadsAfterSatisfyingContentLength()
+        public Task TestNonEmptyReadWithContentLength()
+        {
+            // arrange.
+            object connection = null;
+            var dataList = new string[] { "Ab", "2" };
+            var transport = CreateTransport(connection, dataList);
+            var instance = new TransportBackedBody(transport, connection, 3, "text/plain", null);
+
+            // act and assert.
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "text/plain",
+                new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
+        }
+
+        [Fact]
+        public Task TestNonEmptyReadWithExcessData()
+        {
+            // arrange.
+            object connection = null;
+            var dataList = new string[] { "Ab", "2er", "rea" };
+            var transport = CreateTransport(connection, dataList);
+            var instance = new TransportBackedBody(transport, connection, 5, "text/plain", null);
+
+            // act and assert.
+            return CommonBodyTestRunner.RunCommonBodyTest(3, instance, 5, "text/plain",
+                new int[] { 2, 3 }, null, Encoding.UTF8.GetBytes("Ab2er"));
+        }
+
+        [Fact]
+        public Task TestWithEmptyTransportWhichDoesNotCompleteReadsAfterSatisfyingContentLength()
         {
             // arrange.
             IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport();
-            var instance = new TransportBackedBody(transport, "hn", 0, null);
+            var instance = new TransportBackedBody(transport, "hn", 0, null, null);
 
             // act and assert.
-            await CommonBodyTestRunner.RunCommonBodyTest(2, instance, 0, null,
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 0, null,
                 new int[0], null, new byte[0]);
         }
 
         [Fact]
-        public async Task TestWithTransportWhichDoesNotCompleteReadsAfterSatisfyingContentLength()
+        public Task TestWithTransportWhichDoesNotCompleteReadsAfterSatisfyingContentLength()
         {
             // arrange.
             object connection = null;
@@ -106,23 +162,51 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                     return Task.FromResult(srcBytes.Length);
                 }
             };
-            var instance = new TransportBackedBody(transport, connection, 5, null);
+            var instance = new TransportBackedBody(transport, connection, 5, null, null);
 
             // act and assert.
-            await CommonBodyTestRunner.RunCommonBodyTest(2, instance, 5, null,
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 5, null,
                 new int[] { 2, 2, 1 }, null, Encoding.UTF8.GetBytes("AbcD2"));
+        }
+
+        [Fact]
+        public Task TestWithEmptyTransportWhichCannotCompleteReads()
+        {
+            // arrange.
+            var connection = "wer";
+            var dataList = new string[0];
+            var transport = CreateTransport(connection, dataList);
+            var instance = new TransportBackedBody(transport, connection, 1, "text/csv", null);
+
+            // act and assert.
+            return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 1, "text/csv",
+                new int[0], "before end of read", null);
+        }
+
+        [Fact]
+        public Task TestWithTransportWhichCannotCompleteReads()
+        {
+            // arrange.
+            object connection = null;
+            var dataList = new string[] { "Ab" };
+            var transport = CreateTransport(connection, dataList);
+            var instance = new TransportBackedBody(transport, connection, 5, "text/plain", null);
+
+            // act and assert.
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 5, "text/plain",
+                new int[] { 2 }, "before end of read", null);
         }
 
         [Fact]
         public Task TestForArgumentErrors()
         {
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
             {
-                new TransportBackedBody(null, null, 0, null);
+                new TransportBackedBody(null, null, 0, null, () => Task.CompletedTask);
             });
             var dataList = new string[] { "c", "2" };
             var transport = CreateTransport(null, dataList);
-            var instance = new TransportBackedBody(transport, null, 2, "text/plain");
+            var instance = new TransportBackedBody(transport, null, 2, "text/plain", null);
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }

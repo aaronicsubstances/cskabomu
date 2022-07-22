@@ -25,7 +25,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public Task TestNonEmptyRead()
         {
             // arrange.
-            var instance = new StringBody("Ab2", null);
+            var instance = new StringBody("Ab2", "text/plain");
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/plain",
@@ -35,7 +35,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public Task TestForArgumentErrors()
         {
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
             {
                 new StringBody(null, null);
             });
