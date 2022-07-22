@@ -60,7 +60,7 @@ namespace Http.FileClient
             finally
             {
                 LOG.Debug("Stopping Http.FileClient...");
-                await instance.Reset();
+                await instance.Reset(null);
             }
         }
     }

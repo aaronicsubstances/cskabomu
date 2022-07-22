@@ -224,7 +224,7 @@ namespace Kabomu.Tests.QuasiHttp
             tasks.Add(Task.Run(async () =>
             {
                 await Task.Delay(110);
-                await client.Reset();
+                await client.Reset(null);
             }));
 
             // wait for actions to complete.
@@ -302,7 +302,7 @@ namespace Kabomu.Tests.QuasiHttp
             tasks.Add(Task.Run(async () =>
             {
                 await Task.Delay(110);
-                await client.Reset();
+                await client.Reset(null);
             }));
 
             // wait for actions to complete.

@@ -64,7 +64,7 @@ namespace Tcp.FileServer
             finally
             {
                 LOG.Debug("Stopping Tcp.FileServer...");
-                await instance.Stop();
+                await instance.Stop(0);
             }
         }
     }

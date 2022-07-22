@@ -1,5 +1,6 @@
 ﻿using CommandLine;
 using Kabomu.QuasiHttp.Transport;
+using NLog;
 using System;
 using System.Threading.Tasks;
 
@@ -7,6 +8,8 @@ namespace Memory.FileExchange
 {
     class Program
     {
+        static readonly Logger LOG = LogManager.GetCurrentClassLogger();
+
         public class Options
         {
             [Option('s', "server-upload-dir", Required = false,
@@ -18,8 +21,7 @@ namespace Memory.FileExchange
             public string ClientUploadDirPath { get; set; }
 
             [Option('p', "direct-send-probability (0-1)", Required = false,
-                HelpText = "Probability of processing request directly and skipping serialization. Defaults to 0.5" +
-                            " (ie requests are never procesed directly and serialization always kicks in)")]
+                HelpText = "Probability of processing request directly and skipping serialization. Defaults to 0.5")]
             public double? DirectSendProbability { get; set; }
         }
 
@@ -35,7 +37,18 @@ namespace Memory.FileExchange
                            hub);
                        var clientTask = FileClient.RunMain(clientEndpoint, serverEndpoint,
                            o.ClientUploadDirPath ?? ".", hub, o.DirectSendProbability ?? 0.5);
-                       Task.WaitAll(serverTask, clientTask);
+                       try
+                       {
+                           Task.WaitAll(serverTask, clientTask);
+                       }
+                       catch (Exception e)
+                       {
+                           LOG.Error(e, "Fatal error encountered");
+                       }
+                       finally
+                       {
+                           Task.WaitAll(FileServer.EndMain(), FileClient.EndMain());
+                       }
                    });
         }
     }
