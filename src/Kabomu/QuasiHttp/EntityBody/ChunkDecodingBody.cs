@@ -156,15 +156,10 @@ namespace Kabomu.QuasiHttp.EntityBody
             return lengthToUse;
         }
 
-        public async Task EndRead()
+        public Task EndRead()
         {
             _readCancellationHandle.Cancel();
-            // take advantage of the fact once wrapped body is not null,
-            // no code in this class sets it back to null.
-            if (_wrappedBody != null)
-            {
-                await _wrappedBody.EndRead();
-            }
+            return _wrappedBody.EndRead();
         }
     }
 }

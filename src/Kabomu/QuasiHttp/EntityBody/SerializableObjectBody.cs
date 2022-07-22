@@ -50,15 +50,25 @@ namespace Kabomu.QuasiHttp.EntityBody
             return bytesRead;
         }
 
-        public async Task EndRead()
+        public Task EndRead()
         {
+            // To ensure thread safety, take advantage of the fact that if for some reason backing body was null here, 
+            // that will be due to three reasons
+            // 1. Read() has not been called; No possible problem since cancellation will be detected by any
+            //       subsequent reads.
+            // 2. Read() is in progress but the code creating a backing body has not been reached yet;
+            //     No problem, there is no contract that an end read call should cancel an ongoing read.
+            //     In any case that Read() call will be the last sucessful one.
+            // 3. Read() is in progress and has created the backing body, but to due memory inconsistency error,
+            //     the end read code here still sees the backing body as null.
+            //     No problem just like in 2; that Read() call will be the last successful one.
+            //
+            // It also helps that in the absence of a protecting mutex,
+            // backing body is not set to null here once it becomes non-null,
+            // and that ensures read calls cannot experience any null pointer exceptions.
             _readCancellationHandle.Cancel();
-            // take advantage of the fact once backing body is not null,
-            // no code in this class sets it back to null.
-            if (_backingBody != null)
-            {
-                await _backingBody.EndRead();
-            }
+            return _backingBody?.EndRead() ?? Task.CompletedTask;
+            
         }
     }
 }
