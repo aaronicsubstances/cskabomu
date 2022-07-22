@@ -24,6 +24,18 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         }
 
         [Fact]
+        public Task TestEmptyReadWithExcessData()
+        {
+            // arrange.
+            var backingStream = new MemoryStream(new byte[4]);
+            var instance = new StreamBackedBody(backingStream, 0, "text/csv");
+
+            // act and assert.
+            return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "text/csv",
+                new int[0], null, new byte[0]);
+        }
+
+        [Fact]
         public Task TestNonEmptyReadWithoutContentLength()
         {
             // arrange.
@@ -40,6 +52,18 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var backingStream = new MemoryStream(new byte[] { (byte)'A', (byte)'b', (byte)'2' });
+            var instance = new StreamBackedBody(backingStream, 3, null);
+
+            // act and assert.
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "application/octet-stream",
+                new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
+        }
+
+        [Fact]
+        public Task TestNonEmptyReadWithExcessData()
+        {
+            // arrange.
+            var backingStream = new MemoryStream(new byte[] { (byte)'A', (byte)'b', (byte)'2', 0 });
             var instance = new StreamBackedBody(backingStream, 3, null);
 
             // act and assert.

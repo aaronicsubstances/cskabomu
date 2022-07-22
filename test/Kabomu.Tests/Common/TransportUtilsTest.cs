@@ -13,7 +13,7 @@ namespace Kabomu.Tests.Common
 {
     public class TransportUtilsTest
     {
-        private static IQuasiHttpTransport CreateTransportForBodyTransfer(object connection, int maxChunkSize,
+        private static IQuasiHttpTransport CreateTransportForBodyTransfer(object connection, int bufferSize,
             StringBuilder savedWrites, int maxWriteCount)
         {
             int writeCount = 0;
@@ -22,7 +22,7 @@ namespace Kabomu.Tests.Common
                 WriteBytesCallback = async (actualConnection, data, offset, length) =>
                 {
                     Assert.Equal(connection, actualConnection);
-                    Assert.Equal(maxChunkSize, data.Length);
+                    Assert.Equal(bufferSize, data.Length);
                     if (writeCount < maxWriteCount)
                     {
                         savedWrites.Append(Encoding.UTF8.GetString(data, offset, length));
@@ -37,7 +37,7 @@ namespace Kabomu.Tests.Common
             return transport;
         }
 
-        private static IQuasiHttpTransport CreateTransportForDirectTransfer(object expectedConnection, string data, int maxChunkSize)
+        private static IQuasiHttpTransport CreateTransportForDirectTransfer(object expectedConnection, string data, int bufferSize)
         {
             var srcData = Encoding.UTF8.GetBytes(data);
             int srcDataOffset = 0;
@@ -47,7 +47,7 @@ namespace Kabomu.Tests.Common
                 ReadBytesCallback = async (actualConnection, data, offset, length) =>
                 {
                     Assert.Equal(expectedConnection, actualConnection);
-                    Assert.False(length > maxChunkSize);
+                    Assert.True(bufferSize >= length);
                     if (connectionDisposed)
                     {
                         throw new Exception("connection disposed");
@@ -269,16 +269,16 @@ namespace Kabomu.Tests.Common
         [Theory]
         [MemberData(nameof(CreateTestTransferBodyToTransportData))]
         public async Task TestTransferBodyToTransport(object connection, string bodyData,
-            int chunkSize, int maxWriteCount, string expectedError)
+            int bufferSize, int maxWriteCount, string expectedError)
         {
             var savedWrites = new StringBuilder();
-            var transport = CreateTransportForBodyTransfer(connection, chunkSize, savedWrites, maxWriteCount);
+            var transport = CreateTransportForBodyTransfer(connection, bufferSize, savedWrites, maxWriteCount);
             var bodyBytes = Encoding.UTF8.GetBytes(bodyData);
             var body = new ByteBufferBody(bodyBytes, 0, bodyBytes.Length, null);
             Exception actualException = null;
             try
             {
-                await TransportUtils.TransferBodyToTransport(transport, connection, body, chunkSize);
+                await TransportUtils.TransferBodyToTransport(transport, connection, body, bufferSize);
             }
             catch (Exception e)
             {
@@ -302,34 +302,34 @@ namespace Kabomu.Tests.Common
 
             object connection = "tea";
             string bodyData = "care";
-            int chunkSize = 4;
+            int bufferSize = 4;
             int maxWriteCount = 5;
             string expectedError = null;
-            testData.Add(new object[] { connection, bodyData, chunkSize, maxWriteCount,
+            testData.Add(new object[] { connection, bodyData, bufferSize, maxWriteCount,
                 expectedError });
 
             connection = null;
             bodyData = "";
-            chunkSize = 8;
+            bufferSize = 8;
             maxWriteCount = 0;
             expectedError = null;
-            testData.Add(new object[] { connection, bodyData, chunkSize, maxWriteCount,
+            testData.Add(new object[] { connection, bodyData, bufferSize, maxWriteCount,
                 expectedError });
 
             connection = 4;
             bodyData = "tintontannn!!!";
-            chunkSize = 10;
+            bufferSize = 10;
             maxWriteCount = 3;
             expectedError = null;
-            testData.Add(new object[] { connection, bodyData, chunkSize, maxWriteCount,
+            testData.Add(new object[] { connection, bodyData, bufferSize, maxWriteCount,
                 expectedError });
 
             connection = null;
             bodyData = "!!!";
-            chunkSize = 2;
+            bufferSize = 2;
             maxWriteCount = 1;
             expectedError = "END";
-            testData.Add(new object[] { connection, bodyData, chunkSize, maxWriteCount,
+            testData.Add(new object[] { connection, bodyData, bufferSize, maxWriteCount,
                 expectedError });
 
             return testData;
@@ -337,13 +337,13 @@ namespace Kabomu.Tests.Common
 
         [Theory]
         [MemberData(nameof(CreateTestReadBodyToEndData))]
-        public async Task TestReadBodyToEnd(IQuasiHttpBody body, int maxChunkSize, string expectedError, string expectedData)
+        public async Task TestReadBodyToEnd(IQuasiHttpBody body, int bufferSize, string expectedError, string expectedData)
         {
             byte[] data = null;
             Exception actualError = null;
             try
             {
-                data = await TransportUtils.ReadBodyToEnd(body, maxChunkSize);
+                data = await TransportUtils.ReadBodyToEnd(body, bufferSize);
             }
             catch (Exception e)
             {
@@ -399,15 +399,84 @@ namespace Kabomu.Tests.Common
         }
 
         [Theory]
+        [MemberData(nameof(CreateTestReadBodyToMemoryStreamData))]
+        public async Task TestReadBodyToMemoryStream(IQuasiHttpBody body, int bufferSize, int bufferingLimit,
+            string expectedError, string expectedData)
+        {
+            Stream stream = null;
+            Exception actualError = null;
+            try
+            {
+                stream = await TransportUtils.ReadBodyToMemoryStream(body, bufferSize, bufferingLimit);
+            }
+            catch (Exception e)
+            {
+                actualError = e;
+            }
+            if (expectedError == null)
+            {
+                Assert.Null(actualError);
+                var data = await TransportUtils.ReadBodyToEnd(new StreamBackedBody(stream, -1, null), 100);
+                var actualData = Encoding.UTF8.GetString(data);
+                Assert.Equal(expectedData, actualData);
+                Exception eofError = await Assert.ThrowsAnyAsync<Exception>(() =>
+                    body.ReadBytes(new byte[1], 0, 1));
+                Assert.Equal("end of read", eofError.Message);
+            }
+            else
+            {
+                Assert.NotNull(actualError);
+                Assert.Contains(expectedError, actualError.Message);
+            }
+        }
+
+        public static List<object[]> CreateTestReadBodyToMemoryStreamData()
+        {
+            var testData = new List<object[]>();
+
+            var data = "abcdefghijklmnopqrstuvwxyz";
+            IQuasiHttpBody body = new StringBody(data, null);
+            int bufferSize = 5;
+            int bufferingLimit = -1;
+            string expectedError = null;
+            testData.Add(new object[] { body, bufferSize, bufferingLimit, expectedError, data });
+
+            data = "0123456789";
+            var dataBytes = Encoding.UTF8.GetBytes(data);
+            body = new ByteBufferBody(dataBytes, 0, dataBytes.Length, null);
+            bufferSize = 1;
+            bufferingLimit = 10;
+            expectedError = null;
+            testData.Add(new object[] { body, bufferSize, bufferingLimit, expectedError, data });
+
+            data = "0123456789";
+            dataBytes = Encoding.UTF8.GetBytes(data);
+            body = new ByteBufferBody(dataBytes, 0, dataBytes.Length, null);
+            bufferSize = 1;
+            bufferingLimit = 9;
+            expectedError = "limit of 9";
+            testData.Add(new object[] { body, bufferSize, bufferingLimit, expectedError, null });
+
+            data = "abcdefghijklmnopqrstuvwxyz";
+            body = new StringBody(data, null);
+            bufferSize = 10;
+            bufferingLimit = 20;
+            expectedError = "limit of 20";
+            testData.Add(new object[] { body, bufferSize, bufferingLimit, expectedError, null });
+
+            return testData;
+        }
+
+        [Theory]
         [MemberData(nameof(CreateTestReadTransportToEndData))]
         public async Task TestReadTransportToEnd(object connection, IQuasiHttpTransport transport,
-            int maxChunkSize, string expectedError, string expectedData)
+            int bufferSize, string expectedError, string expectedData)
         {
             byte[] data = null;
             Exception actualError = null;
             try
             {
-                data = await TransportUtils.ReadTransportToEnd(transport, connection, maxChunkSize);
+                data = await TransportUtils.ReadTransportToEnd(transport, connection, bufferSize);
             }
             catch (Exception e)
             {
@@ -435,28 +504,28 @@ namespace Kabomu.Tests.Common
 
             var expectedData = "abcdefghijklmnopqrstuvwxyz";
             object connection = "ty";
-            int maxChunkSize = 5;
-            IQuasiHttpTransport transport = CreateTransportForDirectTransfer(connection, expectedData, maxChunkSize);
+            int bufferSize = 5;
+            IQuasiHttpTransport transport = CreateTransportForDirectTransfer(connection, expectedData, bufferSize);
             string expectedError = null;
-            testData.Add(new object[] { connection, transport, maxChunkSize, expectedError, expectedData });
+            testData.Add(new object[] { connection, transport, bufferSize, expectedError, expectedData });
 
             expectedData = "0123456789";
             connection = null;
-            maxChunkSize = 1;
-            transport = CreateTransportForDirectTransfer(connection, expectedData, maxChunkSize);
+            bufferSize = 1;
+            transport = CreateTransportForDirectTransfer(connection, expectedData, bufferSize);
             expectedError = null;
-            testData.Add(new object[] { connection, transport, maxChunkSize, expectedError, expectedData });
+            testData.Add(new object[] { connection, transport, bufferSize, expectedError, expectedData });
 
             expectedData = "";
             connection = null;
-            maxChunkSize = 1;
-            transport = CreateTransportForDirectTransfer(connection, expectedData, maxChunkSize);
+            bufferSize = 1;
+            transport = CreateTransportForDirectTransfer(connection, expectedData, bufferSize);
             expectedError = null;
-            testData.Add(new object[] { connection, transport, maxChunkSize, expectedError, expectedData });
+            testData.Add(new object[] { connection, transport, bufferSize, expectedError, expectedData });
 
             expectedData = null;
             connection = "yread";
-            maxChunkSize = 10;
+            bufferSize = 10;
             var capturedError = "test read error";
             transport = new ConfigurableQuasiHttpTransport
             {
@@ -467,7 +536,7 @@ namespace Kabomu.Tests.Common
                 }
             };
             expectedError = capturedError;
-            testData.Add(new object[] { connection, transport, maxChunkSize, expectedError, expectedData });
+            testData.Add(new object[] { connection, transport, bufferSize, expectedError, expectedData });
 
             return testData;
         }
