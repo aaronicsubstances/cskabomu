@@ -102,6 +102,21 @@ namespace Kabomu.Common
             return byteStream.ToArray();
         }
 
+        /// <summary>
+        /// Reads in all of a quasi http body's data into an in-memory stream within some maximum limit, and ends it.
+        /// The resulting stream can then be read to fully access all of the body's data even after the body is closed.
+        /// </summary>
+        /// <remarks>
+        /// One can optionally specifify a body size limit beyond which an <see cref="BodySizeLimitExceededException"/> instance will be
+        /// thrown if there is more data after that limit.
+        /// </remarks>
+        /// <param name="body">The quasi http body to fully read.</param>
+        /// <param name="bufferSize">The size in bytes of the read buffer</param>
+        /// <param name="bufferingLimit">Indicates the maximum size in bytes of the resulting stream if nonnegative;
+        /// a negative value leads to all of the body's data being read into resulting stream.</param>
+        /// <returns>A promise whose result is an in-memory stream which has all of the quasi http body's data.</returns>
+        /// <exception cref="BodySizeLimitExceededException">If <paramref name="bufferingLimit"/> argument has a nonnegative value,
+        /// and data in <paramref name="body"/> argument exceeds that value.</exception>
         public static async Task<Stream> ReadBodyToMemoryStream(IQuasiHttpBody body, int bufferSize, int bufferingLimit)
         {
             var byteStream = await ReadBodyToMemoryStreamInternal(body, bufferSize, bufferingLimit);
