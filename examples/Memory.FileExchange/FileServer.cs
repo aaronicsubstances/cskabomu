@@ -14,6 +14,8 @@ namespace Memory.FileExchange
     {
         static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
+        private static IQuasiHttpServer _instance;
+
         public static async Task RunMain(string endpoint, string uploadDirPath,
             IMemoryBasedTransportHub hub)
         {
@@ -22,7 +24,7 @@ namespace Memory.FileExchange
             {
                 LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
             };
-            var instance = new DefaultQuasiHttpServer
+            _instance = new DefaultQuasiHttpServer
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
@@ -31,12 +33,21 @@ namespace Memory.FileExchange
                 Transport = transport,
                 ErrorHandler = errorHandler,
             };
-            instance.Application = new FileReceiver(endpoint, uploadDirPath);
+            _instance.Application = new FileReceiver(endpoint, uploadDirPath);
 
-            await hub.AddServer(endpoint, instance);
+            await hub.AddServer(endpoint, _instance);
 
-            await instance.Start();
+            await _instance.Start();
             LOG.Info("Started Memory.FileServer at {0}", endpoint);
+        }
+
+        public static async Task EndMain()
+        {
+            if (_instance != null)
+            {
+                LOG.Debug("Stopping Memory.FileServer...");
+                await _instance.Stop(0);
+            }
         }
     }
 }

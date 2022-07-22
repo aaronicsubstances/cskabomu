@@ -18,7 +18,8 @@ namespace Kabomu.Tests.Shared
         public IQuasiHttpServerTransport Transport { get; set; }
         public IMutexApi MutexApi { get; set; }
         public Func<Task> StartCallback { get; set; }
-        public Func<Task> StopCallback { get; set; }
+        public Func<int, Task> StopCallback { get; set; }
+        public Func<Exception, Task> ResetCallback { get; set; }
         public Func<IQuasiHttpRequest, IQuasiHttpProcessingOptions, Task<IQuasiHttpResponse>> SendToApplicationCallback { get; set; }
 
         public Task Start()
@@ -26,9 +27,14 @@ namespace Kabomu.Tests.Shared
             return StartCallback.Invoke();
         }
 
-        public Task Stop()
+        public Task Stop(int resetTimeMillis)
         {
-            return StopCallback.Invoke();
+            return StopCallback.Invoke(resetTimeMillis);
+        }
+
+        public Task Reset(Exception cause)
+        {
+            return ResetCallback.Invoke(cause);
         }
 
         public Task<IQuasiHttpResponse> SendToApplication(IQuasiHttpRequest request,

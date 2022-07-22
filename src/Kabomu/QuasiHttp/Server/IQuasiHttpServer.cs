@@ -16,7 +16,8 @@ namespace Kabomu.QuasiHttp.Server
         IQuasiHttpServerTransport Transport { get; set; }
         IMutexApi MutexApi { get; set; }
         Task Start();
-        Task Stop();
+        Task Stop(int resetTimeMillis);
+        Task Reset(Exception cause);
         Task<IQuasiHttpResponse> SendToApplication(IQuasiHttpRequest request,
             IQuasiHttpProcessingOptions options);
     }

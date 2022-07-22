@@ -14,6 +14,8 @@ namespace Memory.FileExchange
     {
         static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
+        private static IQuasiHttpClient _instance;
+
         public static async Task RunMain(string clientEndpoint, string serverEndpoint,
             string uploadDirPath, IMemoryBasedTransportHub hub, double directSendProbability)
         {
@@ -26,7 +28,7 @@ namespace Memory.FileExchange
             {
                 TimeoutMillis = 5_000
             };
-            var instance = new DefaultQuasiHttpClient
+            _instance = new DefaultQuasiHttpClient
             {
                 DefaultSendOptions = defaultSendOptions,
                 Transport = transport,
@@ -34,16 +36,18 @@ namespace Memory.FileExchange
                 TransportBypassProbabilty = directSendProbability
             };
 
-            try
-            {
-                LOG.Info("Started Memory.FileClient to {0}", serverEndpoint);
+            LOG.Info("Started Memory.FileClient to {0}", serverEndpoint);
 
-                await FileSender.StartTransferringFiles(instance, serverEndpoint, uploadDirPath);
-                LOG.Debug("Completed Memory.FileClient.");
-            }
-            catch (Exception e)
+            await FileSender.StartTransferringFiles(_instance, serverEndpoint, uploadDirPath);
+            LOG.Debug("Completed Memory.FileClient.");
+        }
+
+        public static async Task EndMain()
+        {
+            if (_instance != null)
             {
-                LOG.Error(e, "Fatal error encountered");
+                LOG.Debug("Stopping Memory.FileClient...");
+                await _instance.Reset(null);
             }
         }
     }

@@ -209,9 +209,9 @@ namespace Kabomu.QuasiHttp.Client
             await resTask;
         }
 
-        public async Task Reset()
+        public async Task Reset(Exception cause)
         {
-            var cancellationException = new Exception("client reset");
+            var cancellationException = cause ?? new Exception("client reset");
 
             // since it is desired to clear all pending transfers under lock,
             // and disabling of transfer is an async transfer, we choose

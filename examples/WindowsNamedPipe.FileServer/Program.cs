@@ -64,7 +64,7 @@ namespace WindowsNamedPipe.FileServer
             finally
             {
                 LOG.Debug("Stopping WindowsNamedPipe.FileServer...");
-                await instance.Stop();
+                await instance.Stop(0);
             }
         }
     }

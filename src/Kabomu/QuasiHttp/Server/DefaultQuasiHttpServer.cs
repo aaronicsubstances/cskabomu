@@ -57,8 +57,11 @@ namespace Kabomu.QuasiHttp.Server
                 {
                     return;
                 }
-                _running = true;
-                startTask = Transport.Start();
+                startTask = Transport?.Start();
+            }
+            if (startTask == null)
+            {
+                throw new MissingDependencyException("transport");
             }
             await startTask;
             // let error handler or TaskScheduler.UnobservedTaskException handle 
@@ -68,6 +71,10 @@ namespace Kabomu.QuasiHttp.Server
 
         private async Task StartAcceptingConnections()
         {
+            using (await MutexApi.Synchronize())
+            {
+                _running = true;
+            }
             try
             {
                 while (true)
@@ -237,8 +244,10 @@ namespace Kabomu.QuasiHttp.Server
             return await transfer.CancellationTcs.Task;
         }
 
-        public async Task Stop()
+        public async Task Stop(int resetTimeMillis)
         {
+            ITimerApi timerApi;
+            Task stopTask;
             using (await MutexApi.Synchronize())
             {
                 if (!_running)
@@ -246,14 +255,35 @@ namespace Kabomu.QuasiHttp.Server
                     return;
                 }
                 _running = false;
+                timerApi = TimerApi;
+                stopTask = Transport?.Stop();
             }
-            await Reset();
-            await Transport.Stop();
+            if (stopTask == null)
+            {
+                throw new MissingDependencyException("transport");
+            }
+            await stopTask;
+            if (resetTimeMillis < 0)
+            {
+                return;
+            }
+            else if (resetTimeMillis == 0)
+            {
+                await Reset(null);
+            }
+            else
+            {
+                if (timerApi == null)
+                {
+                    throw new MissingDependencyException("timer api");
+                }
+                await timerApi.SetTimeout(resetTimeMillis, () => Reset(null)).Item1;
+            }
         }
 
-        private async Task Reset()
+        public async Task Reset(Exception cause)
         {
-            var cancellationException = new Exception("server reset");
+            var cancellationException = cause ?? new Exception("server reset");
 
             // since it is desired to clear all pending transfers under lock,
             // and disabling of transfer is an async transfer, we choose

@@ -60,7 +60,7 @@ namespace UnixDomainSocket.FileClient
             finally
             {
                 LOG.Debug("Stopping UnixDomainSocket.FileClient...");
-                await instance.Reset();
+                await instance.Reset(null);
             }
         }
     }

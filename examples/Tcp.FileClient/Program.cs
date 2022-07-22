@@ -59,7 +59,7 @@ namespace Tcp.FileClient
             finally
             {
                 LOG.Debug("Stopping Tcp.FileClient...");
-                await instance.Reset();
+                await instance.Reset(null);
             }
         }
     }
