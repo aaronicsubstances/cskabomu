@@ -8,16 +8,16 @@ using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
-    public class ContentTypeOverrideBodyTest
+    public class SynchronizedBodyTest
     {
         [Fact]
         public Task TestEmptyRead()
         {
             // arrange.
-            var instance = new ContentTypeOverrideBody(new ByteBufferBody(new byte[0], 0, 0)
+            var instance = new SynchronizedBody(new ByteBufferBody(new byte[0], 0, 0)
             {
-                ContentType = "text/plain"
-            }, "image/jpeg");
+                ContentType = "image/jpeg"
+            });
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "image/jpeg",
@@ -29,11 +29,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var expectedData = new byte[] { (byte)'A', (byte)'b', (byte)'2' };
-            var instance = new ContentTypeOverrideBody(new ByteBufferBody(expectedData, 0, expectedData.Length),
-                "application/octet-stream");
+            var instance = new SynchronizedBody(new ByteBufferBody(expectedData, 0, expectedData.Length));
 
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "application/octet-stream",
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, null,
                 new int[] { 2, 1 }, null, expectedData);
         }
 
@@ -42,13 +41,16 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var expectedData = new byte[] { (byte)'A', (byte)'b', (byte)'2' };
-            var instance = new ContentTypeOverrideBody(new ByteBufferBody(expectedData, 0, expectedData.Length)
+            var instance = new SynchronizedBody(new ByteBufferBody(expectedData, 0, expectedData.Length)
             {
                 ContentType = "form"
-            }, null);
+            })
+            {
+                MutexApi = null
+            };
 
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, null,
+            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "form",
                 new int[] { 2, 1 }, null, expectedData);
         }
 
@@ -57,10 +59,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             Assert.Throws<ArgumentNullException>(() =>
             {
-                new ContentTypeOverrideBody(null, "seal");
+                new SynchronizedBody(null);
             });
-            var instance = new ContentTypeOverrideBody(new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2),
-                null);
+            var instance = new SynchronizedBody(new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2));
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }

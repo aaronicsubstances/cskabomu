@@ -274,7 +274,7 @@ namespace Kabomu.Tests.Common
             var savedWrites = new StringBuilder();
             var transport = CreateTransportForBodyTransfer(connection, bufferSize, savedWrites, maxWriteCount);
             var bodyBytes = Encoding.UTF8.GetBytes(bodyData);
-            var body = new ByteBufferBody(bodyBytes, 0, bodyBytes.Length, null);
+            var body = new ByteBufferBody(bodyBytes, 0, bodyBytes.Length);
             Exception actualException = null;
             try
             {
@@ -370,14 +370,14 @@ namespace Kabomu.Tests.Common
             var testData = new List<object[]>();
 
             var data = "abcdefghijklmnopqrstuvwxyz";
-            IQuasiHttpBody body = new StringBody(data, null);
+            IQuasiHttpBody body = new StringBody(data);
             int maxChunkSize = 5;
             string expectedError = null;
             testData.Add(new object[] { body, maxChunkSize, expectedError, data });
 
             data = "0123456789";
             var dataBytes = Encoding.UTF8.GetBytes(data);
-            body = new ByteBufferBody(dataBytes, 0, dataBytes.Length, null);
+            body = new ByteBufferBody(dataBytes, 0, dataBytes.Length);
             maxChunkSize = 1;
             expectedError = null;
             testData.Add(new object[] { body, maxChunkSize, expectedError, data });
@@ -416,7 +416,7 @@ namespace Kabomu.Tests.Common
             if (expectedError == null)
             {
                 Assert.Null(actualError);
-                var data = await TransportUtils.ReadBodyToEnd(new StreamBackedBody(stream, -1, null), 100);
+                var data = await TransportUtils.ReadBodyToEnd(new StreamBackedBody(stream, -1), 100);
                 var actualData = Encoding.UTF8.GetString(data);
                 Assert.Equal(expectedData, actualData);
                 Exception eofError = await Assert.ThrowsAnyAsync<Exception>(() =>
@@ -435,7 +435,7 @@ namespace Kabomu.Tests.Common
             var testData = new List<object[]>();
 
             var data = "abcdefghijklmnopqrstuvwxyz";
-            IQuasiHttpBody body = new StringBody(data, null);
+            IQuasiHttpBody body = new StringBody(data);
             int bufferSize = 5;
             int bufferingLimit = -1;
             string expectedError = null;
@@ -443,7 +443,7 @@ namespace Kabomu.Tests.Common
 
             data = "0123456789";
             var dataBytes = Encoding.UTF8.GetBytes(data);
-            body = new ByteBufferBody(dataBytes, 0, dataBytes.Length, null);
+            body = new ByteBufferBody(dataBytes, 0, dataBytes.Length);
             bufferSize = 1;
             bufferingLimit = 10;
             expectedError = null;
@@ -451,14 +451,14 @@ namespace Kabomu.Tests.Common
 
             data = "0123456789";
             dataBytes = Encoding.UTF8.GetBytes(data);
-            body = new ByteBufferBody(dataBytes, 0, dataBytes.Length, null);
+            body = new ByteBufferBody(dataBytes, 0, dataBytes.Length);
             bufferSize = 1;
             bufferingLimit = 9;
             expectedError = "limit of 9";
             testData.Add(new object[] { body, bufferSize, bufferingLimit, expectedError, null });
 
             data = "abcdefghijklmnopqrstuvwxyz";
-            body = new StringBody(data, null);
+            body = new StringBody(data);
             bufferSize = 10;
             bufferingLimit = 20;
             expectedError = "limit of 20";

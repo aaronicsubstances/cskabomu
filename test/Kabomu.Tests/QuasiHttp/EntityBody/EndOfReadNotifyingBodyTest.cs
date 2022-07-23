@@ -20,8 +20,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 cbCalled = true;
                 return Task.CompletedTask;
             };
-            var instance = new EndOfReadNotifyingBody(new ByteBufferBody(new byte[0], 0, 0, "text/plain"),
-                endOfReadCb);
+            var instance = new EndOfReadNotifyingBody(new ByteBufferBody(new byte[0], 0, 0)
+            {
+                ContentType = "text/plain"
+            }, endOfReadCb);
 
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "text/plain",
@@ -40,8 +42,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 return Task.CompletedTask;
             };
             var expectedData = new byte[] { (byte)'A', (byte)'b', (byte)'2' };
-            var instance = new EndOfReadNotifyingBody(new ByteBufferBody(expectedData, 0, expectedData.Length, "application/octet-stream"),
-                endOfReadCb);
+            var instance = new EndOfReadNotifyingBody(new ByteBufferBody(expectedData, 0, expectedData.Length)
+            {
+                ContentType = "application/octet-stream"
+            }, endOfReadCb);
 
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "application/octet-stream",
@@ -54,8 +58,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var expectedData = new byte[] { (byte)'A', (byte)'b', (byte)'2' };
-            var instance = new EndOfReadNotifyingBody(new ByteBufferBody(expectedData, 0, expectedData.Length, "form"),
-                null);
+            var instance = new EndOfReadNotifyingBody(new ByteBufferBody(expectedData, 0, expectedData.Length)
+            {
+                ContentType = "form"
+            }, null);
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "form",
@@ -69,7 +75,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             {
                 new EndOfReadNotifyingBody(null, () => Task.CompletedTask);
             });
-            var instance = new EndOfReadNotifyingBody(new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2, null),
+            var instance = new EndOfReadNotifyingBody(new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2),
                 () => Task.CompletedTask);
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }

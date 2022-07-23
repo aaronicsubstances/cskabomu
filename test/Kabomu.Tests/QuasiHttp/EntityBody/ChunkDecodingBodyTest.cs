@@ -174,7 +174,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                new ChunkDecodingBody(new StringBody("", null), 0);
+                new ChunkDecodingBody(new StringBody(""), 0);
             });
             var instance = new ChunkDecodingBody(CreateWrappedBody(null, new string[0]), 100);
             await CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
@@ -189,7 +189,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength];
             ByteUtils.SerializeUpToInt64BigEndian(1_000_000, encodedLength, 0, encodedLength.Length);
             destStream.Write(encodedLength);
-            var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length, null),
+            var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length),
                 maxChunkSize);
 
             var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
@@ -208,7 +208,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             int maxChunkSize = 40;
             var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength - 1];
             destStream.Write(encodedLength);
-            var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length, null),
+            var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray()),
                 maxChunkSize);
 
             var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
@@ -228,7 +228,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             encodedLength[MiscUtils.LengthOfEncodedChunkLength - 1] = 77;
             destStream.Write(encodedLength);
             destStream.Write(new byte[76]);
-            var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length, null),
+            var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length),
                 maxChunkSize);
 
             var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
@@ -249,7 +249,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             encodedLength[MiscUtils.LengthOfEncodedChunkLength - 1] = maxChunkSize;
             destStream.Write(encodedLength);
             destStream.Write(new byte[maxChunkSize]); // invalid since version is not set.
-            var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray(), 0, (int)destStream.Length, null),
+            var instance = new ChunkDecodingBody(new ByteBufferBody(destStream.ToArray()),
                 maxChunkSize);
 
             var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>

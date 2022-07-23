@@ -14,7 +14,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public Task TestEmptyRead()
         {
             // arrange.
-            var instance = new StringBody("", "text/csv");
+            var instance = new StringBody("")
+            {
+                ContentType = "text/csv"
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "text/csv",
@@ -25,7 +28,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public Task TestNonEmptyRead()
         {
             // arrange.
-            var instance = new StringBody("Ab2", "text/plain");
+            var instance = new StringBody("Ab2")
+            {
+                ContentType = "text/plain"
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/plain",
@@ -37,9 +43,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             Assert.Throws<ArgumentNullException>(() =>
             {
-                new StringBody(null, null);
+                new StringBody(null);
             });
-            var instance = new StringBody("c2", null);
+            var instance = new StringBody("c2");
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }

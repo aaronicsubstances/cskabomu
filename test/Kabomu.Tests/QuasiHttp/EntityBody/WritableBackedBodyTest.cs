@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Concurrency;
+using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -15,7 +16,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public async Task TestEmptyRead()
         {
             // arrange.
-            var instance = new WritableBackedBody(null);
+            var instance = new WritableBackedBody();
             var task = instance.WriteLastBytes(new byte[0], 0, 0);
 
             // act and assert.
@@ -29,7 +30,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public async Task TestNonEmptyRead()
         {
             // arrange.
-            var instance = new WritableBackedBody("text/csv");
+            var instance = new WritableBackedBody
+            {
+                ContentType = "text/csv" 
+            };
             var tasks = new Task[2];
             tasks[0] = instance.WriteBytes(new byte[] { (byte)'A', (byte)'b' }, 0, 2);
             tasks[1] = instance.WriteLastBytes(new byte[] { (byte)'2' }, 0, 1);
@@ -48,7 +52,11 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var expectedData = Encoding.UTF8.GetBytes("car seat");
-            var instance = new WritableBackedBody("text/xml");
+            var instance = new WritableBackedBody
+            {
+                ContentType = "text/xml",
+                MutexApi = new DefaultEventLoopApi()
+            };
             var tasks = new Task[expectedData.Length];
             for (int i = 0; i < expectedData.Length; i++)
             {
@@ -70,12 +78,12 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public async Task TestForArgumentErrors()
         {
-            var instance = new WritableBackedBody(null);
+            var instance = new WritableBackedBody();
             _ = instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
             await CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
 
             // look out for specific errors.
-            instance = new WritableBackedBody(null);
+            instance = new WritableBackedBody();
             var writeTasks = new Task[3];
             var expectedWriteErrors = new string[writeTasks.Length];
             var readTasks = new Task<int>[3];

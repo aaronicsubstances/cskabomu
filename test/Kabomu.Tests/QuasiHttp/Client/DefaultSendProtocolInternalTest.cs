@@ -166,8 +166,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 }
             };
             var reqBodyBytes = Encoding.UTF8.GetBytes("this is our king");
-            request.Body = new ByteBufferBody(reqBodyBytes, 0, reqBodyBytes.Length,
-                "text/plain");
+            request.Body = new ByteBufferBody(reqBodyBytes, 0, reqBodyBytes.Length)
+            {
+                ContentType = "text/plain"
+            };
 
             var expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -180,8 +182,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 },
             };
             byte[] expectedResBodyBytes = Encoding.UTF8.GetBytes("and this is our queen");
-            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes, 0, expectedResBodyBytes.Length,
-                "image/png");
+            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes, 0, expectedResBodyBytes.Length)
+            {
+                ContentType = "image/png"
+            };
             testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
@@ -211,7 +215,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Path = "/bread"
             };
             reqBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
-            request.Body = new StringBody("<a>this is news</a>", "application/xml");
+            request.Body = new StringBody("<a>this is news</a>")
+            {
+                ContentType = "application/xml"
+            };
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -251,7 +258,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 }
             };
             expectedResBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
-            expectedResponse.Body = new StringBody("<a>this is news</a>", "application/xml");
+            expectedResponse.Body = new StringBody("<a>this is news</a>")
+            {
+                ContentType = "application/xml"
+            };
             testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 

@@ -1,26 +1,28 @@
-﻿using System;
+﻿using Kabomu.Concurrency;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
-    public class ContentTypeOverrideBody : IQuasiHttpBody
+    public class SynchronizedBody : IQuasiHttpBody
     {
         private readonly IQuasiHttpBody _wrappedBody;
 
-        public ContentTypeOverrideBody(IQuasiHttpBody wrappedBody, string contentType)
+        public SynchronizedBody(IQuasiHttpBody wrappedBody)
         {
             if (wrappedBody == null)
             {
                 throw new ArgumentNullException(nameof(wrappedBody));
             }
             _wrappedBody = wrappedBody;
-            ContentType = contentType;
+            MutexApi = new LockBasedMutexApi();
         }
 
+        public IMutexApi MutexApi { get; set; }
         public long ContentLength => _wrappedBody.ContentLength;
-        public string ContentType { get; }
+        public string ContentType => _wrappedBody.ContentType;
 
         public Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {

@@ -13,16 +13,15 @@ namespace Kabomu.QuasiHttp.EntityBody
         private ReadWriteRequest _readRequest;
         private bool _endOfReadSeen, _endOfWriteSeen;
 
-        public WritableBackedBody(string contentType)
+        public WritableBackedBody()
         {
-            ContentType = contentType;
             _writeRequests = new LinkedList<ReadWriteRequest>();
             MutexApi = new LockBasedMutexApi();
         }
 
         public IMutexApi MutexApi { get; set; }
         public long ContentLength => -1;
-        public string ContentType { get; }
+        public string ContentType { get; set; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {

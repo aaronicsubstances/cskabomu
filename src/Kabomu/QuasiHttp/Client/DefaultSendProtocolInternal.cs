@@ -115,8 +115,11 @@ namespace Kabomu.QuasiHttp.Client
             if (chunk.ContentLength != 0)
             {
                 response.Body = new TransportBackedBody(Transport, Connection,
-                    chunk.ContentLength, chunk.ContentType,
-                    ResponseStreamingEnabled ? CloseConnectionCallback : null);
+                    chunk.ContentLength,
+                    ResponseStreamingEnabled ? CloseConnectionCallback : null)
+                {
+                    ContentType = chunk.ContentType
+                };
                 if (chunk.ContentLength < 0)
                 {
                     response.Body = new ChunkDecodingBody(response.Body, MaxChunkSize);
@@ -132,8 +135,10 @@ namespace Kabomu.QuasiHttp.Client
                     }
                     var inMemStream = await TransportUtils.ReadBodyToMemoryStream(response.Body, MaxChunkSize,
                         ResponseBodyBufferingSizeLimit);
-                    response.Body = new StreamBackedBody(inMemStream, response.Body.ContentLength,
-                        response.Body.ContentType);
+                    response.Body = new StreamBackedBody(inMemStream, response.Body.ContentLength)
+                    {
+                        ContentType = response.Body.ContentType
+                    };
                 }
             }
 

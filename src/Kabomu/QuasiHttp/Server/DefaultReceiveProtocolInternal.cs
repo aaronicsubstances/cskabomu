@@ -47,7 +47,10 @@ namespace Kabomu.QuasiHttp.Server
             if (chunk.ContentLength != 0)
             {
                 request.Body = new TransportBackedBody(Transport, Connection,
-                    chunk.ContentLength, chunk.ContentType, null);
+                    chunk.ContentLength, null)
+                {
+                    ContentType = chunk.ContentType
+                };
                 if (chunk.ContentLength < 0)
                 {
                     request.Body = new ChunkDecodingBody(request.Body, MaxChunkSize);

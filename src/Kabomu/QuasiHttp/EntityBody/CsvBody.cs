@@ -8,8 +8,8 @@ namespace Kabomu.QuasiHttp.EntityBody
 {
     public class CsvBody : SerializableObjectBody
     {
-        public CsvBody(Dictionary<string, List<string>> content, string contentType):
-            base(content, SerializeContent, contentType)
+        public CsvBody(Dictionary<string, List<string>> content):
+            base(content, SerializeContent)
         {
         }
 
