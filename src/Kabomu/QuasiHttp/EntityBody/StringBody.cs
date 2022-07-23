@@ -7,8 +7,8 @@ namespace Kabomu.QuasiHttp.EntityBody
 {
     public class StringBody : SerializableObjectBody
     {
-        public StringBody(string content, string contentType) :
-            base(content, SerializeContent, contentType)
+        public StringBody(string content) :
+            base(content, SerializeContent)
         {
         }
 

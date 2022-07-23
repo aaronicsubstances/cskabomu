@@ -12,7 +12,12 @@ namespace Kabomu.QuasiHttp.EntityBody
         private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
         private int _bytesRead;
 
-        public ByteBufferBody(byte[] data, int offset, int length, string contentType)
+        public ByteBufferBody(byte[] data):
+            this(data, 0, data?.Length ?? 0)
+        {
+        }
+
+        public ByteBufferBody(byte[] data, int offset, int length)
         {
             if (data == null)
             {
@@ -26,14 +31,13 @@ namespace Kabomu.QuasiHttp.EntityBody
             Buffer = data;
             Offset = offset;
             Length = length;
-            ContentType = contentType;
         }
 
         public byte[] Buffer { get; }
         public int Offset { get; }
         public int Length { get; }
         public long ContentLength => Length;
-        public string ContentType { get; }
+        public string ContentType { get; set; }
 
         public Task<int> ReadBytes(byte[] data, int offset, int length)
         {

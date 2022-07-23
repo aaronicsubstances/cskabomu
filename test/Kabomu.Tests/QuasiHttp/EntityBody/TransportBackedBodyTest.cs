@@ -57,7 +57,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 cbCalled = true;
                 return Task.CompletedTask;
             };
-            var instance = new TransportBackedBody(transport, connection, 0, "text/csv", endOfReadCb);
+            var instance = new TransportBackedBody(transport, connection, 0, endOfReadCb)
+            {
+                ContentType = "text/csv"
+            };
 
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "text/csv",
@@ -72,10 +75,13 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             var connection = "wer";
             var dataList = new string[] { "3y3", "yoma" };
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection, 0, "text/csv", null);
+            var instance = new TransportBackedBody(transport, connection, 0, null)
+            {
+                ContentType = "application/json"
+            };
 
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "text/csv",
+            return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "application/json",
                 new int[0], null, new byte[0]);
         }
 
@@ -92,7 +98,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 cbCalled = true;
                 return Task.CompletedTask;
             };
-            var instance = new TransportBackedBody(transport, connection, -1, "text/plain", endOfReadCb);
+            var instance = new TransportBackedBody(transport, connection, -1, endOfReadCb)
+            {
+                ContentType = "text/plain"
+            };
 
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/plain",
@@ -107,7 +116,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             object connection = null;
             var dataList = new string[] { "Ab", "2" };
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection, 3, "text/plain", null);
+            var instance = new TransportBackedBody(transport, connection, 3, null)
+            {
+                ContentType = "text/plain"
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "text/plain",
@@ -121,10 +133,13 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             object connection = null;
             var dataList = new string[] { "Ab", "2er", "rea" };
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection, 5, "text/plain", null);
+            var instance = new TransportBackedBody(transport, connection, 5, null)
+            {
+                ContentType = "application/json"
+            };
 
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(3, instance, 5, "text/plain",
+            return CommonBodyTestRunner.RunCommonBodyTest(3, instance, 5, "application/json",
                 new int[] { 2, 3 }, null, Encoding.UTF8.GetBytes("Ab2er"));
         }
 
@@ -133,7 +148,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport();
-            var instance = new TransportBackedBody(transport, "hn", 0, null, null);
+            var instance = new TransportBackedBody(transport, "hn", 0, null);
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 0, null,
@@ -162,7 +177,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                     return Task.FromResult(srcBytes.Length);
                 }
             };
-            var instance = new TransportBackedBody(transport, connection, 5, null, null);
+            var instance = new TransportBackedBody(transport, connection, 5, null);
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 5, null,
@@ -176,7 +191,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             var connection = "wer";
             var dataList = new string[0];
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection, 1, "text/csv", null);
+            var instance = new TransportBackedBody(transport, connection, 1, null)
+            {
+                ContentType = "text/csv"
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 1, "text/csv",
@@ -190,7 +208,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             object connection = null;
             var dataList = new string[] { "Ab" };
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection, 5, "text/plain", null);
+            var instance = new TransportBackedBody(transport, connection, 5, null)
+            {
+                ContentType = "text/plain"
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 5, "text/plain",
@@ -202,11 +223,14 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             Assert.Throws<ArgumentNullException>(() =>
             {
-                new TransportBackedBody(null, null, 0, null, () => Task.CompletedTask);
+                new TransportBackedBody(null, null, 0, () => Task.CompletedTask);
             });
             var dataList = new string[] { "c", "2" };
             var transport = CreateTransport(null, dataList);
-            var instance = new TransportBackedBody(transport, null, 2, "text/plain", null);
+            var instance = new TransportBackedBody(transport, null, 2, null)
+            {
+                ContentType = "text/plain"
+            };
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }

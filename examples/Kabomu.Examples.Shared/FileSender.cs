@@ -48,7 +48,7 @@ namespace Kabomu.Examples.Shared
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
             long fLen = RandGen.NextDouble() < 0.5 ? -1 : f.Length;
-            request.Body = new StreamBackedBody(fileStream, fLen, null);
+            request.Body = new StreamBackedBody(fileStream, fLen);
             IQuasiHttpResponse res;
             try
             {

@@ -16,7 +16,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public Task TestEmptyRead()
         {
             // arrange.
-            var wrappedBody = new StringBody("", "text/csv");
+            var wrappedBody = new StringBody("")
+            {
+                ContentType = "text/csv"
+            };
             var instance = new ChunkEncodingBody(wrappedBody, 100);
             var expectedSuccessData = new byte[] { 0, 0, 2, 1, 0 };
 
@@ -29,7 +32,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public Task TestNonEmptyRead()
         {
             // arrange.
-            var wrappedBody = new ByteBufferBody(new byte[] { 4, 5, 6, 7 }, 0, 4, "image/gif");
+            var wrappedBody = new ByteBufferBody(new byte[] { 4, 5, 6, 7 }, 0, 4)
+            {
+                ContentType = "image/gif"
+            };
             var instance = new ChunkEncodingBody(wrappedBody, 100);
             var expectedSuccessData = new byte[] { 0, 0, 5, 1, 0, 4, 5, 6, 0, 0, 3, 1, 0, 7, 0, 0, 2, 1, 0 };
 
@@ -47,14 +53,17 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                new ChunkEncodingBody(new StringBody("abc", null), int.MaxValue);
+                new ChunkEncodingBody(new StringBody("abc"), int.MaxValue);
             });
             await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                var instance = new ChunkEncodingBody(new StringBody("3", "text/html"), 100);
+                var instance = new ChunkEncodingBody(new StringBody("3")
+                {
+                    ContentType = "text/html" 
+                }, 100);
                 return instance.ReadBytes(new byte[4], 0, 4);
             });
-            var instance = new ChunkEncodingBody(new StringBody("", null), 20);
+            var instance = new ChunkEncodingBody(new StringBody(""), 20);
             await CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
 

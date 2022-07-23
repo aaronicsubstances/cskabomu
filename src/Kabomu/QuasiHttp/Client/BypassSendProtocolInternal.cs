@@ -92,8 +92,10 @@ namespace Kabomu.QuasiHttp.Client
                         }
                         var inMemStream = await TransportUtils.ReadBodyToMemoryStream(response.Body, MaxChunkSize,
                             ResponseBodyBufferingSizeLimit);
-                        var newResponseBody = new StreamBackedBody(inMemStream, response.Body.ContentLength,
-                            response.Body.ContentType);
+                        var newResponseBody = new StreamBackedBody(inMemStream, response.Body.ContentLength)
+                        {
+                            ContentType = response.Body.ContentType
+                        };
                         response = CreateEquivalentResponse(response, newResponseBody);
                     }
                 }

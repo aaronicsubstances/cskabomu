@@ -17,7 +17,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         private long _bytesRemaining;
 
         public TransportBackedBody(IQuasiHttpTransport transport, object connection,
-             long contentLength, string contentType, Func<Task> endOfReadCallback)
+             long contentLength, Func<Task> endOfReadCallback)
         {
             if (transport == null)
             {
@@ -26,7 +26,6 @@ namespace Kabomu.QuasiHttp.EntityBody
             _transport = transport;
             _connection = connection;
             _endOfReadCallback = endOfReadCallback;
-            ContentType = contentType;
             ContentLength = contentLength;
             if (ContentLength >= 0)
             {
@@ -39,7 +38,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         }
 
         public long ContentLength { get; }
-        public string ContentType { get; }
+        public string ContentType { get; set; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {

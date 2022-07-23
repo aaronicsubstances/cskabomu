@@ -16,12 +16,12 @@ namespace Kabomu.QuasiHttp.Transport
 
         public MemoryBasedTransportConnectionInternal(IMutexApi serverMutex, IMutexApi clientMutex)
         {
-            _serverReadReqProcessor = new WritableBackedBody(null);
+            _serverReadReqProcessor = new WritableBackedBody();
             if (serverMutex != null)
             {
                 _serverReadReqProcessor.MutexApi = serverMutex;
             }
-            _clientReadReqProcessor = new WritableBackedBody(null);
+            _clientReadReqProcessor = new WritableBackedBody();
             if (clientMutex != null)
             {
                 _clientReadReqProcessor.MutexApi = clientMutex;

@@ -15,8 +15,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public Task TestEmptyRead()
         {
             // arrange.
-            var instance = new ContentLengthOverrideBody(new ByteBufferBody(new byte[0], 0, 0, "text/plain"),
-                -1);
+            var instance = new ContentLengthOverrideBody(new ByteBufferBody(new byte[0], 0, 0)
+            {
+                ContentType = "text/plain"
+            }, -1);
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "text/plain",
@@ -29,7 +31,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             // arrange.
             var expectedData = new byte[] { (byte)'A', (byte)'b', (byte)'2' };
             var instance = new ContentLengthOverrideBody(new StringBody(
-                ByteUtils.BytesToString(expectedData, 0, expectedData.Length), null),
+                ByteUtils.BytesToString(expectedData, 0, expectedData.Length)),
                 3);
 
             // act and assert.
@@ -42,8 +44,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var expectedData = new byte[] { (byte)'A', (byte)'b', (byte)'2' };
-            var instance = new ContentLengthOverrideBody(new ByteBufferBody(expectedData, 0, expectedData.Length, "form"),
-                -1);
+            var instance = new ContentLengthOverrideBody(new ByteBufferBody(expectedData)
+            {
+                ContentType = "form"
+            }, -1);
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "form",
@@ -56,8 +60,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             // arrange.
             var excessData = new byte[4];
             var instance = new ContentLengthOverrideBody(
-                new ByteBufferBody(excessData, 0, excessData.Length, "text/csv"),
-                0);
+                new ByteBufferBody(excessData, 0, excessData.Length)
+                {
+                    ContentType = "text/csv"
+                }, 0);
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "text/csv",
@@ -70,7 +76,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             // arrange.
             var excessData = new byte[] { (byte)'A', (byte)'b', (byte)'2', 0 };
             var instance = new ContentLengthOverrideBody(
-                new ByteBufferBody(excessData, 0, excessData.Length, null),
+                new ByteBufferBody(excessData, 0, excessData.Length),
                 3);
 
             // act and assert.
@@ -83,8 +89,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var instance = new ContentLengthOverrideBody(
-                new ByteBufferBody(new byte[0], 0, 0, "text/plain"),
-                1);
+                new ByteBufferBody(new byte[0], 0, 0)
+                {
+                    ContentType = "text/plain"
+                }, 1);
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 1, "text/plain",
@@ -97,8 +105,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             // arrange.
             var insufficientData = new byte[] { (byte)'A', (byte)'b' };
             var instance = new ContentLengthOverrideBody(
-                new ByteBufferBody(insufficientData, 0, insufficientData.Length, null),
-                3);
+                new ByteBufferBody(insufficientData, 0, insufficientData.Length), 3);
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, null,
@@ -112,7 +119,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             {
                 new ContentLengthOverrideBody(null, 2);
             });
-            var instance = new ContentLengthOverrideBody(new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2, null),
+            var instance = new ContentLengthOverrideBody(new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2),
                 2);
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }

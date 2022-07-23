@@ -120,7 +120,10 @@ namespace Kabomu.Examples.Shared
                 var responseStream = await responseWrapper.Content.ReadAsStreamAsync();
                 var contentLength = responseWrapper.Content.Headers.ContentLength ?? -1;
                 var contentType = responseWrapper.Content.Headers.ContentType?.ToString();
-                response.Body = new StreamBackedBody(responseStream, contentLength, contentType);
+                response.Body = new StreamBackedBody(responseStream, contentLength)
+                {
+                    ContentType = contentType
+                };
             }
             response.Headers = new Dictionary<string, List<string>>();
             AdddResponseHeaders(response.Headers, responseWrapper);

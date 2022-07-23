@@ -52,8 +52,10 @@ namespace Http.FileServer
                     httpContext.Request.ContentLength,
                     httpContext.Request.ContentType);
                 quasiRequest.Body = new StreamBackedBody(httpContext.Request.Body,
-                    httpContext.Request.ContentLength ?? -1,
-                    httpContext.Request.ContentType);
+                    httpContext.Request.ContentLength ?? -1)
+                {
+                    ContentType = httpContext.Request.ContentType
+                };
             }
             var processingOptions = new DefaultQuasiHttpProcessingOptions
             {
@@ -72,7 +74,7 @@ namespace Http.FileServer
                 LOG.Error(e, "http request processing failed");
                 quasiResponse = new DefaultQuasiHttpResponse
                 {
-                    Body = new StringBody(e.Message, null)
+                    Body = new StringBody(e.Message)
                 };
             }
             SetResponseStatusAndHeaders(quasiResponse, httpContext.Response);

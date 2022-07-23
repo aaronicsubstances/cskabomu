@@ -15,7 +15,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             Func<object, byte[]> serializationHandler = obj => Encoding.UTF8.GetBytes((string)obj);
-            var instance = new SerializableObjectBody("", serializationHandler, "text/csv");
+            var instance = new SerializableObjectBody("", serializationHandler)
+            {
+                ContentType = "text/csv"
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "text/csv",
@@ -27,7 +30,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             Func<object, byte[]> serializationHandler = obj => Encoding.UTF8.GetBytes((string)obj);
-            var instance = new SerializableObjectBody("Ab2", serializationHandler, "application/json");
+            var instance = new SerializableObjectBody("Ab2", serializationHandler)
+            {
+                ContentType = "application/json"
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "application/json",
@@ -39,23 +45,23 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             Assert.Throws<ArgumentNullException>(() =>
             {
-                new SerializableObjectBody(null, _ => new byte[0], null);
+                new SerializableObjectBody(null, _ => new byte[0]);
             });
             Assert.Throws<ArgumentNullException>(() =>
             {
-                new SerializableObjectBody("", null, null);
+                new SerializableObjectBody("", null);
             });
             Func<object, byte[]> serializationHandler = obj => Encoding.UTF8.GetBytes((string)obj);
-            var instance = new SerializableObjectBody("c2", serializationHandler, null);
+            var instance = new SerializableObjectBody("c2", serializationHandler);
             await CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
 
             // test for specific errors
             serializationHandler = obj => null;
-            instance = new SerializableObjectBody("d", serializationHandler, null);
+            instance = new SerializableObjectBody("d", serializationHandler);
             await Assert.ThrowsAnyAsync<Exception>(() => instance.ReadBytes(new byte[1], 0, 1));
 
             serializationHandler = obj => throw new Exception("se err");
-            instance = new SerializableObjectBody("d", serializationHandler, null);
+            instance = new SerializableObjectBody("d", serializationHandler);
             var actualError = await Assert.ThrowsAnyAsync<Exception>(() =>
                 instance.ReadBytes(new byte[1], 0, 1));
             Assert.Equal("se err", actualError.Message);
