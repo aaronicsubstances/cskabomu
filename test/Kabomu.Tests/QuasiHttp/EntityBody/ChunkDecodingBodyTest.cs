@@ -113,7 +113,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         }
 
         [Fact]
-        public Task TestReadWithTransportError()
+        public async Task TestReadWithTransportError()
         {
             // arrange.
             var dataList = new string[] { "de", "a" };
@@ -160,9 +160,29 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             };
             var instance = new ChunkDecodingBody(wrappedBody, 100);
 
+            // Can't use CommonBodyTestRunner because expected transport error will
+            // be an inner exception inside a chunk decoding exception.
+
+            // so manually run an almost identical copy.
+
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "image/gif",
-                new int[] { 2, 1 }, "END", null);
+            Assert.Equal(-1, instance.ContentLength);
+            Assert.Equal("image/gif", instance.ContentType);
+
+            var readAccumulator = new MemoryStream();
+            var readBuffer = new byte[2];
+            foreach (int expectedBytesRead in new int[] { 2, 1 })
+            {
+                int bytesRead = await instance.ReadBytes(readBuffer, 0, readBuffer.Length);
+                Assert.Equal(expectedBytesRead, bytesRead);
+                readAccumulator.Write(readBuffer, 0, bytesRead);
+            }
+            var e = await Assert.ThrowsAnyAsync<Exception>(() =>
+            {
+                return instance.ReadBytes(readBuffer, 0, readBuffer.Length);
+            });
+            Assert.NotNull(e.InnerException);
+            Assert.Contains("END", e.InnerException.Message);
         }
 
         [Fact]
@@ -236,7 +256,8 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 await instance.ReadBytes(new byte[1], 0, 1);
             });
             Assert.Contains("body", decodingError.Message);
-            Assert.Contains("unexpected end of read", decodingError.Message);
+            Assert.NotNull(decodingError.InnerException);
+            Assert.Contains("unexpected end of read", decodingError.InnerException.Message);
         }
 
         [Fact]
@@ -418,7 +439,8 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 await ChunkDecodingBody.ReadLeadChunk(transport, connection, maxChunkSize);
             });
             Assert.Contains("headers", decodingError.Message);
-            Assert.Contains("unexpected end of read", decodingError.Message);
+            Assert.NotNull(decodingError.InnerException);
+            Assert.Contains("unexpected end of read", decodingError.InnerException.Message);
         }
 
         [Fact]

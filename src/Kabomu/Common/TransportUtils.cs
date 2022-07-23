@@ -132,7 +132,7 @@ namespace Kabomu.Common
                 {
                     if (expectedEndOfRead)
                     {
-                        throw new BodySizeLimitExceededException($"buffering limit of {bufferingLimit} bytes exceeded");
+                        throw new BodySizeLimitExceededException(bufferingLimit);
                     }
                     byteStream.Write(readBuffer, 0, bytesRead);
                     if (bufferingLimit >= 0)

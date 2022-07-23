@@ -71,9 +71,9 @@ namespace Kabomu.QuasiHttp.EntityBody
             {
                 if (bytesRead == 0)
                 {
-                    var e = new Exception($"could not read remaining {_bytesRemaining} " +
-                        $"bytes before end of read");
-                    throw e;
+                    throw new ContentLengthNotSatisfiedException(ContentLength,
+                        $"could not read remaining {_bytesRemaining} " +
+                        $"bytes before end of read", null);
                 }
                 _bytesRemaining -= bytesRead;
             }
