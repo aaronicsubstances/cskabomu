@@ -29,9 +29,5 @@ namespace Kabomu.Common
         public MissingDependencyException(string message, Exception innerException) : base(message, innerException)
         {
         }
-
-        protected MissingDependencyException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
     }
 }

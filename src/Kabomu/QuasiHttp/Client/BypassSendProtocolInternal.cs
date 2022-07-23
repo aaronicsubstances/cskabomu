@@ -87,8 +87,9 @@ namespace Kabomu.QuasiHttp.Client
                         // the sake of tests.
                         if (response.Body.ContentLength > 0 && response.Body.ContentLength > ResponseBodyBufferingSizeLimit)
                         {
-                            throw new BodySizeLimitExceededException($"content length larger than buffering limit of " +
-                                $"{ResponseBodyBufferingSizeLimit} bytes");
+                            throw new BodySizeLimitExceededException(ResponseBodyBufferingSizeLimit,
+                                $"content length larger than buffering limit of " +
+                                $"{ResponseBodyBufferingSizeLimit} bytes", null);
                         }
                         var inMemStream = await TransportUtils.ReadBodyToMemoryStream(response.Body, MaxChunkSize,
                             ResponseBodyBufferingSizeLimit);

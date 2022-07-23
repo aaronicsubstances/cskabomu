@@ -38,7 +38,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         {
             if (transport == null)
             {
-                throw new ArgumentException("null transport");
+                throw new ArgumentNullException("null transport");
             }
             byte[] encodedLength = new byte[ChunkEncodingBody.LengthOfEncodedChunkLength];
             try
@@ -49,7 +49,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             catch (Exception e)
             {
                 throw new ChunkDecodingException("Failed to decode quasi http headers while " +
-                    "reading a chunk length specification: " + e.Message, e);
+                    "reading a chunk length specification", e);
             }
 
            int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
@@ -64,7 +64,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             catch (Exception e)
             {
                 throw new ChunkDecodingException("Failed to decode quasi http headers while " +
-                    "reading in chunk data: " + e.Message, e);
+                    "reading in chunk data", e);
             }
 
             try
@@ -74,7 +74,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
             catch (Exception e)
             {
-                throw new ChunkDecodingException("Encountered invalid chunk of quasi http headers: " + e.Message, e);
+                throw new ChunkDecodingException("Encountered invalid chunk of quasi http headers", e);
             }
         }
 
@@ -113,7 +113,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             catch (Exception e)
             {
                 throw new ChunkDecodingException("Failed to decode quasi http body while " +
-                    "reading a chunk length specification: " + e.Message, e);
+                    "reading a chunk length specification", e);
             }
 
             EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
@@ -131,7 +131,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             catch (Exception e)
             {
                 throw new ChunkDecodingException("Failed to decode quasi http body while " +
-                    "reading in chunk data: " + e.Message, e);
+                    "reading in chunk data", e);
             }
 
             EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
@@ -142,7 +142,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
             catch (Exception e)
             {
-                throw new ChunkDecodingException("Encountered invalid chunked quasi http body: " + e.Message, e);
+                throw new ChunkDecodingException("Encountered invalid chunked quasi http body", e);
             }
             _lastChunkUsedBytes = 0;
             return SupplyFromLastChunk(data, offset, bytesToRead);

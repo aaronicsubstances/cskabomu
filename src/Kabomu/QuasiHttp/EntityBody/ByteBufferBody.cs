@@ -7,16 +7,33 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Quasi http body implementation backed by in-memory byte array.
+    /// </summary>
     public class ByteBufferBody : IQuasiHttpBody
     {
         private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
         private int _bytesRead;
 
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
+        /// <param name="data">backing byte array</param>
+        /// <exception cref="ArgumentNullException">The <paramref name="data"/> argument is null</exception>
         public ByteBufferBody(byte[] data):
             this(data, 0, data?.Length ?? 0)
         {
         }
 
+        /// <summary>
+        /// Creates a new instance with a specified slice of a byte array.
+        /// </summary>
+        /// <param name="data">backing byte array</param>
+        /// <param name="offset">starting offset of data</param>
+        /// <param name="length">number of bytes available for reading</param>
+        /// <exception cref="ArgumentNullException">The <paramref name="data"/> argument is null</exception>
+        /// <exception cref="ArgumentException">The combination of offset and length arguments generate invalid indices
+        /// in data argument</exception>
         public ByteBufferBody(byte[] data, int offset, int length)
         {
             if (data == null)
