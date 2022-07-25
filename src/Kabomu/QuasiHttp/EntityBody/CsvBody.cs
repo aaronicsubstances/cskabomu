@@ -6,6 +6,16 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Represents byte stream derived from a CSV serialized in UTF-8 encoding. This class was created
+    /// to serve as a convenient means of representing actual HTTP forms (application/x-www-form-urlencoded),
+    /// and query string portion of actual HTTP request lines/URLs. Both can be encoded as CSV rows, in which 
+    /// <list type="number">
+    /// <item>the first column of each row is a name or key</item>
+    /// <item>the remaining columns are for the many possible values of the name or key</item>
+    /// <item>each row can have a different number of columns</item>
+    /// </list>
+    /// </summary>
     public class CsvBody : SerializableObjectBody
     {
         public CsvBody(Dictionary<string, List<string>> content):

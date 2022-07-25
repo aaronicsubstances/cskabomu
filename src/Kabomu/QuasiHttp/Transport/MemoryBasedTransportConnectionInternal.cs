@@ -3,51 +3,50 @@ using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.Transport
 {
     internal class MemoryBasedTransportConnectionInternal
     {
-        private readonly CancellationTokenSource _connectionCancellationHandle = new CancellationTokenSource();
-        private readonly WritableBackedBody _serverReadReqProcessor;
-        private readonly WritableBackedBody _clientReadReqProcessor;
+        private readonly ICancellationHandle _connectionCancellationHandle = new DefaultCancellationHandle();
+        private readonly PipeBackedBody _serverPipe;
+        private readonly PipeBackedBody _clientPipe;
 
         public MemoryBasedTransportConnectionInternal(IMutexApi serverMutex, IMutexApi clientMutex)
         {
-            _serverReadReqProcessor = new WritableBackedBody();
+            _serverPipe = new PipeBackedBody();
             if (serverMutex != null)
             {
-                _serverReadReqProcessor.MutexApi = serverMutex;
+                _serverPipe.MutexApi = serverMutex;
             }
-            _clientReadReqProcessor = new WritableBackedBody();
+            _clientPipe = new PipeBackedBody();
             if (clientMutex != null)
             {
-                _clientReadReqProcessor.MutexApi = clientMutex;
+                _clientPipe.MutexApi = clientMutex;
             }
         }
 
         public async Task<int> ProcessReadRequest(bool fromServer, byte[] data, int offset, int length)
         {
             // Rely on caller to supply valid arguments.
-            if (_connectionCancellationHandle.IsCancellationRequested)
+            if (_connectionCancellationHandle.IsCancelled)
             {
                 throw new Exception("connection reset");
             }
-            var readReqProcessor = fromServer ? _serverReadReqProcessor : _clientReadReqProcessor;
+            var readReqProcessor = fromServer ? _serverPipe : _clientPipe;
             return await readReqProcessor.ReadBytes(data, offset, length);
         }
 
         public async Task ProcessWriteRequest(bool fromServer, byte[] data, int offset, int length)
         {
             // Rely on caller to supply valid arguments.
-            if (_connectionCancellationHandle.IsCancellationRequested)
+            if (_connectionCancellationHandle.IsCancelled)
             {
                 throw new Exception("connection reset");
             }
-            // pick read req processor for other participant for processing writes.
-            var writeReqProcessor = !fromServer ? _serverReadReqProcessor : _clientReadReqProcessor;
+            // write to the pipe for other participant.
+            var writeReqProcessor = fromServer ? _clientPipe : _serverPipe;
             // assumptions of write occuring in chunks or with an overall content length
             // remove need to ever call writeReqProcessor.WriteLastBytes()
             await writeReqProcessor.WriteBytes(data, offset, length);
@@ -55,13 +54,12 @@ namespace Kabomu.QuasiHttp.Transport
 
         public async Task Release()
         {
-            if (_connectionCancellationHandle.IsCancellationRequested)
+            if (!_connectionCancellationHandle.Cancel())
             {
                 return;
             }
-            _connectionCancellationHandle.Cancel();
-            await _serverReadReqProcessor.EndRead();
-            await _clientReadReqProcessor.EndRead();
+            await _serverPipe.EndRead();
+            await _clientPipe.EndRead();
         }
     }
 }

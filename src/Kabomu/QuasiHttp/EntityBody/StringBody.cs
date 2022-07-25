@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Represents byte stream derived from a string's UTF-8 representation.
+    /// </summary>
     public class StringBody : SerializableObjectBody
     {
         public StringBody(string content) :

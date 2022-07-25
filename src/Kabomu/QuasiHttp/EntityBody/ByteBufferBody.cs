@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// Quasi http body implementation backed by in-memory byte array.
+    /// Represents byte stream directly with in-memory byte array.
     /// </summary>
     public class ByteBufferBody : IQuasiHttpBody
     {

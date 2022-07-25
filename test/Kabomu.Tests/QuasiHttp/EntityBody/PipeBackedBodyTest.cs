@@ -10,13 +10,13 @@ using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
-    public class WritableBackedBodyTest
+    public class PipeBackedBodyTest
     {
         [Fact]
         public async Task TestEmptyRead()
         {
             // arrange.
-            var instance = new WritableBackedBody();
+            var instance = new PipeBackedBody();
             var task = instance.WriteLastBytes(new byte[0], 0, 0);
 
             // act and assert.
@@ -30,7 +30,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public async Task TestNonEmptyRead()
         {
             // arrange.
-            var instance = new WritableBackedBody
+            var instance = new PipeBackedBody
             {
                 ContentType = "text/csv" 
             };
@@ -52,7 +52,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var expectedData = Encoding.UTF8.GetBytes("car seat");
-            var instance = new WritableBackedBody
+            var instance = new PipeBackedBody
             {
                 ContentType = "text/xml",
                 MutexApi = new DefaultEventLoopApi()
@@ -78,12 +78,12 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public async Task TestForArgumentErrors()
         {
-            var instance = new WritableBackedBody();
+            var instance = new PipeBackedBody();
             _ = instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
             await CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
 
             // look out for specific errors.
-            instance = new WritableBackedBody();
+            instance = new PipeBackedBody();
             var writeTasks = new Task[3];
             var expectedWriteErrors = new string[writeTasks.Length];
             var readTasks = new Task<int>[3];

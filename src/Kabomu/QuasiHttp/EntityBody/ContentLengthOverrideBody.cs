@@ -5,6 +5,13 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Wraps a quasi http body and forces its content length to a certain value, including -1 (actually
+    /// any negative value) to indicate unknown length. All calls to ReadBytes() are forwarded to wrapped
+    /// body, and where the imposed content length is nonnegative, additional validation checks are
+    /// performed to ensure that ReadBytes() call return 0 only when number of bytes equal to content length
+    /// have been returned in total.
+    /// </summary>
     public class ContentLengthOverrideBody : IQuasiHttpBody
     {
         private readonly IQuasiHttpBody _wrappedBody;

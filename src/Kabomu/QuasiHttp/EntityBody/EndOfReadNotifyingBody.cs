@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Wraps an instance of a quasi http body to provide a notification to clients after its EndOfRead() 
+    /// method is called.
+    /// </summary>
     public class EndOfReadNotifyingBody : IQuasiHttpBody
     {
         private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
