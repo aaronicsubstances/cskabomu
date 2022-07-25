@@ -6,7 +6,7 @@ using System.Threading;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
-    public static class EntityBodyUtilsInternal
+    internal static class EntityBodyUtilsInternal
     {
         public static void ThrowIfReadCancelled(ICancellationHandle cancellationHandle)
         {
