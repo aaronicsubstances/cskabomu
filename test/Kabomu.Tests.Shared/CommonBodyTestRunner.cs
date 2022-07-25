@@ -50,7 +50,7 @@ namespace Kabomu.Tests.Shared
                 await instance.EndRead();
                 await instance.EndRead();
 
-                var e = await Assert.ThrowsAnyAsync<Exception>(() =>
+                var e = await Assert.ThrowsAsync<EndOfReadException>(() =>
                 {
                     return instance.ReadBytes(buffer, 0, buffer.Length);
                 });

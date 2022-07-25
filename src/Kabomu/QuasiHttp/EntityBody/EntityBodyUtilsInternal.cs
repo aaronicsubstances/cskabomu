@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.Concurrency;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
@@ -7,18 +8,16 @@ namespace Kabomu.QuasiHttp.EntityBody
 {
     public static class EntityBodyUtilsInternal
     {
-        public static readonly Exception ReadCancellationException = new Exception("end of read");
-
-        public static void ThrowIfReadCancelled(CancellationTokenSource cts)
+        public static void ThrowIfReadCancelled(ICancellationHandle cancellationHandle)
         {
-            ThrowIfReadCancelled(cts.IsCancellationRequested);
+            ThrowIfReadCancelled(cancellationHandle.IsCancelled);
         }
 
         public static void ThrowIfReadCancelled(bool endOfReadSeen)
         {
             if (endOfReadSeen)
             {
-                throw ReadCancellationException;
+                throw new EndOfReadException();
             }
         }
     }

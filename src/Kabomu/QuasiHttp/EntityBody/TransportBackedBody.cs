@@ -1,16 +1,16 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
     public class TransportBackedBody : IQuasiHttpBody
     {
-        private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
+        private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
         private readonly IQuasiHttpTransport _transport;
         private readonly object _connection;
         private readonly Func<Task> _endOfReadCallback;
@@ -82,12 +82,11 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         public async Task EndRead()
         {
-            if (_readCancellationHandle.IsCancellationRequested)
+            if (!_readCancellationHandle.Cancel())
             {
                 return;
             }
 
-            _readCancellationHandle.Cancel();
             if (_endOfReadCallback != null)
             {
                 await _endOfReadCallback.Invoke();

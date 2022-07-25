@@ -180,7 +180,7 @@ namespace Kabomu.QuasiHttp.EntityBody
                     return;
                 }
                 _endOfReadSeen = true;
-                var srcEndError = EntityBodyUtilsInternal.ReadCancellationException;
+                var srcEndError = new EndOfReadException();
                 _readRequest?.ReadCallback.SetException(srcEndError);
                 foreach (var writeReq in _writeRequests)
                 {

@@ -1,14 +1,14 @@
-﻿using System;
+﻿using Kabomu.Concurrency;
+using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
     public class EndOfReadNotifyingBody : IQuasiHttpBody
     {
-        private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
+        private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
         private readonly IQuasiHttpBody _wrappedBody;
         private readonly Func<Task> _endOfReadCallback;
 
@@ -32,12 +32,11 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         public async Task EndRead()
         {
-            if (_readCancellationHandle.IsCancellationRequested)
+            if (!_readCancellationHandle.Cancel())
             {
                 return;
             }
 
-            _readCancellationHandle.Cancel();
             try
             {
                 await _wrappedBody.EndRead();

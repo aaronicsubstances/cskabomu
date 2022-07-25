@@ -1,8 +1,8 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
@@ -12,7 +12,7 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// </summary>
     public class ByteBufferBody : IQuasiHttpBody
     {
-        private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
+        private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
         private int _bytesRead;
 
         /// <summary>

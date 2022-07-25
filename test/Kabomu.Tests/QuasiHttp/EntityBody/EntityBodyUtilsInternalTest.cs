@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Concurrency;
+using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -13,12 +14,12 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public void Test()
         {
             EntityBodyUtilsInternal.ThrowIfReadCancelled(false);
-            EntityBodyUtilsInternal.ThrowIfReadCancelled(new CancellationTokenSource());
-            var actualEx = Assert.ThrowsAny<Exception>(() => EntityBodyUtilsInternal.ThrowIfReadCancelled(true));
+            EntityBodyUtilsInternal.ThrowIfReadCancelled(new DefaultCancellationHandle());
+            var actualEx = Assert.Throws<EndOfReadException>(() => EntityBodyUtilsInternal.ThrowIfReadCancelled(true));
             Assert.Contains("end of read", actualEx.Message);
-            var cts = new CancellationTokenSource();
-            cts.Cancel();
-            actualEx = Assert.ThrowsAny<Exception>(() => EntityBodyUtilsInternal.ThrowIfReadCancelled(cts));
+            var cancellationHandle = new DefaultCancellationHandle();
+            cancellationHandle.Cancel();
+            actualEx = Assert.Throws<EndOfReadException>(() => EntityBodyUtilsInternal.ThrowIfReadCancelled(cancellationHandle));
             Assert.Contains("end of read", actualEx.Message);
         }
     }
