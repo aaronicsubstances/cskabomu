@@ -7,6 +7,11 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// The standard chunk encoder of byte streams of unknown lengths in the Kabomu library. Wraps a quasi http body
+    /// to generate a byte stream which consists of an unknown number of one or more <see cref="SubsequentChunk"/> instances
+    /// ordered consecutively, in which the last instances has zero data length and all the previous ones have non-empty data.
+    /// </summary>
     public class ChunkEncodingBody : IQuasiHttpBody
     {
         internal static readonly int LengthOfEncodedChunkLength = 3;

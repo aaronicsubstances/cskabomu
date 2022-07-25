@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// Represents a byte stream in quasi HTTP request or response.
+    /// Represents a byte stream which forms part of a quasi HTTP request or response.
     /// </summary>
     /// <remarks>
     /// <para>

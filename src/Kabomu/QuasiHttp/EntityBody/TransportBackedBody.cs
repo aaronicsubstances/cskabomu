@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Represents a stream of bytes from a connection of a quasi http transport.
+    /// </summary>
     public class TransportBackedBody : IQuasiHttpBody
     {
         private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();

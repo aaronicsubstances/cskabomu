@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// The standard chunk decoder of byte streams in the Kabomu library. Assumes byte stream is
+    /// The standard chunk decoder of byte streams in the Kabomu library. Wraps a quasi http body and assumes it consists of
     /// an unknown number of one or more <see cref="SubsequentChunk"/> instances ordered consecutively, in which the last
     /// instances has zero data length and all the previous ones have non-empty data.
     /// </summary>

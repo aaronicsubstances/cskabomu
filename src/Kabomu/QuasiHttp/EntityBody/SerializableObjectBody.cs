@@ -8,6 +8,10 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Represents a byte stream which is derived from lazy serialization an in-memory object, ie 
+    /// serialization isn't done until ReadBytes() is called.
+    /// </summary>
     public class SerializableObjectBody : IQuasiHttpBody
     {
         private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();

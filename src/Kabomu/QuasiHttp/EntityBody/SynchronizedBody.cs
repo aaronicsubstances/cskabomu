@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Wraps an instance of a quasi http body to ensure that its methods are called within locks (actually
+    /// any mutex api).
+    /// </summary>
     public class SynchronizedBody : IQuasiHttpBody
     {
         private readonly IQuasiHttpBody _wrappedBody;

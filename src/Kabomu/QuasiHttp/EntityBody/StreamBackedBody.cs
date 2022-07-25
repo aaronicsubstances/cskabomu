@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Represents stream of bytes directly with an instance of the <see cref="Stream"/> class.
+    /// </summary>
     public class StreamBackedBody : IQuasiHttpBody
     {
         private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();

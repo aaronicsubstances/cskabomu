@@ -7,13 +7,24 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
-    public class WritableBackedBody : IQuasiHttpBody
+    /// <summary>
+    /// <para>
+    /// Implementation of quasi http body which is based on a "pipe" of bytes, where one thread writes data to one end of it,
+    /// and another thread reads data from the other end of it. The end of the pipe from which data is read serves
+    /// as the byte stream to be read by clients.
+    /// </para>
+    /// <para>
+    /// This notion of pipe is purely implemented in memory with locks, and is similar to (but not based on)
+    /// OS named pipes, OS anonymous pipes and OS shell pipes.
+    /// </para>
+    /// </summary>
+    public class PipeBackedBody : IQuasiHttpBody
     {
         private readonly LinkedList<ReadWriteRequest> _writeRequests;
         private ReadWriteRequest _readRequest;
         private bool _endOfReadSeen, _endOfWriteSeen;
 
-        public WritableBackedBody()
+        public PipeBackedBody()
         {
             _writeRequests = new LinkedList<ReadWriteRequest>();
             MutexApi = new LockBasedMutexApi();
@@ -125,9 +136,9 @@ namespace Kabomu.QuasiHttp.EntityBody
             // to prevent error of re-entrant read byte requests
             // matching previous writes.
             // NB: not really necessary for promise-based implementations.
-            // in fact as a historical note, problem with re-entrancy and
+            // in fact as a historical note, problems with re-entrancy and
             // excessive stack size growth during looping callbacks, sped up work to 
-            // promisify this entire library.
+            // promisify the entire Kabomu library.
             _readRequest = null;
             List<ReadWriteRequest> writesToFail = null;
             if (bytesToReturn < pendingWrite.Length)
