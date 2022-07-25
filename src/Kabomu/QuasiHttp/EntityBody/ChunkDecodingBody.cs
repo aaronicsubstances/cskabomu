@@ -1,16 +1,16 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
     public class ChunkDecodingBody : IQuasiHttpBody
     {
-        private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
+        private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
         private readonly IQuasiHttpBody _wrappedBody;
         private readonly int _maxChunkSize;
         private SubsequentChunk _lastChunk;
@@ -156,10 +156,13 @@ namespace Kabomu.QuasiHttp.EntityBody
             return lengthToUse;
         }
 
-        public Task EndRead()
+        public async Task EndRead()
         {
-            _readCancellationHandle.Cancel();
-            return _wrappedBody.EndRead();
+            if (!_readCancellationHandle.Cancel())
+            {
+                return;
+            }
+            await _wrappedBody.EndRead();
         }
     }
 }

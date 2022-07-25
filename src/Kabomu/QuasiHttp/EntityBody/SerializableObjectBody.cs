@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,7 +10,7 @@ namespace Kabomu.QuasiHttp.EntityBody
 {
     public class SerializableObjectBody : IQuasiHttpBody
     {
-        private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
+        private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
         private IQuasiHttpBody _backingBody;
 
         public SerializableObjectBody(object content, Func<object, byte[]> serializationHandler)
@@ -52,11 +53,11 @@ namespace Kabomu.QuasiHttp.EntityBody
         public Task EndRead()
         {
             _readCancellationHandle.Cancel();
-            // don't bother about ending read of backing body since it is just an in-memory object 
+            // don't bother about ending read of backing body since it is just an in-memory object
             // and there is no contract to cancel ongoing reads.
             // that spares from dealing with possible null reference and memory inconsistency
             // in determining whether backing body has been initialized or not.
-            return Task.CompletedTask;            
+            return Task.CompletedTask;
         }
     }
 }

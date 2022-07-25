@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,7 +12,8 @@ namespace Kabomu.QuasiHttp.EntityBody
 {
     public class StreamBackedBody : IQuasiHttpBody
     {
-        private readonly CancellationTokenSource _readCancellationHandle = new CancellationTokenSource();
+        private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
+        private readonly CancellationTokenSource _streamCancellationHandle = new CancellationTokenSource();
         private long _bytesRemaining;
 
         public StreamBackedBody(Stream backingStream):
@@ -54,7 +56,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             {
                 bytesToRead = (int)Math.Min(bytesToRead, _bytesRemaining);
             }
-            
+
             // even if bytes to read is zero at this stage, still go ahead and call
             // wrapped body instead of trying to optimize by returning zero, so that
             // any end of read error can be thrown.
@@ -62,7 +64,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             // supplying cancellation token is for the purpose of leveraging
             // presence of cancellation in C#'s stream interface. Outside code 
             // should not depend on ability to cancel ongoing reads.
-            int bytesRead = await BackingStream.ReadAsync(data, offset, bytesToRead, _readCancellationHandle.Token);
+            int bytesRead = await BackingStream.ReadAsync(data, offset, bytesToRead, _streamCancellationHandle.Token);
 
             EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
@@ -82,12 +84,12 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         public async Task EndRead()
         {
-            if (_readCancellationHandle.IsCancellationRequested)
+            if (!_readCancellationHandle.Cancel())
             {
                 return;
             }
 
-            _readCancellationHandle.Cancel();
+            _streamCancellationHandle.Cancel();
             // assume that a stream can be disposed concurrently with any ongoing use of it.
 #if NETCOREAPP3_1
             await BackingStream.DisposeAsync();
