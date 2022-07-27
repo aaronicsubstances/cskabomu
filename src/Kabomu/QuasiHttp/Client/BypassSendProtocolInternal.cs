@@ -59,9 +59,13 @@ namespace Kabomu.QuasiHttp.Client
 
             var cancellableResTask = TransportBypass.ProcessSendRequest(request, ConnectivityParams);
 
+            var sendCancellationHandle = cancellableResTask.Item2;
+
             // writing this variable is thread safe if caller calls current method within same mutex as
             // Cancel().
-            _sendCancellationHandle = cancellableResTask.Item2;
+            _sendCancellationHandle = sendCancellationHandle;
+
+            // NB: not thread-safe to reuse _sendCancellationHandle in conditional checks below.
 
             IQuasiHttpResponse response = await cancellableResTask.Item1;
 
@@ -69,7 +73,7 @@ namespace Kabomu.QuasiHttp.Client
             {
                 throw new Exception("no response");
             }
-            if (response.Body != null)
+            if (response.Body != null && sendCancellationHandle != null)
             {
                 if (ResponseStreamingEnabled)
                 {
@@ -80,8 +84,7 @@ namespace Kabomu.QuasiHttp.Client
                 }
                 else
                 {
-                    // NB: not thread-safe to reuse _sendCancellationHandle in conditional check below.
-                    if (await TransportBypass.WillCancelSendMakeResponseBodyUnusable(cancellableResTask.Item2, response))
+                    if (await TransportBypass.WillCancelSendMakeResponseBodyUnusable(sendCancellationHandle, response))
                     {
                         // read in entirety of response body into memory, and respect content length for
                         // the sake of tests.
