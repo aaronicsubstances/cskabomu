@@ -44,7 +44,7 @@ namespace Kabomu.MemoryBasedTransport
             using (await MutexApi.Synchronize())
             {
                 _running = false;
-                var ex = new TransportStoppageException();
+                var ex = new TransportResetException();
                 foreach (var serverConnectRequest in _serverConnectRequests)
                 {
                     serverConnectRequest.Callback.SetException(ex);

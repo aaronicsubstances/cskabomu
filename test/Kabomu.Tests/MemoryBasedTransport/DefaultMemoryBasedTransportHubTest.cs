@@ -36,9 +36,9 @@ namespace Kabomu.Tests.MemoryBasedTransport
                 instance.AddServer(serverEndpoint, server));
 
             // test for argument errors.
-            await Assert.ThrowsAsync<ArgumentException>(() =>
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
                 instance.AddServer("cv", null));
-            await Assert.ThrowsAsync<ArgumentException>(() =>
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
                 instance.AddServer(null, new ConfigurableQuasiHttpServer()));
             await Assert.ThrowsAsync<ArgumentException>(() =>
                 instance.AllocateConnection("kl", null));
@@ -48,7 +48,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
                 instance.ProcessSendRequest("kl", null, qHttpRequest));
             await Assert.ThrowsAsync<ArgumentException>(() =>
                 instance.ProcessSendRequest("kl", new DefaultConnectivityParams(), qHttpRequest));
-            await Assert.ThrowsAsync<ArgumentException>(() =>
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
                 instance.ProcessSendRequest("kl", validConnectivityParams, null));
 
             // test for errors if server transport is not provided or not memory based.

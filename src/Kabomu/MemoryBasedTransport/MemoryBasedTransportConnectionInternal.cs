@@ -1,5 +1,5 @@
 ﻿using Kabomu.Concurrency;
-using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -32,7 +32,7 @@ namespace Kabomu.MemoryBasedTransport
             // Rely on caller to supply valid arguments.
             if (_connectionCancellationHandle.IsCancelled)
             {
-                throw new Exception("connection reset");
+                throw new ConnectionReleasedException();
             }
             var readReqProcessor = fromServer ? _serverPipe : _clientPipe;
             return await readReqProcessor.ReadBytes(data, offset, length);
@@ -43,7 +43,7 @@ namespace Kabomu.MemoryBasedTransport
             // Rely on caller to supply valid arguments.
             if (_connectionCancellationHandle.IsCancelled)
             {
-                throw new Exception("connection reset");
+                throw new ConnectionReleasedException();
             }
             // write to the pipe for other participant.
             var writeReqProcessor = fromServer ? _clientPipe : _serverPipe;
@@ -58,8 +58,9 @@ namespace Kabomu.MemoryBasedTransport
             {
                 return;
             }
-            await _serverPipe.EndRead();
-            await _clientPipe.EndRead();
+            var endOfReadError = new ConnectionReleasedException();
+            await _serverPipe.EndRead(endOfReadError);
+            await _clientPipe.EndRead(endOfReadError);
         }
     }
 }
