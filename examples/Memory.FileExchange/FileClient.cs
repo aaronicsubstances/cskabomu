@@ -1,6 +1,6 @@
 ﻿using Kabomu.Examples.Shared;
+using Kabomu.MemoryBasedTransport;
 using Kabomu.QuasiHttp.Client;
-using Kabomu.QuasiHttp.Transport;
 using NLog;
 using System;
 using System.Collections.Generic;

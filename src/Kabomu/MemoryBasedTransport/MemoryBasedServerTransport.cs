@@ -1,20 +1,22 @@
 ﻿using Kabomu.Common;
 using Kabomu.Concurrency;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.Transport
+namespace Kabomu.MemoryBasedTransport
 {
     public class MemoryBasedServerTransport : IQuasiHttpServerTransport
     {
         private readonly LinkedList<ClientConnectRequest> _clientConnectRequests;
-        private ServerConnectRequest _serverConnectRequest;
+        private readonly LinkedList<ServerConnectRequest> _serverConnectRequests;
         private bool _running = false;
 
         public MemoryBasedServerTransport()
         {
             _clientConnectRequests = new LinkedList<ClientConnectRequest>();
+            _serverConnectRequests = new LinkedList<ServerConnectRequest>();
             MutexApi = new LockBasedMutexApi();
         }
 
@@ -42,13 +44,16 @@ namespace Kabomu.QuasiHttp.Transport
             using (await MutexApi.Synchronize())
             {
                 _running = false;
-                var ex = new Exception("transport stopped");
-                _serverConnectRequest?.Callback.SetException(ex);
+                var ex = new TransportStoppageException();
+                foreach (var serverConnectRequest in _serverConnectRequests)
+                {
+                    serverConnectRequest.Callback.SetException(ex);
+                }
                 foreach (var clientConnectRequest in _clientConnectRequests)
                 {
                     clientConnectRequest.Callback.SetException(ex);
                 }
-                _serverConnectRequest = null;
+                _serverConnectRequests.Clear();
                 _clientConnectRequests.Clear();
             }
         }
@@ -61,7 +66,7 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 if (!_running)
                 {
-                    throw new Exception("transport not started");
+                    throw new TransportNotStartedException();
                 }
                 var connectRequest = new ClientConnectRequest
                 {
@@ -72,7 +77,7 @@ namespace Kabomu.QuasiHttp.Transport
                 };
                 _clientConnectRequests.AddLast(connectRequest);
                 connectTask = connectRequest.Callback.Task;
-                if (_serverConnectRequest != null)
+                if (_serverConnectRequests.Count > 0)
                 {
                     resolveTask = ResolvePendingReceiveConnection();
                 }
@@ -105,18 +110,15 @@ namespace Kabomu.QuasiHttp.Transport
             {
                 if (!_running)
                 {
-                    throw new Exception("transport not started");
+                    throw new TransportNotStartedException();
                 }
-                if (_serverConnectRequest != null)
-                {
-                    throw new Exception("pending server connect request yet to be resolved");
-                }
-                _serverConnectRequest = new ServerConnectRequest
+                var serverConnectRequest = new ServerConnectRequest
                 {
                     Callback = new TaskCompletionSource<IConnectionAllocationResponse>(
                         TaskCreationOptions.RunContinuationsAsynchronously)
                 };
-                connectTask = _serverConnectRequest.Callback.Task;
+                _serverConnectRequests.AddLast(serverConnectRequest);
+                connectTask = serverConnectRequest.Callback.Task;
                 if (_clientConnectRequests.Count > 0)
                 {
                     resolveTask = ResolvePendingReceiveConnection();
@@ -131,14 +133,14 @@ namespace Kabomu.QuasiHttp.Transport
 
         private async Task ResolvePendingReceiveConnection()
         {
-            var pendingServerConnectRequest = _serverConnectRequest;
+            var pendingServerConnectRequest = _serverConnectRequests.First.Value;
             var pendingClientConnectRequest = _clientConnectRequests.First.Value;
 
             // do not invoke callbacks until state of this transport is updated,
             // to prevent error of re-entrant connection requests
             // matching previous ones.
             // (not really necessary for promise-based implementations).
-            _serverConnectRequest = null;
+            _serverConnectRequests.RemoveFirst();
             _clientConnectRequests.RemoveFirst();
 
             IMutexApi serverSideMutexApi = null, clientSideMutexApi = null;
@@ -191,7 +193,7 @@ namespace Kabomu.QuasiHttp.Transport
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
             if (typedConnection == null)
             {
-                throw new ArgumentException("null connection");
+                throw new ArgumentNullException(nameof(connection));
             }
             if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
@@ -212,7 +214,7 @@ namespace Kabomu.QuasiHttp.Transport
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
             if (typedConnection == null)
             {
-                throw new ArgumentException("null connection");
+                throw new ArgumentNullException(nameof(connection));
             }
             if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {

@@ -23,15 +23,11 @@ namespace Kabomu.QuasiHttp.EntityBody
             {
                 throw new ArgumentNullException(nameof(content));
             }
-            if (serializationHandler == null)
-            {
-                throw new ArgumentNullException(nameof(serializationHandler));
-            }
             Content = content;
             SerializationHandler = serializationHandler;
         }
 
-        public Func<object, byte[]> SerializationHandler { get; }
+        public Func<object, byte[]> SerializationHandler { get; set; }
         public object Content { get; }
         public long ContentLength => -1;
         public string ContentType { get; set; }
@@ -47,7 +43,12 @@ namespace Kabomu.QuasiHttp.EntityBody
 
             if (_backingBody == null)
             {
-                var srcData = SerializationHandler.Invoke(Content);
+                var serializationHandler = SerializationHandler;
+                if (serializationHandler == null)
+                {
+                    throw new MissingDependencyException("serialization handler");
+                }
+                var srcData = serializationHandler.Invoke(Content);
                 _backingBody = new ByteBufferBody(srcData, 0, srcData.Length);
             }
             int bytesRead = await _backingBody.ReadBytes(data, offset, bytesToRead);
@@ -59,7 +60,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             _readCancellationHandle.Cancel();
             // don't bother about ending read of backing body since it is just an in-memory object
             // and there is no contract to cancel ongoing reads.
-            // that spares from dealing with possible null reference and memory inconsistency
+            // that spares us from dealing with possible null reference and memory inconsistency
             // in determining whether backing body has been initialized or not.
             return Task.CompletedTask;
         }

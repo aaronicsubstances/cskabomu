@@ -81,7 +81,7 @@ namespace Kabomu.Examples.Shared
             {
                 if (_tcpServer == null)
                 {
-                    throw new Exception("transport not started");
+                    throw new TransportNotStartedException();
                 }
                 acceptTask = _tcpServer.AcceptTcpClientAsync();
             }

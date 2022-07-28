@@ -5,22 +5,22 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.Transport
+namespace Kabomu.MemoryBasedTransport
 {
     internal class MemoryBasedTransportConnectionInternal
     {
         private readonly ICancellationHandle _connectionCancellationHandle = new DefaultCancellationHandle();
-        private readonly PipeBackedBody _serverPipe;
-        private readonly PipeBackedBody _clientPipe;
+        private readonly MemoryPipeBackedBody _serverPipe;
+        private readonly MemoryPipeBackedBody _clientPipe;
 
         public MemoryBasedTransportConnectionInternal(IMutexApi serverMutex, IMutexApi clientMutex)
         {
-            _serverPipe = new PipeBackedBody();
+            _serverPipe = new MemoryPipeBackedBody();
             if (serverMutex != null)
             {
                 _serverPipe.MutexApi = serverMutex;
             }
-            _clientPipe = new PipeBackedBody();
+            _clientPipe = new MemoryPipeBackedBody();
             if (clientMutex != null)
             {
                 _clientPipe.MutexApi = clientMutex;

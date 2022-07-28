@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -47,9 +48,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             {
                 new SerializableObjectBody(null, _ => new byte[0]);
             });
-            Assert.Throws<ArgumentNullException>(() =>
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
             {
-                new SerializableObjectBody("", null);
+                return new SerializableObjectBody("", null).ReadBytes(new byte[1], 0, 1);
             });
             Func<object, byte[]> serializationHandler = obj => Encoding.UTF8.GetBytes((string)obj);
             var instance = new SerializableObjectBody("c2", serializationHandler);

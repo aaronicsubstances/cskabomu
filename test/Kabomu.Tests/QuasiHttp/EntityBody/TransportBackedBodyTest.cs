@@ -11,11 +11,11 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class TransportBackedBodyTest
     {
-        private IQuasiHttpTransport CreateTransport(object connection, string[] strings)
+        private ConfigurableQuasiHttpTransport CreateTransport(object connection, string[] strings)
         {
             var endOfReadSeen = false;
             var readIndex = 0;
-            IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport
+            var transport = new ConfigurableQuasiHttpTransport
             {
                 ReadBytesCallback = async (actualConnection, data, offset, length) =>
                 {
@@ -39,10 +39,6 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                         }
                     }
                     return bytesRead;
-                },
-                ReleaseConnectionCallback = (connection) =>
-                {
-                    return Task.CompletedTask;
                 }
             };
             return transport;
@@ -55,7 +51,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             var connection = "wer";
             var dataList = new string[0];
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection, 0, true)
+            var instance = new TransportBackedBody(transport, connection, 0, false)
             {
                 ContentType = "text/csv"
             };
@@ -66,20 +62,28 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         }
 
         [Fact]
-        public Task TestEmptyReadWithExcessData()
+        public async Task TestEmptyReadWithExcessData()
         {
             // arrange.
             var connection = "wer";
             var dataList = new string[] { "3y3", "yoma" };
             var transport = CreateTransport(connection, dataList);
+            var cbCalled = false;
+            transport.ReleaseConnectionCallback = async (actualConnection) =>
+            {
+                Assert.False(cbCalled);
+                Assert.Equal(connection, actualConnection);
+                cbCalled = true;
+            };
             var instance = new TransportBackedBody(transport, connection, 0, true)
             {
                 ContentType = "application/json"
             };
 
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "application/json",
+            await CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "application/json",
                 new int[0], null, new byte[0]);
+            Assert.True(cbCalled);
         }
 
         [Fact]
@@ -89,7 +93,14 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             object connection = null;
             var dataList = new string[] { "Ab", "2" };
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection, -1,true)
+            var cbCalled = false;
+            transport.ReleaseConnectionCallback = async (actualConnection) =>
+            {
+                Assert.False(cbCalled);
+                Assert.Equal(connection, actualConnection);
+                cbCalled = true;
+            };
+            var instance = new TransportBackedBody(transport, connection, -1, true)
             {
                 ContentType = "text/plain"
             };
@@ -97,6 +108,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             // act and assert.
             await CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "text/plain",
                 new int[] { 2, 1 }, null, Encoding.UTF8.GetBytes("Ab2"));
+            Assert.True(cbCalled);
         }
 
         [Fact]
@@ -106,7 +118,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             object connection = null;
             var dataList = new string[] { "Ab", "2" };
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection, 3, true)
+            var instance = new TransportBackedBody(transport, connection, 3, false)
             {
                 ContentType = "text/plain"
             };
@@ -117,20 +129,28 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         }
 
         [Fact]
-        public Task TestNonEmptyReadWithExcessData()
+        public async Task TestNonEmptyReadWithExcessData()
         {
             // arrange.
             object connection = null;
             var dataList = new string[] { "Ab", "2er", "rea" };
             var transport = CreateTransport(connection, dataList);
+            var cbCalled = false;
+            transport.ReleaseConnectionCallback = async (actualConnection) =>
+            {
+                Assert.False(cbCalled);
+                Assert.Equal(connection, actualConnection);
+                cbCalled = true;
+            };
             var instance = new TransportBackedBody(transport, connection, 5, true)
             {
                 ContentType = "application/json"
             };
 
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(3, instance, 5, "application/json",
+            await CommonBodyTestRunner.RunCommonBodyTest(3, instance, 5, "application/json",
                 new int[] { 2, 3 }, null, Encoding.UTF8.GetBytes("Ab2er"));
+            Assert.True(cbCalled);
         }
 
         [Fact]
@@ -175,19 +195,19 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         }
 
         [Fact]
-        public Task TestWithEmptyTransportWhichCannotCompleteReads()
+        public async Task TestWithEmptyTransportWhichCannotCompleteReads()
         {
             // arrange.
             var connection = "wer";
             var dataList = new string[0];
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection, 1, true)
+            var instance = new TransportBackedBody(transport, connection, 1, false)
             {
                 ContentType = "text/csv"
             };
 
             // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 1, "text/csv",
+            await CommonBodyTestRunner.RunCommonBodyTest(0, instance, 1, "text/csv",
                 new int[0], "before end of read", null);
         }
 
@@ -198,7 +218,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             object connection = null;
             var dataList = new string[] { "Ab" };
             var transport = CreateTransport(connection, dataList);
-            var instance = new TransportBackedBody(transport, connection, 5, true)
+            var instance = new TransportBackedBody(transport, connection, 5, false)
             {
                 ContentType = "text/plain"
             };
@@ -217,7 +237,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             });
             var dataList = new string[] { "c", "2" };
             var transport = CreateTransport(null, dataList);
-            var instance = new TransportBackedBody(transport, null, 2, true)
+            var instance = new TransportBackedBody(transport, null, 2, false)
             {
                 ContentType = "text/plain"
             };

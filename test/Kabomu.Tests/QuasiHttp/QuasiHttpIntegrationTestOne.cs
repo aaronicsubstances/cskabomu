@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.MemoryBasedTransport;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
