@@ -1,6 +1,9 @@
 remaining
 ==========
 -introduce enough timeout gaps to remove flakiness of QuasiHttpIntegrationTestOne
+-test response streaming and buffering limit in DefaultSendProtocolInternal
+-BypassSendProtocolInternal
+-ApplicationReceiveProtocolInternal
 -DefaultQuasiHttpClient
 -DefaultQuasiHttpServer
 *can skip above if library works with all examples

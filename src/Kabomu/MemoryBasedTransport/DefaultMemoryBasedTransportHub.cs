@@ -1,12 +1,14 @@
 ﻿using Kabomu.Common;
 using Kabomu.Concurrency;
+using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Server;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.Transport
+namespace Kabomu.MemoryBasedTransport
 {
     public class DefaultMemoryBasedTransportHub : IMemoryBasedTransportHub
     {

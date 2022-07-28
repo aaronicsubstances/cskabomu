@@ -1,5 +1,5 @@
 ﻿using Kabomu.Concurrency;
-using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.MemoryBasedTransport;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -8,15 +8,15 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp.EntityBody
+namespace Kabomu.Tests.MemoryBasedTransport
 {
-    public class PipeBackedBodyTest
+    public class MemoryPipeBackedBodyTest
     {
         [Fact]
         public async Task TestEmptyRead()
         {
             // arrange.
-            var instance = new PipeBackedBody();
+            var instance = new MemoryPipeBackedBody();
             var task = instance.WriteLastBytes(new byte[0], 0, 0);
 
             // act and assert.
@@ -30,7 +30,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public async Task TestNonEmptyRead()
         {
             // arrange.
-            var instance = new PipeBackedBody
+            var instance = new MemoryPipeBackedBody
             {
                 ContentType = "text/csv" 
             };
@@ -52,7 +52,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var expectedData = Encoding.UTF8.GetBytes("car seat");
-            var instance = new PipeBackedBody
+            var instance = new MemoryPipeBackedBody
             {
                 ContentType = "text/xml",
                 MutexApi = new DefaultEventLoopApi()
@@ -78,27 +78,33 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public async Task TestForArgumentErrors()
         {
-            var instance = new PipeBackedBody();
+            var instance = new MemoryPipeBackedBody();
             _ = instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
             await CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
 
             // look out for specific errors.
-            instance = new PipeBackedBody();
-            var writeTasks = new Task[3];
+            instance = new MemoryPipeBackedBody();
+            var writeTasks = new Task[4];
             var expectedWriteErrors = new string[writeTasks.Length];
-            var readTasks = new Task<int>[3];
+            var readTasks = new Task<int>[4];
             var expectedReadErrors = new string[readTasks.Length];
             var expectedReadLengths = new int[readTasks.Length];
             readTasks[0] = instance.ReadBytes(new byte[4], 0, 4);
             expectedReadLengths[0] = 2;
-            readTasks[1] = instance.ReadBytes(new byte[4], 0, 4);
-            expectedReadErrors[1] = "pending read";
-            writeTasks[0] = instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
-            writeTasks[1] = instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
-            expectedWriteErrors[1] = "end of write";
-            writeTasks[2] = instance.WriteBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
+            readTasks[1] = instance.ReadBytes(new byte[4], 0, 2);
+            expectedReadLengths[1] = 1;
+            readTasks[2] = instance.ReadBytes(new byte[4], 0, 2);
+            expectedReadLengths[2] = 0;
+            writeTasks[0] = instance.WriteBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
+            expectedWriteErrors[0] = null;
+            writeTasks[1] = instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 1);
+            expectedWriteErrors[1] = null;
+            writeTasks[2] = instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
             expectedWriteErrors[2] = "end of write";
-            readTasks[2] = instance.ReadBytes(new byte[4], 0, 4);
+            writeTasks[3] = instance.WriteBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
+            expectedWriteErrors[3] = "end of write";
+            readTasks[3] = instance.ReadBytes(new byte[4], 0, 4);
+            expectedReadLengths[3] = 0;
 
             // wait for all tasks to complete.
             // since c#'s when all behaves more like NodeJS's Promise.allSettle,

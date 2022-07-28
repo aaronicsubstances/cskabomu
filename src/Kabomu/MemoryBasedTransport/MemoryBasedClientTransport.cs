@@ -1,10 +1,12 @@
 ﻿using Kabomu.Common;
+using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.Transport
+namespace Kabomu.MemoryBasedTransport
 {
     public class MemoryBasedClientTransport : IQuasiHttpClientTransport, IQuasiHttpTransportBypass
     {

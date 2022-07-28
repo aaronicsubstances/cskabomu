@@ -1,4 +1,7 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Common;
+using Kabomu.MemoryBasedTransport;
+using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -6,38 +9,53 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp.Transports
+namespace Kabomu.Tests.MemoryBasedTransport
 {
-    public class MemoryBasedServerTransportTest
+    public class MemoryBasedClientTransportTest
     {
         [Fact]
         public async Task TestSequentialOperations()
         {
-            var instance = new MemoryBasedServerTransport();
-            var running = await instance.IsRunning();
-            Assert.False(running);
-            await instance.Start();
-            running = await instance.IsRunning();
-            Assert.True(running);
-            await instance.Stop();
-            running = await instance.IsRunning();
-            Assert.False(running);
-
-            await instance.Start();
-            await instance.Start();
-            running = await instance.IsRunning();
-            Assert.True(running);
-
-            var serverConnectTask = instance.ReceiveConnection();
-            await Assert.ThrowsAnyAsync<Exception>(() =>
+            var hub = new TestHub();
+            var instance = new MemoryBasedClientTransport
             {
-                return instance.ReceiveConnection();
-            });
-            var expectedConnectionResponse = await instance.CreateConnectionForClient(null, null);
-            var receiveConnectionResponse = await serverConnectTask;
-            Assert.Equal(expectedConnectionResponse.Connection, receiveConnectionResponse.Connection);
+                Hub = hub
+            };
 
-            var establishedConnection = receiveConnectionResponse.Connection;
+            instance.LocalEndpoint = "Lome";
+            hub.ExpectedClientEndpoint = instance.LocalEndpoint;
+            hub.ExpectedRequest = new DefaultQuasiHttpRequest();
+            hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
+            hub.ProcessSendRequestResult = new DefaultQuasiHttpResponse();
+            var directSendResponse = await instance.ProcessSendRequest(hub.ExpectedRequest,
+                hub.ExpectedConnectivityParams).Item1;
+            Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
+
+            instance.LocalEndpoint = "Accra";
+            hub.ExpectedClientEndpoint = instance.LocalEndpoint;
+            hub.ExpectedRequest = new DefaultQuasiHttpRequest();
+            hub.ExpectedConnectivityParams = null;
+            hub.ProcessSendRequestResult = null;
+            directSendResponse = await instance.ProcessSendRequest(hub.ExpectedRequest,
+                hub.ExpectedConnectivityParams).Item1;
+            Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
+
+            instance.LocalEndpoint = null;
+            hub.ExpectedClientEndpoint = instance.LocalEndpoint;
+            hub.ExpectedRequest = null;
+            hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
+            hub.ProcessSendRequestResult = new DefaultQuasiHttpResponse();
+            directSendResponse = await instance.ProcessSendRequest(hub.ExpectedRequest,
+                hub.ExpectedConnectivityParams).Item1;
+            Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
+
+            instance.LocalEndpoint = "Abuja";
+            hub.ExpectedClientEndpoint = instance.LocalEndpoint;
+            hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
+            var connectionResponse = await instance.AllocateConnection(hub.ExpectedConnectivityParams);
+            Assert.True(connectionResponse.Connection is MemoryBasedTransportConnectionInternal);
+
+            var establishedConnection = connectionResponse.Connection;
 
             // test for sequential read/write request processing.
             var workItems1 = WorkItem.CreateWorkItems();
@@ -64,25 +82,17 @@ namespace Kabomu.Tests.QuasiHttp.Transports
 
             // test that repeated call doesn't have effect.
             await instance.ReleaseConnection(establishedConnection);
-
-            await instance.Stop();
-            await instance.Stop();
-            running = await instance.IsRunning();
-            Assert.False(running);
         }
 
         [Fact]
         public async Task TestErrorUsage()
         {
-            var instance = new MemoryBasedServerTransport();
-            await Assert.ThrowsAnyAsync<Exception>(() =>
-            {
-                return instance.CreateConnectionForClient(null, null);
-            });
-            
-            await instance.Start();
-
-            await Assert.ThrowsAsync<ArgumentException>(() =>
+            var instance = new MemoryBasedClientTransport();
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+                instance.ProcessSendRequest(null, null).Item1);
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+                instance.AllocateConnection(null));
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
             {
                 return instance.ReadBytes(null, new byte[0], 0, 0);
             });
@@ -94,7 +104,7 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             {
                 return instance.ReadBytes(new MemoryBasedTransportConnectionInternal(null, null), new byte[1], 1, 1);
             });
-            await Assert.ThrowsAsync<ArgumentException>(() =>
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
             {
                 return instance.WriteBytes(null, new byte[0], 0, 0);
             });
@@ -111,51 +121,28 @@ namespace Kabomu.Tests.QuasiHttp.Transports
         [Fact]
         public async Task TestInterleavedOperations()
         {
-            var task1 = ForkOperations(false);
-            var task2 = ForkOperations(true);
+            var hub = new TestHub();
+            var task1 = ForkOperations(hub, "Abidjan");
+            var task2 = ForkOperations(hub, "Lagos");
             // use whenany before whenall to catch any task exceptions which may
             // cause another task to hang forever.
             await await Task.WhenAny(task1, task2);
             await Task.WhenAll(task1, task2);
         }
 
-        private async Task ForkOperations(bool connectToClientFirst)
+        private async Task ForkOperations(TestHub hub, string localEndpoint)
         {
-            var expectedReq = new DefaultQuasiHttpRequest();
-            var expectedRes = new DefaultQuasiHttpResponse();
-            
-            var instance = new MemoryBasedServerTransport();
-            var running = await instance.IsRunning();
-            Assert.False(running);
-
-            await instance.Start();
-            await instance.Start();
-            running = await instance.IsRunning();
-            Assert.True(running);
-
-            Task<IConnectionAllocationResponse> serverConnectTask;
-            Task<IConnectionAllocationResponse> clientConnectTask;
-            if (connectToClientFirst)
+            var instance = new MemoryBasedClientTransport
             {
-                clientConnectTask = instance.CreateConnectionForClient("Accra", "Kumasi");
-                serverConnectTask = instance.ReceiveConnection();
-            }
-            else
-            {
-                serverConnectTask = instance.ReceiveConnection();
-                clientConnectTask = instance.CreateConnectionForClient("Accra", "Kumasi");
-            }
+                LocalEndpoint = localEndpoint,
+                Hub = hub
+            };
+            hub.ExpectedClientEndpoint = localEndpoint;
+            hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
+            var connectionResponse = await instance.AllocateConnection(hub.ExpectedConnectivityParams);
+            Assert.True(connectionResponse.Connection is MemoryBasedTransportConnectionInternal);
 
-            // use whenany before whenall to catch any task exceptions which may
-            // cause another task to hang forever.
-            await await Task.WhenAny(serverConnectTask, clientConnectTask);
-            await Task.WhenAll(serverConnectTask, clientConnectTask);
-
-            var expectedConnectionResponse = await clientConnectTask;
-            var receiveConnectionResponse = await serverConnectTask;
-            Assert.Equal(expectedConnectionResponse.Connection, receiveConnectionResponse.Connection);
-
-            var establishedConnection = receiveConnectionResponse.Connection;
+            var establishedConnection = connectionResponse.Connection;
 
             // test for interleaved read/write request processing.
             var workItems1 = WorkItem.CreateWorkItems();
@@ -173,42 +160,37 @@ namespace Kabomu.Tests.QuasiHttp.Transports
             await instance.ReleaseConnection(establishedConnection);
             await Assert.ThrowsAnyAsync<Exception>(() => exTask1);
             await Assert.ThrowsAnyAsync<Exception>(() => exTask2);
-
-            await instance.Stop();
-            await instance.Stop();
-            running = await instance.IsRunning();
-            Assert.False(running);
         }
 
-        private async Task ProcessWorkItems(MemoryBasedServerTransport server,
-            object connection, bool writeToServer, List<WorkItem> workItems)
+        private async Task ProcessWorkItems(MemoryBasedClientTransport client,
+            object connection, bool writeToClient, List<WorkItem> workItems)
         {
             var uncompletedWorkItems = new List<WorkItem>();
             foreach (var pendingWork in workItems)
             {
                 if (pendingWork.IsWrite)
                 {
-                    if (writeToServer)
+                    if (writeToClient)
                     {
-                        pendingWork.WriteTask = server.WriteBytes(connection,
+                        pendingWork.WriteTask = client.WriteBytes(connection,
                             pendingWork.WriteData, pendingWork.WriteOffset, pendingWork.WriteLength);
                     }
                     else
                     {
-                        pendingWork.WriteTask = MemoryBasedServerTransport.WriteBytesInternal(false, connection,
+                        pendingWork.WriteTask = MemoryBasedServerTransport.WriteBytesInternal(true, connection,
                             pendingWork.WriteData, pendingWork.WriteOffset, pendingWork.WriteLength);
                     }
                 }
                 else
                 {
-                    if (writeToServer)
+                    if (writeToClient)
                     {
-                        pendingWork.ReadTask = MemoryBasedServerTransport.ReadBytesInternal(false, connection,
+                        pendingWork.ReadTask = MemoryBasedServerTransport.ReadBytesInternal(true, connection,
                             pendingWork.ReadBuffer, pendingWork.ReadOffset, pendingWork.BytesToRead);
                     }
                     else
                     {
-                        pendingWork.ReadTask = server.ReadBytes(connection,
+                        pendingWork.ReadTask = client.ReadBytes(connection,
                             pendingWork.ReadBuffer, pendingWork.ReadOffset, pendingWork.BytesToRead);
                     }
                 }
@@ -261,6 +243,41 @@ namespace Kabomu.Tests.QuasiHttp.Transports
                 {
                     Assert.True(work.ReadTask.IsCompleted);
                 }
+            }
+        }
+
+        private class TestHub : IMemoryBasedTransportHub
+        {
+            public IQuasiHttpResponse ProcessSendRequestResult { get; set; }
+            public DefaultQuasiHttpRequest ExpectedRequest { get; set; }
+            public DefaultConnectivityParams ExpectedConnectivityParams { get;  set; }
+            public object ExpectedClientEndpoint { get; set; }
+
+            public Task AddServer(object endpoint, IQuasiHttpServer server)
+            {
+                throw new NotImplementedException();
+            }
+
+            public Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,
+                IConnectivityParams connectivityParams, IQuasiHttpRequest request)
+            {
+                Assert.Equal(ExpectedClientEndpoint, clientEndpoint);
+                Assert.Equal(ExpectedRequest, request);
+                Assert.Equal(ExpectedConnectivityParams, connectivityParams);
+                return Task.FromResult(ProcessSendRequestResult);
+            }
+
+            public Task<IConnectionAllocationResponse> AllocateConnection(object clientEndpoint,
+                IConnectivityParams connectivityParams)
+            {
+                Assert.Equal(ExpectedClientEndpoint, clientEndpoint);
+                Assert.Equal(ExpectedConnectivityParams, connectivityParams);
+                var connection = new MemoryBasedTransportConnectionInternal(null, null);
+                IConnectionAllocationResponse response = new DefaultConnectionAllocationResponse
+                {
+                    Connection = connection
+                };
+                return Task.FromResult(response);
             }
         }
     }

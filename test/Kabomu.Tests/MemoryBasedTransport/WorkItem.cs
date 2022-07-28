@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.Tests.QuasiHttp.Transports
+namespace Kabomu.Tests.MemoryBasedTransport
 {
     public class WorkItem
     {
