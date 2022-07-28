@@ -90,6 +90,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     Assert.Equal(connection, actualConnection);
                     outputStream.Write(data, offset, length);
+                },
+                ReleaseConnectionCallback = (actualConnection) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    return Task.CompletedTask;
                 }
             };
             var instance = new DefaultSendProtocolInternal
@@ -100,13 +105,12 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 MaxChunkSize = maxChunkSize,
                 ResponseBodyBufferingSizeLimit = 100
             };
-            bool abortCalled = false;
+            int abortCallCount = 0;
             object actualProtocolParentSeen = null;
             instance.AbortCallback = (transfer, e, res) =>
             {
-                // may be called more than once.
                 actualProtocolParentSeen = transfer;
-                abortCalled = true;
+                abortCallCount++;
                 return Task.CompletedTask;
             };
 
@@ -114,7 +118,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             IQuasiHttpResponse actualResponse = await instance.Send(expectedRequest);
 
             // assert.
-            Assert.True(abortCalled);
+            Assert.Equal(1, abortCallCount);
             await ComparisonUtils.CompareResponses(maxChunkSize, response, actualResponse,
                 responseBodyBytes);
             Assert.Equal(instance.Parent, actualProtocolParentSeen);

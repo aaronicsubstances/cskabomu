@@ -36,10 +36,6 @@ namespace Kabomu.Tests.QuasiHttp
                     };
                     var resTask = helperFunc.Invoke();
                     return Tuple.Create(resTask, (object)null);
-                },
-                WillCancelSendMakeResponseBodyUnusableCallback = (ch, res) =>
-                {
-                    return Task.FromResult(false);
                 }
             };
             var instance = new DefaultQuasiHttpClient
@@ -48,7 +44,8 @@ namespace Kabomu.Tests.QuasiHttp
                 {
                     TimeoutMillis = 100
                 },
-                TransportBypass = directProcessingTransport
+                TransportBypass = directProcessingTransport,
+                ResponseStreamingProbabilty = 1
             };
             IQuasiHttpResponse actualResponse = null;
             string actualResponseError = null;
@@ -176,10 +173,6 @@ namespace Kabomu.Tests.QuasiHttp
                     };
                     var resTask = helperFunc.Invoke();
                     return Tuple.Create(resTask, (object)null);
-                },
-                WillCancelSendMakeResponseBodyUnusableCallback = (ch, res) =>
-                {
-                    return Task.FromResult(false);
                 }
             };
             var client = new DefaultQuasiHttpClient

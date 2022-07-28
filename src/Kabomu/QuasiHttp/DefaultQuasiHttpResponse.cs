@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
@@ -15,9 +16,11 @@ namespace Kabomu.QuasiHttp
         public IQuasiHttpBody Body { get; set; }
         public int HttpStatusCode { get; set; }
         public string HttpVersion { get; set; }
+        public CancellationTokenSource CancellationTokenSource { get; set; }
 
         public Task Close()
         {
+            CancellationTokenSource?.Cancel();
             var endReadTask = Body?.EndRead();
             return endReadTask ?? Task.CompletedTask;
         }

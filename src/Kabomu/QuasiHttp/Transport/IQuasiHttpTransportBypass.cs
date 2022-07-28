@@ -10,6 +10,5 @@ namespace Kabomu.QuasiHttp.Transport
         Tuple<Task<IQuasiHttpResponse>, object> ProcessSendRequest(IQuasiHttpRequest request,
                IConnectivityParams connectivityParams);
         void CancelSendRequest(object sendCancellationHandle);
-        Task<bool> WillCancelSendMakeResponseBodyUnusable(object sendCancellationHandle, IQuasiHttpResponse response);
     }
 }

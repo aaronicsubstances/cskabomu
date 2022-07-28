@@ -11,13 +11,8 @@ namespace Kabomu.QuasiHttp.Client
 {
     internal class DefaultSendProtocolInternal : ISendProtocolInternal
     {
-        private readonly Func<Task> CloseConnectionCallback;
-
-        private bool _cancelled;
-
         public DefaultSendProtocolInternal()
         {
-            CloseConnectionCallback = CancelTransfer;
         }
 
         public object Parent { get; set; }
@@ -28,19 +23,8 @@ namespace Kabomu.QuasiHttp.Client
         public bool ResponseStreamingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
 
-        private Task CancelTransfer()
-        {
-            return AbortCallback.Invoke(Parent, null, null);
-        }
-
         public Task Cancel()
         {
-            // reading these variables is thread safe if caller always calls current method within same mutex.
-            if (_cancelled)
-            {
-                return Task.CompletedTask;
-            }
-            _cancelled = true;
             return Transport.ReleaseConnection(Connection);
         }
 
@@ -115,8 +99,7 @@ namespace Kabomu.QuasiHttp.Client
             if (chunk.ContentLength != 0)
             {
                 response.Body = new TransportBackedBody(Transport, Connection,
-                    chunk.ContentLength,
-                    ResponseStreamingEnabled ? CloseConnectionCallback : null)
+                    chunk.ContentLength, true)
                 {
                     ContentType = chunk.ContentType
                 };
