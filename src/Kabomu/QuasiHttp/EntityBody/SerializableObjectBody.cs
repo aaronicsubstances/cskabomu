@@ -12,11 +12,24 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// Represents a byte stream which is derived from lazy serialization an in-memory object, ie 
     /// serialization isn't done until ReadBytes() is called.
     /// </summary>
+    /// <remarks>
+    /// This class is implemented with the interest of memory-based transport in mind, and that is the
+    /// reason why serialization handler is not required at construction time, or why serialization is
+    /// not done eagerly at construction time. This then makes it possible for memory-based communications
+    /// to avoid performance hits due to serialization.
+    /// </remarks>
     public class SerializableObjectBody : IQuasiHttpBody
     {
         private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
         private IQuasiHttpBody _backingBody;
 
+        /// <summary>
+        /// Creates a new instance with any object which can be converted into bytes through serialization.
+        /// </summary>
+        /// <param name="content">object which will be converted into bytes via serialization.</param>
+        /// <param name="serializationHandler">Initial serialization function. Can be null, in which
+        /// case it must be set via corresponding property for initial read to succeed.</param>
+        /// <exception cref="ArgumentNullException">The <paramref name="content"/> argument is null.</exception>
         public SerializableObjectBody(object content, Func<object, byte[]> serializationHandler)
         {
             if (content == null)
@@ -27,9 +40,23 @@ namespace Kabomu.QuasiHttp.EntityBody
             SerializationHandler = serializationHandler;
         }
 
+        /// <summary>
+        /// Gets or sets the function which will be responsible for serializing the content property
+        /// to supply byte read requests.
+        /// </summary>
         public Func<object, byte[]> SerializationHandler { get; set; }
+
+        /// <summary>
+        /// Gets the object which will serve as the source of bytes for read requests. Same as the object
+        /// supplied at construction time.
+        /// </summary>
         public object Content { get; }
+
+        /// <summary>
+        /// Returns -1 to indicate unknown length.
+        /// </summary>
         public long ContentLength => -1;
+
         public string ContentType { get; set; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)

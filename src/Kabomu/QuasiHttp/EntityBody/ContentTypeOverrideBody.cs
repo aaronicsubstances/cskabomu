@@ -6,10 +6,12 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// Wraps a quasi http body and forces its content type to a certain value, including null.
+    /// Wraps a quasi http body and forces its content type to a fixed value, including null.
+    /// </summary>
+    /// <remarks>
     /// All calls to ReadBytes() are forwarded to wrapped
     /// body without modification; only the content type value returned changes.
-    /// </summary>
+    /// </remarks>
     public class ContentTypeOverrideBody : IQuasiHttpBody
     {
         private readonly IQuasiHttpBody _wrappedBody;

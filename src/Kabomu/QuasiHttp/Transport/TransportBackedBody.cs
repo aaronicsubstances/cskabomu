@@ -19,6 +19,16 @@ namespace Kabomu.QuasiHttp.Transport
         private readonly bool _releaseConnection;
         private long _bytesRemaining;
 
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
+        /// <param name="transport">the quasi http transport to read from</param>
+        /// <param name="connection">the connection to read from</param>
+        /// <param name="contentLength">the number of bytes to read; or -1 or any negative value
+        /// to read all bytes in the connection.</param>
+        /// <param name="releaseConnection">true if connection should be released during end of read; false
+        /// if connection should not be released.</param>
+        /// <exception cref="ArgumentNullException">The <paramref name="transport"/> argument is null.</exception>
         public TransportBackedBody(IQuasiHttpTransport transport, object connection,
              long contentLength, bool releaseConnection)
         {
@@ -40,7 +50,12 @@ namespace Kabomu.QuasiHttp.Transport
             }
         }
 
+        /// <summary>
+        /// Returns the number of bytes to read from connection of a transport, or negative value
+        /// to indicate unknown length, and hence all bytes of connection will be read.
+        /// </summary>
         public long ContentLength { get; }
+
         public string ContentType { get; set; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)

@@ -19,11 +19,22 @@ namespace Kabomu.QuasiHttp.EntityBody
         private readonly CancellationTokenSource _streamCancellationHandle = new CancellationTokenSource();
         private long _bytesRemaining;
 
+        /// <summary>
+        /// Creates an instance with an input stream in which all of its bytes should be returned in reads (content
+        /// length will be -1).
+        /// </summary>
+        /// <param name="backingStream">the input stream to read from</param>
         public StreamBackedBody(Stream backingStream):
             this(backingStream, -1)
         {
         }
 
+        /// <summary>
+        /// Creates an input stream with an input stream and the number of bytes to read.
+        /// </summary>
+        /// <param name="backingStream"></param>
+        /// <param name="contentLength">the total number of bytes to read from stream. can be -1 (actually any
+        /// negative value) to indicate that all bytes of stream should be returned.</param>
         public StreamBackedBody(Stream backingStream, long contentLength)
         {
             if (backingStream == null)
@@ -42,8 +53,17 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
         }
 
+        /// <summary>
+        /// Returns the stream backing this instance.
+        /// </summary>
         public Stream BackingStream { get; }
+
+        /// <summary>
+        /// Returns the number of bytes to read, or negative value to indicate that all
+        /// bytes of backing stream are to be read.
+        /// </summary>
         public long ContentLength { get; }
+
         public string ContentType { get; set; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
