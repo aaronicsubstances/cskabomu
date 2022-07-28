@@ -1,5 +1,5 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp.EntityBody
+namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 {
     public class ChunkDecodingBodyTest
     {
@@ -191,6 +191,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             Assert.Throws<ArgumentNullException>(() =>
             {
                 new ChunkDecodingBody(null, 100);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                new ChunkDecodingBody(new StringBody("meat"), -1);
             });
             Assert.Throws<ArgumentException>(() =>
             {

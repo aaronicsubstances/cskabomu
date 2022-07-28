@@ -1,4 +1,4 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -6,7 +6,7 @@ using System.IO;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp
+namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 {
     public class LeadChunkTest
     {
@@ -60,19 +60,23 @@ namespace Kabomu.Tests.QuasiHttp
         [Fact]
         public void TestForErrors()
         {
+            Assert.Throws<ArgumentNullException>(() =>
+            {
+                LeadChunk.Deserialize(null, 0, 6);
+            });
             Assert.Throws<ArgumentException>(() =>
             {
-                LeadChunk.Deserialize(new byte[6], 0, 6);
+                LeadChunk.Deserialize(new byte[6], 6, 1);
             });
-            Assert.ThrowsAny<Exception>(() =>
+            Assert.Throws<Exception>(() =>
             {
                 LeadChunk.Deserialize(new byte[7], 0, 7);
             });
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<Exception>(() =>
             {
                 LeadChunk.Deserialize(new byte[] { 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 9 }, 0, 11);
             });
-            var ex = Assert.Throws<ArgumentException>(() =>
+            var ex = Assert.Throws<Exception>(() =>
             {
                 var data = new byte[] { 0, 0, (byte)'1', (byte)',', (byte)'1', (byte)',',
                     (byte)'1', (byte)',',(byte)'1', (byte)',',(byte)'1', (byte)',',(byte)'1', (byte)',',

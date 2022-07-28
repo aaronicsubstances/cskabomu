@@ -1,5 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.ChunkedTransfer;
 using System;
 using System.Collections.Generic;
 using System.Text;

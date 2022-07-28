@@ -1,4 +1,4 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Shared;
 using System;
@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp.EntityBody
+namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 {
     public class ChunkEncodingBodyTest
     {
@@ -53,7 +53,15 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             });
             Assert.Throws<ArgumentException>(() =>
             {
-                new ChunkEncodingBody(new StringBody("abc"), int.MaxValue);
+                new ChunkEncodingBody(new StringBody("abc"), -1);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                new ChunkEncodingBody(new StringBody("de"), 0);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                new ChunkEncodingBody(new StringBody("fgh"), int.MaxValue);
             });
             await Assert.ThrowsAsync<ArgumentException>(() =>
             {
@@ -93,7 +101,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 lengthOfEncodedChunkLength + leadChunkSlices[0].Length, leadChunkSlices[1].Length);
 
             // act.
-            await ChunkEncodingBody.WriteLeadChunk(transport, connection, 1000, leadChunk);
+            await ChunkEncodingBody.WriteLeadChunk(transport, connection, leadChunk, 1000);
 
             // assert.
             Assert.Equal(expectedStreamContents, destStream.ToArray());
@@ -104,15 +112,15 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                return ChunkEncodingBody.WriteLeadChunk(null, null, 100, new LeadChunk());
+                return ChunkEncodingBody.WriteLeadChunk(null, null, new LeadChunk(), 100);
             });
             await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                return ChunkEncodingBody.WriteLeadChunk(new ConfigurableQuasiHttpTransport(), null, 100, null);
+                return ChunkEncodingBody.WriteLeadChunk(new ConfigurableQuasiHttpTransport(), null, null, 100);
             });
             await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                return ChunkEncodingBody.WriteLeadChunk(new ConfigurableQuasiHttpTransport(), null, 1, new LeadChunk());
+                return ChunkEncodingBody.WriteLeadChunk(new ConfigurableQuasiHttpTransport(), null, new LeadChunk(), 1);
             });
         }
     }

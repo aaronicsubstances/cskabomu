@@ -1,11 +1,11 @@
 ﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using Xunit;
 
 namespace Kabomu.Tests.Internals
 {
