@@ -25,7 +25,7 @@ namespace Kabomu.Examples.Shared
             IConnectivityParams connectivityParams)
         {
             var cts = new CancellationTokenSource();
-            var resTask = ProcessSendRequestInternal(request, connectivityParams, cts.Token);
+            var resTask = ProcessSendRequestInternal(request, connectivityParams, cts);
             object sendCancellationHandle = cts;
             return Tuple.Create(resTask, sendCancellationHandle);
         }
@@ -38,13 +38,8 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        public Task<bool> WillCancelSendMakeResponseBodyUnusable(object sendCancellationHandle, IQuasiHttpResponse response)
-        {
-            return Task.FromResult(true);
-        }
-
         private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(IQuasiHttpRequest request,
-            IConnectivityParams connectivityParams, CancellationToken cancellationToken)
+            IConnectivityParams connectivityParams, CancellationTokenSource cancellationTokenSource)
         {
             var requestWrapper = new HttpRequestMessage
             {
@@ -102,14 +97,15 @@ namespace Kabomu.Examples.Shared
                 }
             }
 
-            var responseWrapper = await _httpClient.SendAsync(requestWrapper, cancellationToken);
+            var responseWrapper = await _httpClient.SendAsync(requestWrapper, cancellationTokenSource.Token);
 
             var response = new DefaultQuasiHttpResponse
             {
                 HttpVersion = responseWrapper.Version?.ToString(),
                 HttpStatusCode = (int)responseWrapper.StatusCode,
                 StatusMessage = responseWrapper.ReasonPhrase,
-                StatusIndicatesSuccess = responseWrapper.IsSuccessStatusCode
+                StatusIndicatesSuccess = responseWrapper.IsSuccessStatusCode,
+                CancellationTokenSource = cancellationTokenSource
             };
             if (response.HttpStatusCode >= 400 && response.HttpStatusCode < 500)
             {

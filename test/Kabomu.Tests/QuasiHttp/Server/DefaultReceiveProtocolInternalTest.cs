@@ -90,7 +90,12 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 {
                     Assert.Equal(connection, actualConnection);
                     outputStream.Write(data, offset, length);
-                }
+                },
+                ReleaseConnectionCallback = (actualConnection) =>
+                {
+                    Assert.Equal(connection, actualConnection);
+                    return Task.CompletedTask;
+                },
             };
             var instance = new DefaultReceiveProtocolInternal
             {

@@ -29,6 +29,7 @@ namespace Kabomu.QuasiHttp.Client
         public IQuasiHttpClientTransport Transport { get; set; }
         public IQuasiHttpTransportBypass TransportBypass { get; set; }
         public double TransportBypassProbabilty { get; set; }
+        public double ResponseStreamingProbabilty { get; set; }
         public IMutexApi MutexApi { get; set; }
         public ITimerApi TimerApi { get; set; }
 
@@ -99,23 +100,30 @@ namespace Kabomu.QuasiHttp.Client
             {
                 // NB: negative value is allowed for timeout, which indicates infinite timeout.
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
-                    transfer.SendOptions?.TimeoutMillis, DefaultSendOptions?.TimeoutMillis, 0);
+                    transfer.SendOptions?.TimeoutMillis,
+                    DefaultSendOptions?.TimeoutMillis,
+                    0);
                 SetSendTimeout(transfer);
 
                 _transfers.Add(transfer);
 
                 transfer.ConnectivityParams.ExtraParams = ProtocolUtilsInternal.DetermineEffectiveOptions(
-                    transfer.SendOptions?.ConnectivityParams, DefaultSendOptions?.ConnectivityParams);
+                    transfer.SendOptions?.ConnectivityParams,
+                    DefaultSendOptions?.ConnectivityParams);
 
                 transfer.ResponseStreamingEnabled = ProtocolUtilsInternal.DetermineEffectiveBooleanOption(
-                    transfer.SendOptions?.ResponseStreamingEnabled, DefaultSendOptions?.ResponseStreamingEnabled, false);
+                    transfer.SendOptions?.ResponseStreamingEnabled,
+                    DefaultSendOptions?.ResponseStreamingEnabled,
+                    _randGen.NextDouble() < ResponseStreamingProbabilty);
 
                 transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
-                    transfer.SendOptions?.MaxChunkSize, DefaultSendOptions?.MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
+                    transfer.SendOptions?.MaxChunkSize,
+                    DefaultSendOptions?.MaxChunkSize,
+                    TransportUtils.DefaultMaxChunkSize);
 
                 transfer.ResponseBodyBufferingSizeLimit = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     transfer.SendOptions?.ResponseBodyBufferingSizeLimit,
-                    DefaultSendOptions?.ResponseBodyBufferingSizeLimit, 
+                    DefaultSendOptions?.ResponseBodyBufferingSizeLimit,
                     TransportUtils.DefaultResponseBodyBufferingSizeLimit);
 
                 if (TransportBypass != null && (Transport == null || _randGen.NextDouble() < TransportBypassProbabilty))
@@ -184,24 +192,26 @@ namespace Kabomu.QuasiHttp.Client
                     throw new Exception("no connection created");
                 }
 
-                var protocol = new DefaultSendProtocolInternal
-                {
-                    Parent = transfer,
-                    Transport = transport,
-                    Connection = connectionResponse.Connection,
-                    ResponseStreamingEnabled = transfer.ResponseStreamingEnabled,
-                    ResponseBodyBufferingSizeLimit = transfer.ResponseBodyBufferingSizeLimit,
-                    MaxChunkSize = transfer.MaxChunkSize,
-                    AbortCallback = AbortTransferCallback
-                };
-                transfer.Protocol = protocol;
-
                 if (transfer.IsAborted)
                 {
-                    resTask = AbortTransfer(transfer, null, null);
+                    // Oops...connection established took so long, or a reset happened.
+                    // just release the connection.
+                    resTask = transport.ReleaseConnection(connectionResponse.Connection);
                 }
                 else
                 {
+                    var protocol = new DefaultSendProtocolInternal
+                    {
+                        Parent = transfer,
+                        Transport = transport,
+                        Connection = connectionResponse.Connection,
+                        ResponseStreamingEnabled = transfer.ResponseStreamingEnabled,
+                        ResponseBodyBufferingSizeLimit = transfer.ResponseBodyBufferingSizeLimit,
+                        MaxChunkSize = transfer.MaxChunkSize,
+                        AbortCallback = AbortTransferCallback
+                    };
+                    transfer.Protocol = protocol;
+
                     resTask = protocol.Send(transfer.Request);
                 }
             }
@@ -259,14 +269,11 @@ namespace Kabomu.QuasiHttp.Client
             Task disableTransferTask;
             using (await MutexApi.Synchronize())
             {
-                // NB: since resets and individual cancellations can occur at any time,
-                // even if transfer indicates aborted, still go ahead to disable,
-                // so that protocol operations which were not cancelled previously can get the
-                // chance of being cancelled now.
-                if (!transfer.IsAborted)
+                if (transfer.IsAborted)
                 {
-                    _transfers.Remove(transfer);
+                    return;
                 }
+                _transfers.Remove(transfer);
                 disableTransferTask = DisableTransfer(transfer, cancellationError, res);
             }
             await disableTransferTask;
@@ -277,11 +284,11 @@ namespace Kabomu.QuasiHttp.Client
         {
             if (cancellationError != null)
             {
-                transfer.CancellationTcs.TrySetException(cancellationError);
+                transfer.CancellationTcs.SetException(cancellationError);
             }
             else
             {
-                transfer.CancellationTcs.TrySetResult(res);
+                transfer.CancellationTcs.SetResult(res);
             }
             transfer.IsAborted = true;
             TimerApi?.ClearTimeout(transfer.TimeoutId);

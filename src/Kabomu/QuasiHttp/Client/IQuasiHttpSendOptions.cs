@@ -7,7 +7,7 @@ namespace Kabomu.QuasiHttp.Client
         IDictionary<string, object> ConnectivityParams { get; }
         int TimeoutMillis { get; }
         int MaxChunkSize { get; }
-        bool ResponseStreamingEnabled { get; }
+        bool? ResponseStreamingEnabled { get; }
         int ResponseBodyBufferingSizeLimit { get; }
     }
 }
