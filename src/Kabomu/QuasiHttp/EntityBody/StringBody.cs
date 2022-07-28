@@ -10,6 +10,11 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// </summary>
     public class StringBody : SerializableObjectBody
     {
+        /// <summary>
+        /// Creates a new instance with the given string.
+        /// </summary>
+        /// <param name="content">string content</param>
+        /// <exception cref="ArgumentNullException">if string argument is null</exception>
         public StringBody(string content) :
             base(content, SerializeContent)
         {
@@ -22,6 +27,9 @@ namespace Kabomu.QuasiHttp.EntityBody
             return dataBytes;
         }
 
+        /// <summary>
+        /// Gets the string data supplied at construction time which will be serialized.
+        /// </summary>
         public string StringContent => (string)Content;
     }
 }

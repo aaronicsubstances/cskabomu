@@ -18,6 +18,11 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// </summary>
     public class CsvBody : SerializableObjectBody
     {
+        /// <summary>
+        /// Creates a new instance with the given CSV data.
+        /// </summary>
+        /// <param name="content">CSV data.</param>
+        /// <exception cref="ArgumentNullException">if CSV data argument is null</exception>
         public CsvBody(Dictionary<string, List<string>> content):
             base(content, SerializeContent)
         {
@@ -39,6 +44,9 @@ namespace Kabomu.QuasiHttp.EntityBody
             return csvBytes;
         }
 
+        /// <summary>
+        /// Gets the CSV data supplied at construction time which will be serialized.
+        /// </summary>
         public Dictionary<string, List<string>> CsvContent => (Dictionary<string, List<string>>)Content;
     }
 }

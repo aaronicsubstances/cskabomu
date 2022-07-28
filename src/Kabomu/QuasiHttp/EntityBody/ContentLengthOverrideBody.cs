@@ -6,12 +6,15 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// Wraps a quasi http body and forces its content length to a certain value, including -1 (actually
-    /// any negative value) to indicate unknown length. All calls to ReadBytes() are forwarded to wrapped
+    /// Wraps a quasi http body and forces its content length to another value. Overriding content length can be -1 or
+    /// any negative value, which indicates unknown length and will lead to reading all bytes of wrapped body. 
+    /// </summary>
+    /// <remarks>
+    /// All calls to ReadBytes() are forwarded to wrapped
     /// body, and where the imposed content length is nonnegative, additional validation checks are
     /// performed to ensure that ReadBytes() call return 0 only when number of bytes equal to content length
     /// have been returned in total.
-    /// </summary>
+    /// </remarks>
     public class ContentLengthOverrideBody : IQuasiHttpBody
     {
         private readonly IQuasiHttpBody _wrappedBody;
@@ -21,7 +24,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// Creates new instance which imposes a content length on another quasi http body instance.
         /// </summary>
         /// <param name="wrappedBody">the quasi http bodyi instance whose content length is being overriden.</param>
-        /// <param name="contentLength">the overidding content length. can be negative, zero or positive.</param>
+        /// <param name="contentLength">the overidding content length. can be negative to indicate unknown length.</param>
         /// <exception cref="ArgumentNullException">The <paramref name="wrappedBody"/> argument is null.</exception>
         public ContentLengthOverrideBody(IQuasiHttpBody wrappedBody, long contentLength)
         {
