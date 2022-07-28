@@ -37,15 +37,18 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
         /// <summary>
         /// Gets or sets a value indicating response success: true for response success, false for response
-        /// failure. Equivalent to HTTP status code 200-299.
+        /// failure
         /// </summary>
+        /// <remarks>Equivalent to HTTP status code 200-299.</remarks>
         public bool StatusIndicatesSuccess { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether a false response success value is due to
-        /// a client error or server error: true for client error, false for server error. Equivalent to
-        /// HTTP status code 400-499 if true, and 500 and above if false.
+        /// a client error or server error: true for client error, false for server error. 
         /// </summary>
+        /// <remarks>
+        /// Equivalent to HTTP status code 400-499 if true, and 500 and above if false.
+        /// </remarks>
         public bool StatusIndicatesClientError { get; set; }
 
         /// <summary>
@@ -58,7 +61,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// Gets or sets a value providing the length in bytes of a quasi http body which will
         /// follow the lead chunk when serialized. Equivalent to Content-Type and 
         /// Transfer-Encoding=chunked HTTP headers.
-        /// <para>
+        /// </summary>
+        /// <remarks>
         /// There are three possible values:
         /// <list type="number">
         /// <item>zero: this means that there will be no quasi http body.</item>
@@ -66,14 +70,12 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// present as the value of this property.</item>
         /// <item>negative: this means that there will be a quasi http body, but with an unknown number of
         /// bytes.
-        /// <para>
+        /// <para></para>
         /// This implies chunk encoding where one or more subsequent chunks will follow the
         /// lead chunk when serialized.
-        /// </para>
         /// </item>
         /// </list>
-        /// </para>
-        /// </summary>
+        /// </remarks>
         public long ContentLength { get; set; }
 
         /// <summary>
@@ -82,7 +84,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         public string ContentType { get; set; }
 
         /// <summary>
-        /// Gets or sets an HTTP method value.
+        /// Gets or sets an HTTP method value, ie the verb component of HTTP request line.
         /// </summary>
         public string HttpMethod { get; set; }
 
