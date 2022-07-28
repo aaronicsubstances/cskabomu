@@ -5,16 +5,16 @@ using System.Text;
 namespace Kabomu.QuasiHttp.Transport
 {
     /// <summary>
-    /// Thrown to indicate to a transport operation which requires the transport to be started and running,
-    /// that the transport is yet to be started or is not running.
+    /// Thrown to indicate to pending receive connection requests on an instance of <see cref="IQuasiHttpServerTransport"/>
+    /// class, that the instance has been stopped and so any pending receive request cannot be honoured.
     /// </summary>
-    public class TransportNotStartedException : QuasiHttpException
+    public class TransportResetException : QuasiHttpException
     {
         /// <summary>
-        /// Creates an instance with default message of "transport not started".
+        /// Creates an instance with default message of "transport stopped".
         /// </summary>
-        public TransportNotStartedException():
-            this("transport not started")
+        public TransportResetException() :
+            this("transport stopped")
         {
 
         }
@@ -23,7 +23,7 @@ namespace Kabomu.QuasiHttp.Transport
         /// Creates a new instance with given error message.
         /// </summary>
         /// <param name="message">the error message</param>
-        public TransportNotStartedException(string message) : base(message)
+        public TransportResetException(string message) : base(message)
         {
         }
 
@@ -32,7 +32,7 @@ namespace Kabomu.QuasiHttp.Transport
         /// </summary>
         /// <param name="message">the error message</param>
         /// <param name="innerException">any underlying cause of this exception</param>
-        public TransportNotStartedException(string message, Exception innerException) :
+        public TransportResetException(string message, Exception innerException) :
             base(message, innerException)
         {
         }

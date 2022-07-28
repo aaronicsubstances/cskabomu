@@ -16,8 +16,8 @@ namespace Kabomu.MemoryBasedTransport
 
         public DefaultMemoryBasedTransportHub()
         {
-            MutexApi = new LockBasedMutexApi();
             _servers = new Dictionary<object, IQuasiHttpServer>();
+            MutexApi = new LockBasedMutexApi();
         }
 
         public IMutexApi MutexApi { get; set; }
@@ -26,11 +26,11 @@ namespace Kabomu.MemoryBasedTransport
         {
             if (endpoint == null)
             {
-                throw new ArgumentException("null server endpoint");
+                throw new ArgumentNullException(nameof(endpoint));
             }
             if (server == null)
             {
-                throw new ArgumentException("null server");
+                throw new ArgumentNullException(nameof(endpoint));
             }
             using (await MutexApi.Synchronize())
             {
@@ -48,7 +48,7 @@ namespace Kabomu.MemoryBasedTransport
             }
             if (request == null)
             {
-                throw new ArgumentException("null request");
+                throw new ArgumentNullException(nameof(request));
             }
 
             IQuasiHttpApplication destApp;

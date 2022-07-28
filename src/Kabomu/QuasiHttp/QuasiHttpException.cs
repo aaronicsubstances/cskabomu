@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 using System.Text;
 
 namespace Kabomu.QuasiHttp
@@ -32,10 +31,6 @@ namespace Kabomu.QuasiHttp
         /// <param name="message">error message</param>
         /// <param name="innerException">cause of this exception</param>
         public QuasiHttpException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
-
-        protected QuasiHttpException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }

@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.MemoryBasedTransport
+namespace Kabomu.QuasiHttp.Transport
 {
     /// <summary>
     /// <para>
@@ -23,7 +23,8 @@ namespace Kabomu.MemoryBasedTransport
     {
         private readonly LinkedList<ReadRequest> _readRequests;
         private readonly LinkedList<WriteRequest> _writeRequests;
-        private bool _endOfReadSeen, _endOfWriteSeen;
+        private bool _endOfWriteSeen;
+        private Exception _endOfReadError;
 
         public MemoryPipeBackedBody()
         {
@@ -46,7 +47,10 @@ namespace Kabomu.MemoryBasedTransport
             Task<int> readTask;
             using (await MutexApi.Synchronize())
             {
-                EntityBodyUtilsInternal.ThrowIfReadCancelled(_endOfReadSeen);
+                if (_endOfReadError != null)
+                {
+                    throw _endOfReadError;
+                }
 
                 // respond immediately if writes have ended, or if any zero-byte read request is seen.
                 if (_endOfWriteSeen || bytesToRead == 0)
@@ -92,7 +96,10 @@ namespace Kabomu.MemoryBasedTransport
             Task writeTask;
             using (await MutexApi.Synchronize())
             {
-                EntityBodyUtilsInternal.ThrowIfReadCancelled(_endOfReadSeen);
+                if (_endOfReadError != null)
+                {
+                    throw _endOfReadError;
+                }
 
                 if (_endOfWriteSeen)
                 {
@@ -192,23 +199,27 @@ namespace Kabomu.MemoryBasedTransport
             }
         }
 
-        public async Task EndRead()
+        public Task EndRead()
+        {
+            return EndRead(null);
+        }
+
+        public async Task EndRead(Exception cause)
         {
             using (await MutexApi.Synchronize())
             {
-                if (_endOfReadSeen)
+                if (_endOfReadError != null)
                 {
                     return;
                 }
-                _endOfReadSeen = true;
-                var srcEndError = new EndOfReadException();
+                _endOfReadError = cause ?? new EndOfReadException();
                 foreach (var readReq in _readRequests)
                 {
-                    readReq.ReadCallback.SetException(srcEndError);
+                    readReq.ReadCallback.SetException(_endOfReadError);
                 }
                 foreach (var writeReq in _writeRequests)
                 {
-                    writeReq.WriteCallback.SetException(srcEndError);
+                    writeReq.WriteCallback.SetException(_endOfReadError);
                 }
                 _readRequests.Clear();
                 _writeRequests.Clear();

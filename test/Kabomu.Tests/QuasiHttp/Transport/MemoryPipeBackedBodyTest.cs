@@ -1,5 +1,5 @@
 ﻿using Kabomu.Concurrency;
-using Kabomu.MemoryBasedTransport;
+using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.MemoryBasedTransport
+namespace Kabomu.Tests.QuasiHttp.Transport
 {
     public class MemoryPipeBackedBodyTest
     {
@@ -84,39 +84,45 @@ namespace Kabomu.Tests.MemoryBasedTransport
 
             // look out for specific errors.
             instance = new MemoryPipeBackedBody();
-            var writeTasks = new Task[4];
-            var expectedWriteErrors = new string[writeTasks.Length];
-            var readTasks = new Task<int>[4];
-            var expectedReadErrors = new string[readTasks.Length];
-            var expectedReadLengths = new int[readTasks.Length];
-            readTasks[0] = instance.ReadBytes(new byte[4], 0, 4);
-            expectedReadLengths[0] = 2;
-            readTasks[1] = instance.ReadBytes(new byte[4], 0, 2);
-            expectedReadLengths[1] = 1;
-            readTasks[2] = instance.ReadBytes(new byte[4], 0, 2);
-            expectedReadLengths[2] = 0;
-            writeTasks[0] = instance.WriteBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
-            expectedWriteErrors[0] = null;
-            writeTasks[1] = instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 1);
-            expectedWriteErrors[1] = null;
-            writeTasks[2] = instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
-            expectedWriteErrors[2] = "end of write";
-            writeTasks[3] = instance.WriteBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2);
-            expectedWriteErrors[3] = "end of write";
-            readTasks[3] = instance.ReadBytes(new byte[4], 0, 4);
-            expectedReadLengths[3] = 0;
+            var writeTasks = new List<Tuple<Task, string>>();
+            var readTasks = new List<Tuple<Task<int>, string, int>>();
+
+            readTasks.Add(Tuple.Create<Task<int>, string, int>(
+                instance.ReadBytes(new byte[4], 0, 4), null, 2));
+            readTasks.Add(Tuple.Create<Task<int>, string, int>(
+                instance.ReadBytes(new byte[4], 0, 2), null, 1));
+            readTasks.Add(Tuple.Create<Task<int>, string, int>(
+                instance.ReadBytes(new byte[4], 0, 2), null, 0));
+            writeTasks.Add(Tuple.Create<Task, string>(
+                instance.WriteBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2), null));
+            writeTasks.Add(Tuple.Create<Task, string>(
+                instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 1), null));
+            writeTasks.Add(Tuple.Create<Task, string>(
+                instance.WriteLastBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2), "end of write"));
+            writeTasks.Add(Tuple.Create<Task, string>(
+                instance.WriteBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2), "end of write"));
+            readTasks.Add(Tuple.Create<Task<int>, string, int>(
+                instance.ReadBytes(new byte[4], 0, 4), null, 0));
 
             // wait for all tasks to complete.
             // since c#'s when all behaves more like NodeJS's Promise.allSettle,
             // use continuations to avoid dealing with any expected or unexpected errors
-            await Task.WhenAll(writeTasks.Select(t => t.ContinueWith(t => { })));
-            await Task.WhenAll(readTasks.Select(t => t.ContinueWith(t => { })));
+            await Task.WhenAll(writeTasks.Select(t => t.Item1.ContinueWith(t => { })));
+            await Task.WhenAll(readTasks.Select(t => t.Item1.ContinueWith(t => { })));
+
+            await instance.EndRead(new Exception("custom end error works"));
+
+            readTasks.Add(Tuple.Create<Task<int>, string, int>(
+                instance.ReadBytes(new byte[1], 0, 1), "custom end error works", 0));
+            writeTasks.Add(Tuple.Create<Task, string>(
+                instance.WriteBytes(new byte[1], 0, 1), "custom end error works"));
 
             // assert.
-            for (int i = 0; i < readTasks.Length; i++)
+            foreach (var item in readTasks)
             {
-                var task = readTasks[i];
-                var expectedError = expectedReadErrors[i];
+                var task = item.Item1;
+                var expectedError = item.Item2;
+                var expectedReadLength = item.Item3;
                 if (expectedError != null)
                 {
                     Assert.False(task.IsCompletedSuccessfully);
@@ -128,13 +134,13 @@ namespace Kabomu.Tests.MemoryBasedTransport
                     {
                         Assert.True(task.IsCompletedSuccessfully, "Didn't expect: " + task.Exception);
                     }
-                    Assert.Equal(expectedReadLengths[i], task.Result);
+                    Assert.Equal(expectedReadLength, task.Result);
                 }
             }
-            for (int i = 0; i < writeTasks.Length; i++)
+            foreach (var item in writeTasks)
             {
-                var task = writeTasks[i];
-                var expectedError = expectedWriteErrors[i];
+                var task = item.Item1;
+                var expectedError = item.Item2;
                 if (expectedError != null)
                 {
                     Assert.False(task.IsCompletedSuccessfully);

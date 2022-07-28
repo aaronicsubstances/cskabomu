@@ -1,7 +1,6 @@
-﻿using Kabomu.QuasiHttp;
-using System;
+﻿using System;
 
-namespace Kabomu.MemoryBasedTransport
+namespace Kabomu.QuasiHttp.Transport
 {
     /// <summary>
     /// Thrown by IQuasiHttpBody implementations which serve Read() calls from some form of write calls,

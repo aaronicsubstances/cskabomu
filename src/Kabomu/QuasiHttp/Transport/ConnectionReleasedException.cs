@@ -5,16 +5,15 @@ using System.Text;
 namespace Kabomu.QuasiHttp.Transport
 {
     /// <summary>
-    /// Thrown to indicate to a transport operation which requires the transport to be started and running,
-    /// that the transport is yet to be started or is not running.
+    /// Thrown to indicate to reads or writes on a connection of a transport, that the 
+    /// connection has been released.
     /// </summary>
-    public class TransportNotStartedException : QuasiHttpException
+    public class ConnectionReleasedException : QuasiHttpException
     {
         /// <summary>
-        /// Creates an instance with default message of "transport not started".
+        /// Creates an instance with default message of "connection released".
         /// </summary>
-        public TransportNotStartedException():
-            this("transport not started")
+        public ConnectionReleasedException() : this("connection released")
         {
 
         }
@@ -23,7 +22,7 @@ namespace Kabomu.QuasiHttp.Transport
         /// Creates a new instance with given error message.
         /// </summary>
         /// <param name="message">the error message</param>
-        public TransportNotStartedException(string message) : base(message)
+        public ConnectionReleasedException(string message) : base(message)
         {
         }
 
@@ -32,7 +31,7 @@ namespace Kabomu.QuasiHttp.Transport
         /// </summary>
         /// <param name="message">the error message</param>
         /// <param name="innerException">any underlying cause of this exception</param>
-        public TransportNotStartedException(string message, Exception innerException) :
+        public ConnectionReleasedException(string message, Exception innerException) :
             base(message, innerException)
         {
         }

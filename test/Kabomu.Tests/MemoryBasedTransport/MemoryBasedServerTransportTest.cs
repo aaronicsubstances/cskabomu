@@ -30,6 +30,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             Assert.True(running);
 
             var serverConnectTask = instance.ReceiveConnection();
+            var serverConnectTask2 = instance.ReceiveConnection();
             var expectedConnectionResponse = await instance.CreateConnectionForClient(null, null);
             var receiveConnectionResponse = await serverConnectTask;
             Assert.Equal(expectedConnectionResponse.Connection, receiveConnectionResponse.Connection);
@@ -37,6 +38,8 @@ namespace Kabomu.Tests.MemoryBasedTransport
             var establishedConnection = receiveConnectionResponse.Connection;
 
             await instance.Stop();
+            await Assert.ThrowsAsync<TransportResetException>(() => serverConnectTask2);
+
             await instance.Stop();
             running = await instance.IsRunning();
             Assert.False(running);
@@ -56,15 +59,15 @@ namespace Kabomu.Tests.MemoryBasedTransport
             var exTask1 = instance.ReadBytes(establishedConnection, new byte[2], 0, 2);
             var exTask2 = instance.WriteBytes(establishedConnection, new byte[3], 1, 2);
             await instance.ReleaseConnection(establishedConnection);
-            await Assert.ThrowsAnyAsync<Exception>(() => exTask1);
-            await Assert.ThrowsAnyAsync<Exception>(() => exTask2);
+            await Assert.ThrowsAsync<ConnectionReleasedException>(() => exTask1);
+            await Assert.ThrowsAsync<ConnectionReleasedException>(() => exTask2);
 
             // test that all attempts to read leads to exceptions.
-            await Assert.ThrowsAnyAsync<Exception>(() =>
+            await Assert.ThrowsAsync<ConnectionReleasedException>(() =>
             {
                 return instance.ReadBytes(establishedConnection, new byte[1], 0, 1);
             });
-            await Assert.ThrowsAnyAsync<Exception>(() =>
+            await Assert.ThrowsAsync<ConnectionReleasedException>(() =>
             {
                 return instance.WriteBytes(establishedConnection, new byte[1], 0, 1);
             });
@@ -173,8 +176,8 @@ namespace Kabomu.Tests.MemoryBasedTransport
             var exTask1 = instance.ReadBytes(establishedConnection, new byte[2], 0, 2);
             var exTask2 = instance.WriteBytes(establishedConnection, new byte[3], 1, 2);
             await instance.ReleaseConnection(establishedConnection);
-            await Assert.ThrowsAnyAsync<Exception>(() => exTask1);
-            await Assert.ThrowsAnyAsync<Exception>(() => exTask2);
+            await Assert.ThrowsAsync<ConnectionReleasedException>(() => exTask1);
+            await Assert.ThrowsAsync<ConnectionReleasedException>(() => exTask2);
 
             await instance.Stop();
             await instance.Stop();
