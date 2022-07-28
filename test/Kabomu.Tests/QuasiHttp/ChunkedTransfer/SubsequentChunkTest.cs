@@ -1,4 +1,4 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -6,7 +6,7 @@ using System.IO;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp
+namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 {
     public class SubsequentChunkTest
     {
@@ -52,7 +52,15 @@ namespace Kabomu.Tests.QuasiHttp
         [Fact]
         public void TestForErrors()
         {
-             Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
+            {
+                SubsequentChunk.Deserialize(null, 0, 0);
+            });
+            Assert.Throws<ArgumentException>(() =>
+            {
+                SubsequentChunk.Deserialize(new byte[10], 6, 7);
+            });
+            Assert.Throws<Exception>(() =>
             {
                 SubsequentChunk.Deserialize(new byte[10], 0, 0);
             });
@@ -60,7 +68,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 SubsequentChunk.Deserialize(new byte[7], 0, 1);
             });
-            var ex = Assert.Throws<ArgumentException>(() =>
+            var ex = Assert.Throws<Exception>(() =>
             {
                 SubsequentChunk.Deserialize(new byte[10], 3, 6);
             });

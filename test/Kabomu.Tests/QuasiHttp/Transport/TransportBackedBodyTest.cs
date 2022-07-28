@@ -1,5 +1,4 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -7,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp.EntityBody
+namespace Kabomu.Tests.QuasiHttp.Transport
 {
     public class TransportBackedBodyTest
     {

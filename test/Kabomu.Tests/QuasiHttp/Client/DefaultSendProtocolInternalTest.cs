@@ -1,5 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;

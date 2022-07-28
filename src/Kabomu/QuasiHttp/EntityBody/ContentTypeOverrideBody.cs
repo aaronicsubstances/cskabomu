@@ -14,6 +14,12 @@ namespace Kabomu.QuasiHttp.EntityBody
     {
         private readonly IQuasiHttpBody _wrappedBody;
 
+        /// <summary>
+        /// Creates new instance which imposes a content type on another quasi http body instance.
+        /// </summary>
+        /// <param name="wrappedBody">the quasi http bodyi instance whose content type is being overriden.</param>
+        /// <param name="contentType">the overidding content type.</param>
+        /// <exception cref="ArgumentNullException">The <paramref name="wrappedBody"/> argument is null.</exception>
         public ContentTypeOverrideBody(IQuasiHttpBody wrappedBody, string contentType)
         {
             if (wrappedBody == null)
@@ -24,7 +30,15 @@ namespace Kabomu.QuasiHttp.EntityBody
             ContentType = contentType;
         }
 
+        /// <summary>
+        /// Same as the content length of the quasi body instance whose content type is being overridden,
+        /// ie the instance provided at construction time.
+        /// </summary>
         public long ContentLength => _wrappedBody.ContentLength;
+
+        /// <summary>
+        /// Returns the overriding content type, ie the content type provided at construction time.
+        /// </summary>
         public string ContentType { get; }
 
         public Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)

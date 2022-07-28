@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using System;
@@ -53,7 +54,7 @@ namespace Kabomu.QuasiHttp.Client
                 chunk.ContentLength = request.Body.ContentLength;
                 chunk.ContentType = request.Body.ContentType;
             }
-            await ChunkEncodingBody.WriteLeadChunk(Transport, Connection, MaxChunkSize, chunk);
+            await ChunkEncodingBody.WriteLeadChunk(Transport, Connection, chunk, MaxChunkSize);
 
             if (request.Body != null)
             {

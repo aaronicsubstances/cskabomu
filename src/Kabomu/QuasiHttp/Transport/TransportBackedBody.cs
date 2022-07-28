@@ -1,12 +1,12 @@
 ﻿using Kabomu.Common;
 using Kabomu.Concurrency;
-using Kabomu.QuasiHttp.Transport;
+using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.EntityBody
+namespace Kabomu.QuasiHttp.Transport
 {
     /// <summary>
     /// Represents a stream of bytes from a connection of a quasi http transport.

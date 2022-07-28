@@ -50,10 +50,26 @@ namespace Kabomu.QuasiHttp.EntityBody
             Length = length;
         }
 
+        /// <summary>
+        /// Gets the source byte buffer of reads from this implementation.
+        /// </summary>
         public byte[] Buffer { get; }
+
+        /// <summary>
+        /// Gets the starting position in the source byte buffer from which reads will begin.
+        /// </summary>
         public int Offset { get; }
+
+        /// <summary>
+        /// Gets the total number of bytes to yield to read requests.
+        /// </summary>
         public int Length { get; }
+
+        /// <summary>
+        /// Same as the total number of bytes available for read requests. It is never negative.
+        /// </summary>
         public long ContentLength => Length;
+
         public string ContentType { get; set; }
 
         public Task<int> ReadBytes(byte[] data, int offset, int length)
