@@ -17,10 +17,12 @@ namespace Kabomu.QuasiHttp.Client
         private readonly Random _randGen = new Random();
         private readonly ISet<SendTransferInternal> _transfers = new HashSet<SendTransferInternal>();
         private readonly Func<object, Exception, IQuasiHttpResponse, Task> AbortTransferCallback;
+        private readonly Func<object, IQuasiHttpResponse, Task> AbortTransferCallback2;
 
         public DefaultQuasiHttpClient()
         {
             AbortTransferCallback = CancelSend;
+            AbortTransferCallback2 = CancelSend;
             MutexApi = new LockBasedMutexApi();
             TimerApi = new DefaultTimerApi();
         }
@@ -39,6 +41,12 @@ namespace Kabomu.QuasiHttp.Client
             {
                 _ = AbortTransfer(transfer, new Exception("send cancelled"), null);
             }
+        }
+
+        private Task CancelSend(object transferObj, IQuasiHttpResponse res)
+        {
+            var transfer = (SendTransferInternal)transferObj;
+            return AbortTransfer(transfer, null, res);
         }
 
         private Task CancelSend(object transferObj, Exception cancellationError,
@@ -158,7 +166,7 @@ namespace Kabomu.QuasiHttp.Client
             {
                 Parent = transfer,
                 TransportBypass = TransportBypass,
-                AbortCallback = AbortTransferCallback,
+                AbortCallback = AbortTransferCallback2,
                 ConnectivityParams = transfer.ConnectivityParams,
                 ResponseStreamingEnabled = transfer.ResponseStreamingEnabled,
                 ResponseBodyBufferingSizeLimit = transfer.ResponseBodyBufferingSizeLimit,

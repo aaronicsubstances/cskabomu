@@ -13,7 +13,7 @@ namespace Kabomu.QuasiHttp.Client
         private object _sendCancellationHandle;
 
         public object Parent { get; set; }
-        public Func<object, Exception, IQuasiHttpResponse, Task> AbortCallback { get; set; }
+        public Func<object, IQuasiHttpResponse, Task> AbortCallback { get; set; }
         public IQuasiHttpAltTransport TransportBypass { get; set; }
         public IConnectivityParams ConnectivityParams { get; set; }
         public int MaxChunkSize { get; set; }
@@ -58,40 +58,42 @@ namespace Kabomu.QuasiHttp.Client
                 throw new Exception("no response");
             }
 
-            if (response.Body == null || !ResponseStreamingEnabled)
+            var responseBody = response.Body;
+            if (responseBody == null)
             {
-                // if there is a response body, read it into memmory and create equivalent response for 
+                await response.Close();
+                await AbortCallback.Invoke(Parent, response);
+                return response;
+            }
+
+            if (!ResponseStreamingEnabled)
+            {
+                // read response body into memmory and create equivalent response for 
                 // which Close() operation is redundant.
                 // in any case make sure original response is closed.
                 IQuasiHttpBody eqResponseBody = null;
                 try
                 {
-                    if (response.Body != null)
-                    {
-                        eqResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(response.Body,
-                            MaxChunkSize, ResponseBodyBufferingSizeLimit);
-                    }
+                    eqResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(responseBody,
+                        MaxChunkSize, ResponseBodyBufferingSizeLimit);
                 }
                 finally
                 {
                     await response.Close();
                 }
-                if (response.Body != null)
+                response = new DefaultQuasiHttpResponse
                 {
-                    response = new DefaultQuasiHttpResponse
-                    {
-                        StatusIndicatesSuccess = response.StatusIndicatesSuccess,
-                        StatusIndicatesClientError = response.StatusIndicatesClientError,
-                        StatusMessage = response.StatusMessage,
-                        Headers = response.Headers,
-                        HttpStatusCode = response.HttpStatusCode,
-                        HttpVersion = response.HttpVersion,
-                        Body = eqResponseBody
-                    };
-                }
+                    StatusIndicatesSuccess = response.StatusIndicatesSuccess,
+                    StatusIndicatesClientError = response.StatusIndicatesClientError,
+                    StatusMessage = response.StatusMessage,
+                    Headers = response.Headers,
+                    HttpStatusCode = response.HttpStatusCode,
+                    HttpVersion = response.HttpVersion,
+                    Body = eqResponseBody
+                };
             }
 
-            await AbortCallback.Invoke(Parent, null, response);
+            await AbortCallback.Invoke(Parent, response);
 
             return response;
         }

@@ -1,4 +1,7 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -298,6 +301,127 @@ namespace Kabomu.Tests.QuasiHttp
                 expected });
 
             return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestCreateEquivalentInMemoryResponseBodyData))]
+        public async Task TestCreateEquivalentInMemoryResponseBody(int bufferSize,
+            int bufferingLimit, IQuasiHttpBody responseBody,
+            byte[] expectedResBodyBytes)
+        {
+            var expected = new DefaultQuasiHttpResponse
+            {
+                Body = new ContentLengthOverrideBody(new ByteBufferBody(expectedResBodyBytes)
+                    { ContentType = responseBody.ContentType }, responseBody.ContentLength)
+            };
+            var actualResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(responseBody,
+                bufferSize, bufferingLimit);
+            var actual = new DefaultQuasiHttpResponse
+            {
+                Body = actualResponseBody
+            };
+            await ComparisonUtils.CompareResponses(bufferSize, expected, actual, expectedResBodyBytes);
+        }
+
+        public static List<object[]> CreateTestCreateEquivalentInMemoryResponseBodyData()
+        {
+            var testData = new List<object[]>();
+
+            int bufferSize = 1;
+            int bufferingLimit = 0;
+            byte[] expectedResBodyBytes = new byte[0];
+            IQuasiHttpBody responseBody = new ByteBufferBody(expectedResBodyBytes);
+            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+
+            bufferSize = 1;
+            bufferingLimit = 0;
+            expectedResBodyBytes = new byte[0];
+            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
+                expectedResBodyBytes.Length));
+            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+
+            bufferSize = 2;
+            expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
+                (byte)'e', (byte)'f' };
+            bufferingLimit = expectedResBodyBytes.Length;
+            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
+                expectedResBodyBytes.Length))
+            {
+                ContentType = "text/plain"
+            };
+            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+
+            bufferSize = 10;
+            expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
+                (byte)'e', (byte)'f' };
+            bufferingLimit = expectedResBodyBytes.Length;
+            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
+                expectedResBodyBytes.Length));
+            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+
+            bufferSize = 10;
+            bufferingLimit = 8;
+            expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
+                (byte)'e', (byte)'f' };
+            responseBody = new ByteBufferBody(expectedResBodyBytes)
+            {
+                ContentType = "application/octet-stream"
+            };
+            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+
+            // test that over abundance of data works fine.
+
+            bufferSize = 100;
+            bufferingLimit = 4;
+            responseBody = new ByteBufferBody(new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
+                (byte)'e', (byte)'f' })
+            {
+                ContentType = "application/json"
+            };
+            responseBody = new ContentLengthOverrideBody(responseBody, 3);
+            expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c' };
+            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+
+            return testData;
+        }
+
+        [Fact]
+        public async Task TestCreateEquivalentInMemoryResponseBodyForErrors1()
+        {
+            int bufferSize = 1;
+            int bufferingLimit = 3;
+            var responseBody = new StringBody("xyz!");
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+            {
+                return ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(responseBody,
+                    bufferSize, bufferingLimit);
+            });
+        }
+
+        [Fact]
+        public async Task TestCreateEquivalentInMemoryResponseBodyForErrors2()
+        {
+            int bufferSize = 1;
+            int bufferingLimit = 3;
+            var responseBody = new ByteBufferBody(ByteUtils.StringToBytes("xyz!"));
+            await Assert.ThrowsAsync<BodySizeLimitExceededException>(() =>
+            {
+                return ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(responseBody,
+                    bufferSize, bufferingLimit);
+            });
+        }
+
+        [Fact]
+        public async Task TestCreateEquivalentInMemoryResponseBodyForErrors3()
+        {
+            int bufferSize = 1;
+            int bufferingLimit = 30;
+            var responseBody = new ContentLengthOverrideBody(new StringBody("xyz!"), 5);
+            await Assert.ThrowsAsync<ContentLengthNotSatisfiedException>(() =>
+            {
+                return ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(responseBody,
+                    bufferSize, bufferingLimit);
+            });
         }
     }
 }
