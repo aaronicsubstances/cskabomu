@@ -71,7 +71,7 @@ namespace Kabomu.Common
         /// </remarks>
         /// <param name="data">backing byte array of slice containing hexadecimal encoding</param>
         /// <param name="offset">offset of slice in data</param>
-        /// <param name="length">length of slice in data</param>
+        /// <param name="len">length of slice in data</param>
         /// <returns>string equivalent of byte buffer slice containing hexadecimal encoding</returns>
         public static string ConvertBytesToHex(byte[] data, int offset, int len)
         {

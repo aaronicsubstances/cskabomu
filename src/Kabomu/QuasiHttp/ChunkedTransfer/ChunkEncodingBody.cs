@@ -77,7 +77,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <param name="chunk">the lead chunk containing http headers to be written</param>
         /// <param name="maxChunkSize">the maximum size of the lead chunk.</param>
         /// <returns>a task representing the asynchronous write operation.</returns>
-        /// <exception cref="ArgumentNullException">The <paramref name="wrappedBody"/> or
+        /// <exception cref="ArgumentNullException">The <paramref name="transport"/> or
         /// the <paramref name="chunk"/> argument is null.</exception>
         /// <exception cref="ArgumentException">The size of the data in <paramref name="chunk"/> argument 
         /// is larger than the <paramref name="maxChunkSize"/> argument, or is larger than value of
