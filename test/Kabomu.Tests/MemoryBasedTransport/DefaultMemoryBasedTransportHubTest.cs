@@ -16,6 +16,8 @@ namespace Kabomu.Tests.MemoryBasedTransport
         [Fact]
         public async Task TestForErrors()
         {
+            Assert.Throws<ArgumentNullException>(() => new DefaultMemoryBasedTransportHub(null));
+
             var instance = new DefaultMemoryBasedTransportHub();
             var server = new ConfigurableQuasiHttpServer();
             var serverEndpoint = "addr0";

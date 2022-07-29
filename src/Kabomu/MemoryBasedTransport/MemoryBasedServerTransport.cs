@@ -7,12 +7,19 @@ using System.Threading.Tasks;
 
 namespace Kabomu.MemoryBasedTransport
 {
+    /// <summary>
+    /// Implements the standard in-memory connection-oriented server-side quasi http transport provided by the
+    /// Kabomu library.
+    /// </summary>
     public class MemoryBasedServerTransport : IQuasiHttpServerTransport
     {
         private readonly LinkedList<ClientConnectRequest> _clientConnectRequests;
         private readonly LinkedList<ServerConnectRequest> _serverConnectRequests;
         private bool _running = false;
 
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
         public MemoryBasedServerTransport()
         {
             _clientConnectRequests = new LinkedList<ClientConnectRequest>();
@@ -20,7 +27,24 @@ namespace Kabomu.MemoryBasedTransport
             MutexApi = new LockBasedMutexApi();
         }
 
+        /// <summary>
+        /// Gets or sets mutex api used to guard multithreaded 
+        /// access to connection creation operations of this class.
+        /// </summary>
+        /// <remarks> 
+        /// An ordinary lock object is the initial value for this property, and so there is no need to modify
+        /// this property except for advanced scenarios.
+        /// </remarks>
         public IMutexApi MutexApi { get; set; }
+
+        /// <summary>
+        /// Gets or sets factory for supplying alternative to ordinary lock objects used to guard multithreaded access
+        /// to connection usage opertions of this class
+        /// </summary>
+        /// <remarks> 
+        /// A factory supplying ordinary lock objects is the initial value for this property, and so there is no need to modify
+        /// this property except for advanced scenarios.
+        /// </remarks>
         public IMutexApiFactory MutexApiFactory { get; set; }
 
         public async Task<bool> IsRunning()
@@ -39,6 +63,11 @@ namespace Kabomu.MemoryBasedTransport
             }
         }
 
+        /// <summary>
+        /// Stops the instance from running, and fails all outstanding server and client
+        /// connections with a TransportResetException.
+        /// </summary>
+        /// <returns>a task representing the asynchronous operation</returns>
         public async Task Stop()
         {
             using (await MutexApi.Synchronize())
@@ -58,6 +87,12 @@ namespace Kabomu.MemoryBasedTransport
             }
         }
 
+        /// <summary>
+        /// Provide means to fulfil pending receive server connections by matching them with client connection requests.
+        /// </summary>
+        /// <param name="serverEndpoint">the endpoint used to identify this instance.</param>
+        /// <param name="clientEndpoint">the endpoint the remote client identifies itself with</param>
+        /// <returns>task whose result will contain connection allocated for a client</returns>
         public async Task<IConnectionAllocationResponse> CreateConnectionForClient(object serverEndpoint, object clientEndpoint)
         {
             Task<IConnectionAllocationResponse> connectTask;
@@ -164,7 +199,6 @@ namespace Kabomu.MemoryBasedTransport
                 Connection = connection
             };
 
-            // can later pass local and remote endpoint information in response environment.
             pendingServerConnectRequest.Callback.SetResult(connectionAllocationResponseForServer);
             pendingClientConnectRequest.Callback.SetResult(connectionAllocationResponseForClient);
         }
@@ -197,7 +231,7 @@ namespace Kabomu.MemoryBasedTransport
             }
             if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
-                throw new ArgumentException("invalid payload");
+                throw new ArgumentException("invalid destination buffer");
             }
             int bytesRead = await typedConnection.ProcessReadRequest(fromServer, data, offset, length);
             return bytesRead;
