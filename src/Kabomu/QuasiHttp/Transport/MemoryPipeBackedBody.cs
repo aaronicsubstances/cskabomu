@@ -9,16 +9,14 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.Transport
 {
     /// <summary>
-    /// <para>
     /// Implementation of quasi http body which is based on a "pipe" of bytes, where one thread writes data to one end of it,
     /// and another thread reads data from the other end of it. The end of the pipe from which data is read serves
     /// as the byte stream to be read by clients.
-    /// </para>
-    /// <para>
+    /// </summary>
+    /// <remarks>
     /// This notion of pipe is purely implemented in memory with locks, and is similar to (but not based on)
     /// OS named pipes, OS anonymous pipes and OS shell pipes.
-    /// </para>
-    /// </summary>
+    /// </remarks>
     public class MemoryPipeBackedBody : IQuasiHttpBody
     {
         private readonly LinkedList<ReadRequest> _readRequests;
@@ -26,6 +24,9 @@ namespace Kabomu.QuasiHttp.Transport
         private bool _endOfWriteSeen;
         private Exception _endOfReadError;
 
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
         public MemoryPipeBackedBody()
         {
             _readRequests = new LinkedList<ReadRequest>();
@@ -33,8 +34,20 @@ namespace Kabomu.QuasiHttp.Transport
             MutexApi = new LockBasedMutexApi();
         }
 
+        /// <summary>
+        /// Gets or sets mutex api used to guard multithreaded 
+        /// access to operations of this class.
+        /// </summary>
+        /// <remarks> 
+        /// An ordinary lock object is the initial value for this property, and so there is no need to modify
+        /// this property except for advanced scenarios.
         public IMutexApi MutexApi { get; set; }
+
+        /// <summary>
+        /// Returns -1 to indicate unknown length.
+        /// </summary>
         public long ContentLength => -1;
+
         public string ContentType { get; set; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
@@ -76,11 +89,30 @@ namespace Kabomu.QuasiHttp.Transport
             return await readTask;
         }
 
+        /// <summary>
+        /// Writes bytes to this instance to serve ongoing or future read requests.
+        /// </summary>
+        /// <param name="data">source byte buffer</param>
+        /// <param name="offset">starting position in data</param>
+        /// <param name="length">number of bytes to write</param>
+        /// <returns>a task representing the asynchronous write operation</returns>
+        /// <exception cref="EndOfReadException">reads have ended</exception>
+        /// <exception cref="EndOfWriteException">writes have ended</exception>
         public Task WriteBytes(byte[] data, int offset, int length)
         {
             return WritePossiblyLastBytes(false, data, offset, length);
         }
 
+        /// <summary>
+        /// Writes the last bytes to this instance to serve ongoing or future read requests. After this
+        /// call future write requests will fail, and future read request will return 0.
+        /// </summary>
+        /// <param name="data">source byte buffer</param>
+        /// <param name="offset">starting position in data</param>
+        /// <param name="length">number of bytes to write</param>
+        /// <returns>a task representing the asynchronous write operation</returns>
+        /// <exception cref="EndOfReadException">reads have ended</exception>
+        /// <exception cref="EndOfWriteException">writes have ended</exception>
         public Task WriteLastBytes(byte[] data, int offset, int length)
         {
             return WritePossiblyLastBytes(true, data, offset, length);
@@ -204,6 +236,12 @@ namespace Kabomu.QuasiHttp.Transport
             return EndRead(null);
         }
 
+        /// <summary>
+        /// Like EndRead(), but enables a custom end of read error to be supplied.
+        /// </summary>
+        /// <param name="cause">the custom end of read error or null to make this call behave
+        /// just like EndRead()</param>
+        /// <returns>a task representing the asynchronous operation</returns>
         public async Task EndRead(Exception cause)
         {
             using (await MutexApi.Synchronize())
