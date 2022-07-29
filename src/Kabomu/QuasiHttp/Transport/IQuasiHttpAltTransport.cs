@@ -24,7 +24,7 @@ namespace Kabomu.QuasiHttp.Transport
     /// Effectively this interface is an escape hatch for situations in which <see cref="IQuasiHttpTransport"/>
     /// is unsuitable for sending quasi http requests.
     /// </remarks>
-    public interface IQuasiHttpTransportBypass
+    public interface IQuasiHttpAltTransport
     {
         /// <summary>
         /// Makes a direct send request on behalf of an instance of <see cref="Client.IQuasiHttpClient"/>.

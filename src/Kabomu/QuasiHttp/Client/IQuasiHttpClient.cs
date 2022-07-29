@@ -11,7 +11,7 @@ namespace Kabomu.QuasiHttp.Client
     {
         IQuasiHttpSendOptions DefaultSendOptions { get; set; }
         IQuasiHttpClientTransport Transport { get; set; }
-        IQuasiHttpTransportBypass TransportBypass { get; set; }
+        IQuasiHttpAltTransport TransportBypass { get; set; }
         double TransportBypassProbabilty { get; set; }
         double ResponseStreamingProbabilty { get; set; }
         IMutexApi MutexApi { get; set; }

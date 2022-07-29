@@ -12,7 +12,7 @@ namespace Kabomu.MemoryBasedTransport
     /// Implements the standard in-memory client-side quasi http transport provided by the
     /// Kabomu library, which can act both connection-oriented mode and connection bypass modes.
     /// </summary>
-    public class MemoryBasedClientTransport : IQuasiHttpClientTransport, IQuasiHttpTransportBypass
+    public class MemoryBasedClientTransport : IQuasiHttpClientTransport, IQuasiHttpAltTransport
     {
         /// <summary>
         /// Creates new instance.

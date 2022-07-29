@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Examples.Shared
 {
-    public class HttpBasedTransport : IQuasiHttpTransportBypass
+    public class HttpBasedTransport : IQuasiHttpAltTransport
     {
         private readonly HttpClient _httpClient;
 
