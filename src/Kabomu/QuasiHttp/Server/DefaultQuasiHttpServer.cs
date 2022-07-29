@@ -220,7 +220,7 @@ namespace Kabomu.QuasiHttp.Server
                 transfer.RequestEnvironment = ProtocolUtilsInternal.DetermineEffectiveOptions(
                     transfer.ProcessingOptions?.RequestEnvironment, DefaultProcessingOptions?.RequestEnvironment);
 
-                var protocol = new ApplicationReceiveProtocolInternal
+                var protocol = new AltReceiveProtocolInternal
                 {
                     Parent = transfer,
                     AbortCallback = AbortTransferCallback2,

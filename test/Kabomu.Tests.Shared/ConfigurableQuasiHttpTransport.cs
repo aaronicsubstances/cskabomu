@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Tests.Shared
 {
-    public class ConfigurableQuasiHttpTransport : IQuasiHttpServerTransport, IQuasiHttpClientTransport, IQuasiHttpTransportBypass
+    public class ConfigurableQuasiHttpTransport : IQuasiHttpServerTransport, IQuasiHttpClientTransport, IQuasiHttpAltTransport
     {
         public Func<IQuasiHttpRequest, IConnectivityParams, Tuple<Task<IQuasiHttpResponse>, object>> ProcessSendRequestCallback { get; set; }
         public Action<object> CancelSendRequestCallback { get; set; }

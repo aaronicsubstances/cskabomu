@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.Server
 {
-    internal class ApplicationReceiveProtocolInternal
+    internal class AltReceiveProtocolInternal
     {
         public object Parent { get; set; }
         public Func<object, Exception, IQuasiHttpResponse, Task> AbortCallback { get; set; }

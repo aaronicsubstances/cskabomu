@@ -24,7 +24,7 @@ namespace Kabomu.Tests.QuasiHttp
             int responseTimeMillis, string expectedResponseError, IQuasiHttpResponse expectedResponse)
         {
             // arrange.
-            IQuasiHttpTransportBypass directProcessingTransport = new ConfigurableQuasiHttpTransport
+            IQuasiHttpAltTransport directProcessingTransport = new ConfigurableQuasiHttpTransport
             {
                 ProcessSendRequestCallback = (req, connectivityParams) =>
                 {

@@ -27,7 +27,7 @@ namespace Kabomu.QuasiHttp.Client
 
         public IQuasiHttpSendOptions DefaultSendOptions { get; set; }
         public IQuasiHttpClientTransport Transport { get; set; }
-        public IQuasiHttpTransportBypass TransportBypass { get; set; }
+        public IQuasiHttpAltTransport TransportBypass { get; set; }
         public double TransportBypassProbabilty { get; set; }
         public double ResponseStreamingProbabilty { get; set; }
         public IMutexApi MutexApi { get; set; }
@@ -154,16 +154,10 @@ namespace Kabomu.QuasiHttp.Client
 
         private async Task ProcessSendRequestDirectly(SendTransferInternal transfer)
         {
-            var transportBypass = TransportBypass;
-            if (transportBypass == null)
-            {
-                throw new MissingDependencyException("transport bypass");
-            }
-
-            var protocol = new BypassSendProtocolInternal
+            var protocol = new AltSendProtocolInternal
             {
                 Parent = transfer,
-                TransportBypass = transportBypass,
+                TransportBypass = TransportBypass,
                 AbortCallback = AbortTransferCallback,
                 ConnectivityParams = transfer.ConnectivityParams,
                 ResponseStreamingEnabled = transfer.ResponseStreamingEnabled,

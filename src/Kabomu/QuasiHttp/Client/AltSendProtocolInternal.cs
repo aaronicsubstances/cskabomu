@@ -8,19 +8,19 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.Client
 {
-    internal class BypassSendProtocolInternal : ISendProtocolInternal
+    internal class AltSendProtocolInternal : ISendProtocolInternal
     {
         private object _sendCancellationHandle;
 
         public object Parent { get; set; }
         public Func<object, Exception, IQuasiHttpResponse, Task> AbortCallback { get; set; }
-        public IQuasiHttpTransportBypass TransportBypass { get; set; }
+        public IQuasiHttpAltTransport TransportBypass { get; set; }
         public IConnectivityParams ConnectivityParams { get; set; }
         public int MaxChunkSize { get; set; }
         public bool ResponseStreamingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
 
-        public BypassSendProtocolInternal()
+        public AltSendProtocolInternal()
         {
         }
 
