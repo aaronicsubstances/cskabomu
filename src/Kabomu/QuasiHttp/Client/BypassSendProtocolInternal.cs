@@ -58,7 +58,7 @@ namespace Kabomu.QuasiHttp.Client
                 throw new Exception("no response");
             }
 
-            if (!ResponseStreamingEnabled)
+            if (response.Body == null || !ResponseStreamingEnabled)
             {
                 // if there is a response body, read it into memmory and create equivalent response for 
                 // which Close() operation is redundant.

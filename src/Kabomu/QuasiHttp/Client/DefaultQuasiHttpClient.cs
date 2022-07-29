@@ -108,8 +108,8 @@ namespace Kabomu.QuasiHttp.Client
                 _transfers.Add(transfer);
 
                 transfer.ConnectivityParams.ExtraParams = ProtocolUtilsInternal.DetermineEffectiveOptions(
-                    transfer.SendOptions?.ConnectivityParams,
-                    DefaultSendOptions?.ConnectivityParams);
+                    transfer.SendOptions?.ExtraConnectivityParams,
+                    DefaultSendOptions?.ExtraConnectivityParams);
 
                 transfer.ResponseStreamingEnabled = ProtocolUtilsInternal.DetermineEffectiveBooleanOption(
                     transfer.SendOptions?.ResponseStreamingEnabled,
