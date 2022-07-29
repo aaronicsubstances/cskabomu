@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.EntityBody;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -87,6 +89,38 @@ namespace Kabomu.QuasiHttp
                 return preferred.Value;
             }
             return fallback1 ?? defaultValue;
+        }
+
+        public static async Task<IQuasiHttpBody> CreateEquivalentInMemoryResponseBody(
+            IQuasiHttpBody responseBody, int bufferSize, int bufferingLimit)
+        {
+            // read in entirety of response body into memory and
+            // maintain content length and content type for the sake of tests.
+            if (responseBody.ContentLength < 0)
+            {
+                var inMemStream = await TransportUtils.ReadBodyToMemoryStream(responseBody, bufferSize,
+                    bufferingLimit);
+                return new StreamBackedBody(inMemStream, responseBody.ContentLength)
+                {
+                    ContentType = responseBody.ContentType
+                };
+            }
+            else
+            {
+                if (responseBody.ContentLength > bufferingLimit)
+                {
+                    throw new BodySizeLimitExceededException(bufferingLimit,
+                        $"content length larger than buffering limit of " +
+                        $"{bufferingLimit} bytes", null);
+                }
+                var inMemBuffer = new byte[responseBody.ContentLength];
+                await TransportUtils.ReadBodyBytesFully(responseBody, inMemBuffer, 0,
+                    inMemBuffer.Length);
+                return new ByteBufferBody(inMemBuffer)
+                {
+                    ContentType = responseBody.ContentType
+                };
+            }
         }
     }
 }

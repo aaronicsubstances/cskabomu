@@ -48,49 +48,52 @@ namespace Kabomu.QuasiHttp.Client
             // Cancel().
             _sendCancellationHandle = cancellableResTask.Item2;
 
+            // it is not a problem if this call exceeds timeout before returning, since
+            // cancellation handle has already been saved within same mutex as Cancel(),
+            // and so Cancel() will definitely see the cancellation handle and make use of it.
             IQuasiHttpResponse response = await cancellableResTask.Item1;
 
             if (response == null)
             {
                 throw new Exception("no response");
             }
-            if (response.Body != null && !ResponseStreamingEnabled)
+
+            if (!ResponseStreamingEnabled)
             {
-                // read in entirety of response body into memory, and respect content length for
-                // the sake of tests.
-                if (response.Body.ContentLength > 0 && response.Body.ContentLength > ResponseBodyBufferingSizeLimit)
+                // if there is a response body, read it into memmory and create equivalent response for 
+                // which Close() operation is redundant.
+                // in any case make sure original response is closed.
+                IQuasiHttpBody eqResponseBody = null;
+                try
                 {
-                    throw new BodySizeLimitExceededException(ResponseBodyBufferingSizeLimit,
-                        $"content length larger than buffering limit of " +
-                        $"{ResponseBodyBufferingSizeLimit} bytes", null);
+                    if (response.Body != null)
+                    {
+                        eqResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(response.Body,
+                            MaxChunkSize, ResponseBodyBufferingSizeLimit);
+                    }
                 }
-                var inMemStream = await TransportUtils.ReadBodyToMemoryStream(response.Body, MaxChunkSize,
-                    ResponseBodyBufferingSizeLimit);
-                var newResponseBody = new StreamBackedBody(inMemStream, response.Body.ContentLength)
+                finally
                 {
-                    ContentType = response.Body.ContentType
-                };
-                response = CreateEquivalentResponse(response, newResponseBody);
+                    await response.Close();
+                }
+                if (response.Body != null)
+                {
+                    response = new DefaultQuasiHttpResponse
+                    {
+                        StatusIndicatesSuccess = response.StatusIndicatesSuccess,
+                        StatusIndicatesClientError = response.StatusIndicatesClientError,
+                        StatusMessage = response.StatusMessage,
+                        Headers = response.Headers,
+                        HttpStatusCode = response.HttpStatusCode,
+                        HttpVersion = response.HttpVersion,
+                        Body = eqResponseBody
+                    };
+                }
             }
 
             await AbortCallback.Invoke(Parent, null, response);
 
             return response;
-        }
-
-        private static IQuasiHttpResponse CreateEquivalentResponse(IQuasiHttpResponse res, IQuasiHttpBody newResponseBody)
-        {
-            var newResponse = new DefaultQuasiHttpResponse
-            {
-                StatusIndicatesSuccess = res.StatusIndicatesSuccess,
-                StatusIndicatesClientError = res.StatusIndicatesClientError,
-                StatusMessage = res.StatusMessage,
-                Headers = res.Headers,
-                HttpStatusCode = res.HttpStatusCode,
-                HttpVersion = res.HttpVersion,
-                Body = newResponseBody                
-            };
-            return newResponse;
         }
     }
 }
