@@ -1,10 +1,13 @@
-﻿using Kabomu.Concurrency;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace Kabomu.QuasiHttp.Server
 {
+    /// <summary>
+    /// Implementation of <see cref="IQuasiHttpProcessingOptions"/> providing mutable versions of
+    /// all properties in interface.
+    /// </summary>
     public class DefaultQuasiHttpProcessingOptions : IQuasiHttpProcessingOptions
     {
         public int TimeoutMillis { get; set; }
