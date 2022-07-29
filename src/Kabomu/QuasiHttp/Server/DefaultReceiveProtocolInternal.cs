@@ -1,6 +1,5 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.ChunkedTransfer;
-using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -64,21 +63,18 @@ namespace Kabomu.QuasiHttp.Server
                 throw new Exception("no response");
             }
 
+            // ensure response is closed.
             try
             {
-                await SendResponseLeadChunk(response);
+                await TransferResponseToTransport(response);
             }
             finally
             {
-                // close the response body no matter what.
-                if (response.Body != null)
-                {
-                    await response.Body.EndRead();
-                }
+                await response.Close();
             }
         }
 
-        private async Task SendResponseLeadChunk(IQuasiHttpResponse response)
+        private async Task TransferResponseToTransport(IQuasiHttpResponse response)
         {
             var chunk = new LeadChunk
             {

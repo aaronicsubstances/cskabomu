@@ -110,20 +110,8 @@ namespace Kabomu.QuasiHttp.Client
                 }
                 if (!ResponseStreamingEnabled)
                 {
-                    // read in entirety of response body into memory, and respect content length for
-                    // the sake of tests.
-                    if (response.Body.ContentLength > 0 && response.Body.ContentLength > ResponseBodyBufferingSizeLimit)
-                    {
-                        throw new BodySizeLimitExceededException(ResponseBodyBufferingSizeLimit,
-                            $"content length larger than buffering limit of " +
-                            $"{ResponseBodyBufferingSizeLimit} bytes", null);
-                    }
-                    var inMemStream = await TransportUtils.ReadBodyToMemoryStream(response.Body, MaxChunkSize,
-                        ResponseBodyBufferingSizeLimit);
-                    response.Body = new StreamBackedBody(inMemStream, response.Body.ContentLength)
-                    {
-                        ContentType = response.Body.ContentType
-                    };
+                    response.Body = await ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(
+                        response.Body, MaxChunkSize, ResponseBodyBufferingSizeLimit);
                 }
             }
 
