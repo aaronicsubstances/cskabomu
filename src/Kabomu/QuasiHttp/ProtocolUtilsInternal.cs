@@ -91,34 +91,37 @@ namespace Kabomu.QuasiHttp
             return fallback1 ?? defaultValue;
         }
 
-        public static async Task<IQuasiHttpBody> CreateEquivalentInMemoryResponseBody(
-            IQuasiHttpBody responseBody, int bufferSize, int bufferingLimit)
+        public static async Task<IQuasiHttpBody> CreateEquivalentInMemoryBody(
+            IQuasiHttpBody body, int bufferSize, int bufferingLimit)
         {
-            // read in entirety of response body into memory and
+            // read in entirety of body into memory and
             // maintain content length and content type for the sake of tests.
-            if (responseBody.ContentLength < 0)
+            if (body.ContentLength < 0)
             {
-                var inMemStream = await TransportUtils.ReadBodyToMemoryStream(responseBody, bufferSize,
+                var inMemStream = await TransportUtils.ReadBodyToMemoryStream(body, bufferSize,
                     bufferingLimit);
-                return new StreamBackedBody(inMemStream, responseBody.ContentLength)
+                return new StreamBackedBody(inMemStream, body.ContentLength)
                 {
-                    ContentType = responseBody.ContentType
+                    ContentType = body.ContentType
                 };
             }
             else
             {
-                if (responseBody.ContentLength > bufferingLimit)
+                if (body.ContentLength > bufferingLimit)
                 {
                     throw new BodySizeLimitExceededException(bufferingLimit,
                         $"content length larger than buffering limit of " +
                         $"{bufferingLimit} bytes", null);
                 }
-                var inMemBuffer = new byte[responseBody.ContentLength];
-                await TransportUtils.ReadBodyBytesFully(responseBody, inMemBuffer, 0,
+                var inMemBuffer = new byte[body.ContentLength];
+                await TransportUtils.ReadBodyBytesFully(body, inMemBuffer, 0,
                     inMemBuffer.Length);
+                // for identical behaviour with unknown length case, close the body.
+                await body.EndRead();
+
                 return new ByteBufferBody(inMemBuffer)
                 {
-                    ContentType = responseBody.ContentType
+                    ContentType = body.ContentType
                 };
             }
         }

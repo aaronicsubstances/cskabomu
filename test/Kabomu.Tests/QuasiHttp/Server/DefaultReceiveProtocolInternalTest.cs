@@ -17,6 +17,131 @@ namespace Kabomu.Tests.QuasiHttp.Server
 {
     public class DefaultReceiveProtocolInternalTest
     {
+        [Fact]
+        public async Task TestReceiveForDependencyErrors()
+        {
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+            {
+                var instance = new DefaultReceiveProtocolInternal
+                {
+                    Transport = new ConfigurableQuasiHttpTransport()
+                };
+                return instance.Receive();
+            });
+
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+            {
+                var instance = new DefaultReceiveProtocolInternal
+                {
+                    Application = new ConfigurableQuasiHttpApplication()
+                };
+                return instance.Receive();
+            });
+        }
+
+        [Fact]
+        public async Task TestReceiveForRejectionOfNullResponses()
+        {
+            var reqChunk = new LeadChunk
+            {
+                Version = LeadChunk.Version01
+            };
+            var inputStream = new MemoryStream();
+            var serializedReq = reqChunk.Serialize();
+            MiscUtils.WriteChunk(serializedReq, (data, offset, length) =>
+                inputStream.Write(data, offset, length));
+            inputStream.Position = 0; // rewind for reads.
+
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = async (actualConnection, data, offset, length) =>
+                {
+                    Assert.Null(actualConnection);
+                    var bytesRead = inputStream.Read(data, offset, length);
+                    return bytesRead;
+                }
+            };
+            IQuasiHttpResponse response = null;
+            var app = new ConfigurableQuasiHttpApplication
+            {
+                ProcessRequestCallback = (req, actualReqEnv) =>
+                {
+                    Assert.Null(actualReqEnv);
+                    return Task.FromResult(response);
+                }
+            };
+            var instance = new DefaultReceiveProtocolInternal
+            {
+                Transport = transport,
+                Application = app,
+            };
+            var cbCallCount = 0;
+            instance.AbortCallback = async (parent, res) =>
+            {
+                cbCallCount++;
+            };
+            var ex = await Assert.ThrowsAnyAsync<Exception>(() =>
+            {
+                return instance.Receive();
+            });
+            Assert.Contains("no response", ex.Message);
+            Assert.Equal(0, cbCallCount);
+        }
+
+        [Fact]
+        public async Task TestReceiveEnsuresCloseOnSuccessfulResponse()
+        {
+            var request = new DefaultQuasiHttpRequest();
+            var connectivityParams = new DefaultConnectivityParams();
+            var response = new ErrorQuasiHttpResponse();
+
+            var reqChunk = new LeadChunk
+            {
+                Version = LeadChunk.Version01
+            };
+            var inputStream = new MemoryStream();
+            var serializedReq = reqChunk.Serialize();
+            MiscUtils.WriteChunk(serializedReq, (data, offset, length) =>
+                inputStream.Write(data, offset, length));
+            inputStream.Position = 0; // rewind for reads.
+
+            var transport = new ConfigurableQuasiHttpTransport
+            {
+                ReadBytesCallback = async (actualConnection, data, offset, length) =>
+                {
+                    Assert.Null(actualConnection);
+                    var bytesRead = inputStream.Read(data, offset, length);
+                    return bytesRead;
+                }
+            };
+
+            var app = new ConfigurableQuasiHttpApplication
+            {
+                ProcessRequestCallback = (req, actualReqEnv) =>
+                {
+                    Assert.Null(actualReqEnv);
+                    return Task.FromResult((IQuasiHttpResponse)response);
+                }
+            };
+            var instance = new DefaultReceiveProtocolInternal
+            {
+                Application = app,
+                Transport = transport
+            };
+            var cbCallCount = 0;
+            instance.AbortCallback = async (parent, res) =>
+            {
+                cbCallCount++;
+            };
+            await Assert.ThrowsAsync<NotImplementedException>(() =>
+            {
+                return instance.Receive();
+            });
+
+            Assert.Equal(0, cbCallCount);
+            Assert.True(response.CloseCalled);
+        }
+
         [Theory]
         [MemberData(nameof(CreateTestReceiveData))]
         public async Task TestReceive(object connection, int maxChunkSize,
@@ -136,6 +261,17 @@ namespace Kabomu.Tests.QuasiHttp.Server
             await ComparisonUtils.CompareRequests(maxChunkSize, request, actualRequest,
                 requestBodyBytes);
             Assert.Equal(reqEnv, actualRequestEnvironment);
+
+            // ensure that response closure occured by trying to read response body
+            if (expectedResponse.Body != null)
+            {
+                await Assert.ThrowsAsync<EndOfReadException>(() =>
+                {
+                    return expectedResponse.Body.ReadBytes(new byte[1], 0, 1);
+                });
+            }
+
+            // finally verify contents of output stream.
             var actualRes = outputStream.ToArray();
             Assert.NotEmpty(actualRes);
             var actualResChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualRes, 0,
@@ -294,6 +430,31 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 expectedResponse, expectedResBodyBytes });
 
             return testData;
+        }
+
+        class ErrorQuasiHttpResponse : IQuasiHttpResponse
+        {
+            public bool CloseCalled { get; set; }
+
+            public bool StatusIndicatesSuccess => throw new NotImplementedException();
+
+            public bool StatusIndicatesClientError => throw new NotImplementedException();
+
+            public string StatusMessage => throw new NotImplementedException();
+
+            public IDictionary<string, List<string>> Headers => throw new NotImplementedException();
+
+            public IQuasiHttpBody Body => throw new NotImplementedException();
+
+            public int HttpStatusCode => throw new NotImplementedException();
+
+            public string HttpVersion => throw new NotImplementedException();
+
+            public Task Close()
+            {
+                CloseCalled = true;
+                return Task.CompletedTask;
+            }
         }
     }
 }

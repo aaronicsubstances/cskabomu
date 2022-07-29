@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
+using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -67,17 +68,23 @@ namespace Kabomu.Tests.Shared
             Assert.Equal(expected.StatusIndicatesClientError, actual.StatusIndicatesClientError);
             Assert.Equal(expected.StatusMessage, actual.StatusMessage);
             CompareHeaders(expected.Headers, actual.Headers);
-            if (expectedResBodyBytes == null)
+            await CompareBodies(maxChunkSize, expected.Body, actual.Body, expectedResBodyBytes);
+        }
+
+        public static async Task CompareBodies(int maxChunkSize, IQuasiHttpBody expected,
+            IQuasiHttpBody actual, byte[] expectedBodyBytes)
+        {
+            if (expectedBodyBytes == null)
             {
-                Assert.Null(actual.Body);
+                Assert.Null(actual);
             }
             else
             {
-                Assert.NotNull(actual.Body);
-                Assert.Equal(expected.Body.ContentLength, actual.Body.ContentLength);
-                Assert.Equal(expected.Body.ContentType, actual.Body.ContentType);
-                var actualResBodyBytes = await TransportUtils.ReadBodyToEnd(actual.Body, maxChunkSize);
-                Assert.Equal(expectedResBodyBytes, actualResBodyBytes);
+                Assert.NotNull(actual);
+                Assert.Equal(expected.ContentLength, actual.ContentLength);
+                Assert.Equal(expected.ContentType, actual.ContentType);
+                var actualResBodyBytes = await TransportUtils.ReadBodyToEnd(actual, maxChunkSize);
+                Assert.Equal(expectedBodyBytes, actualResBodyBytes);
             }
         }
 

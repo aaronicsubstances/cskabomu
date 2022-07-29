@@ -74,7 +74,7 @@ namespace Kabomu.QuasiHttp.Client
                 IQuasiHttpBody eqResponseBody = null;
                 try
                 {
-                    eqResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(responseBody,
+                    eqResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
                         MaxChunkSize, ResponseBodyBufferingSizeLimit);
                 }
                 finally

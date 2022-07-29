@@ -304,26 +304,29 @@ namespace Kabomu.Tests.QuasiHttp
         }
 
         [Theory]
-        [MemberData(nameof(CreateTestCreateEquivalentInMemoryResponseBodyData))]
-        public async Task TestCreateEquivalentInMemoryResponseBody(int bufferSize,
-            int bufferingLimit, IQuasiHttpBody responseBody,
-            byte[] expectedResBodyBytes)
+        [MemberData(nameof(CreateTestCreateEquivalentInMemoryBodyData))]
+        public async Task TestCreateEquivalentInMemoryBody(int bufferSize,
+            int bufferingLimit, IQuasiHttpBody originalBody, byte[] expectedBodyBytes)
         {
-            var expected = new DefaultQuasiHttpResponse
+            // arrange.
+            IQuasiHttpBody expected = new ByteBufferBody(expectedBodyBytes)
             {
-                Body = new ContentLengthOverrideBody(new ByteBufferBody(expectedResBodyBytes)
-                    { ContentType = responseBody.ContentType }, responseBody.ContentLength)
+                ContentType = originalBody.ContentType
             };
-            var actualResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(responseBody,
+            expected = new ContentLengthOverrideBody(expected, originalBody.ContentLength);
+
+            // act.
+            var actualResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(originalBody,
                 bufferSize, bufferingLimit);
-            var actual = new DefaultQuasiHttpResponse
-            {
-                Body = actualResponseBody
-            };
-            await ComparisonUtils.CompareResponses(bufferSize, expected, actual, expectedResBodyBytes);
+            
+            // assert.
+            // check that original response body has been ended.
+            await Assert.ThrowsAsync<EndOfReadException>(() => originalBody.ReadBytes(new byte[1], 0, 1));
+            // finally verify content.
+            await ComparisonUtils.CompareBodies(bufferSize, expected, actualResponseBody, expectedBodyBytes);
         }
 
-        public static List<object[]> CreateTestCreateEquivalentInMemoryResponseBodyData()
+        public static List<object[]> CreateTestCreateEquivalentInMemoryBodyData()
         {
             var testData = new List<object[]>();
 
@@ -386,40 +389,40 @@ namespace Kabomu.Tests.QuasiHttp
         }
 
         [Fact]
-        public async Task TestCreateEquivalentInMemoryResponseBodyForErrors1()
+        public async Task TestCreateEquivalentInMemoryBodyForErrors1()
         {
             int bufferSize = 1;
             int bufferingLimit = 3;
             var responseBody = new StringBody("xyz!");
             await Assert.ThrowsAnyAsync<Exception>(() =>
             {
-                return ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(responseBody,
+                return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
                     bufferSize, bufferingLimit);
             });
         }
 
         [Fact]
-        public async Task TestCreateEquivalentInMemoryResponseBodyForErrors2()
+        public async Task TestCreateEquivalentInMemoryBodyForErrors2()
         {
             int bufferSize = 1;
             int bufferingLimit = 3;
             var responseBody = new ByteBufferBody(ByteUtils.StringToBytes("xyz!"));
             await Assert.ThrowsAsync<BodySizeLimitExceededException>(() =>
             {
-                return ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(responseBody,
+                return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
                     bufferSize, bufferingLimit);
             });
         }
 
         [Fact]
-        public async Task TestCreateEquivalentInMemoryResponseBodyForErrors3()
+        public async Task TestCreateEquivalentInMemoryBodyForErrors3()
         {
             int bufferSize = 1;
             int bufferingLimit = 30;
             var responseBody = new ContentLengthOverrideBody(new StringBody("xyz!"), 5);
             await Assert.ThrowsAsync<ContentLengthNotSatisfiedException>(() =>
             {
-                return ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(responseBody,
+                return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
                     bufferSize, bufferingLimit);
             });
         }
