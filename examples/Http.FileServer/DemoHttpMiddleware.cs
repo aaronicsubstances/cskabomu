@@ -66,7 +66,7 @@ namespace Http.FileServer
             IQuasiHttpResponse quasiResponse;
             try
             {
-                quasiResponse = await _wrapped.SendToApplication(quasiRequest,
+                quasiResponse = await _wrapped.ProcessReceiveRequest(quasiRequest,
                     processingOptions);
             }
             catch (Exception e)

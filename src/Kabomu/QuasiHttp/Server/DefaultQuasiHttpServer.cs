@@ -190,7 +190,7 @@ namespace Kabomu.QuasiHttp.Server
             await transfer.CancellationTcs.Task;
         }
 
-        public Task<IQuasiHttpResponse> SendToApplication(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options)
+        public Task<IQuasiHttpResponse> ProcessReceiveRequest(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options)
         {
             if (request == null)
             {
@@ -227,7 +227,7 @@ namespace Kabomu.QuasiHttp.Server
                     Application = Application,
                     RequestEnvironment = transfer.RequestEnvironment
                 };
-                workTask = protocol.ProcessSendToApplication(transfer.Request);
+                workTask = protocol.SendToApplication(transfer.Request);
             }
 
             var firstCompletedTask = await Task.WhenAny(transfer.CancellationTcs.Task, workTask);

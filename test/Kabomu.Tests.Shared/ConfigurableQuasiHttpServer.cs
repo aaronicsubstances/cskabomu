@@ -37,7 +37,7 @@ namespace Kabomu.Tests.Shared
             return ResetCallback.Invoke(cause);
         }
 
-        public Task<IQuasiHttpResponse> SendToApplication(IQuasiHttpRequest request,
+        public Task<IQuasiHttpResponse> ProcessReceiveRequest(IQuasiHttpRequest request,
             IQuasiHttpProcessingOptions options)
         {
             return SendToApplicationCallback.Invoke(request, options);

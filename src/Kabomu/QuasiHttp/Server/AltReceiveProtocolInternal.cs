@@ -13,7 +13,7 @@ namespace Kabomu.QuasiHttp.Server
         public IQuasiHttpApplication Application { get; set; }
         public IDictionary<string, object> RequestEnvironment { get; set; }
 
-        public async Task<IQuasiHttpResponse> ProcessSendToApplication(IQuasiHttpRequest request)
+        public async Task<IQuasiHttpResponse> SendToApplication(IQuasiHttpRequest request)
         {
             if (Application == null)
             {
