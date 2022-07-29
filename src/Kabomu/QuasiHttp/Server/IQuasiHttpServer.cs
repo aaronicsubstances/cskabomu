@@ -18,7 +18,7 @@ namespace Kabomu.QuasiHttp.Server
         Task Start();
         Task Stop(int resetTimeMillis);
         Task Reset(Exception cause);
-        Task<IQuasiHttpResponse> SendToApplication(IQuasiHttpRequest request,
+        Task<IQuasiHttpResponse> ProcessReceiveRequest(IQuasiHttpRequest request,
             IQuasiHttpProcessingOptions options);
     }
 }
