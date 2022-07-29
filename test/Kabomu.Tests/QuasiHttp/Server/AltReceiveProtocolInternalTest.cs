@@ -13,6 +13,36 @@ namespace Kabomu.Tests.QuasiHttp.Server
 {
     public class AltReceiveProtocolInternalTest
     {
+
+        [Fact]
+        public async Task TestSendToApplicationForDependencyErrors()
+        {
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+                new AltReceiveProtocolInternal().SendToApplication(new DefaultQuasiHttpRequest()));
+        }
+
+        [Fact]
+        public async Task TestSendToApplicationForRejectionOfNullResponses()
+        {
+            var app = new ConfigurableQuasiHttpApplication
+            {
+                ProcessRequestCallback = async (req, reqEnv) =>
+                {
+                    return null;
+                }
+            };
+            var instance = new AltReceiveProtocolInternal
+            {
+                Parent = new object(),
+                Application = app,
+                AbortCallback = (parent, e, res) => Task.CompletedTask
+            };
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+            {
+                return instance.SendToApplication(new DefaultQuasiHttpRequest());
+            });
+        }
+
         [Fact]
         public async Task TestSendToApplication()
         {
@@ -49,31 +79,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             var actualResponse = await instance.SendToApplication(request);
             Assert.True(cbCalled);
             Assert.Equal(expectedResponse, actualResponse);
-        }
-
-        [Fact]
-        public async Task TestSendToApplicationForErrors()
-        {
-            await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                new AltReceiveProtocolInternal().SendToApplication(new DefaultQuasiHttpRequest()));
-
-            await Assert.ThrowsAnyAsync<Exception>(() =>
-            {
-                var app = new ConfigurableQuasiHttpApplication
-                {
-                    ProcessRequestCallback = async (req, reqEnv) =>
-                    {
-                        return null;
-                    }
-                };
-                var instance = new AltReceiveProtocolInternal
-                {
-                    Parent = new object(),
-                    Application = app,
-                    AbortCallback = (parent, e, res) => Task.CompletedTask
-                };
-                return instance.SendToApplication(new DefaultQuasiHttpRequest());
-            });
         }
 
         class ErrorQuasiHttpResponse : IQuasiHttpResponse

@@ -110,7 +110,7 @@ namespace Kabomu.QuasiHttp.Client
                 }
                 if (!ResponseStreamingEnabled)
                 {
-                    response.Body = await ProtocolUtilsInternal.CreateEquivalentInMemoryResponseBody(
+                    response.Body = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(
                         response.Body, MaxChunkSize, ResponseBodyBufferingSizeLimit);
                 }
             }
