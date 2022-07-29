@@ -41,6 +41,7 @@ namespace Kabomu.QuasiHttp.Transport
         /// <remarks> 
         /// An ordinary lock object is the initial value for this property, and so there is no need to modify
         /// this property except for advanced scenarios.
+        /// </remarks>
         public IMutexApi MutexApi { get; set; }
 
         /// <summary>
