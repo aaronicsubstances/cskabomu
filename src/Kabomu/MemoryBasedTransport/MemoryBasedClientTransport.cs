@@ -8,13 +8,28 @@ using System.Threading.Tasks;
 
 namespace Kabomu.MemoryBasedTransport
 {
+    /// <summary>
+    /// Implements the standard in-memory client-side quasi http transport provided by the
+    /// Kabomu library, which can act both connection-oriented mode and connection bypass modes.
+    /// </summary>
     public class MemoryBasedClientTransport : IQuasiHttpClientTransport, IQuasiHttpTransportBypass
     {
+        /// <summary>
+        /// Creates new instance.
+        /// </summary>
         public MemoryBasedClientTransport()
         {
         }
 
-        public string LocalEndpoint { get; set; }
+        /// <summary>
+        /// Gets or sets the endpoint which should identify this instance.
+        /// </summary>
+        public object LocalEndpoint { get; set; }
+
+        /// <summary>
+        /// Gets or sets the virtual hub of servers connected to this instance. Direct request processing
+        /// and indirect request proessing via connection allocation are both done through this dependency.
+        /// </summary>
         public IMemoryBasedTransportHub Hub { get; set; }
 
         public Tuple<Task<IQuasiHttpResponse>, object> ProcessSendRequest(IQuasiHttpRequest request,
