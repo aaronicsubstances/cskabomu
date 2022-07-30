@@ -35,7 +35,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             {
                 Parent = new object(),
                 Application = app,
-                AbortCallback = (parent, e, res) => Task.CompletedTask
+                AbortCallback = (parent, res) => Task.CompletedTask
             };
             await Assert.ThrowsAnyAsync<Exception>(() =>
             {
@@ -68,11 +68,10 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Application = app
             };
             var cbCalled = false;
-            instance.AbortCallback = async (parent, e, res) =>
+            instance.AbortCallback = async (parent, res) =>
             {
                 Assert.False(cbCalled);
                 Assert.Equal(instance.Parent, parent);
-                Assert.Null(e);
                 Assert.Equal(expectedResponse, res);
                 cbCalled = true;
             };

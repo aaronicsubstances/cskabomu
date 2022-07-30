@@ -76,7 +76,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Application = app,
             };
             var cbCallCount = 0;
-            instance.AbortCallback = async (parent, res) =>
+            instance.AbortCallback = async (parent) =>
             {
                 cbCallCount++;
             };
@@ -129,7 +129,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Transport = transport
             };
             var cbCallCount = 0;
-            instance.AbortCallback = async (parent, res) =>
+            instance.AbortCallback = async (parent) =>
             {
                 cbCallCount++;
             };
@@ -245,9 +245,9 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             int abortCallCount = 0;
             object actualProtocolParentSeen = null;
-            instance.AbortCallback = (transfer, e) =>
+            instance.AbortCallback = (parent) =>
             {
-                actualProtocolParentSeen = transfer;
+                actualProtocolParentSeen = parent;
                 abortCallCount++;
                 return Task.CompletedTask;
             };

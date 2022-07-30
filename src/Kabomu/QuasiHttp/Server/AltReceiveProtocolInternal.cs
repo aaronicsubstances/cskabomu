@@ -9,7 +9,7 @@ namespace Kabomu.QuasiHttp.Server
     internal class AltReceiveProtocolInternal
     {
         public object Parent { get; set; }
-        public Func<object, Exception, IQuasiHttpResponse, Task> AbortCallback { get; set; }
+        public Func<object, IQuasiHttpResponse, Task> AbortCallback { get; set; }
         public IQuasiHttpApplication Application { get; set; }
         public IDictionary<string, object> RequestEnvironment { get; set; }
 
@@ -27,7 +27,7 @@ namespace Kabomu.QuasiHttp.Server
                 throw new Exception("no response");
             }
 
-            await AbortCallback.Invoke(Parent, null, res);
+            await AbortCallback.Invoke(Parent, res);
 
             return res;
         }
