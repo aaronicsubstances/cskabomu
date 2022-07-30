@@ -96,7 +96,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var connectivityParams = new DefaultConnectivityParams();
             var expectedResponse = new ErrorQuasiHttpResponse
             {
-                Body = new StringBody("")
+                Body = new StringBody("tea")
             };
             var transport = new ConfigurableQuasiHttpTransport
             {
@@ -113,6 +113,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Parent = new object(),
                 ConnectivityParams = connectivityParams,
                 ResponseStreamingEnabled = true,
+                MaxChunkSize = 10,
                 TransportBypass = transport
             };
             var cbCalled = false;
@@ -261,11 +262,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var instance = new AltSendProtocolInternal
             {
                 Parent = new object(),
+                TransportBypass = transport,
                 ConnectivityParams = connectivityParams,
-                ResponseStreamingEnabled = false,
                 MaxChunkSize = maxChunkSize,
+                ResponseStreamingEnabled = false,
                 ResponseBodyBufferingSizeLimit = responseBodyBufferingLimit,
-                TransportBypass = transport
             };
             var cbCalled = false;
             IQuasiHttpResponse cbRes = null;

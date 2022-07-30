@@ -15,8 +15,8 @@ namespace Kabomu.QuasiHttp.Server
     public class DefaultQuasiHttpServer : IQuasiHttpServer
     {
         private readonly ISet<ReceiveTransferInternal> _transfers;
-        private readonly Func<object, Exception, Task> AbortTransferCallback;
-        private readonly Func<object, Exception, IQuasiHttpResponse, Task> AbortTransferCallback2;
+        private readonly Func<object, Task> AbortTransferCallback;
+        private readonly Func<object, IQuasiHttpResponse, Task> AbortTransferCallback2;
         private bool _running;
 
         public DefaultQuasiHttpServer()
@@ -35,17 +35,16 @@ namespace Kabomu.QuasiHttp.Server
         public IMutexApi MutexApi { get; set; }
         public ITimerApi TimerApi { get; set; }
 
-        private Task CancelReceive(object transferObj, Exception cancellationError)
+        private Task CancelReceive(object transferObj)
         {
             var transfer = (ReceiveTransferInternal)transferObj;
-            return AbortTransfer(transfer, cancellationError, null);
+            return AbortTransfer(transfer, null, null);
         }
 
-        private Task CancelReceive(object transferObj, Exception cancellationError,
-            IQuasiHttpResponse res)
+        private Task CancelReceive(object transferObj, IQuasiHttpResponse res)
         {
             var transfer = (ReceiveTransferInternal)transferObj;
-            return AbortTransfer(transfer, cancellationError, res);
+            return AbortTransfer(transfer, null, res);
         }
 
         public async Task Start()
