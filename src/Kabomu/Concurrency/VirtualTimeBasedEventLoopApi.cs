@@ -7,7 +7,7 @@ namespace Kabomu.Concurrency
 {
     /// <summary>
     /// Event loop implementation which doesn't use real time.
-    /// Useful for testing main components of library.
+    /// Useful for testing software components that depend on real time.
     /// </summary>
     public class VirtualTimeBasedEventLoopApi : IEventLoopApi
     {
@@ -16,15 +16,18 @@ namespace Kabomu.Concurrency
         private int _cancelledTaskCount = 0;
         private int _idSeq = 0;
         private long _currentTimestamp;
+        private int _immediateExecutionRealWaitTimeMillis;
 
-        // use to prevent interleaving of trigger actions by cancelling previous triggers
-        private bool[] _triggerActionsCancellationHandle = new bool[1];
+        // use to prevent interleaving of advance actions by cancelling previous advances
+        private ICancellationHandle _triggerActionsCancellationHandle;
 
         /// <summary>
-        /// Constructs a new instance with a current virtual timestamp of zero.
+        /// Constructs a new instance with a current virtual timestamp of zero and a real immediate
+        /// execution wait time of 100ms.
         /// </summary>
         public VirtualTimeBasedEventLoopApi()
         {
+            ImmediateExecutionRealWaitTimeMillis = 100;
         }
 
         /// <summary>
@@ -69,13 +72,41 @@ namespace Kabomu.Concurrency
         public bool IsInterimEventLoopThread => false;
 
         /// <summary>
+        /// Gets or sets the maximum amount of time that asynchronous executions triggered by an executing callback run by an
+        /// instance during Advance*() calls will be allowed to complete.
+        /// At construction time a default value of 100ms is set, which should be left unchanged for all but advanced use cases.
+        /// </summary>
+        /// <remarks>This value should not be more than 1 second (1_000ms), as a large value
+        /// will slow down the real time simulation done by this class.
+        /// </remarks>
+        public int ImmediateExecutionRealWaitTimeMillis
+        {
+
+            get
+            {
+                lock (_lock)
+                {
+                    return _immediateExecutionRealWaitTimeMillis;
+                }
+            }
+            set
+            {
+                lock (_lock)
+                {
+                    _immediateExecutionRealWaitTimeMillis = value;
+                }
+            }
+        }
+
+        /// <summary>
         /// Advances time by a given value and executes all pending callbacks and any recursively scheduled callbacks
         /// whose scheduled time do not exceed the current virtual timestamp plus the given value.
+        /// Any previously ongoing Advance*() call is cancelled.
         /// </summary>
         /// <remarks>
-        /// Any previously ongoing Advance*() call is cancelled.
-        /// Also only the first blocking phase of each callback is waited for by this event loop; any
-        /// "asynchronous break" in execution continues later in parallel with other callback executions.
+        /// Note that asynchronous continuations of each callback may run in parallel with future callback executions,
+        /// unless all asynchronous continuations triggered by each callback complete within a real time of 100ms or as set in
+        /// <see cref="ImmediateExecutionRealWaitTimeMillis"/> property.
         /// </remarks>
         /// <param name="delay">the value with which to increment current virtual timestamp. Note that if
         /// another Advance*() call is made, this call will be cancelled and the timestamp change will likely
@@ -99,11 +130,12 @@ namespace Kabomu.Concurrency
         /// <summary>
         /// Advances time to a given value and executes all pending callbacks and any recursively scheduled callbacks
         /// whose scheduled time do not exceed given value.
+        /// Any previously ongoing Advance*() call is cancelled.
         /// </summary>
         /// <remarks>
-        /// Any previously ongoing Advance*() call is cancelled.
-        /// Also only the first blocking phase of each callback is waited for by this event loop; any
-        /// "asynchronous break" in execution continues later in parallel with the other callback executions.
+        /// Note that asynchronous continuations of each callback may run in parallel with future callback executions,
+        /// unless all asynchronous continuations triggered by each callback complete within a real time of 100ms or as set in
+        /// <see cref="ImmediateExecutionRealWaitTimeMillis"/> property.
         /// </remarks>
         /// <param name="newTimestamp">the new value of current virtual timestamp. Note that if
         /// another Advance*() call is made, this call will be cancelled and the timestamp change will likely
@@ -116,86 +148,19 @@ namespace Kabomu.Concurrency
             {
                 throw new ArgumentException("negative timestamp value: " + newTimestamp);
             }
-            return TriggerActions(newTimestamp, new bool[1], true);
+            return TriggerActions(newTimestamp);
         }
 
         /// <summary>
-        /// Advances time indefinitely until there are no more pending or recursively scheduled callbacks. 
-        /// Assumes that no callback executes for more than 500 ms in real time.
+        /// Work horse of real time simulation up to some virtual timestamp.
         /// </summary>
-        /// <remarks>
-        /// Any previously ongoing Advance*() call is cancelled.
-        /// However unlike in AdvanceBy() and AdvanceTo() methods, each callback is awaited fully before the
-        /// next callback executes.
-        /// </remarks>
-        /// <returns>a task representing the asynchronous operation.</returns>
-        public Task AdvanceTimeIndefinitely()
+        /// <param name="stoppageTimestamp">The virtual timestamp at which to stop simulations.</param>
+        private async Task TriggerActions(long stoppageTimestamp)
         {
-            return AdvanceTimeIndefinitely(500);
-        }
-
-        /// <summary>
-        /// Advances time indefinitely with a given maximum amount of real time of callback execution.
-        /// </summary>
-        /// <remarks>
-        /// Any previously ongoing Advance*() call is cancelled.
-        /// However unlike in AdvanceBy() and AdvanceTo() methods, each callback is awaited fully before the
-        /// next callback executes.
-        /// </remarks>
-        /// <param name="maxExecutionTime">the maximum amount of real time any pending or recursively scheduled callback
-        /// will spend executing. This determines how long to wait for a callback to finish executing,
-        /// before concluding that that callback may be blocked by another callback in this loop. So shorter times are
-        /// preferred.</param>
-        /// <returns>a task representing the asynchronous operation.</returns>
-        public async Task AdvanceTimeIndefinitely(int maxExecutionTime)
-        {
-            while (true)
-            {
-                // look for earliest non-cancelled task descriptor,
-                // and that is found toward the end of the task queue.
-                long stoppageTime;
-                lock (this)
-                {
-                    int idx = -1;
-                    for (int i = _taskQueue.Count - 1; i >= 0; i--)
-                    {
-                        if (!_taskQueue[i].Cancelled)
-                        {
-                            idx = i;
-                            break;
-                        }
-                    }
-                    if (idx == -1)
-                    {
-                        break;
-                    }
-                    stoppageTime = _taskQueue[idx].ScheduledAt;
-                }
-                // wait for some time in order to avoid being blocked by any callback waiting for
-                // a later or future task queue member to complete.
-                var triggerTask = TriggerActions(stoppageTime, new bool[1], false);
-                var timeoutTask = Task.Delay(maxExecutionTime);
-                var firstCompletedTask = await Task.WhenAny(triggerTask, timeoutTask);
-                if (firstCompletedTask == triggerTask)
-                {
-                    var cancelled = await triggerTask;
-                    if (cancelled)
-                    {
-                        break;
-                    }
-                }
-                else
-                {
-                    await timeoutTask;
-                }
-            }
-        }
-
-        private async Task<bool> TriggerActions(long stoppageTimestamp, bool[] cancellationHandle, bool advancingNormally)
-        {
+            var cancellationHandle = new DefaultCancellationHandle();
             lock (_lock)
             {
-                _triggerActionsCancellationHandle[0] = true;
+                _triggerActionsCancellationHandle?.Cancel();
                 _triggerActionsCancellationHandle = cancellationHandle;
             }
             // invoke task queue actions starting with tail of queue
@@ -207,20 +172,20 @@ namespace Kabomu.Concurrency
                 TaskDescriptor earliestTaskDescriptor;
                 lock (_lock)
                 {
-                    if (cancellationHandle[0])
+                    if (cancellationHandle.IsCancelled)
                     {
-                        return false;
+                        break;
                     }
                     if (_taskQueue.Count == 0)
                     {
-                        cancellationHandle[0] = true;
+                        cancellationHandle.Cancel();
                         _currentTimestamp = stoppageTimestamp;
                         break;
                     }
                     earliestTaskDescriptor = _taskQueue[_taskQueue.Count - 1];
                     if (!earliestTaskDescriptor.Cancelled && earliestTaskDescriptor.ScheduledAt > stoppageTimestamp)
                     {
-                        cancellationHandle[0] = true;
+                        cancellationHandle.Cancel();
                         _currentTimestamp = stoppageTimestamp;
                         break;
                     }
@@ -242,47 +207,31 @@ namespace Kabomu.Concurrency
                 }
                 else
                 {
-                    // invoke without waiting to prevent deadlock,
-                    // unless we are advancing indefinitely.
-                    var t = ProcessTaskDescriptor(earliestTaskDescriptor);
-                    if (!advancingNormally)
-                    {
-                        await t;
-                    }
-                }
-            }
-            return true;
-        }
+                    // invoke without waiting to prevent deadlock
+                    earliestTaskDescriptor.Callback.Invoke();
 
-        private static async Task ProcessTaskDescriptor(TaskDescriptor taskDescriptor)
-        {
-            try
-            {
-                await taskDescriptor.Callback.Invoke();
-                taskDescriptor.Tcs.SetResult(null);
-            }
-            catch (Exception e)
-            {
-                taskDescriptor.Tcs.SetException(e);
+                    // on the other hand if we dont' wait, any async continuations of
+                    // callback will run concurrently with next callback which is undesirable.
+                    // to avoid this, we assume that any async continuations are scheduled to run
+                    // now, and so next callback is scheduled to run after them.
+                    // In the sense of NodeJS, setImmediate in real time is the most suitable
+                    // Here we go for setTimeout(small_value) as a way to approximate setImmediate.
+
+                    // fetch from property, just in case callback modified it.
+                    await Task.Delay(ImmediateExecutionRealWaitTimeMillis);
+                }
             }
         }
 
         /// <summary>
-        /// Runs a callback in a similar way to <see cref="SetImmediate(Func{Task})"/>.
+        /// Runs a callback exclusively of any others. In this implementation that is the same 
+        /// as calling <see cref="SetImmediate"/>.
         /// </summary>
         /// <param name="cb">the callback to run</param>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>
         public void RunExclusively(Action cb)
         {
-            if (cb == null)
-            {
-                throw new ArgumentException("null cb");
-            }
-            SetImmediate(() =>
-            {
-                cb.Invoke();
-                return Task.CompletedTask;
-            });
+            SetImmediate(cb);
         }
 
         /// <summary>
@@ -292,14 +241,14 @@ namespace Kabomu.Concurrency
         /// </summary>
         /// <remarks>
         /// In this event loop implementation, this method is equivalent to calling
-        /// <see cref="SetTimeout(int, Func{Task}, bool)"/> method with a timeout value of zero.
+        /// <see cref="SetTimeout(Action, int)"/> method with a timeout value of zero.
         /// </remarks>
         /// <param name="cb">callback to run</param>
-        /// <returns>handles which can be used to either wait for immediate execution, or cancel immediate execution request</returns>
+        /// <returns>handle which can be used to cancel immediate execution request</returns>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>
-        public Tuple<Task, object> SetImmediate(Func<Task> cb)
+        public object SetImmediate(Action cb)
         {
-            return SetTimeout(0, cb, true);
+            return SetTimeout(cb, 0, true);
         }
 
         /// <summary>
@@ -307,44 +256,42 @@ namespace Kabomu.Concurrency
         /// If there are already callbacks scheduled at that time, the callback will execute after them at that time.
         /// The callback will only be executed as a result of an ongoing or future call to one of the Advance*() methods.
         /// </summary>
+        /// <param name="cb">the callback to run</param>
         /// <param name="millis">the virtual time delay after the current virtual time by which time the callback
         /// will be executed</param>
-        /// <param name="cb">the callback to run</param>
-        /// <returns>handles which can be used to either wait for timeout request, or cancel timeout request</returns>
+        /// <returns>handle which can be used to cancel timeout request</returns>
         /// <exception cref="T:System.ArgumentException">The <paramref name="millis"/> argument is negative.</exception>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>
-        public Tuple<Task, object> SetTimeout(int millis, Func<Task> cb)
+        public object SetTimeout(Action cb, int millis)
         {
-            return SetTimeout(millis, cb, false);
+            return SetTimeout(cb, millis, false);
         }
 
-        private Tuple<Task, object> SetTimeout(int millis, Func<Task> cb, bool forImmediate)
+        private object SetTimeout(Action cb, int millis, bool forImmediate)
         {
+            if (cb == null)
+            {
+                throw new ArgumentNullException(nameof(cb));
+            }
             if (millis < 0)
             {
                 throw new ArgumentException("negative timeout value: " + millis);
             }
-            if (cb == null)
-            {
-                throw new ArgumentException("null cb");
-            }
-            var nextId = _idSeq++;
-            var taskDescriptor = new TaskDescriptor
-            {
-                Id = nextId,
-                Callback = cb,
-                Tcs = new TaskCompletionSource<object>(
-                    TaskCreationOptions.RunContinuationsAsynchronously),
-                ScheduledAt = _currentTimestamp + millis
-            };
+            TaskDescriptor taskDescriptor;
             lock (_lock)
             {
+                var nextId = _idSeq++;
+                taskDescriptor = new TaskDescriptor
+                {
+                    Id = nextId,
+                    Callback = cb,
+                    ScheduledAt = _currentTimestamp + millis
+                };
                 InsertIntoSortedTasks(taskDescriptor);
             }
-            object cancellationHandle;
             if (forImmediate)
             {
-                cancellationHandle = new SetImmediateCancellationHandle
+                return new SetImmediateCancellationHandle
                 {
                     Id = taskDescriptor.Id,
                     ScheduledAt = taskDescriptor.ScheduledAt
@@ -352,13 +299,12 @@ namespace Kabomu.Concurrency
             }
             else
             {
-                cancellationHandle = new SetTimeoutCancellationHandle
+                return new SetTimeoutCancellationHandle
                 {
                     Id = taskDescriptor.Id,
                     ScheduledAt = taskDescriptor.ScheduledAt
                 };
             }
-            return Tuple.Create<Task, object>(taskDescriptor.Tcs.Task, cancellationHandle);
         }
 
         private void InsertIntoSortedTasks(TaskDescriptor taskDescriptor)
@@ -461,8 +407,7 @@ namespace Kabomu.Concurrency
         private class TaskDescriptor
         {
             public int Id { get; set; }
-            public Func<Task> Callback { get; set; }
-            public TaskCompletionSource<object> Tcs { get; set; }
+            public Action Callback { get; set; }
             public long ScheduledAt { get; set; }
             public bool Cancelled { get; set; }
         }
