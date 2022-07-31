@@ -72,93 +72,107 @@ namespace Kabomu.Concurrency
         /// Schedules a callback to execute after those currently awaiting execution if not cancelled.
         /// </summary>
         /// <param name="cb">the callback to execute soon</param>
-        /// <returns>Pair of a task which can be used to wait for the execution to complete, and an object
-        /// which can be passed to <see cref="ClearImmediate"/> to cancel the execution and cause 
-        /// the returned task to never complete.</returns>
+        /// <returns>a cancellation handle  which can be passed to <see cref="ClearImmediate"/> to cancel the execution and cause 
+        /// the callback to never run.</returns>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>
-        public Tuple<Task, object> SetImmediate(Func<Task> cb)
+        public object SetImmediate(Action cb)
         {
-            return SetImmediate(new CancellationTokenSource(), cb);
-        }
-
-        private Tuple<Task, object> SetImmediate(CancellationTokenSource cancellationHandle, Func<Task> cb)
-        {
-            if (cb == null)
-            {
-                throw new ArgumentException("null cb");
-            }
-            var tcs = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            Func<Task> cbWrapper = async () =>
-            {
-                if (cancellationHandle.IsCancellationRequested)
-                {
-                    return;
-                }
-                await ProcessCallback(cb, tcs);
-            };
-            PostCallback(Task.CompletedTask, cbWrapper, null);
-            return Tuple.Create<Task, object>(tcs.Task, 
-                new SetImmediateCancellationHandleWrapper(cancellationHandle));
-        }
-
-        private async Task ProcessCallback(Func<Task> cb, TaskCompletionSource<object> tcs)
-        {
-            Task outcome;
-            try
-            {
-                _postCallbackExecutionThread = Thread.CurrentThread;
-                outcome = cb.Invoke();
-            }
-            catch (Exception e)
-            {
-                tcs.SetException(e);
-                return;
-            }
-            finally
-            {
-                _postCallbackExecutionThread = null;
-            }
-            try
-            {
-                await outcome;
-                tcs.SetResult(null);
-            }
-            catch (Exception e)
-            {
-                tcs.SetException(e);
-            }
-        }
-
-        /// <summary>
-        /// Schedules a callback to execute after a given time period if not cancelled.
-        /// </summary>
-        /// <param name="millis">wait time period before execution in milliseconds.</param>
-        /// <param name="cb">the callback to execute after some time</param>
-        /// <returns>Pair of a task which can be used to wait for the execution to complete, and an object
-        /// which can be passed to <see cref="ClearTimeout"/> to cancel the execution and cause 
-        /// the returned task to never complete.</returns>
-        /// <exception cref="T:System.ArgumentException">The <paramref name="millis"/> argument is negative.</exception>
-        /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>
-        public Tuple<Task, object> SetTimeout(int millis, Func<Task> cb)
-        {
-            if (millis < 0)
-            {
-                throw new ArgumentException("negative timeout value: " + millis);
-            }
             if (cb == null)
             {
                 throw new ArgumentNullException(nameof(cb));
             }
             var cancellationHandle = new CancellationTokenSource();
-            var task = Task.Delay(millis, cancellationHandle.Token).ContinueWith(t =>
+            SetImmediate(cancellationHandle, cb);
+            return new SetImmediateCancellationHandle
             {
-                return SetImmediate(cancellationHandle, cb).Item1;
-            }).Unwrap();
-            return Tuple.Create<Task, object>(task,
-                new SetTimeoutCancellationHandleWrapper(cancellationHandle));
+                Cts = cancellationHandle
+            };
         }
 
+        /// <summary>
+        /// Used to cancel the execution of a callback scheduled with <see cref="SetImmediate(Action)"/>.
+        /// </summary>
+        /// <param name="immediateHandle">cancellation handle returned from <see cref="SetImmediate(Action)"/>. 
+        /// No exception is thrown if handle is invalid or if callback execution has already been cancelled.</param>
+        public void ClearImmediate(object immediateHandle)
+        {
+            if (immediateHandle is SetImmediateCancellationHandle w)
+            {
+                w.Cts.Cancel();
+            }
+        }
+
+        /// <summary>
+        /// Schedules a callback to execute after those scheduled to execute at a given time period if not cancelled.
+        /// </summary>
+        /// <param name="cb">the callback to execute</param>
+        /// <param name="millis">wait time period before execution in milliseconds.</param>
+        /// <returns>a cancellation handle object which can be passed to <see cref="ClearTimeout"/>
+        /// to cancel the execution and cause the callback to never run.</returns>
+        /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>
+        /// <exception cref="T:System.ArgumentException">The <paramref name="millis"/> argument is negative.</exception>
+        public object SetTimeout(Action cb, int millis)
+        {
+            if (cb == null)
+            {
+                throw new ArgumentNullException(nameof(cb));
+            }
+            if (millis < 0)
+            {
+                throw new ArgumentException("negative timeout value: " + millis);
+            }
+            var cancellationHandle = new CancellationTokenSource();
+            Task.Delay(millis, cancellationHandle.Token).ContinueWith(_ =>
+            {
+                SetImmediate(cancellationHandle, cb);
+            });
+            return new SetTimeoutCancellationHandle
+            {
+                Cts = cancellationHandle
+            };
+        }
+
+        /// <summary>
+        /// Used to cancel the execution of a callback scheduled with <see cref="SetTimeout"/>.
+        /// </summary>
+        /// <param name="timeoutHandle">cancellation handle returned from <see cref="SetTimeout"/>
+        /// No exception is thrown if handle is invalid or if callback execution has already been cancelled.</param>
+        public void ClearTimeout(object timeoutHandle)
+        {
+            if (timeoutHandle is SetTimeoutCancellationHandle w)
+            {
+                w.Cts.Cancel();
+            }
+        }
+
+        private void SetImmediate(CancellationTokenSource cancellationHandle, Action cb)
+        {
+            Task.Factory.StartNew(() =>
+            {
+                if (cancellationHandle.IsCancellationRequested)
+                {
+                    return;
+                }
+                try
+                {
+                    _postCallbackExecutionThread = Thread.CurrentThread;
+                    cb.Invoke();
+                }
+                finally
+                {
+                    _postCallbackExecutionThread = null;
+                }
+            }, cancellationHandle.Token, TaskCreationOptions.None, _throttledTaskScheduler);
+        }
+
+        /// <summary>
+        /// Reserved for future reference in implementing promise APIs. This function is the equivalent of
+        /// "then" function of NodeJS promises which takes onFulfilled and onRejected callbacks.
+        /// </summary>
+        /// <param name="antecedent"></param>
+        /// <param name="successCallback"></param>
+        /// <param name="failureCallback"></param>
+        /// <returns></returns>
         private Task PostCallback(Task antecedent, Func<Task> successCallback,
             Func<Exception, Task> failureCallback)
         {
@@ -221,52 +235,14 @@ namespace Kabomu.Concurrency
             }
         }
 
-        /// <summary>
-        /// Used to cancel the execution of a callback scheduled with <see cref="SetImmediate(Func{Task})"/>.
-        /// </summary>
-        /// <param name="immediateHandle">cancellation handle. Should be the second item in the pair
-        /// returned by <see cref="SetImmediate(Func{Task})"/>. No exception is thrown if handle is invalid or
-        /// callback execution has already been cancelled.</param>
-        public void ClearImmediate(object immediateHandle)
+        private class SetImmediateCancellationHandle
         {
-            if (immediateHandle is SetImmediateCancellationHandleWrapper w)
-            {
-                w.Cts.Cancel();
-            }
+            public CancellationTokenSource Cts { get; set; }
         }
 
-        /// <summary>
-        /// Used to cancel the execution of a callback scheduled with <see cref="SetTimeout"/>.
-        /// </summary>
-        /// <param name="timeoutHandle">cancellation handle. Should be the second item in the pair
-        /// returned by <see cref="SetTimeout"/>. No exception is thrown if handle is invalid or
-        /// callback execution has already been cancelled.</param>
-        public void ClearTimeout(object timeoutHandle)
+        private class SetTimeoutCancellationHandle
         {
-            if (timeoutHandle is SetTimeoutCancellationHandleWrapper w)
-            {
-                w.Cts.Cancel();
-            }
-        }
-
-        private struct SetImmediateCancellationHandleWrapper
-        {
-            public CancellationTokenSource Cts;
-
-            public SetImmediateCancellationHandleWrapper(CancellationTokenSource cts)
-            {
-                Cts = cts;
-            }
-        }
-
-        private struct SetTimeoutCancellationHandleWrapper
-        {
-            public CancellationTokenSource Cts;
-
-            public SetTimeoutCancellationHandleWrapper(CancellationTokenSource cts)
-            {
-                Cts = cts;
-            }
+            public CancellationTokenSource Cts { get; set; }
         }
     }
 }

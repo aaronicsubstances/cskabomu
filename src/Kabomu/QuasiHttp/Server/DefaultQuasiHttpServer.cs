@@ -272,7 +272,7 @@ namespace Kabomu.QuasiHttp.Server
                 {
                     throw new MissingDependencyException("timer api");
                 }
-                await timerApi.SetTimeout(resetTimeMillis, () => Reset(null)).Item1;
+                await timerApi.WhenSetTimeout(() => Reset(null), resetTimeMillis).Item1;
             }
             else
             {
@@ -318,10 +318,10 @@ namespace Kabomu.QuasiHttp.Server
             {
                 throw new MissingDependencyException("timer api");
             }
-            transfer.TimeoutId = timer.SetTimeout(transfer.TimeoutMillis, async () =>
+            transfer.TimeoutId = timer.WhenSetTimeout(async () =>
             {
                 await AbortTransfer(transfer, new Exception("receive timeout"), null);
-            }).Item2;
+            }, transfer.TimeoutMillis).Item2;
         }
 
         private async Task AbortTransfer(ReceiveTransferInternal transfer, Exception cancellationError,

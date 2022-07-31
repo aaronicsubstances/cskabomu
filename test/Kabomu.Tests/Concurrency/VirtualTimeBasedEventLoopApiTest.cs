@@ -20,30 +20,42 @@ namespace Kabomu.Tests.Concurrency
         }
 
         [Fact]
-        public async Task TestRunExclusively()
+        public async Task TestRunExclusivelyAndCurrentTimestamp()
         {
             // arrange.
             var instance = new VirtualTimeBasedEventLoopApi();
-            var expected = false;
 
+            await instance.AdvanceTimeBy(1);
+            Assert.Equal(1, instance.CurrentTimestamp);
+            await instance.AdvanceTimeBy(4);
+            Assert.Equal(5, instance.CurrentTimestamp);
+
+            var expected = false;
             var tcs = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             instance.RunExclusively(() =>
             {
-                Assert.Equal(0, instance.CurrentTimestamp);
+                Assert.Equal(5, instance.CurrentTimestamp);
                 tcs.SetResult(instance.IsInterimEventLoopThread);
             });
 
             var maxPendingEventCount = instance.PendingEventCount;
 
             // act.
-            await instance.AdvanceTimeBy(0);
+            Assert.Equal(1, instance.PendingEventCount);
+            await instance.AdvanceTimeBy(5);
+            Assert.Equal(10, instance.CurrentTimestamp);
+            Assert.Equal(0, instance.PendingEventCount);
 
             // assert.
             var actual = await tcs.Task;
             Assert.Equal(0, instance.PendingEventCount);
             Assert.Equal(1, maxPendingEventCount);
             Assert.Equal(expected, actual);
+
+            await instance.AdvanceTimeBy(40);
+            Assert.Equal(50, instance.CurrentTimestamp);
+            Assert.Equal(0, instance.PendingEventCount);
         }
 
         [Fact]
@@ -69,14 +81,14 @@ namespace Kabomu.Tests.Concurrency
                 };
 
                 var related = new List<Task>();
-                var result = instance.SetImmediate(cb);
+                var result = instance.WhenSetImmediate(cb);
                 related.Add(result.Item1);
                 cancellationHandles.Add(result.Item2);
 
                 // the rest should not execute.
                 for (int j = 0; j < 2; j++)
                 {
-                    result = instance.SetImmediate(async () =>
+                    result = instance.WhenSetImmediate(async () =>
                     {
                         await cb.Invoke();
                     });
@@ -87,7 +99,7 @@ namespace Kabomu.Tests.Concurrency
             }
 
             // this must finish executing after all previous tasks have executed.
-            var lastOne = instance.SetImmediate(() => Task.CompletedTask).Item1;
+            var lastOne = instance.WhenSetImmediate(() => Task.CompletedTask).Item1;
 
             var maxPendingEventCount = instance.PendingEventCount;
 
@@ -144,14 +156,14 @@ namespace Kabomu.Tests.Concurrency
                 };
 
                 var related = new List<Task>();
-                var result = instance.SetTimeout(timeoutValue, cb);
+                var result = instance.WhenSetTimeout(cb, timeoutValue);
                 related.Add(result.Item1);
                 cancellationHandles.Add(result.Item2);
 
                 // the rest should not execute.
                 for (int j = 0; j < 2; j++)
                 {
-                    result = instance.SetTimeout(timeoutValue, cb);
+                    result = instance.WhenSetTimeout(cb, timeoutValue);
                     related.Add(result.Item1);
                     cancellationHandles.Add(result.Item2);
                 }
@@ -159,7 +171,7 @@ namespace Kabomu.Tests.Concurrency
             }
 
             // this must finish executing after all previous tasks have executed.
-            var lastOne = instance.SetTimeout(5000, () => Task.CompletedTask).Item1;
+            var lastOne = instance.WhenSetTimeout(() => Task.CompletedTask, 5000).Item1;
 
             var maxPendingEventCount = instance.PendingEventCount; 
 
@@ -199,44 +211,19 @@ namespace Kabomu.Tests.Concurrency
             var instance = new VirtualTimeBasedEventLoopApi();
             var tcs = new TaskCompletionSource<object>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var laterTask = instance.SetTimeout(1800, () =>
+            var laterTask = instance.WhenSetTimeout(() =>
             {
                 tcs.SetResult(null);
                 return Task.CompletedTask;
-            }).Item1;
-            var dependentTask = instance.SetTimeout(500, async () =>
+            }, 1800).Item1;
+            var dependentTask = instance.WhenSetTimeout(async () =>
             {
                 await tcs.Task;
-            }).Item1;
+            }, 500).Item1;
 
             // act
             await instance.AdvanceTimeTo(2_000);
             
-            // assert completion.
-            await dependentTask;
-            await laterTask;
-        }
-
-        [Fact]
-        public async Task TestAdvanceTimeIndefinitely()
-        {
-            // arrange.
-            var instance = new VirtualTimeBasedEventLoopApi();
-            var tcs = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var laterTask = instance.SetTimeout(1800, () =>
-            {
-                tcs.SetResult(null);
-                return Task.CompletedTask;
-            }).Item1;
-            var dependentTask = instance.SetTimeout(500, async () =>
-            {
-                await tcs.Task;
-            }).Item1;
-
-            // act
-            await instance.AdvanceTimeIndefinitely();
-
             // assert completion.
             await dependentTask;
             await laterTask;
