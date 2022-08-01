@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.MemoryBasedTransport;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared;
 using System;
@@ -27,11 +28,20 @@ namespace Kabomu.Tests.MemoryBasedTransport
             };
             var qHttpRequest = new DefaultQuasiHttpRequest();
 
-            // test for errors if server is absent fom hub.
+            // test for errors if server is absent fom hub or found to be null.
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
                 instance.AllocateConnection("kl", validConnectivityParams));
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
                 instance.ProcessSendRequest("kl", validConnectivityParams, qHttpRequest));
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+            {
+                var externalServers = new Dictionary<object, IQuasiHttpServer>
+                {
+                    { serverEndpoint, null }
+                };
+                var instanceWithExternalServers = new DefaultMemoryBasedTransportHub(externalServers);
+                return instanceWithExternalServers.ProcessSendRequest(serverEndpoint, validConnectivityParams, qHttpRequest);
+            });
 
             await instance.AddServer(serverEndpoint, server);
             await Assert.ThrowsAsync<ArgumentException>(() =>
