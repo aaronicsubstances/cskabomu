@@ -259,10 +259,10 @@ namespace Kabomu.QuasiHttp.Client
             {
                 throw new MissingDependencyException("timer api");
             }
-            transfer.TimeoutId = timer.SetTimeout(transfer.TimeoutMillis, async () =>
+            transfer.TimeoutId = timer.WhenSetTimeout(async () =>
             {
                 await AbortTransfer(transfer, new Exception("send timeout"), null);
-            }).Item2;
+            }, transfer.TimeoutMillis).Item2;
         }
 
         private async Task AbortTransfer(SendTransferInternal transfer, Exception cancellationError,
