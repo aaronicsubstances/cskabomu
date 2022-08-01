@@ -30,8 +30,8 @@ namespace Kabomu.Concurrency
         /// Equivalent to setImmediate() in NodeJS
         /// </summary>
         /// <param name="cb">callback to run</param>
-        /// <returns>handles which can be used to either wait for immediate execution, or cancel immediate execution request</returns>
-        Tuple<Task, object> SetImmediate(Func<Task> cb);
+        /// <returns>handle which can be used to cancel immediate execution request</returns>
+        object SetImmediate(Action cb);
 
         /// <summary>
         /// Equivalent to clearImmediate() in NodeJs

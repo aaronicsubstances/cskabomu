@@ -20,6 +20,18 @@ namespace Kabomu.Tests.Concurrency
         }
 
         [Fact]
+        public void TestForErrors()
+        {
+            var instance = new DefaultEventLoopApi();
+            Assert.Throws<ArgumentNullException>(() =>
+                instance.SetImmediate(null));
+            Assert.Throws<ArgumentNullException>(() =>
+                instance.SetTimeout(null, 0));
+            Assert.Throws<ArgumentException>(() =>
+                instance.SetTimeout(() => { }, -1));
+        }
+
+        [Fact]
         public async Task TestRunExclusively()
         {
             // arrange.
@@ -39,7 +51,7 @@ namespace Kabomu.Tests.Concurrency
         }
 
         [Fact]
-        public Task TestSetImmediate()
+        public Task TestWhenSetImmediate()
         {
             // arrange.
             var instance = new DefaultEventLoopApi();
@@ -59,16 +71,16 @@ namespace Kabomu.Tests.Concurrency
                     actual.Add("" + capturedIndex + instance.IsInterimEventLoopThread);
                     return Task.FromResult(capturedIndex);
                 };
-                instance.SetImmediate(() =>
+                instance.WhenSetImmediate(() =>
                 {
-                    var result = instance.SetImmediate(cb);
+                    var result = instance.WhenSetImmediate(cb);
                     cancellationHandles.Add(result.Item2);
 
                     // the rest should not execute.
-                    result = instance.SetImmediate(cb);
+                    result = instance.WhenSetImmediate(cb);
                     cancelledTasks.Add(result.Item1);
                     cancellationHandles.Add(result.Item2);
-                    result = instance.SetImmediate(async () =>
+                    result = instance.WhenSetImmediate(async () =>
                     {
                         await cb.Invoke();
                     });
@@ -83,9 +95,9 @@ namespace Kabomu.Tests.Concurrency
             // this must run after all previous callbacks have run.
             // due to how the actual additions are done by a nested setImmediate call,
             // we have to wrap our assertions inside a nested setImmediate as well.
-            return instance.SetImmediate(() =>
+            return instance.WhenSetImmediate(() =>
             {
-                return instance.SetImmediate(() =>
+                return instance.WhenSetImmediate(() =>
                 {
                     // check cancellations
                     foreach (var t in cancelledTasks)
@@ -101,7 +113,7 @@ namespace Kabomu.Tests.Concurrency
         }
 
         [Fact]
-        public async Task TestSetTimeout()
+        public async Task TestWhenSetTimeout()
         {
             // arrange.
             var instance = new DefaultEventLoopApi();
@@ -123,16 +135,16 @@ namespace Kabomu.Tests.Concurrency
                 };
                 // Since it is not deterministic as to which call to setTimeout will execute first,
                 // race multiple tasks with cancellation.
-                // NB: depends on correct working of setImmediate
+                // NB: DEPENDS ON CORRECT WORKING OF "SETIMMEDIATE"
                 // Also 50 ms is more than enough to distinguish callback firing times
                 // on the common operating systems (15ms max on Windows, 10ms max on Linux).
                 int timeoutValue = 2500 - 50 * i;
-                instance.SetImmediate(() =>
+                instance.WhenSetImmediate(() =>
                 {
                     var related = new List<Task>();
                     for (int i = 0; i < 3; i++)
                     {
-                        var result = instance.SetTimeout(timeoutValue, cb);
+                        var result = instance.WhenSetTimeout(cb, timeoutValue);
                         related.Add(result.Item1);
                         cancellationHandles.Add(result.Item2);
                     }
@@ -143,7 +155,7 @@ namespace Kabomu.Tests.Concurrency
 
             // this should finish executing after all previous tasks have executed.
             var starTime = DateTime.Now;
-            await instance.SetTimeout(3000, () => Task.CompletedTask).Item1;
+            await instance.WhenSetTimeout(() => Task.CompletedTask, 3000).Item1;
             var overallTimeTakenMs = (DateTime.Now - starTime).TotalMilliseconds;
 
             // assert
@@ -177,19 +189,26 @@ namespace Kabomu.Tests.Concurrency
             var instance = new DefaultEventLoopApi();
             var tcs = new TaskCompletionSource<object>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var laterTask = instance.SetTimeout(1800, () =>
+            var laterTask = instance.WhenSetTimeout(() =>
             {
                 tcs.SetResult(null);
                 return Task.CompletedTask;
-            }).Item1;
-            var dependentTask = instance.SetTimeout(500, async () =>
+            }, 1800).Item1;
+            var dependentTask = instance.WhenSetTimeout(async () =>
             {
                 await tcs.Task;
-            }).Item1;
+            }, 500).Item1;
 
             // act and assert completion.
             await dependentTask;
             await laterTask;
+        }
+
+        [Fact]
+        public Task TestCancellationNonInterference()
+        {
+            var instance = new DefaultEventLoopApi();
+            return ConcurrencyExtensionsTest.TestRealTimeBasedEventLoopCancellationNonInterference(instance);
         }
     }
 }

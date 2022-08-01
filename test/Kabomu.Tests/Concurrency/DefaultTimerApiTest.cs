@@ -10,29 +10,39 @@ namespace Kabomu.Tests.Concurrency
     public class DefaultTimerApiTest
     {
         [Fact]
-        public async Task TestSetTimeout()
+        public void TestForErrors()
+        {
+            var instance = new DefaultTimerApi();
+            Assert.Throws<ArgumentNullException>(() =>
+                instance.SetTimeout(null, 0));
+            Assert.Throws<ArgumentException>(() =>
+                instance.SetTimeout(() => { }, -1));
+        }
+
+        [Fact]
+        public async Task TestWhenSetTimeout()
         {
             // arrange
             var instance = new DefaultTimerApi();
             var expected = new List<int> { 3, 2 };
             var actual = new List<int>();
 
-            var timeout1Result = instance.SetTimeout(3200, () =>
+            var timeout1Result = instance.WhenSetTimeout(() =>
             {
                 actual.Add(1);
                 return Task.CompletedTask;
-            });
-            var timeout2Result = instance.SetTimeout(3000, () =>
+            }, 3200);
+            var timeout2Result = instance.WhenSetTimeout(() =>
             {
                 actual.Add(2);
                 instance.ClearTimeout(timeout1Result.Item2);
                 return Task.CompletedTask;
-            });
-            var timeout3Result = instance.SetTimeout(2000, () =>
+            }, 3000);
+            var timeout3Result = instance.WhenSetTimeout(() =>
             {
                 actual.Add(3);
                 return Task.CompletedTask;
-            });
+            }, 2000);
 
             // act.
             var starTime = DateTime.Now;
@@ -56,19 +66,26 @@ namespace Kabomu.Tests.Concurrency
             var instance = new DefaultTimerApi();
             var tcs = new TaskCompletionSource<object>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var laterTask = instance.SetTimeout(1800, () =>
+            var laterTask = instance.WhenSetTimeout(() =>
             {
                 tcs.SetResult(null);
                 return Task.CompletedTask;
-            }).Item1;
-            var dependentTask = instance.SetTimeout(500, async () =>
+            }, 1800).Item1;
+            var dependentTask = instance.WhenSetTimeout(async () =>
             {
                 await tcs.Task;
-            }).Item1;
+            }, 500).Item1;
 
             // act and assert completion.
             await dependentTask;
             await laterTask;
+        }
+
+        [Fact]
+        public Task TestCancellationNonInterference()
+        {
+            var instance = new DefaultTimerApi();
+            return ConcurrencyExtensionsTest.TestRealTimeBasedTimerCancellationNonInterference(instance);
         }
     }
 }
