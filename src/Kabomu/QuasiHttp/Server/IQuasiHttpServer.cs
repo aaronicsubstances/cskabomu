@@ -15,6 +15,7 @@ namespace Kabomu.QuasiHttp.Server
         IQuasiHttpApplication Application { get; set; }
         IQuasiHttpServerTransport Transport { get; set; }
         IMutexApi MutexApi { get; set; }
+        ITimerApi TimerApi { get; set; }
         Task Start();
         Task Stop(int resetTimeMillis);
         Task Reset(Exception cause);

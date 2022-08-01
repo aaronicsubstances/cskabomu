@@ -15,6 +15,7 @@ namespace Kabomu.QuasiHttp.Client
         double TransportBypassProbabilty { get; set; }
         double ResponseStreamingProbabilty { get; set; }
         IMutexApi MutexApi { get; set; }
+        ITimerApi TimerApi { get; set; }
         Task Reset(Exception cause);
         Task<IQuasiHttpResponse> Send(object remoteEndpoint, IQuasiHttpRequest request,
             IQuasiHttpSendOptions options);
