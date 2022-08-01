@@ -19,47 +19,348 @@ namespace Kabomu.Tests.Concurrency
             _outputHelper = outputHelper;
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public async Task TestAdvance(bool callAdvanceBy)
+        {
+            var instance = new VirtualTimeBasedEventLoopApi
+            {
+                MaxCallbackAsyncContinuationCount = 0
+            };
+            Assert.Equal(0, instance.CurrentTimestamp);
+
+            var callbackLogs = new List<string>();
+
+            await AdvanceLoop(instance, callAdvanceBy, 10);
+            Assert.Equal(10, instance.CurrentTimestamp);
+            Assert.Empty(callbackLogs);
+
+            instance.SetImmediate(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:cac4e224-15b6-45af-8df4-0a4d43b2ae05"));
+            instance.SetImmediate(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:757d903d-376f-4e5f-accf-371fd5f06c3d"));
+            instance.SetImmediate(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:245bd145-a538-49b8-b7c8-733f77e5d245"));
+
+            await AdvanceLoop(instance, callAdvanceBy, 0);
+            Assert.Equal(10, instance.CurrentTimestamp);
+            Assert.Equal(new List<string>
+            {
+                "10:cac4e224-15b6-45af-8df4-0a4d43b2ae05",
+                "10:757d903d-376f-4e5f-accf-371fd5f06c3d",
+                "10:245bd145-a538-49b8-b7c8-733f77e5d245"
+            }, callbackLogs);
+
+            callbackLogs.Clear();
+            await AdvanceLoop(instance, callAdvanceBy, 0);
+            Assert.Equal(10, instance.CurrentTimestamp);
+            Assert.Empty(callbackLogs);
+
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:3978252e-188f-4f03-96e2-8036f13dfae2"), 5);
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:e1e039a0-c83a-43da-8f29-81725eb7147f"), 6);
+            var testTimeoutId = instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:ebf9dd1d-7157-420a-ac16-00a3fde9bf4e"), 11);
+            Assert.NotNull(testTimeoutId);
+
+            await AdvanceLoop(instance, callAdvanceBy, 4);
+            Assert.Equal(14, instance.CurrentTimestamp);
+            Assert.Empty(callbackLogs);
+
+            await AdvanceLoop(instance, callAdvanceBy, 1);
+            Assert.Equal(15, instance.CurrentTimestamp);
+            Assert.Equal(new List<string>
+            {
+                "15:3978252e-188f-4f03-96e2-8036f13dfae2"
+            }, callbackLogs);
+
+            callbackLogs.Clear();
+            await AdvanceLoop(instance, callAdvanceBy, 1);
+            Assert.Equal(16, instance.CurrentTimestamp);
+            Assert.Equal(new List<string>
+            {
+                "16:e1e039a0-c83a-43da-8f29-81725eb7147f"
+            }, callbackLogs);
+
+            callbackLogs.Clear();
+            await AdvanceLoop(instance, callAdvanceBy, 4);
+            Assert.Equal(20, instance.CurrentTimestamp);
+            Assert.Empty(callbackLogs);
+
+            instance.ClearTimeout(testTimeoutId);
+            // test repeated cancellation of same id doesn't cause problems.
+            instance.ClearTimeout(testTimeoutId);
+
+            instance.SetImmediate(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:6d3a5586-b81d-4ca5-880b-2b711881a14e"));
+            testTimeoutId = instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:8722d9a6-a7d4-47fe-a6d4-eee624fb0740"), 3);
+            Assert.NotNull(testTimeoutId);
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:2f7deeb1-f857-4f29-82de-b4168133f093"), 4);
+            var testTimeoutId2 = instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:42989f22-a6d1-48ff-a554-86f79e87321e"), 3);
+            Assert.NotNull(testTimeoutId2);
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:9b463fec-6a9c-44cc-8165-e106080b18fc"), 0);
+            var testImmediateId = instance.SetImmediate(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:56805433-1f02-4327-b190-50862c0ba93e"));
+            Assert.NotNull(testImmediateId);
+
+            Assert.Empty(callbackLogs);
+
+            // check whether wrong cancellation call will be ignored.
+            instance.ClearTimeout(testImmediateId);
+
+            await AdvanceLoop(instance, callAdvanceBy, 2);
+            Assert.Equal(new List<string>
+            {
+                "20:6d3a5586-b81d-4ca5-880b-2b711881a14e",
+                "20:9b463fec-6a9c-44cc-8165-e106080b18fc",
+                "20:56805433-1f02-4327-b190-50862c0ba93e"
+            }, callbackLogs);
+
+            callbackLogs.Clear();
+            instance.ClearTimeout(testTimeoutId);
+            await AdvanceLoop(instance, callAdvanceBy, 3);
+            Assert.Equal(25, instance.CurrentTimestamp);
+            Assert.Equal(new List<string>
+            {
+                "23:42989f22-a6d1-48ff-a554-86f79e87321e",
+                "24:2f7deeb1-f857-4f29-82de-b4168133f093",
+            }, callbackLogs);
+
+            callbackLogs.Clear();
+            instance.ClearTimeout(testTimeoutId);
+
+            instance.SetImmediate(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:6d3a5586-b81d-4ca5-880b-2b711881a14e"));
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:8722d9a6-a7d4-47fe-a6d4-eee624fb0740"), 3);
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:2f7deeb1-f857-4f29-82de-b4168133f093"), 4);
+            testTimeoutId = instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:42989f22-a6d1-48ff-a554-86f79e87321e"), 3);
+            Assert.NotNull(testTimeoutId);
+
+            // check whether wrong cancellation call will be ignored.
+            instance.ClearImmediate(testTimeoutId);
+
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:9b463fec-6a9c-44cc-8165-e106080b18fc"), 0);
+            instance.SetImmediate(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:56805433-1f02-4327-b190-50862c0ba93e"));
+            testImmediateId = instance.SetImmediate(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:5f08ae56-f596-4703-a9ab-3a66c6c29c07"));
+            Assert.Empty(callbackLogs);
+
+            Assert.Equal(7, instance.PendingEventCount);
+            instance.ClearImmediate(testImmediateId);
+            Assert.Equal(6, instance.PendingEventCount);
+
+            await AdvanceLoop(instance, callAdvanceBy, 5);
+            Assert.Equal(30, instance.CurrentTimestamp);
+            Assert.Equal(new List<string>
+            {
+                "25:6d3a5586-b81d-4ca5-880b-2b711881a14e",
+                "25:9b463fec-6a9c-44cc-8165-e106080b18fc",
+                "25:56805433-1f02-4327-b190-50862c0ba93e",
+                "28:8722d9a6-a7d4-47fe-a6d4-eee624fb0740",
+                "28:42989f22-a6d1-48ff-a554-86f79e87321e",
+                "29:2f7deeb1-f857-4f29-82de-b4168133f093"
+            }, callbackLogs);
+
+            callbackLogs.Clear();
+            instance.ClearImmediate(testImmediateId); // test already used immediate cancellation isn't a problem.
+            instance.ClearTimeout(testTimeoutId); // test already used timeout cancellation isn't a problem.
+            instance.ClearTimeout(testTimeoutId2);  // test already used timeout isn't a problem.
+            instance.ClearTimeout(null);  // test unexpected doesn't cause problems.
+            instance.ClearImmediate(null);
+            instance.ClearTimeout("jal");  // test unexpected doesn't cause problems.
+            instance.ClearImmediate(3);
+
+            await AdvanceLoop(instance, callAdvanceBy, 5);
+            Assert.Equal(35, instance.CurrentTimestamp);
+            Assert.Empty(callbackLogs);
+
+            Assert.Equal(0, instance.PendingEventCount);
+        }
+
+        private Task AdvanceLoop(VirtualTimeBasedEventLoopApi instance, bool callAdvanceBy, int delay)
+        {
+            if (callAdvanceBy)
+            {
+                return instance.AdvanceTimeBy(delay);
+            }
+            else
+            {
+                return instance.AdvanceTimeTo(instance.CurrentTimestamp + delay);
+            }
+        }
+
         [Fact]
-        public async Task TestRunExclusivelyAndCurrentTimestamp()
+        public async Task TestNestedCallbackPosts()
+        {
+            var instance = new VirtualTimeBasedEventLoopApi
+            {
+                MaxCallbackAsyncContinuationCount = 0
+            };
+
+            Assert.Equal(0, instance.CurrentTimestamp);
+
+            var callbackLogs = new List<string>();
+
+            instance.SetImmediate(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:cac4e224-15b6-45af-8df4-0a4d43b2ae05"));
+            instance.SetImmediate(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:757d903d-376f-4e5f-accf-371fd5f06c3d"));
+            instance.SetImmediate(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:245bd145-a538-49b8-b7c8-733f77e5d245"));
+
+            await instance.AdvanceTimeBy(0);
+            Assert.Equal(0, instance.CurrentTimestamp);
+            Assert.Equal(new List<string>
+            {
+                "0:cac4e224-15b6-45af-8df4-0a4d43b2ae05",
+                "0:757d903d-376f-4e5f-accf-371fd5f06c3d",
+                "0:245bd145-a538-49b8-b7c8-733f77e5d245"
+            }, callbackLogs);
+
+            callbackLogs.Clear();
+            await instance.AdvanceTimeBy(0);
+            Assert.Equal(0, instance.CurrentTimestamp);
+            Assert.Empty(callbackLogs);
+
+            instance.SetTimeout(() =>
+            {
+                callbackLogs.Add($"{instance.CurrentTimestamp}:3978252e-188f-4f03-96e2-8036f13dfae2");
+                instance.SetTimeout(() =>
+                    callbackLogs.Add($"{instance.CurrentTimestamp}:240fbcc0-9930-4e96-9b62-356458ee0a9f"), 4);
+            }, 5);
+
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:e1e039a0-c83a-43da-8f29-81725eb7147f"), 6);
+
+            // ensure async work passes equality check this time.
+            // given that instance.ImmediateExecutionRealWaitTimeMillis is 0.
+            var tcs = new TaskCompletionSource<object>();
+            Func<Task> asyncWork = async () =>
+            {
+                // wait for 5 "async runs": equivalent to immediate calls in NodeJS,
+                // more generally like starting and joining 5 threads sequentially.
+                for (int i = 0; i < 5; i++)
+                {
+                    await Task.Run(() => { });
+                }
+                callbackLogs.Add($"{instance.CurrentTimestamp}:ebf9dd1d-7157-420a-ac16-00a3fde9bf4e");
+                tcs.SetResult(null);
+            };
+            instance.SetTimeout(() =>
+            {
+                _ = asyncWork.Invoke();
+            }, 11);
+
+            await instance.AdvanceTimeTo(14);
+            Assert.Equal(14, instance.CurrentTimestamp);
+
+            await tcs.Task;
+            Assert.Equal(0, instance.PendingEventCount);
+            // check that all but last log is as expected.
+            Assert.Equal(new List<string>
+            {
+                "5:3978252e-188f-4f03-96e2-8036f13dfae2",
+                "6:e1e039a0-c83a-43da-8f29-81725eb7147f",
+                "9:240fbcc0-9930-4e96-9b62-356458ee0a9f"
+            }, callbackLogs.GetRange(0, 3));
+            Assert.NotEqual("11:ebf9dd1d-7157-420a-ac16-00a3fde9bf4e", callbackLogs[3]);
+
+            callbackLogs.Clear();
+            await instance.AdvanceTimeTo(4); // test backward movement of time.
+            Assert.Equal(4, instance.CurrentTimestamp);
+            Assert.Empty(callbackLogs);
+
+            // ensure async work passes equality check this time.
+            instance.MaxCallbackAsyncContinuationCount = 100;
+            asyncWork = async () =>
+            {
+                // wait for 5 "async runs": equivalent to immediate calls in NodeJS,
+                // more generally like starting and joining 5 threads sequentially.
+                for (int i = 0; i < 5; i++)
+                {
+                    await Task.Run(() => { });
+                }
+                callbackLogs.Add($"{instance.CurrentTimestamp}:c74feb30-7e58-4e47-956b-f4ce5f3fc32c");
+                instance.SetTimeout(() =>
+                    callbackLogs.Add($"{instance.CurrentTimestamp}:b180111d-3179-4c50-9006-4a7591f05640"), 7);
+            };
+            instance.SetTimeout(() =>
+            {
+                _ = asyncWork.Invoke();
+            }, 3);
+
+            await instance.AdvanceTimeTo(20);
+            Assert.Equal(new List<string>
+            {
+                "7:c74feb30-7e58-4e47-956b-f4ce5f3fc32c",
+                "14:b180111d-3179-4c50-9006-4a7591f05640"
+            }, callbackLogs);
+            Assert.Equal(0, instance.PendingEventCount);
+
+            callbackLogs.Clear();
+            await instance.AdvanceTimeTo(0);
+            Assert.Equal(0, instance.CurrentTimestamp);
+            Assert.Empty(callbackLogs);
+
+            Assert.Equal(0, instance.PendingEventCount);
+        }
+
+        [Fact]
+        public async Task TestForErrors()
+        {
+            var instance = new VirtualTimeBasedEventLoopApi();
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                instance.AdvanceTimeBy(-1));
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                instance.AdvanceTimeTo(-1));
+            Assert.Throws<ArgumentNullException>(() =>
+                instance.SetImmediate(null));
+            Assert.Throws<ArgumentNullException>(() =>
+                instance.SetTimeout(null, 0));
+            Assert.Throws<ArgumentException>(() =>
+                instance.SetTimeout(() => { }, -1));
+        }
+
+        [Fact]
+        public async Task TestRunExclusively()
         {
             // arrange.
             var instance = new VirtualTimeBasedEventLoopApi();
-
-            await instance.AdvanceTimeBy(1);
-            Assert.Equal(1, instance.CurrentTimestamp);
-            await instance.AdvanceTimeBy(4);
-            Assert.Equal(5, instance.CurrentTimestamp);
-
             var expected = false;
+
             var tcs = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             instance.RunExclusively(() =>
             {
-                Assert.Equal(5, instance.CurrentTimestamp);
+                Assert.Equal(0, instance.CurrentTimestamp);
                 tcs.SetResult(instance.IsInterimEventLoopThread);
             });
 
             var maxPendingEventCount = instance.PendingEventCount;
 
             // act.
-            Assert.Equal(1, instance.PendingEventCount);
-            await instance.AdvanceTimeBy(5);
-            Assert.Equal(10, instance.CurrentTimestamp);
-            Assert.Equal(0, instance.PendingEventCount);
+            await instance.AdvanceTimeBy(0);
 
             // assert.
             var actual = await tcs.Task;
             Assert.Equal(0, instance.PendingEventCount);
             Assert.Equal(1, maxPendingEventCount);
             Assert.Equal(expected, actual);
-
-            await instance.AdvanceTimeBy(40);
-            Assert.Equal(50, instance.CurrentTimestamp);
-            Assert.Equal(0, instance.PendingEventCount);
         }
 
         [Fact]
-        public async Task TestSetImmediate()
+        public async Task TestWhenSetImmediate()
         {
             // arrange.
             var instance = new VirtualTimeBasedEventLoopApi();
@@ -133,7 +434,7 @@ namespace Kabomu.Tests.Concurrency
         }
 
         [Fact]
-        public async Task TestSetTimeout()
+        public async Task TestWhenSetTimeout()
         {
             // arrange.
             var instance = new VirtualTimeBasedEventLoopApi();
