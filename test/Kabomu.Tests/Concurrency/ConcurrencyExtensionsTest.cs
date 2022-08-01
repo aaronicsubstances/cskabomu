@@ -143,5 +143,89 @@ namespace Kabomu.Tests.Concurrency
             Assert.Equal(t, u);
             Assert.Equal(u, v);
         }
+
+        internal static async Task TestRealTimeBasedTimerCancellationNonInterference(ITimerApi timerApi)
+        {
+            var cbResults = 0;
+            var timeoutId1 = timerApi.SetTimeout(() =>
+            {
+                cbResults += 100;
+            }, 780);
+            timerApi.SetTimeout(() =>
+            {
+                cbResults += 10;
+            }, 99);
+            timerApi.ClearTimeout(timeoutId1);
+
+            // check for invalid calls.
+            timerApi.ClearTimeout(new object());
+            timerApi.ClearTimeout(null);
+            timerApi.ClearTimeout(6);
+
+            // check whether naive implementations which accept any native cancellation handle
+            // was used.
+            var cts = new CancellationTokenSource();
+            timerApi.ClearTimeout(cts);
+
+            await Task.Delay(1000);
+
+            // assert
+            Assert.Equal(10, cbResults);
+            Assert.False(cts.IsCancellationRequested);
+        }
+
+        internal static async Task TestRealTimeBasedEventLoopCancellationNonInterference(IEventLoopApi eventLoop)
+        {
+            var cbResults = 0;
+            var timeoutId1 = eventLoop.SetTimeout(() =>
+            {
+                cbResults += 100;
+            }, 780);
+            var timeoutId2 = eventLoop.SetTimeout(() =>
+            {
+                object immediateId1 = null;
+                eventLoop.SetImmediate(() =>
+                {
+                    cbResults += 1000;
+                    Assert.NotNull(immediateId1);
+                    eventLoop.ClearTimeout(immediateId1); // check whether wrong call will work
+                });
+                immediateId1 = eventLoop.SetImmediate(() =>
+                {
+                    cbResults += 2000;
+                    eventLoop.ClearImmediate(eventLoop.SetImmediate(() =>
+                    {
+                        cbResults += 10_000;
+                    }));
+                });
+                cbResults += 10;
+            }, 99);
+            eventLoop.ClearTimeout(timeoutId1);
+            eventLoop.ClearImmediate(timeoutId2); // check whether wrong call will work
+
+            // check for invalid calls.
+            eventLoop.ClearTimeout(new object());
+            eventLoop.ClearTimeout(null);
+            eventLoop.ClearTimeout(6);
+
+            // check for invalid calls.
+            eventLoop.ClearImmediate(new object());
+            eventLoop.ClearImmediate(null);
+            eventLoop.ClearImmediate(6);
+
+            // check whether naive implementations which accept any native cancellation handle
+            // was used.
+            var cts1 = new CancellationTokenSource();
+            eventLoop.ClearTimeout(cts1);
+            var cts2 = new CancellationTokenSource();
+            eventLoop.ClearImmediate(cts2);
+
+            await Task.Delay(1000);
+
+            // assert.
+            Assert.Equal(3010, cbResults);
+            Assert.False(cts1.IsCancellationRequested);
+            Assert.False(cts2.IsCancellationRequested);
+        }
     }
 }

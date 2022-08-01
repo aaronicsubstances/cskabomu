@@ -20,6 +20,18 @@ namespace Kabomu.Tests.Concurrency
         }
 
         [Fact]
+        public void TestForErrors()
+        {
+            var instance = new DefaultEventLoopApi();
+            Assert.Throws<ArgumentNullException>(() =>
+                instance.SetImmediate(null));
+            Assert.Throws<ArgumentNullException>(() =>
+                instance.SetTimeout(null, 0));
+            Assert.Throws<ArgumentException>(() =>
+                instance.SetTimeout(() => { }, -1));
+        }
+
+        [Fact]
         public async Task TestRunExclusively()
         {
             // arrange.
@@ -39,7 +51,7 @@ namespace Kabomu.Tests.Concurrency
         }
 
         [Fact]
-        public Task TestSetImmediate()
+        public Task TestWhenSetImmediate()
         {
             // arrange.
             var instance = new DefaultEventLoopApi();
@@ -101,7 +113,7 @@ namespace Kabomu.Tests.Concurrency
         }
 
         [Fact]
-        public async Task TestSetTimeout()
+        public async Task TestWhenSetTimeout()
         {
             // arrange.
             var instance = new DefaultEventLoopApi();
@@ -123,7 +135,7 @@ namespace Kabomu.Tests.Concurrency
                 };
                 // Since it is not deterministic as to which call to setTimeout will execute first,
                 // race multiple tasks with cancellation.
-                // NB: depends on correct working of setImmediate
+                // NB: DEPENDS ON CORRECT WORKING OF "SETIMMEDIATE"
                 // Also 50 ms is more than enough to distinguish callback firing times
                 // on the common operating systems (15ms max on Windows, 10ms max on Linux).
                 int timeoutValue = 2500 - 50 * i;
@@ -190,6 +202,13 @@ namespace Kabomu.Tests.Concurrency
             // act and assert completion.
             await dependentTask;
             await laterTask;
+        }
+
+        [Fact]
+        public Task TestCancellationNonInterference()
+        {
+            var instance = new DefaultEventLoopApi();
+            return ConcurrencyExtensionsTest.TestRealTimeBasedEventLoopCancellationNonInterference(instance);
         }
     }
 }

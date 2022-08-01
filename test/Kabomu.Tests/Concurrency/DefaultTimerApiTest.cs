@@ -10,7 +10,17 @@ namespace Kabomu.Tests.Concurrency
     public class DefaultTimerApiTest
     {
         [Fact]
-        public async Task TestSetTimeout()
+        public void TestForErrors()
+        {
+            var instance = new DefaultTimerApi();
+            Assert.Throws<ArgumentNullException>(() =>
+                instance.SetTimeout(null, 0));
+            Assert.Throws<ArgumentException>(() =>
+                instance.SetTimeout(() => { }, -1));
+        }
+
+        [Fact]
+        public async Task TestWhenSetTimeout()
         {
             // arrange
             var instance = new DefaultTimerApi();
@@ -69,6 +79,13 @@ namespace Kabomu.Tests.Concurrency
             // act and assert completion.
             await dependentTask;
             await laterTask;
+        }
+
+        [Fact]
+        public Task TestCancellationNonInterference()
+        {
+            var instance = new DefaultTimerApi();
+            return ConcurrencyExtensionsTest.TestRealTimeBasedTimerCancellationNonInterference(instance);
         }
     }
 }
