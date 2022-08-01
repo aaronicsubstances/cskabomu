@@ -23,7 +23,7 @@ namespace Kabomu.Concurrency
         /// </summary>
         public VirtualTimeBasedEventLoopApi()
         {
-            MaxCallbackAsyncContinuationCount = 100;
+            MaxCallbackAsyncContinuationCount = 1_000;
         }
 
         /// <summary>
@@ -74,7 +74,7 @@ namespace Kabomu.Concurrency
         /// Such asynchronous calls must not be dependent on real time, but rather must be equivalent to yielding of OS threads
         /// in order to be used correctly with this class.
         /// <para></para>
-        /// At construction time a default value of 100 is set, which should be left unchanged for all but advanced use cases.
+        /// At construction time a default value of 1,000 is set, which should be left unchanged for all but advanced use cases.
         public int MaxCallbackAsyncContinuationCount
         {
 
@@ -103,7 +103,7 @@ namespace Kabomu.Concurrency
         /// <remarks>
         /// Note that asynchronous continuations of each callback may run in parallel with future callback executions,
         /// unless all asynchronous continuations triggered by each callback complete within the limit
-        /// set by <see cref="MaxCallbackAsyncContinuationCount"/> property (100 by default).
+        /// set by <see cref="MaxCallbackAsyncContinuationCount"/> property (1,000 by default).
         /// </remarks>
         /// <param name="delay">the value which when added to the current virtual timestamp will result in
         /// a new value for this instance, if this call completes without interference</param>
@@ -132,7 +132,7 @@ namespace Kabomu.Concurrency
         /// <remarks>
         /// Note that asynchronous continuations of each callback may run in parallel with future callback executions,
         /// unless all asynchronous continuations triggered by each callback complete within the limit
-        /// set by <see cref="MaxCallbackAsyncContinuationCount"/> property (100 by default).
+        /// set by <see cref="MaxCallbackAsyncContinuationCount"/> property (1,000 by default).
         /// </remarks>
         /// <param name="newTimestamp">the new value of current virtual timestamp if this call completes
         /// without interference</param>
