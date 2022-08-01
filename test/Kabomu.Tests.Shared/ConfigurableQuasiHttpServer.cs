@@ -17,6 +17,7 @@ namespace Kabomu.Tests.Shared
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpServerTransport Transport { get; set; }
         public IMutexApi MutexApi { get; set; }
+        public ITimerApi TimerApi { get; set; }
         public Func<Task> StartCallback { get; set; }
         public Func<int, Task> StopCallback { get; set; }
         public Func<Exception, Task> ResetCallback { get; set; }

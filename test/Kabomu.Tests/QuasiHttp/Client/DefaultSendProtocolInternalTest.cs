@@ -44,49 +44,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 HttpMethod = expectedRequest.HttpMethod
             };
 
-            var resChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                StatusIndicatesSuccess = response.StatusIndicatesSuccess,
-                StatusIndicatesClientError = response.StatusIndicatesClientError,
-                StatusMessage = response.StatusMessage,
-                Headers = response.Headers,
-                ContentLength = response.Body?.ContentLength ?? 0,
-                ContentType = response.Body?.ContentType,
-                HttpVersion = response.HttpVersion,
-                HttpStatusCode = response.HttpStatusCode
-            };
-
-            var inputStream = new MemoryStream();
-            var serializedRes = resChunk.Serialize();
-            MiscUtils.WriteChunk(serializedRes, (data, offset, length) =>
-                inputStream.Write(data, offset, length));
-            if (responseBodyBytes != null)
-            {
-                if (response.Body.ContentLength < 0)
-                {
-                    var resBodyChunk = new SubsequentChunk
-                    {
-                        Version = LeadChunk.Version01,
-                        Data = responseBodyBytes,
-                        DataLength = responseBodyBytes.Length
-                    }.Serialize();
-                    MiscUtils.WriteChunk(resBodyChunk, (data, offset, length) =>
-                        inputStream.Write(data, offset, length));
-                    // write trailing empty chunk.
-                    var emptyBodyChunk = new SubsequentChunk
-                    {
-                        Version = LeadChunk.Version01
-                    }.Serialize();
-                    MiscUtils.WriteChunk(emptyBodyChunk, (data, offset, length) =>
-                        inputStream.Write(data, offset, length));
-                }
-                else
-                {
-                    inputStream.Write(responseBodyBytes);
-                }
-            }
-            inputStream.Position = 0; // rewind read pointer.
+            var inputStream = MiscUtils.CreateResponseInputStream(response, responseBodyBytes);
             var outputStream = new MemoryStream();
             int releaseCallCount = 0;
             var transport = new ConfigurableQuasiHttpTransport
@@ -382,26 +340,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 HttpVersion = expectedRequest.HttpVersion,
                 HttpMethod = expectedRequest.HttpMethod
             };
-
-            var resChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                StatusIndicatesSuccess = response.StatusIndicatesSuccess,
-                StatusIndicatesClientError = response.StatusIndicatesClientError,
-                StatusMessage = response.StatusMessage,
-                Headers = response.Headers,
-                ContentLength = response.Body?.ContentLength ?? 0,
-                ContentType = response.Body?.ContentType,
-                HttpVersion = response.HttpVersion,
-                HttpStatusCode = response.HttpStatusCode
-            };
-
-            var inputStream = new MemoryStream();
-            var serializedRes = resChunk.Serialize();
-            MiscUtils.WriteChunk(serializedRes, (data, offset, length) =>
-                inputStream.Write(data, offset, length));
-            inputStream.Position = 0; // rewind read pointer.
-
+            
+            var inputStream = MiscUtils.CreateResponseInputStream(response, null);
             var outputStream = new MemoryStream();
             int releaseCallCount = 0;
             var transport = new ConfigurableQuasiHttpTransport

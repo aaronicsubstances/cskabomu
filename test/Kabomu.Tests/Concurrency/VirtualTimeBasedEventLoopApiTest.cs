@@ -243,17 +243,12 @@ namespace Kabomu.Tests.Concurrency
             instance.SetTimeout(() =>
                 callbackLogs.Add($"{instance.CurrentTimestamp}:e1e039a0-c83a-43da-8f29-81725eb7147f"), 6);
 
-            // ensure async work passes equality check this time.
-            // given that instance.ImmediateExecutionRealWaitTimeMillis is 0.
+            // ensure async work does not pass equality check in order to verify expectations,
+            // given that instance.MaxCallbackAsyncContinuationCount is 0.
             var tcs = new TaskCompletionSource<object>();
             Func<Task> asyncWork = async () =>
             {
-                // wait for 5 "async runs": equivalent to immediate calls in NodeJS,
-                // more generally like starting and joining 5 threads sequentially.
-                for (int i = 0; i < 5; i++)
-                {
-                    await Task.Run(() => { });
-                }
+                await Task.Yield();
                 callbackLogs.Add($"{instance.CurrentTimestamp}:ebf9dd1d-7157-420a-ac16-00a3fde9bf4e");
                 tcs.SetResult(null);
             };
@@ -282,15 +277,10 @@ namespace Kabomu.Tests.Concurrency
             Assert.Empty(callbackLogs);
 
             // ensure async work passes equality check this time.
-            instance.MaxCallbackAsyncContinuationCount = 100;
+            instance.MaxCallbackAsyncContinuationCount = 1_000;
             asyncWork = async () =>
             {
-                // wait for 5 "async runs": equivalent to immediate calls in NodeJS,
-                // more generally like starting and joining 5 threads sequentially.
-                for (int i = 0; i < 5; i++)
-                {
-                    await Task.Run(() => { });
-                }
+                await Task.Yield();
                 callbackLogs.Add($"{instance.CurrentTimestamp}:c74feb30-7e58-4e47-956b-f4ce5f3fc32c");
                 instance.SetTimeout(() =>
                     callbackLogs.Add($"{instance.CurrentTimestamp}:b180111d-3179-4c50-9006-4a7591f05640"), 7);
