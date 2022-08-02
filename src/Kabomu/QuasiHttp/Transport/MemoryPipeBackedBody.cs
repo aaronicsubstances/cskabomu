@@ -136,7 +136,7 @@ namespace Kabomu.QuasiHttp.Transport
 
                 if (_endOfWriteSeen)
                 {
-                    throw new Exception("end of write");
+                    throw new EndOfWriteException();
                 }
                 // respond immediately to any zero-byte write except if it is a last write.
                 if (length == 0 && !isLastBytes)
