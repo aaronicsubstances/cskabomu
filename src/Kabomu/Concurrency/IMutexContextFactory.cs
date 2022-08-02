@@ -7,7 +7,7 @@ namespace Kabomu.Concurrency
     /// <summary>
     /// Interface which tries to unite the best possible conditions for using the expected implementations of
     /// IMutexApi - locks and event loops - for use by async/await and using keywords in C#. The 
-    /// <see cref="MutexAwaitable.MutexAwaiter"/> struct reveals how it is used.
+    /// <see cref="MutexAwaitable.MutexAwaiter"/> type reveals how it is used.
     /// </summary>
     public interface IMutexContextFactory
     {
@@ -23,11 +23,12 @@ namespace Kabomu.Concurrency
         /// to enforce mutual exclusion correctly (ie locks). Implementations which do not need this may return null
         /// </summary>
         /// <remarks>
-        /// IDisposable was chosen just for the C# syntatic convenience of using it like how "lock" keyword are used,
-        /// but with "using" keyword.
+        /// The <see cref="IDisposable"/> type was chosen just for the C# syntatic convenience of using 
+        /// it like how "lock" keyword are used, but with "using" keyword.
         /// </remarks>
-        /// <returns>null or a IDisposable instance whose construction starts an implementation-defined mutal exclusion scheme,
-        /// and whose Dispose() method ends the mutual exclusion scheme</returns>
+        /// <returns>null or an instance of the <see cref="IDisposable"/> type whose construction starts 
+        /// an implementation-defined mutal exclusion scheme, and whose <see cref="IDisposable.Dispose"/>
+        /// method ends the mutual exclusion scheme</returns>
         IDisposable CreateMutexContext();
     }
 }

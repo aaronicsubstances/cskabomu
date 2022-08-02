@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Kabomu.Concurrency
 {
     /// <summary>
-    /// Provides default implementation of event loop api that runs on the system thread pool, and runs
+    /// Provides default implementation of the <see cref="IEventLoopApi"/> interface that runs on the system thread pool, and runs
     /// all callbacks under mutual exclusion.
     /// </summary>
     public class DefaultEventLoopApi : IEventLoopApi
@@ -19,7 +19,7 @@ namespace Kabomu.Concurrency
         private readonly LimitedConcurrencyLevelTaskSchedulerInternal _throttledTaskScheduler;
 
         /// <summary>
-        /// Creates a new instance.
+        /// Creates a new instance of the <see cref="DefaultEventLoopApi"/> class.
         /// </summary>
         public DefaultEventLoopApi()
         {
@@ -38,7 +38,7 @@ namespace Kabomu.Concurrency
         public bool IsInterimEventLoopThread => Thread.CurrentThread == _postCallbackExecutionThread;
 
         /// <summary>
-        /// Runs a callback in a similar way to <see cref="SetImmediate(Func{Task})"/>.
+        /// Runs a callback in a similar way to <see cref="SetImmediate(Action)"/>.
         /// </summary>
         /// <param name="cb">callback to run under mutual exclusion</param>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>

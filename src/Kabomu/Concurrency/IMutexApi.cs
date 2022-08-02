@@ -3,11 +3,9 @@
 namespace Kabomu.Concurrency
 {
     /// <summary>
-    /// Interface that generalizes mutual exclusion mechanisms.
+    /// Represents mutual exclusion mechanisma in an abstract way. Useful for writing thread-safe library code
+    /// without assuming any particular mutual exclusion strategy such as locks.
     /// </summary>
-    /// <remarks>
-    /// This interface is central to writing thread-safe code in this library without assuming the use of locks.
-    /// </remarks>
     public interface IMutexApi
     {
         /// <summary>

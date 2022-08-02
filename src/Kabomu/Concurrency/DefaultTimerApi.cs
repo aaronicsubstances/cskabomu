@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Kabomu.Concurrency
 {
     /// <summary>
-    /// Provides default implementation of timer API which runs callbacks without any mutual exclusion.
+    /// Provides default implementation of the <see cref="ITimerApi"/> interface which runs callbacks without any mutual exclusion.
     /// </summary>
     public class DefaultTimerApi : ITimerApi
     {

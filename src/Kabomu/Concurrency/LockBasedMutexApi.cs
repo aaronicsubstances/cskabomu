@@ -7,21 +7,21 @@ using System.Threading.Tasks;
 namespace Kabomu.Concurrency
 {
     /// <summary>
-    /// Provides implementation of IMutexApi based on dear old locks.
+    /// Implementation of the <see cref="IMutexApi"/> type based on dear old locks.
     /// </summary>
     public class LockBasedMutexApi : IMutexApi, IMutexContextFactory
     {
         private readonly object _lockObj;
 
         /// <summary>
-        /// Creates a new instance with an internally generated lock.
+        /// Creates a new instance equivalent to an internally generated lock.
         /// </summary>
         public LockBasedMutexApi() :
             this (new object())
         { }
 
         /// <summary>
-        /// Creates a new instance with a specified lock.
+        /// Creates a new instance equivalent to a specified lock.
         /// </summary>
         /// <param name="lockObj">the lock to use. can be null, in which case no mutual exclusion will be done.</param>
         public LockBasedMutexApi(object lockObj)
@@ -30,13 +30,13 @@ namespace Kabomu.Concurrency
         }
 
         /// <summary>
-        /// Always returns false to indicate synchronous mutual exclusion scheme with 
-        /// mjtex context manager.
+        /// Always returns false to indicate synchronous mutual exclusion scheme with the
+        /// <see cref="IMutexContextFactory"/> type.
         /// </summary>
         public bool IsExclusiveRunRequired => false;
 
         /// <summary>
-        /// Runs callback under lock. If a null lock was provided at construction time,
+        /// Runs callback under lock object supplied at construction time. If that lock was null,
         /// then callback is invoked directly.
         /// </summary>
         /// <param name="cb">callback to run under mutual exclusion</param>
@@ -61,10 +61,11 @@ namespace Kabomu.Concurrency
         }
 
         /// <summary>
-        /// Creates an IDisposable instance suitable for use as a mutex context with 
-        /// <see cref="MutexAwaitable"/>.
+        /// Creates an instance of the <see cref="IDisposable"/> type suitable for use as as an
+        /// instance of the <see cref="IMutexContextFactory"/> type,
+        /// inside the workings of the <see cref="MutexAwaitable"/> type.
         /// </summary>
-        /// <returns>mutex context for null if lock provided at construction time was null.</returns>
+        /// <returns>non-null instance of <see cref="IDisposable"/> or null if lock provided at construction time was null.</returns>
         public IDisposable CreateMutexContext()
         {
             if (_lockObj == null)
