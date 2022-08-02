@@ -2,6 +2,22 @@
 
   <PropertyGroup>
     <TargetFrameworks>netcoreapp3.1;netstandard2.0</TargetFrameworks>
+    <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/aaronicsubstances/cskabomu</PackageProjectUrl>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/aaronicsubstances/cskabomu.git</RepositoryUrl>
+    <PackageTags>quasi,http,networking,ipc,monolith,web,application</PackageTags>
+    <PackageId>AaronicSubstances.Kabomu</PackageId>
+    <Authors>Aaron Baffour-Awuah</Authors>
+    <Company>Aaronic Substances</Company>
+    <Description>Kabomu is a simple networking library that enables running HTTP semantics transparently over IPC mechanisms including but not limited to TCP. It makes it straightforward to even build web application semantics which are abstracted from the underlying IPC mechanism of choice.
+
+This enables programming the same HTTP semantics at the level of web applications, as quasi HTTP from small scale in memory, through medium scale on localhost between processes, to real HTTP at Internet scale, in a transport-agnostic way. Intended as an arsenal for maintenance and evolution of monolithic architectures to distributed systems.</Description>
+    <Copyright>Copyright ©2022 Aaronic Substances</Copyright>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
 </Project>
