@@ -16,7 +16,7 @@ namespace Kabomu.QuasiHttp.Transport
         /// </summary>
         /// <param name="connectivityParams">communication endpoint information required to connect to a server or
         /// remote endpoint</param>
-        /// <returns>a task whose result will contain a connection ready to use as a duplex
+        /// <returns>a task whose result will contain a connection ready for use as a duplex
         /// stream of data for reading and writing</returns>
         Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams);
     }

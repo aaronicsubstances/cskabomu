@@ -91,7 +91,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             {
                 return instance.ReadBytes(null, new byte[0], 0, 0);
             });
-            await Assert.ThrowsAnyAsync<Exception>(() =>
+            await Assert.ThrowsAsync<ArgumentException>(() =>
             {
                 return instance.ReadBytes(4, new byte[2], 0, 1);
             });
@@ -103,7 +103,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             {
                 return instance.WriteBytes(null, new byte[0], 0, 0);
             });
-            await Assert.ThrowsAnyAsync<Exception>(() =>
+            await Assert.ThrowsAsync<ArgumentException>(() =>
             {
                 return instance.WriteBytes(4, new byte[2], 0, 1);
             });
