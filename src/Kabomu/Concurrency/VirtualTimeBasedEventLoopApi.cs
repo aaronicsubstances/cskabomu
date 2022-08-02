@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.Concurrency
@@ -16,14 +17,74 @@ namespace Kabomu.Concurrency
         private int _cancelledTaskCount = 0;
         private int _idSeq = 0;
         private long _currentTimestamp;
-        private int _maxCbAsyncContinuationCount;
+        private bool _advSuspend;
+        private int _maxCallbackAsyncContinuationTimeoutMillis;
 
         /// <summary>
         /// Constructs a new instance with a current virtual timestamp of zero.
         /// </summary>
         public VirtualTimeBasedEventLoopApi()
         {
-            MaxCallbackAsyncContinuationCount = 100;
+        }
+
+        /// <summary>
+        /// Enables asynchronous continuations of a callback to finish before the execution of
+        /// the next callback by an instance of this class during Advance*() calls.
+        /// <para></para>
+        /// If a callback has asynchronous continuations to run, then it can set this property to true
+        /// before the end of its synchronous execution. It can then run its asynchronous continuations
+        /// and then set this property to false in order to resume advancing of an instance of this class.
+        /// </summary>
+        /// <remarks>
+        /// Note that in spite of suspension, if the value of the <see cref="MaxCallbackAsyncContinuationTimeoutMillis"/>
+        /// property is positive, then advances will be resumed by that time indicated, regardless of whether
+        /// suspensions have been resumed or not. Only when this value is zero (or negative), will the 
+        /// resumption of an advance be solely dependent on a callback's setting of this property to false.
+        /// </remarks>
+        public bool AdvanceSuspended
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _advSuspend;
+                }
+            }
+            set
+            {
+                lock (_lock)
+                {
+                    _advSuspend = value;
+                    // notify any ongoing advance to resume work.
+                    Monitor.PulseAll(_lock);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the maximum amount of time that a callback's asynchronous continuations may execute.
+        /// At construction time value is 0, which means that no such maximum time is imposed.
+        /// </summary>
+        /// <remarks>
+        /// This property is intended to be a bail out for callbacks which suspended advances with the
+        /// <see cref="AdvanceSuspended"/> property and never resumed them.
+        /// </remarks>
+        public int MaxCallbackAsyncContinuationTimeoutMillis
+        {
+            get
+            {
+                lock (_lock)
+                {
+                    return _maxCallbackAsyncContinuationTimeoutMillis;
+                }
+            }
+            set
+            {
+                lock (_lock)
+                {
+                    _maxCallbackAsyncContinuationTimeoutMillis = value;
+                }
+            }
         }
 
         /// <summary>
@@ -68,33 +129,6 @@ namespace Kabomu.Concurrency
         public bool IsInterimEventLoopThread => false;
 
         /// <summary>
-        /// Gets or sets the maximum number of asynchronous continuations that may run after the execution of
-        /// a callback by an instance of this class during Advance*() calls to complete.
-        /// <para></para>
-        /// Such asynchronous calls must not be dependent on real time, but rather must be equivalent to yielding of OS threads
-        /// in order to be used correctly with this class.
-        /// <para></para>
-        /// At construction time a default value of 100 is set, which should be left unchanged for all but advanced use cases.
-        public int MaxCallbackAsyncContinuationCount
-        {
-
-            get
-            {
-                lock (_lock)
-                {
-                    return _maxCbAsyncContinuationCount;
-                }
-            }
-            set
-            {
-                lock (_lock)
-                {
-                    _maxCbAsyncContinuationCount = value;
-                }
-            }
-        }
-
-        /// <summary>
         /// Advances time forward by a given value and executes all pending callbacks and any recursively scheduled callbacks
         /// whose scheduled time do not exceed the current virtual timestamp plus the given value.
         /// Callers must ensure that at most only one Advance*() call processes callbacks a time, since multiple
@@ -102,8 +136,8 @@ namespace Kabomu.Concurrency
         /// </summary>
         /// <remarks>
         /// Note that asynchronous continuations of each callback may run in parallel with future callback executions,
-        /// unless all asynchronous continuations triggered by each callback complete within the limit
-        /// set by <see cref="MaxCallbackAsyncContinuationCount"/> property (100 by default).
+        /// unless a callback chooses to suspend and resume ongoing advances with the
+        /// <see cref="AdvanceSuspended"/> property.
         /// </remarks>
         /// <param name="delay">the value which when added to the current virtual timestamp will result in
         /// a new value for this instance, if this call completes without interference</param>
@@ -131,8 +165,8 @@ namespace Kabomu.Concurrency
         /// </summary>
         /// <remarks>
         /// Note that asynchronous continuations of each callback may run in parallel with future callback executions,
-        /// unless all asynchronous continuations triggered by each callback complete within the limit
-        /// set by <see cref="MaxCallbackAsyncContinuationCount"/> property (100 by default).
+        /// unless a callback chooses to suspend and resume ongoing advances with the
+        /// <see cref="AdvanceSuspended"/> property.
         /// </remarks>
         /// <param name="newTimestamp">the new value of current virtual timestamp if this call completes
         /// without interference</param>
@@ -144,14 +178,15 @@ namespace Kabomu.Concurrency
             {
                 throw new ArgumentException("negative timestamp value: " + newTimestamp);
             }
-            return TriggerActions(newTimestamp);
+            return Task.Factory.StartNew(() => TriggerActions(newTimestamp),
+                CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
 
         /// <summary>
         /// Work horse of real time simulation up to some virtual timestamp.
         /// </summary>
         /// <param name="stoppageTimestamp">The virtual timestamp at which to stop simulations.</param>
-        private async Task TriggerActions(long stoppageTimestamp)
+        private void TriggerActions(long stoppageTimestamp)
         {
             // invoke task queue actions starting with tail of queue
             // and stop if item's time is in the future.
@@ -162,6 +197,10 @@ namespace Kabomu.Concurrency
                 TaskDescriptor earliestTaskDescriptor;
                 lock (_lock)
                 {
+                    // clear any pending suspension of advances from previous callback exceptions or
+                    // suspension timeouts.
+                    _advSuspend = false;
+
                     if (_taskQueue.Count == 0)
                     {
                         _currentTimestamp = stoppageTimestamp;
@@ -191,22 +230,44 @@ namespace Kabomu.Concurrency
                 }
                 else
                 {
-                    // invoke without waiting to prevent deadlock
+                    // execute callback's synchronous phase
                     earliestTaskDescriptor.Callback.Invoke();
 
-                    // on the other hand if we don't wait, any async continuations of
-                    // callback will run concurrently with next callback which is undesirable.
-                    // to avoid this, we assume that any async continuations are scheduled to run
-                    // now, and so next callback is scheduled to run after them.
-
-                    // async continuations are assumed to occur over a limited number of
-                    // thread yields.
-
-                    // fetch from property, just in case callback modified it.
-                    var yieldCount = MaxCallbackAsyncContinuationCount;
-                    for (int i = 0; i < yieldCount; i++)
+                    // execute callback's asynchronous phase
+                    var startTime = DateTime.Now;
+                    lock (_lock)
                     {
-                        await Task.Yield();
+                        var initialAdvValue = _advSuspend;
+                        var initialAsyncCbTimeout = _maxCallbackAsyncContinuationTimeoutMillis;
+                        if (initialAdvValue || initialAsyncCbTimeout > 0)
+                        {
+                            // this means some async continuations intended.
+                            while (true)
+                            {
+                                if (initialAdvValue == true && !_advSuspend)
+                                {
+                                    break;
+                                }
+                                try
+                                {
+                                    if (initialAsyncCbTimeout > 0)
+                                    {
+                                        var timeRemaining = (int)(initialAsyncCbTimeout -
+                                            (DateTime.Now - startTime).TotalMilliseconds);
+                                        if (timeRemaining <= 0)
+                                        {
+                                            break;
+                                        }
+                                        Monitor.Wait(_lock, timeRemaining);
+                                    }
+                                    else
+                                    {
+                                        Monitor.Wait(_lock);
+                                    }
+                                }
+                                catch (ThreadInterruptedException) { }
+                            }
+                        }
                     }
                 }
             }

@@ -12,6 +12,9 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.Server
 {
+    /// <summary>
+    /// Default quasi http server implementation.
+    /// </summary>
     public class DefaultQuasiHttpServer : IQuasiHttpServer
     {
         private readonly ISet<ReceiveTransferInternal> _transfers;
@@ -19,6 +22,9 @@ namespace Kabomu.QuasiHttp.Server
         private readonly Func<object, IQuasiHttpResponse, Task> AbortTransferCallback2;
         private bool _running;
 
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
         public DefaultQuasiHttpServer()
         {
             AbortTransferCallback = CancelReceive;
@@ -32,7 +38,24 @@ namespace Kabomu.QuasiHttp.Server
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpServerTransport Transport { get; set; }
         public UncaughtErrorCallback ErrorHandler { get; set; }
+
+        /// <summary>
+        /// Gets or sets mutex api used to guard multithreaded 
+        /// access to connection acceptance operations of this class.
+        /// </summary>
+        /// <remarks> 
+        /// An ordinary lock object is the initial value for this property, and so there is no need to modify
+        /// this property except for advanced scenarios.
+        /// </remarks>
         public IMutexApi MutexApi { get; set; }
+
+        /// <summary>
+        /// Gets or sets timer api used to generate timeouts in this class.
+        /// </summary>
+        /// <remarks> 
+        /// An instance of <see cref="DefaultTimerApi"/> class is the initial value for this property,
+        /// and so there is no need to modify this property except for advanced scenarios.
+        /// </remarks>
         public ITimerApi TimerApi { get; set; }
 
         private Task CancelReceive(object transferObj)
@@ -355,11 +378,23 @@ namespace Kabomu.QuasiHttp.Server
             TimerApi?.ClearTimeout(transfer.TimeoutId);
             if (transfer.Connection != null)
             {
-                await transfer.Transport.ReleaseConnection(transfer.Connection);
+                try
+                {
+                    await transfer.Transport.ReleaseConnection(transfer.Connection);
+                }
+                catch (Exception) { }
             }
-            if (transfer.Request?.Body != null)
+            else
             {
-                await transfer.Request.Body.EndRead();
+                // close body of send to application request
+                if (transfer.Request?.Body != null)
+                {
+                    try
+                    {
+                        await transfer.Request.Body.EndRead();
+                    }
+                    catch (Exception) { }
+                }
             }
         }
     }
