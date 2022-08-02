@@ -42,15 +42,8 @@ namespace Kabomu.Tests.QuasiHttp.Server
         [Fact]
         public async Task TestReceiveForRejectionOfNullResponses()
         {
-            var reqChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01
-            };
-            var inputStream = new MemoryStream();
-            var serializedReq = reqChunk.Serialize();
-            MiscUtils.WriteChunk(serializedReq, (data, offset, length) =>
-                inputStream.Write(data, offset, length));
-            inputStream.Position = 0; // rewind for reads.
+            var request = new DefaultQuasiHttpRequest();
+            var inputStream = MiscUtils.CreateRequestInputStream(request, null);
 
             var transport = new ConfigurableQuasiHttpTransport
             {
@@ -95,15 +88,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             var connectivityParams = new DefaultConnectivityParams();
             var response = new ErrorQuasiHttpResponse();
 
-            var reqChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01
-            };
-            var inputStream = new MemoryStream();
-            var serializedReq = reqChunk.Serialize();
-            MiscUtils.WriteChunk(serializedReq, (data, offset, length) =>
-                inputStream.Write(data, offset, length));
-            inputStream.Position = 0; // rewind for reads.
+            var inputStream = MiscUtils.CreateRequestInputStream(request, null);
 
             var transport = new ConfigurableQuasiHttpTransport
             {
@@ -149,17 +134,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             IQuasiHttpResponse expectedResponse, byte[] expectedResponseBodyBytes)
         {
             // arrange.
-            var reqChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                Path = request.Path,
-                Headers = request.Headers,
-                ContentLength = request.Body?.ContentLength ?? 0,
-                ContentType = request.Body?.ContentType,
-                HttpVersion = request.HttpVersion,
-                HttpMethod = request.HttpMethod
-            };
-
             var expectedResChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
@@ -173,36 +147,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 HttpStatusCode = expectedResponse.HttpStatusCode
             };
 
-            var inputStream = new MemoryStream();
-            var serializedReq = reqChunk.Serialize();
-            MiscUtils.WriteChunk(serializedReq, (data, offset, length) =>
-                inputStream.Write(data, offset, length));
-            if (requestBodyBytes != null)
-            {
-                if (request.Body.ContentLength < 0)
-                {
-                    var reqBodyChunk = new SubsequentChunk
-                    {
-                        Version = LeadChunk.Version01,
-                        Data = requestBodyBytes,
-                        DataLength = requestBodyBytes.Length
-                    }.Serialize();
-                    MiscUtils.WriteChunk(reqBodyChunk, (data, offset, length) =>
-                        inputStream.Write(data, offset, length));
-                    // write trailing empty chunk.
-                    var emptyBodyChunk = new SubsequentChunk
-                    {
-                        Version = LeadChunk.Version01
-                    }.Serialize();
-                    MiscUtils.WriteChunk(emptyBodyChunk, (data, offset, length) =>
-                        inputStream.Write(data, offset, length));
-                }
-                else
-                {
-                    inputStream.Write(requestBodyBytes);
-                }
-            }
-            inputStream.Position = 0; // rewind read pointer.
+            var inputStream = MiscUtils.CreateRequestInputStream(request, requestBodyBytes);
             var outputStream = new MemoryStream();
             IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport
             {

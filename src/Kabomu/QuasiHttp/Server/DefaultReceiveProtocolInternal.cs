@@ -70,7 +70,11 @@ namespace Kabomu.QuasiHttp.Server
             }
             finally
             {
-                await response.Close();
+                try
+                {
+                    await response.Close();
+                }
+                catch (Exception) { }
             }
         }
 
