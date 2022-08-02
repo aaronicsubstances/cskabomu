@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 namespace Kabomu.Concurrency
 {
     /// <summary>
-    /// Manufactures instances of <see cref="LockBasedMutexApi"/> class.
+    /// Manufactures instances of the <see cref="LockBasedMutexApi"/> class.
     /// </summary>
     public class LockBasedMutexApiFactory : IMutexApiFactory
     {
         /// <summary>
-        /// Creates and returns a new instance of <see cref="LockBasedMutexApi"/> class.
+        /// Creates and returns a new instance of the <see cref="LockBasedMutexApi"/> class.
         /// </summary>
         /// <returns>a new instance of <see cref="LockBasedMutexApi"/> class with an internally generated lock
         /// suitable for mutual exclusion</returns>

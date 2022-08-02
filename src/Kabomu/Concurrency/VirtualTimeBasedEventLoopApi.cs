@@ -131,13 +131,15 @@ namespace Kabomu.Concurrency
         /// <summary>
         /// Advances time forward by a given value and executes all pending callbacks and any recursively scheduled callbacks
         /// whose scheduled time do not exceed the current virtual timestamp plus the given value.
-        /// Callers must ensure that at most only one Advance*() call processes callbacks a time, since multiple
-        /// Advance*() will process callbacks concurrently, and the new virtual timestamp will be changed nondeterministically.
         /// </summary>
         /// <remarks>
-        /// Note that asynchronous continuations of each callback may run in parallel with future callback executions,
+        /// Callers must ensure that at most only one Advance*() call processes callbacks a time, since multiple
+        /// Advance*() will process callbacks concurrently, and the new virtual timestamp will be changed nondeterministically.
+        /// <para></para>
+        /// Also asynchronous continuations of each callback may run in parallel with future callback executions,
         /// unless a callback chooses to suspend and resume ongoing advances with the
-        /// <see cref="AdvanceSuspended"/> property.
+        /// <see cref="AdvanceSuspended"/> property, and/or applies time waits with the 
+        /// <see cref="MaxCallbackAsyncContinuationTimeoutMillis"/> property.
         /// </remarks>
         /// <param name="delay">the value which when added to the current virtual timestamp will result in
         /// a new value for this instance, if this call completes without interference</param>
@@ -160,13 +162,15 @@ namespace Kabomu.Concurrency
         /// <summary>
         /// Advances time forward or backward to a given value and executes all pending callbacks and
         /// any recursively scheduled callbacks whose scheduled time do not exceed given value.
+        /// </summary>
+        /// <remarks> 
         /// Callers must ensure that at most only one Advance*() call processes callbacks a time, since multiple
         /// Advance*() will process callbacks concurrently, and the new virtual timestamp will be changed nondeterministically.
-        /// </summary>
-        /// <remarks>
-        /// Note that asynchronous continuations of each callback may run in parallel with future callback executions,
+        /// <para></para>
+        /// Also asynchronous continuations of each callback may run in parallel with future callback executions,
         /// unless a callback chooses to suspend and resume ongoing advances with the
-        /// <see cref="AdvanceSuspended"/> property.
+        /// <see cref="AdvanceSuspended"/> property, and/or applies time waits with the 
+        /// <see cref="MaxCallbackAsyncContinuationTimeoutMillis"/> property.
         /// </remarks>
         /// <param name="newTimestamp">the new value of current virtual timestamp if this call completes
         /// without interference</param>
@@ -274,7 +278,7 @@ namespace Kabomu.Concurrency
         }
 
         /// <summary>
-        /// Runs a callback exclusively of any others. In this implementation that is the same 
+        /// Runs a callback exclusively of any others. In this event loop implementation that is the same 
         /// as calling <see cref="SetImmediate"/>.
         /// </summary>
         /// <param name="cb">the callback to run</param>
@@ -287,12 +291,12 @@ namespace Kabomu.Concurrency
         /// <summary>
         /// Schedules callback to be run in this instance at the current virtual time, ie "now", unless it is cancelled.
         /// If there are already callbacks scheduled "now", the callback will execute after them "now".
-        /// The callback will only be executed as a result of an ongoing or future call to one of the Advance*() methods.
         /// </summary>
         /// <remarks>
-        /// In this event loop implementation, this method is equivalent to calling
-        /// <see cref="SetTimeout(Action, int)"/> method with a timeout value of zero (cancellation still has to
-        /// be done with ClearImmediate rather than ClearTimeout).
+        /// The callback will only be executed as a result of an ongoing or future call to one of the Advance*() methods.
+        /// <para></para>
+        /// This method is equivalent to calling <see cref="SetTimeout(Action, int)"/> method with a timeout value of zero,
+        /// although cancellation will still have to be done with ClearImmediate rather than ClearTimeout.
         /// </remarks>
         /// <param name="cb">callback to run</param>
         /// <returns>handle which can be used to cancel immediate execution request</returns>
@@ -305,8 +309,10 @@ namespace Kabomu.Concurrency
         /// <summary>
         /// Schedules callback to be run in this instance at a given virtual time if not cancelled.
         /// If there are already callbacks scheduled at that time, the callback will execute after them at that time.
-        /// The callback will only be executed as a result of an ongoing or future call to one of the Advance*() methods.
         /// </summary>
+        /// <remarks>
+        /// The callback will only be executed as a result of an ongoing or future call to one of the Advance*() methods.
+        /// </remarks>
         /// <param name="cb">the callback to run</param>
         /// <param name="millis">the virtual time delay after the current virtual time by which time the callback
         /// will be executed</param>
@@ -375,6 +381,11 @@ namespace Kabomu.Concurrency
             _taskQueue.Insert(insertIdx, taskDescriptor);
         }
 
+        /// <summary>
+        /// Used to cancel the execution of a callback scheduled with <see cref="SetImmediate(Action)"/>.
+        /// </summary>
+        /// <param name="immediateHandle">cancellation handle returned from <see cref="SetImmediate(Action)"/>. 
+        /// No exception is thrown if handle is invalid or if callback execution has already been cancelled.</param>
         public void ClearImmediate(object immediateHandle)
         {
             if (immediateHandle is SetImmediateCancellationHandle cancellationHandle)
@@ -386,6 +397,11 @@ namespace Kabomu.Concurrency
             }
         }
 
+        /// <summary>
+        /// Used to cancel the execution of a callback scheduled with <see cref="SetTimeout(Action, int)"/>.
+        /// </summary>
+        /// <param name="timeoutHandle">cancellation handle returned from <see cref="SetTimeout(Action, int)"/>
+        /// No exception is thrown if handle is invalid or if callback execution has already been cancelled.</param>
         public void ClearTimeout(object timeoutHandle)
         {
             if (timeoutHandle is SetTimeoutCancellationHandle cancellationHandle)
