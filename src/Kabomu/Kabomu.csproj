@@ -12,7 +12,9 @@
     <Company>Aaronic Substances</Company>
     <Description>Kabomu is a simple networking library that enables running HTTP semantics transparently over IPC mechanisms including but not limited to TCP. It makes it straightforward to even build web application semantics which are abstracted from the underlying IPC mechanism of choice.
 
-This enables programming the same HTTP semantics at the level of web applications, as quasi HTTP from small scale in memory, through medium scale on localhost between processes, to real HTTP at Internet scale, in a transport-agnostic way. Intended as an arsenal for maintenance and evolution of monolithic architectures to distributed systems.</Description>
+This enables programming the same HTTP semantics at the level of web applications, as quasi HTTP from small scale in memory, through medium scale on localhost between processes, to real HTTP at Internet scale, in a transport-agnostic way.
+
+This library has the goal of letting the software community have their cake and eat it, by enforcing monolithic architectures with serializable inter module communications, so that monolithic architectures remain simple to manage, and at the same time become straightforward to evolve into distributed systems.</Description>
     <Copyright>Copyright ©2022 Aaronic Substances</Copyright>
   </PropertyGroup>
 
