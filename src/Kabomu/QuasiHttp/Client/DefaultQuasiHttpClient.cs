@@ -13,8 +13,14 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.Client
 {
     /// <summary>
-    /// Default quasi http client implementation.
+    /// The standard implementation of the client side of the quasi http protocol defined by the Kabomu library.
     /// </summary>
+    /// <remarks>
+    /// This class implements the <see cref="IQuasiHttpClient"/> interface in order to provide
+    /// the client facing side of networking for end users. It is the complement to the 
+    /// <see cref="Server.DefaultQuasiHttpServer"/> class for supporting the semantics of HTTP client libraries
+    /// whiles enabling underlying transport options beyond TCP.
+    /// </remarks>
     public class DefaultQuasiHttpClient : IQuasiHttpClient
     {
         private readonly Random _randGen = new Random();
@@ -23,7 +29,8 @@ namespace Kabomu.QuasiHttp.Client
         private readonly Func<object, IQuasiHttpResponse, Task> AbortTransferCallback2;
 
         /// <summary>
-        /// Creates new instance.
+        /// Creates a new instance of the <see cref="DefaultQuasiHttpClient"/> class with defaults provided
+        /// for the <see cref="MutexApi"/> and <see cref="TimerApi"/> properties.
         /// </summary>
         public DefaultQuasiHttpClient()
         {
