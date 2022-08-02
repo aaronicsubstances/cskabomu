@@ -18,7 +18,7 @@ namespace Kabomu.MemoryBasedTransport
         private bool _running = false;
 
         /// <summary>
-        /// Creates a new instance.
+        /// Creates a new instance of the <see cref="MemoryBasedServerTransport"/> class.
         /// </summary>
         public MemoryBasedServerTransport()
         {
@@ -47,6 +47,10 @@ namespace Kabomu.MemoryBasedTransport
         /// </remarks>
         public IMutexApiFactory MutexApiFactory { get; set; }
 
+        /// <summary>
+        /// Determines whether an instance of this class has been started.
+        /// </summary>
+        /// <returns>task whose result is true if and only is an instance of this class is running.</returns>
         public async Task<bool> IsRunning()
         {
             using (await MutexApi.Synchronize())
@@ -55,6 +59,11 @@ namespace Kabomu.MemoryBasedTransport
             }
         }
 
+        /// <summary>
+        /// Starts the server so that it can respond to <see cref="ReceiveConnection"/> method calls
+        /// in order to create connections. Calls to this method are ignored if an instance has already been started.
+        /// </summary>
+        /// <returns>task representing asynchronous operation.</returns>
         public async Task Start()
         {
             using (await MutexApi.Synchronize())
@@ -65,7 +74,8 @@ namespace Kabomu.MemoryBasedTransport
 
         /// <summary>
         /// Stops the instance from running, and fails all outstanding server and client
-        /// connections with a TransportResetException.
+        /// connections with an instance of the <see cref="TransportResetException"/> type.
+        /// Calls to this method are ignored if an instance has already been stopped.
         /// </summary>
         /// <returns>a task representing the asynchronous operation</returns>
         public async Task Stop()
@@ -88,11 +98,14 @@ namespace Kabomu.MemoryBasedTransport
         }
 
         /// <summary>
-        /// Provide means to fulfil pending receive server connections by matching them with client connection requests.
+        /// Fulfils pending receive server connections, ie calls to the <see cref="ReceiveConnection"/> method,
+        /// by matching them with client connection requests.
         /// </summary>
         /// <param name="serverEndpoint">the endpoint used to identify this instance.</param>
         /// <param name="clientEndpoint">the endpoint the remote client identifies itself with</param>
         /// <returns>task whose result will contain connection allocated for a client</returns>
+        /// <exception cref="TransportNotStartedException">if this instance is not running, ie has not been started.</exception>
+        /// <exception cref="TransportResetException">If this instance is stopped while waiting for server connection</exception>
         public async Task<IConnectionAllocationResponse> CreateConnectionForClient(object serverEndpoint, object clientEndpoint)
         {
             Task<IConnectionAllocationResponse> connectTask;
@@ -132,6 +145,13 @@ namespace Kabomu.MemoryBasedTransport
             return environment;
         }
 
+        /// <summary>
+        /// Returns the next connection received from clients, or waits for a client connection
+        /// to arrive, ie via the <see cref="CreateConnectionForClient(object, object)"/> method.
+        /// </summary>
+        /// <returns>task whose result will contain connection received from or allocated to a client</returns>
+        /// <exception cref="TransportNotStartedException">if this instance is not running, ie has not been started.</exception>
+        /// <exception cref="TransportResetException">If this instance is stopped while waiting for client connection</exception>
         public Task<IConnectionAllocationResponse> ReceiveConnection()
         {
             return CreateConnectionForServer();
@@ -203,6 +223,11 @@ namespace Kabomu.MemoryBasedTransport
             pendingClientConnectRequest.Callback.SetResult(connectionAllocationResponseForClient);
         }
 
+        /// <summary>
+        /// Releases a connection created by a instance of this class.
+        /// </summary>
+        /// <param name="connection">connection to release. null, invalid and already released connections are ignored.</param>
+        /// <returns>task representing asynchronous operation</returns>
         public Task ReleaseConnection(object connection)
         {
             return ReleaseConnectionInternal(connection);
@@ -216,6 +241,23 @@ namespace Kabomu.MemoryBasedTransport
             }
         }
 
+        /// <summary>
+        /// Reads data from a connection returned from the <see cref="ReceiveConnection"/>
+        /// method.
+        /// </summary>
+        /// <param name="connection">the connection to read from</param>
+        /// <param name="data">the destination byte buffer</param>
+        /// <param name="offset">the starting position in data</param>
+        /// <param name="length">the number of bytes to read</param>
+        /// <returns>a task representing the asynchronous read operation, whose result will
+        /// be the number of bytes actually read. May be zero or less than the number of bytes requested.</returns>
+        /// <exception cref="ArgumentNullException">The <paramref name="connection"/> or
+        /// <paramref name="data"/> arguments is null</exception>
+        /// <exception cref="ArgumentException">The <paramref name="offset"/> or <paramref name="length"/>
+        /// arguments generate invalid offsets into <paramref name="data"/> argument.</exception>
+        /// <exception cref="ArgumentException">The <paramref name="connection"/> argument is not a valid connection
+        /// returned by instances of this class.</exception>
+        /// <exception cref="ConnectionReleasedException">The connection has been released.</exception>
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
             return ReadBytesInternal(true, connection, data, offset, length);
@@ -224,11 +266,15 @@ namespace Kabomu.MemoryBasedTransport
         internal static async Task<int> ReadBytesInternal(bool fromServer,
             object connection, byte[] data, int offset, int length)
         {
-            var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
-            if (typedConnection == null)
+            if (connection == null)
             {
                 throw new ArgumentNullException(nameof(connection));
             }
+            if (!(connection is MemoryBasedTransportConnectionInternal))
+            {
+                throw new ArgumentException("invalid connection", nameof(connection));
+            }
+            var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
             if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
                 throw new ArgumentException("invalid destination buffer");
@@ -237,6 +283,22 @@ namespace Kabomu.MemoryBasedTransport
             return bytesRead;
         }
 
+        /// <summary>
+        /// Writes data to a connection returned from the <see cref="ReceiveConnection"/>
+        /// method.
+        /// </summary>
+        /// <param name="connection">the connection to write to</param>
+        /// <param name="data">the source byte buffer</param>
+        /// <param name="offset">the starting position in data</param>
+        /// <param name="length">the number of bytes to write</param>
+        /// <returns>a task representing the asynchronous write operation</returns>
+        /// <exception cref="ArgumentNullException">The <paramref name="connection"/> or
+        /// <paramref name="data"/> arguments is null</exception>
+        /// <exception cref="ArgumentException">The <paramref name="offset"/> or <paramref name="length"/>
+        /// arguments generate invalid offsets into <paramref name="data"/> argument.</exception>
+        /// <exception cref="ArgumentException">The <paramref name="connection"/> argument is not a valid connection
+        /// returned by instances of this class.</exception>
+        /// <exception cref="ConnectionReleasedException">The connection has been released.</exception>
         public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
             return WriteBytesInternal(true, connection, data, offset, length);
@@ -245,11 +307,15 @@ namespace Kabomu.MemoryBasedTransport
         internal static async Task WriteBytesInternal(bool fromServer,
             object connection, byte[] data, int offset, int length)
         {
-            var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
-            if (typedConnection == null)
+            if (connection == null)
             {
                 throw new ArgumentNullException(nameof(connection));
             }
+            if (!(connection is MemoryBasedTransportConnectionInternal))
+            {
+                throw new ArgumentException("invalid connection", nameof(connection));
+            }
+            var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
             if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
                 throw new ArgumentException("invalid payload");

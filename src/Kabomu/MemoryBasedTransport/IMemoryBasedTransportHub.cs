@@ -10,9 +10,11 @@ namespace Kabomu.MemoryBasedTransport
 {
     /// <summary>
     /// Represents a virtual in-memory computer networking hub attached to instances
-    /// of <see cref="IQuasiHttpServer"/>.
+    /// of the <see cref="IQuasiHttpServer"/> type.
     /// </summary>
     /// <remarks>
+    /// This interface serves as a backbone for in-memory computer networking.
+    /// <para></para>
     /// Implementations are expected to impose restrictions on the acceptables types of attached servers.
     /// </remarks>
     public interface IMemoryBasedTransportHub

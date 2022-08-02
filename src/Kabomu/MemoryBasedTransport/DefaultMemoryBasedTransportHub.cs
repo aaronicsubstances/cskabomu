@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 namespace Kabomu.MemoryBasedTransport
 {
     /// <summary>
-    /// Implements <see cref="IMemoryBasedTransportHub"/> with dictionary of <see cref="IQuasiHttpServer"/>
+    /// Implements the <see cref="IMemoryBasedTransportHub"/> interface based on dictionary of <see cref="IQuasiHttpServer"/>
     /// instances. Also requires instances of <see cref="MemoryBasedServerTransport"/> for use in
     /// allocating connections.
     /// </summary>
@@ -20,17 +20,26 @@ namespace Kabomu.MemoryBasedTransport
         private readonly Dictionary<object, IQuasiHttpServer> _servers;
 
         /// <summary>
-        /// Creates a new instance.
+        /// Creates a new instance of the <see cref="DefaultMemoryBasedTransportHub"/> class
+        /// with an internally allocated dictionary.
         /// </summary>
+        /// <remarks>
+        /// Only dictionary addition operations can be performed with this constructor.
+        /// </remarks>
         public DefaultMemoryBasedTransportHub()
             : this(new Dictionary<object, IQuasiHttpServer>())
         {
         }
 
         /// <summary>
-        /// Creates a new instance with a given collection instance of servers.
+        /// Creates a new instance of the <see cref="DefaultMemoryBasedTransportHub"/> class
+        /// with an externally allocated dictionary.
         /// </summary>
-        /// <param name="servers">the colllection instance of servers to use</param>
+        /// <remarks>
+        /// This constructor provides flexibility in having full access to the collection of
+        /// servers.
+        /// </remarks>
+        /// <param name="servers">the collection instance of servers to use</param>
         /// <exception cref="ArgumentNullException">The <paramref name="servers"/> argument is null.</exception>
         public DefaultMemoryBasedTransportHub(Dictionary<object, IQuasiHttpServer> servers)
         {
