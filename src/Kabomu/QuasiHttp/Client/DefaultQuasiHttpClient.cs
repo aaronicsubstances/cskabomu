@@ -12,6 +12,9 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.Client
 {
+    /// <summary>
+    /// Default quasi http client implementation.
+    /// </summary>
     public class DefaultQuasiHttpClient : IQuasiHttpClient
     {
         private readonly Random _randGen = new Random();
@@ -19,6 +22,9 @@ namespace Kabomu.QuasiHttp.Client
         private readonly Func<object, Exception, IQuasiHttpResponse, Task> AbortTransferCallback;
         private readonly Func<object, IQuasiHttpResponse, Task> AbortTransferCallback2;
 
+        /// <summary>
+        /// Creates new instance.
+        /// </summary>
         public DefaultQuasiHttpClient()
         {
             AbortTransferCallback = CancelSend;
@@ -32,9 +38,30 @@ namespace Kabomu.QuasiHttp.Client
         public IQuasiHttpAltTransport TransportBypass { get; set; }
         public double TransportBypassProbabilty { get; set; }
         public double ResponseStreamingProbabilty { get; set; }
+
+        /// <summary>
+        /// Gets or sets mutex api used to guard multithreaded 
+        /// access to connection allocation operations of this class.
+        /// </summary>
+        /// <remarks> 
+        /// An ordinary lock object is the initial value for this property, and so there is no need to modify
+        /// this property except for advanced scenarios.
+        /// </remarks>
         public IMutexApi MutexApi { get; set; }
+
+        /// <summary>
+        /// Gets or sets timer api used to generate timeouts in this class.
+        /// </summary>
+        /// <remarks> 
+        /// An instance of <see cref="DefaultTimerApi"/> class is the initial value for this property,
+        /// and so there is no need to modify this property except for advanced scenarios.
+        /// </remarks>
         public ITimerApi TimerApi { get; set; }
 
+        /// <summary>
+        /// Cancels a send request if it is still ongoing. Invalid cancellation handles are simply ignored.
+        /// </summary>
+        /// <param name="sendCancellationHandle">cancellation handle received from <see cref="Send2"/></param>
         public void CancelSend(object sendCancellationHandle)
         {
             if (sendCancellationHandle is SendTransferInternal transfer)
@@ -315,7 +342,11 @@ namespace Kabomu.QuasiHttp.Client
             }
             if (transfer.Request.Body != null)
             {
-                await transfer.Request.Body.EndRead();
+                try
+                {
+                    await transfer.Request.Body.EndRead();
+                }
+                catch (Exception) { }
             }
         }
     }
