@@ -13,8 +13,14 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.Server
 {
     /// <summary>
-    /// Default quasi http server implementation.
+    /// The standard implementation of the server side of the quasi http protocol defined by the Kabomu library.
     /// </summary>
+    /// <remarks>
+    /// This class implements the <see cref="IQuasiHttpServer"/> interface in order to provide
+    /// the server facing side of networking for end users. It is the complement to the 
+    /// <see cref="Client.DefaultQuasiHttpClient"/> class for providing HTTP semantics for web application frameworks
+    /// whiles enabling underlying transport options beyond TCP.
+    /// </remarks>
     public class DefaultQuasiHttpServer : IQuasiHttpServer
     {
         private readonly ISet<ReceiveTransferInternal> _transfers;
@@ -23,7 +29,8 @@ namespace Kabomu.QuasiHttp.Server
         private bool _running;
 
         /// <summary>
-        /// Creates a new instance.
+        /// Creates a new instance of the <see cref="DefaultQuasiHttpServer"/> class with defaults provided
+        /// for the <see cref="MutexApi"/> and <see cref="TimerApi"/> properties.
         /// </summary>
         public DefaultQuasiHttpServer()
         {

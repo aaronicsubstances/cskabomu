@@ -9,8 +9,10 @@ namespace Kabomu.QuasiHttp.Client
     {
         /// <summary>
         /// Gets any extra information which can help a transport to locate a communication endpoint.
-        /// Equivalent to <see cref="Transport.IConnectivityParams.ExtraParams"/> property.
         /// </summary>
+        /// <remarks>
+        /// Equivalent to <see cref="Transport.IConnectivityParams.ExtraParams"/> property.
+        /// </remarks>
         IDictionary<string, object> ExtraConnectivityParams { get; }
 
         /// <summary>
