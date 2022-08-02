@@ -24,7 +24,7 @@ namespace Memory.FileExchange
             {
                 LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
             };
-            _instance = new DefaultQuasiHttpServer
+            _instance = new StandardQuasiHttpServer
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {

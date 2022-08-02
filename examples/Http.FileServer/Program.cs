@@ -51,7 +51,7 @@ namespace Http.FileServer
             var transportFactory = new SocketTransportFactory(
                 new OptionsWrapper<SocketTransportOptions>(transportOptions), loggerFactory);
 
-            var instance = new DefaultQuasiHttpServer
+            var instance = new StandardQuasiHttpServer
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {

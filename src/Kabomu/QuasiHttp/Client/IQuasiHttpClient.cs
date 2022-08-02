@@ -8,9 +8,23 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.Client
 {
     /// <summary>
-    /// Represents equivalent of HTTP client that extends underlying transport beyond TCP
-    /// to IPC mechanisms and even interested connectionless transports as well.
+    /// Abstract representation of the <see cref="StandardQuasiHttpClient"/> class.
     /// </summary>
+    /// <remarks>
+    /// This type documents the interface of the <see cref="StandardQuasiHttpClient"/> class in order to help generate
+    /// implementations during testing in a statically typed language like C#.NET. Thus its prescence is not intended
+    /// (in the usual sense) to suggest that the <see cref="StandardQuasiHttpClient"/> class is
+    /// one of several possibilities.
+    /// <para></para>
+    /// For production ready needs the <see cref="StandardQuasiHttpClient"/> class is the 
+    /// standard offering: any other implementation must be equivalent to it in terms of implementing the
+    /// same Kabomu quasi http client protocol; else it is an incompatible implementation not having the backing
+    /// of the Kabomu library.
+    /// <para></para>
+    /// Therefore any implementation of this interface which is not equivalent to the <see cref="StandardQuasiHttpClient"/>
+    /// class, cannot be substituted for the <see cref="StandardQuasiHttpClient"/> runtime type in a variable of the static type of
+    /// <see cref="IQuasiHttpClient"/>, where a production ready implementation is expected.
+    /// </remarks>
     public interface IQuasiHttpClient
     {
         /// <summary>
@@ -36,19 +50,12 @@ namespace Kabomu.QuasiHttp.Client
 
         /// <summary>
         /// Gets or sets a value from 0-1 for choosing between Transport and TransportBypass
-        /// properties if both are present.
+        /// properties if both are present. Implementations are to skip use of this property
+        /// if either of them is null.
         /// <para></para>
         /// A value of 0 means never use TransportBypass, whereas
-        /// a value of 1 means always use TransportBypass. This property is not used if either
-        /// transport property is absent.
+        /// a value of 1 means always use TransportBypass.
         /// </summary>
-        /// <remarks>
-        /// The purpose of this property is for memory-based transports to supply a more efficient
-        /// TransportBypass option but also supply a more maintainable serialization-based Transport
-        /// option. So with this property one can set a value close to but less than 1, so that most
-        /// of the time the more efficient TransportBypass option is used, but once in a while the logic of
-        /// serialization is tested for correctness with the Transport option.
-        /// </remarks>
         double TransportBypassProbabilty { get; set; }
 
         /// <summary>
@@ -56,11 +63,6 @@ namespace Kabomu.QuasiHttp.Client
         /// enabled on a response with a body, if default send options does not indicate what to 
         /// do (ie ResponseStreamingEnabled is null).
         /// </summary>
-        /// <remarks>
-        /// The purpose of this property is for memory-based transports to skip serialization of
-        /// quasi http bodies most of the time by enabling response streaming; while sometimes
-        /// testing the logic of serialization for correctness given its value during maintenance.
-        /// </remarks>
         double ResponseStreamingProbabilty { get; set; }
 
         /// <summary>

@@ -28,7 +28,7 @@ namespace Memory.FileExchange
             {
                 TimeoutMillis = 5_000
             };
-            _instance = new DefaultQuasiHttpClient
+            _instance = new StandardQuasiHttpClient
             {
                 DefaultSendOptions = defaultSendOptions,
                 Transport = transport,

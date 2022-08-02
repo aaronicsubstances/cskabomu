@@ -41,7 +41,7 @@ namespace Http.FileClient
             {
                 TimeoutMillis = 5_000
             };
-            var instance = new DefaultQuasiHttpClient
+            var instance = new StandardQuasiHttpClient
             {
                 DefaultSendOptions = defaultSendOptions,
                 TransportBypass = transport

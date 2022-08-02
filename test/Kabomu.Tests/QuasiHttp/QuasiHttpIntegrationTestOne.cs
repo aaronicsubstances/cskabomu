@@ -39,7 +39,7 @@ namespace Kabomu.Tests.QuasiHttp
                     return Tuple.Create(resTask, (object)null);
                 }
             };
-            var instance = new DefaultQuasiHttpClient
+            var instance = new StandardQuasiHttpClient
             {
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
@@ -176,7 +176,7 @@ namespace Kabomu.Tests.QuasiHttp
                     return Tuple.Create(resTask, (object)null);
                 }
             };
-            var client = new DefaultQuasiHttpClient
+            var client = new StandardQuasiHttpClient
             {
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
@@ -256,7 +256,7 @@ namespace Kabomu.Tests.QuasiHttp
                 }, 
                 ReleaseConnectionCallback = c => Task.CompletedTask
             };
-            var client = new DefaultQuasiHttpClient
+            var client = new StandardQuasiHttpClient
             {
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
@@ -340,7 +340,7 @@ namespace Kabomu.Tests.QuasiHttp
 
             var accraEndpoint = "accra";
             var accraServerMaxChunkSize = 150;
-            var accraQuasiHttpServer = new DefaultQuasiHttpServer
+            var accraQuasiHttpServer = new StandardQuasiHttpServer
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
@@ -360,7 +360,7 @@ namespace Kabomu.Tests.QuasiHttp
                 LocalEndpoint = accraEndpoint,
                 Hub = hub
             };
-            var accraQuasiHttpClient = new DefaultQuasiHttpClient
+            var accraQuasiHttpClient = new StandardQuasiHttpClient
             {
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
@@ -372,7 +372,7 @@ namespace Kabomu.Tests.QuasiHttp
 
             var kumasiEndpoint = "kumasi";
             var kumasiServerMaxChunkSize = 150;
-            var kumasiQuasiHttpServer = new DefaultQuasiHttpServer
+            var kumasiQuasiHttpServer = new StandardQuasiHttpServer
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
@@ -392,7 +392,7 @@ namespace Kabomu.Tests.QuasiHttp
                 LocalEndpoint = kumasiEndpoint,
                 Hub = hub
             };
-            var kumasiQuasiHttpClient = new DefaultQuasiHttpClient
+            var kumasiQuasiHttpClient = new StandardQuasiHttpClient
             {
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {

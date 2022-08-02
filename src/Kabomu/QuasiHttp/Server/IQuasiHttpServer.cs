@@ -9,9 +9,22 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.Server
 {
     /// <summary>
-    /// Represents the equivalent of an HTTP server in which the underlying transport of choice extends beyond TCP
-    /// to include IPC mechanisms.
+    /// Abstract representation of the <see cref="StandardQuasiHttpServer"/> class.
     /// </summary>
+    /// <remarks>
+    /// Usually an implementing class exists as one of several possibilities of realizing an interface. But not
+    /// in this case: this type exists to mirror the interface of the <see cref="DefaultQuasiHttpResponse"/> class
+    /// in order to help generate implementations during testing in a statically typed language like C#.NET.
+    /// <para></para>
+    /// For a production ready implementation the <see cref="StandardQuasiHttpServer"/> class is the 
+    /// standard offering: any other implementation must be equivalent to it in terms of implementing the
+    /// same Kabomu quasi http server protocol; else it is an incompatible implementation not having the backing
+    /// of the Kabomu library.
+    /// <para></para>
+    /// Therefore any implementation of this interface which is not equivalent to the <see cref="StandardQuasiHttpServer"/>
+    /// class, cannot be substituted for the <see cref="StandardQuasiHttpServer"/> runtime type in a variable of the static type of
+    /// <see cref="IQuasiHttpServer"/>, where a production ready implementation is expected.
+    /// </remarks>
     public interface IQuasiHttpServer
     {
         /// <summary>
