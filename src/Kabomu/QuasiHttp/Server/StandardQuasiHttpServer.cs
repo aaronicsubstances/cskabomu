@@ -16,12 +16,14 @@ namespace Kabomu.QuasiHttp.Server
     /// The standard implementation of the server side of the quasi http protocol defined by the Kabomu library.
     /// </summary>
     /// <remarks>
-    /// This class implements the <see cref="IQuasiHttpServer"/> interface in order to provide
-    /// the server facing side of networking for end users. It is the complement to the 
-    /// <see cref="Client.DefaultQuasiHttpClient"/> class for providing HTTP semantics for web application frameworks
+    /// This clas provides the server facing side of networking for end users. It is the complement to the 
+    /// <see cref="Client.StandardQuasiHttpClient"/> class for providing HTTP semantics for web application frameworks
     /// whiles enabling underlying transport options beyond TCP.
+    /// <para></para>
+    /// Therefore this class can be seen as the equivalent of an HTTP server in which the underlying transport of
+    /// choice extends beyond TCP to include IPC mechanisms.
     /// </remarks>
-    public class DefaultQuasiHttpServer : IQuasiHttpServer
+    public class StandardQuasiHttpServer : IQuasiHttpServer
     {
         private readonly ISet<ReceiveTransferInternal> _transfers;
         private readonly Func<object, Task> AbortTransferCallback;
@@ -29,10 +31,10 @@ namespace Kabomu.QuasiHttp.Server
         private bool _running;
 
         /// <summary>
-        /// Creates a new instance of the <see cref="DefaultQuasiHttpServer"/> class with defaults provided
+        /// Creates a new instance of the <see cref="StandardQuasiHttpServer"/> class with defaults provided
         /// for the <see cref="MutexApi"/> and <see cref="TimerApi"/> properties.
         /// </summary>
-        public DefaultQuasiHttpServer()
+        public StandardQuasiHttpServer()
         {
             AbortTransferCallback = CancelReceive;
             AbortTransferCallback2 = CancelReceive;
@@ -41,9 +43,27 @@ namespace Kabomu.QuasiHttp.Server
             TimerApi = new DefaultTimerApi();
         }
 
+        /// <summary>
+        /// Gets or sets the default options used to process receive requests.
+        /// </summary>
         public IQuasiHttpProcessingOptions DefaultProcessingOptions { get; set; }
+
+        /// <summary>
+        /// Gets or sets an instance of the <see cref="IQuasiHttpApplication"/> type which is
+        /// responsible for processing requests to generate responses.
+        /// </summary>
         public IQuasiHttpApplication Application { get; set; }
+
+        /// <summary>
+        /// Gets or sets the underlying transport (TCP or IPC) for retrieving requests
+        /// for quasi web applications, and for sending responses generated from quasi web applications.
+        /// </summary>
         public IQuasiHttpServerTransport Transport { get; set; }
+
+        /// <summary>
+        /// Gets or sets a callback which can be used to report errors of processing requests
+        /// received from connections.
+        /// </summary>
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
         /// <summary>
@@ -77,6 +97,19 @@ namespace Kabomu.QuasiHttp.Server
             return AbortTransfer(transfer, null, res);
         }
 
+        /// <summary>
+        /// Starts the instance set in the <see cref="Transport"/> property and begins
+        /// receiving connections from it.
+        /// </summary>
+        /// <remarks>
+        /// Server starting is not required to process requests directly with the <see cref="Application"/>
+        /// property and the <see cref="ProcessReceiveRequest(IQuasiHttpRequest, IQuasiHttpProcessingOptions)"/>
+        /// method.
+        /// <para></para>
+        /// A call to this method will be ignored if its instance is already started and running.
+        /// </remarks>
+        /// <returns>a task representing asynchronous operation</returns>
+        /// <exception cref="MissingDependencyException">The <see cref="Transport"/> property is null.</exception>
         public async Task Start()
         {
             Task startTask;
@@ -96,6 +129,57 @@ namespace Kabomu.QuasiHttp.Server
             // let error handler or TaskScheduler.UnobservedTaskException handle 
             // any uncaught task exceptions.
             _ = StartAcceptingConnections();
+        }
+
+        /// <summary>
+        /// Stops the instance set in the <see cref="Transport"/> property, stops receiving connections from it,
+        /// and optionally calls the <see cref="Reset(Exception)"/> method.
+        /// </summary>
+        /// <remarks>
+        /// A call to this method will be ignored if its instance is already started and running.
+        /// </remarks>
+        /// <param name="resetTimeMillis">if nonnegative, then it indicates the delay in milliseconds
+        /// from the current time after which all ongoing connections and request processing will be forcefully reset.
+        /// NB: a zero value will lead to immediate resetting of connections and requests without any delay.</param>
+        /// <returns>a task representing the asynchronous operation</returns>
+        /// <exception cref="MissingDependencyException">The <see cref="Transport"/> property is null.</exception>
+        /// <exception cref="MissingDependencyException">The <paramref name="resetTimeMillis"/> argument is positive but
+        /// the <see cref="TimerApi"/> property needed to schedule the call to <see cref="Reset(Exception)"/> is null.</exception>
+        public async Task Stop(int resetTimeMillis)
+        {
+            ITimerApi timerApi;
+            Task stopTask;
+            using (await MutexApi.Synchronize())
+            {
+                if (!_running)
+                {
+                    return;
+                }
+                _running = false;
+                timerApi = TimerApi;
+                stopTask = Transport?.Stop();
+            }
+            if (stopTask == null)
+            {
+                throw new MissingDependencyException("transport");
+            }
+            await stopTask;
+            if (resetTimeMillis < 0)
+            {
+                return;
+            }
+            if (resetTimeMillis > 0)
+            {
+                if (timerApi == null)
+                {
+                    throw new MissingDependencyException("timer api");
+                }
+                await timerApi.WhenSetTimeout(() => Reset(null), resetTimeMillis).Item1;
+            }
+            else
+            {
+                await Reset(null);
+            }
         }
 
         private async Task StartAcceptingConnections()
@@ -219,11 +303,26 @@ namespace Kabomu.QuasiHttp.Server
             await transfer.CancellationTcs.Task;
         }
 
+        /// <summary>
+        /// Sends a quasi http request directly to the <see cref="Application"/> property within some
+        /// timeout value.
+        /// </summary>
+        /// <remarks>
+        /// By this method, transport types which are not connection-oriented or implement connections
+        /// differently can still make use of this class to offload some of the burdens of quasi http
+        /// request processing.
+        /// </remarks>
+        /// <param name="request">quasi http request to process </param>
+        /// <param name="options">supplies request timeout and any processing options which should 
+        /// override the default processing options</param>
+        /// <returns>a task whose result will be the response generated by the quasi http application</returns>
+        /// <exception cref="ArgumentNullException">The <paramref name="request"/> argument is null.</exception>
+        /// <exception cref="MissingDependencyException">The <see cref="Application"/> property is null.</exception>
         public Task<IQuasiHttpResponse> ProcessReceiveRequest(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options)
         {
             if (request == null)
             {
-                throw new ArgumentException("null request");
+                throw new ArgumentNullException(nameof(request));
             }
             var transfer = new ReceiveTransferInternal
             {
@@ -273,43 +372,15 @@ namespace Kabomu.QuasiHttp.Server
             return await transfer.CancellationTcs.Task;
         }
 
-        public async Task Stop(int resetTimeMillis)
-        {
-            ITimerApi timerApi;
-            Task stopTask;
-            using (await MutexApi.Synchronize())
-            {
-                if (!_running)
-                {
-                    return;
-                }
-                _running = false;
-                timerApi = TimerApi;
-                stopTask = Transport?.Stop();
-            }
-            if (stopTask == null)
-            {
-                throw new MissingDependencyException("transport");
-            }
-            await stopTask;
-            if (resetTimeMillis < 0)
-            {
-                return;
-            }
-            if (resetTimeMillis > 0)
-            {
-                if (timerApi == null)
-                {
-                    throw new MissingDependencyException("timer api");
-                }
-                await timerApi.WhenSetTimeout(() => Reset(null), resetTimeMillis).Item1;
-            }
-            else
-            {
-                await Reset(null);
-            }
-        }
-
+        /// <summary>
+        /// Releases all ongoing connections and terminates all ongoing request processing.
+        /// </summary>
+        /// <remarks>
+        /// This method can be called at any time regardless of whether an instace of this class has been started or stopped.
+        /// </remarks>
+        /// <param name="cause">the error message which will be used to terminate ongoing request processing. Can be
+        /// null in which case error with message of "server reset" will be used.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
         public async Task Reset(Exception cause)
         {
             var cancellationException = cause ?? new Exception("server reset");

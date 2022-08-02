@@ -16,12 +16,14 @@ namespace Kabomu.QuasiHttp.Client
     /// The standard implementation of the client side of the quasi http protocol defined by the Kabomu library.
     /// </summary>
     /// <remarks>
-    /// This class implements the <see cref="IQuasiHttpClient"/> interface in order to provide
-    /// the client facing side of networking for end users. It is the complement to the 
-    /// <see cref="Server.DefaultQuasiHttpServer"/> class for supporting the semantics of HTTP client libraries
+    /// This class provides the client facing side of networking for end users. It is the complement to the 
+    /// <see cref="Server.StandardQuasiHttpServer"/> class for supporting the semantics of HTTP client libraries
     /// whiles enabling underlying transport options beyond TCP.
+    /// <para></para>
+    /// Therefore this class can be seen as the equivalent of an HTTP client that extends underlying transport beyond TCP
+    /// to IPC mechanisms and even interested connectionless transports as well.
     /// </remarks>
-    public class DefaultQuasiHttpClient : IQuasiHttpClient
+    public class StandardQuasiHttpClient : IQuasiHttpClient
     {
         private readonly Random _randGen = new Random();
         private readonly ISet<SendTransferInternal> _transfers = new HashSet<SendTransferInternal>();
@@ -29,10 +31,10 @@ namespace Kabomu.QuasiHttp.Client
         private readonly Func<object, IQuasiHttpResponse, Task> AbortTransferCallback2;
 
         /// <summary>
-        /// Creates a new instance of the <see cref="DefaultQuasiHttpClient"/> class with defaults provided
+        /// Creates a new instance of the <see cref="StandardQuasiHttpClient"/> class with defaults provided
         /// for the <see cref="MutexApi"/> and <see cref="TimerApi"/> properties.
         /// </summary>
-        public DefaultQuasiHttpClient()
+        public StandardQuasiHttpClient()
         {
             AbortTransferCallback = CancelSend;
             AbortTransferCallback2 = CancelSend;
@@ -40,10 +42,64 @@ namespace Kabomu.QuasiHttp.Client
             TimerApi = new DefaultTimerApi();
         }
 
+        /// <summary>
+        /// Gets or sets the default options used to send requests.
+        /// </summary>
         public IQuasiHttpSendOptions DefaultSendOptions { get; set; }
+
+        /// <summary>
+        /// Gets or sets the underlying transport (TCP or IPC) by which connections
+        /// will be allocated for sending requests and receiving responses.
+        /// </summary>
         public IQuasiHttpClientTransport Transport { get; set; }
+
+        /// <summary>
+        /// Gets or sets an instance of the <see cref="IQuasiHttpAltTransport"/> type for bypassing the usual
+        /// connection-oriented request processing done in this class.
+        /// </summary>
+        /// <remarks>
+        /// By this property, any network can be used to send quasi http requests since it
+        /// effectively receives full responsibility for sending the request.
+        /// </remarks>
         public IQuasiHttpAltTransport TransportBypass { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value from 0-1 for choosing between Transport and TransportBypass
+        /// properties if both are present. This property is not used if either
+        /// transport property is absent.
+        /// <para></para>
+        /// E.g. a value of 0 means never use TransportBypass; a value of 0.1 means almost never use
+        /// TransportBypass; a value of 0.9 means almost always use TransportBypass; and a value of 1 means always use 
+        /// TransportBypass.
+        /// </summary>
+        /// <remarks>
+        /// The purpose of this property is for memory-based transports to supply a more efficient
+        /// TransportBypass option but also supply a more maintainable serialization-based Transport
+        /// option. So with this property one can set a value close to but less than 1, so that most
+        /// of the time the more efficient TransportBypass option is used, but once in a while the logic of
+        /// serialization is tested for correctness with the Transport option.
+        /// <para></para>
+        /// NB: negative values are treated as equivalent to zero; and values larger than 1 are treated as
+        /// equivalent to 1.
+        /// </remarks>
         public double TransportBypassProbabilty { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value from 0-1 for making a final decision on whether streaming will be
+        /// enabled on a response with a body, if default send options does not indicate what to 
+        /// do (ie ResponseStreamingEnabled is null).
+        /// <para></para>
+        /// E.g. a value of 0 means never stream responses; a value of 0.1 means almost never stream responses;
+        /// a value of 0.9 means almost always stream responses; and a value of 1 means always stream responses.
+        /// </summary>
+        /// <remarks>
+        /// The purpose of this property is for memory-based transports to skip serialization of
+        /// quasi http bodies most of the time by enabling response streaming; while sometimes
+        /// testing the logic of serialization for correctness given its value during maintenance.
+        /// <para></para>
+        /// NB: negative values are treated as equivalent to zero; and values larger than 1 are treated as
+        /// equivalent to 1.
+        /// </remarks>
         public double ResponseStreamingProbabilty { get; set; }
 
         /// <summary>
@@ -90,12 +146,46 @@ namespace Kabomu.QuasiHttp.Client
             return AbortTransfer(transfer, cancellationError, res);
         }
 
+        /// <summary>
+        /// Simply sends a quasi http request via quasi http transport.
+        /// </summary>
+        /// <param name="remoteEndpoint">the destination endpoint of the request</param>
+        /// <param name="request">the request to send</param>
+        /// <param name="options">send options which override default send options and response
+        /// streaming probability.</param>
+        /// <returns>a task whose result will be the quasi http response returned from the remote endpoint</returns>
+        /// <exception cref="ArgumentNullException">The <paramref name="request"/> argument is null</exception>
+        /// <exception cref="MissingDependencyException">The <see cref="Transport"/> or <see cref="TransportBypass"/>
+        /// property is null.</exception>
+        /// <exception cref="MissingDependencyException">The <see cref="TimerApi"/>
+        /// property is null at a point where timer functionality is needed.</exception>
+        public Task<IQuasiHttpResponse> Send(object remoteEndpoint,
+            IQuasiHttpRequest request, IQuasiHttpSendOptions options)
+        {
+            var cancellableRes = Send2(remoteEndpoint, request, options);
+            return cancellableRes.Item1;
+        }
+
+        /// <summary>
+        /// Sends a quasi http request via quasi http transport and makes it posssible to cancel.
+        /// </summary>
+        /// <param name="remoteEndpoint">the destination endpoint of the request</param>
+        /// <param name="request">the request to send</param>
+        /// <param name="options">send options which override default send options and response
+        /// streaming probability.</param>
+        /// <returns>pair of handles: first is a task which can be used to await quasi http response from the remote endpoint;
+        /// second is an opaque cancellation handle which can be used to cancel the request sending.</returns>
+        /// <exception cref="ArgumentNullException">The <paramref name="request"/> argument is null</exception>
+        /// <exception cref="MissingDependencyException">The <see cref="Transport"/> or <see cref="TransportBypass"/>
+        /// property is null.</exception>
+        /// <exception cref="MissingDependencyException">The <see cref="TimerApi"/>
+        /// property is null at a point where timer functionality is needed.</exception>
         public Tuple<Task<IQuasiHttpResponse>, object> Send2(object remoteEndpoint,
             IQuasiHttpRequest request, IQuasiHttpSendOptions options)
         {
             if (request == null)
             {
-                throw new ArgumentException("null request");
+                throw new ArgumentNullException(nameof(request));
             }
 
             var transfer = new SendTransferInternal
@@ -111,28 +201,6 @@ namespace Kabomu.QuasiHttp.Client
             };
             var sendTask = ProcessSend(transfer);
             return Tuple.Create(sendTask, (object)transfer);
-        }
-
-        public Task<IQuasiHttpResponse> Send(object remoteEndpoint,
-            IQuasiHttpRequest request, IQuasiHttpSendOptions options)
-        {
-            if (request == null)
-            {
-                throw new ArgumentException("null request");
-            }
-
-            var transfer = new SendTransferInternal
-            {
-                ConnectivityParams = new DefaultConnectivityParams
-                {
-                    RemoteEndpoint = remoteEndpoint
-                },
-                Request = request,
-                SendOptions = options,
-                CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
-                    TaskCreationOptions.RunContinuationsAsynchronously)
-            };
-            return ProcessSend(transfer);
         }
 
         private async Task<IQuasiHttpResponse> ProcessSend(SendTransferInternal transfer)
@@ -255,6 +323,13 @@ namespace Kabomu.QuasiHttp.Client
             await resTask;
         }
 
+        /// <summary>
+        /// Terminates all ongoing request processing and allows caller to customize the error which 
+        /// will be observed by those awaiting the ongoing requests.
+        /// </summary>
+        /// <param name="cause">the error message which will be used to terminate ongoing request processing. Can be
+        /// null in which case error with message of "client reset" will be used.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
         public async Task Reset(Exception cause)
         {
             var cancellationException = cause ?? new Exception("client reset");

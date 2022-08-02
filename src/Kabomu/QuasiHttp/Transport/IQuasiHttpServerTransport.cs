@@ -52,7 +52,7 @@ namespace Kabomu.QuasiHttp.Transport
         /// succeed if and only if the server is running.
         /// <para>
         /// Implementations can also supply connection-related or server-related environment variables which
-        /// can provide information for interested consumsers. E.g. when used with <see cref="Server.DefaultQuasiHttpServer"/>
+        /// can provide information for interested consumsers. E.g. when used with <see cref="Server.StandardQuasiHttpServer"/>
         /// instances, the variables will be included in a quasi http request environment and passed on to
         /// quasi web applications for processing.
         /// </para>

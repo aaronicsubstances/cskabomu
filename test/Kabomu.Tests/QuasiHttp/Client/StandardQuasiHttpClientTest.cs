@@ -13,8 +13,23 @@ using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp.Client
 {
-    public class DefaultQuasiHttpClientTest
+    public class StandardQuasiHttpClientTest
     {
+        [Fact]
+        public async Task TestSendForArgumentErrors()
+        {
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            {
+                var instance = new StandardQuasiHttpClient();
+                return instance.Send(new object(), null, null);
+            });
+            Assert.Throws<ArgumentNullException>(() =>
+            {
+                var instance = new StandardQuasiHttpClient();
+                instance.Send2(new object(), null, null);
+            });
+        }
+
         [Fact]
         public async Task TestSend()
         {
@@ -27,7 +42,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 TimeoutMillis = 100
             };
-            var instance = new DefaultQuasiHttpClient
+            var instance = new StandardQuasiHttpClient
             {
                 Transport = clientTransport,
                 MutexApi = testEventLoop,

@@ -39,7 +39,7 @@ namespace WindowsNamedPipe.FileServer
             {
                 LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
             };
-            var instance = new DefaultQuasiHttpServer
+            var instance = new StandardQuasiHttpServer
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
