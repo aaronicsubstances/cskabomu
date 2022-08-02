@@ -24,10 +24,7 @@ namespace Kabomu.Tests.Concurrency
         [InlineData(false)]
         public async Task TestAdvance(bool callAdvanceBy)
         {
-            var instance = new VirtualTimeBasedEventLoopApi
-            {
-                MaxCallbackAsyncContinuationCount = 0
-            };
+            var instance = new VirtualTimeBasedEventLoopApi();
             Assert.Equal(0, instance.CurrentTimestamp);
 
             var callbackLogs = new List<string>();
@@ -203,10 +200,7 @@ namespace Kabomu.Tests.Concurrency
         [Fact]
         public async Task TestNestedCallbackPosts()
         {
-            var instance = new VirtualTimeBasedEventLoopApi
-            {
-                MaxCallbackAsyncContinuationCount = 0
-            };
+            var instance = new VirtualTimeBasedEventLoopApi();
 
             Assert.Equal(0, instance.CurrentTimestamp);
 
@@ -243,12 +237,13 @@ namespace Kabomu.Tests.Concurrency
             instance.SetTimeout(() =>
                 callbackLogs.Add($"{instance.CurrentTimestamp}:e1e039a0-c83a-43da-8f29-81725eb7147f"), 6);
 
-            // ensure async work does not pass equality check in order to verify expectations,
-            // given that instance.MaxCallbackAsyncContinuationCount is 0.
+            // test that in the absence of any extra setting, async work
+            // will cause timestamp supplied at callback execution to be differetn
+            // from the logged value.
             var tcs = new TaskCompletionSource<object>();
             Func<Task> asyncWork = async () =>
             {
-                await Task.Yield();
+                await Task.Delay(1_000);
                 callbackLogs.Add($"{instance.CurrentTimestamp}:ebf9dd1d-7157-420a-ac16-00a3fde9bf4e");
                 tcs.SetResult(null);
             };
@@ -276,14 +271,26 @@ namespace Kabomu.Tests.Concurrency
             Assert.Equal(4, instance.CurrentTimestamp);
             Assert.Empty(callbackLogs);
 
+            // test suspension and resumption of advances, and
             // ensure async work passes equality check this time.
-            instance.MaxCallbackAsyncContinuationCount = 1_000;
             asyncWork = async () =>
             {
-                await Task.Yield();
-                callbackLogs.Add($"{instance.CurrentTimestamp}:c74feb30-7e58-4e47-956b-f4ce5f3fc32c");
-                instance.SetTimeout(() =>
-                    callbackLogs.Add($"{instance.CurrentTimestamp}:b180111d-3179-4c50-9006-4a7591f05640"), 7);
+                instance.AdvanceSuspended = true;
+                try
+                {
+                    await Task.Delay(1_000);
+                    callbackLogs.Add($"{instance.CurrentTimestamp}:c74feb30-7e58-4e47-956b-f4ce5f3fc32c");
+                    instance.SetTimeout(async () =>
+                    {
+                        instance.MaxCallbackAsyncContinuationTimeoutMillis = 1_000;
+                        await Task.Delay(500);
+                        callbackLogs.Add($"{instance.CurrentTimestamp}:b180111d-3179-4c50-9006-4a7591f05640");
+                    }, 7);
+                }
+                finally
+                {
+                    instance.AdvanceSuspended = false;
+                }
             };
             instance.SetTimeout(() =>
             {
@@ -304,6 +311,19 @@ namespace Kabomu.Tests.Concurrency
             Assert.Empty(callbackLogs);
 
             Assert.Equal(0, instance.PendingEventCount);
+        }
+
+        [Fact]
+        public async Task TestPerformanceForOverOneThousand()
+        {
+            var instance = new VirtualTimeBasedEventLoopApi();
+
+            var timeLimit = 10_000;
+            for (int i = 0; i < timeLimit; i++)
+            {
+                instance.SetTimeout(() => { }, i);
+            }
+            await instance.AdvanceTimeTo(timeLimit);
         }
 
         [Fact]

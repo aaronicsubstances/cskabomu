@@ -22,8 +22,8 @@ namespace Kabomu.Tests.Internals
             {
                 Connection = testConnection
             };
-            var tcs = new TaskCompletionSource<IConnectionAllocationResponse>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
+            // create tcs synchronously.
+            var tcs = new TaskCompletionSource<IConnectionAllocationResponse>();
             EventLoopApi.SetTimeout(() => tcs.SetResult(result), allocateDelayMillis);
             return tcs.Task;
         }
@@ -32,8 +32,8 @@ namespace Kabomu.Tests.Internals
         {
             var testConnection = (TestConnection)connection;
             int bytesRead = testConnection.InputStream.Read(data, offset, length);
-            var tcs = new TaskCompletionSource<int>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
+            // create tcs synchronously.
+            var tcs = new TaskCompletionSource<int>();
             EventLoopApi.SetTimeout(() => tcs.SetResult(bytesRead), testConnection.ReadDelayMillis);
             return tcs.Task;
         }
@@ -42,8 +42,8 @@ namespace Kabomu.Tests.Internals
         {
             var testConnection = (TestConnection)connection;
             testConnection.OutputStream.Write(data, offset, length);
-            var tcs = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
+            // create tcs synchronously.
+            var tcs = new TaskCompletionSource<object>();
             EventLoopApi.SetTimeout(() => tcs.SetResult(null), testConnection.WriteDelayMillis);
             return tcs.Task;
         }
@@ -53,8 +53,8 @@ namespace Kabomu.Tests.Internals
             var testConnection = (TestConnection)connection;
             testConnection.InputStream.Dispose();
             testConnection.OutputStream.Dispose();
-            var tcs = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
+            // create tcs synchronously.
+            var tcs = new TaskCompletionSource<object>();
             EventLoopApi.SetTimeout(() => tcs.SetResult(null), testConnection.ReleaseDelayMillis);
             return tcs.Task;
         }
