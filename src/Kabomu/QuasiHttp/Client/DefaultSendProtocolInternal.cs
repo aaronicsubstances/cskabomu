@@ -24,9 +24,13 @@ namespace Kabomu.QuasiHttp.Client
         public bool ResponseStreamingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
 
-        public Task Cancel()
+        public async Task Cancel()
         {
-            return Transport.ReleaseConnection(Connection);
+            try
+            {
+                await Transport.ReleaseConnection(Connection);
+            }
+            catch (Exception) { }
         }
 
         public Task<IQuasiHttpResponse> Send(IQuasiHttpRequest request)

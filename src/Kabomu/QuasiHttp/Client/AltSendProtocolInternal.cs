@@ -30,7 +30,11 @@ namespace Kabomu.QuasiHttp.Client
             // Send().
             if (_sendCancellationHandle != null)
             {
-                TransportBypass.CancelSendRequest(_sendCancellationHandle);
+                try
+                {
+                    TransportBypass.CancelSendRequest(_sendCancellationHandle);
+                }
+                catch (Exception) { }
             }
             return Task.CompletedTask;
         }
