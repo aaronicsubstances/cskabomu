@@ -9,7 +9,9 @@ Release
 -------
 copyright
 author
-owners
+version update
+git branch commit update in nuspec
+git tag
 readme
 xml documentation
 release config
