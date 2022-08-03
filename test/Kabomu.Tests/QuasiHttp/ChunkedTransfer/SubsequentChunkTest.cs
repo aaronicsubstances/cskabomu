@@ -60,15 +60,15 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             {
                 SubsequentChunk.Deserialize(new byte[10], 6, 7);
             });
-            Assert.Throws<Exception>(() =>
+            Assert.Throws<ArgumentException>(() =>
             {
                 SubsequentChunk.Deserialize(new byte[10], 0, 0);
             });
-            Assert.ThrowsAny<Exception>(() =>
+            Assert.Throws<ArgumentException>(() =>
             {
                 SubsequentChunk.Deserialize(new byte[7], 0, 1);
             });
-            var ex = Assert.Throws<Exception>(() =>
+            var ex = Assert.Throws<ArgumentException>(() =>
             {
                 SubsequentChunk.Deserialize(new byte[10], 3, 6);
             });

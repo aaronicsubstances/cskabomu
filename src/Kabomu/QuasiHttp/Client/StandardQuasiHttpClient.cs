@@ -129,7 +129,9 @@ namespace Kabomu.QuasiHttp.Client
         {
             if (sendCancellationHandle is SendTransferInternal transfer)
             {
-                _ = AbortTransfer(transfer, new Exception("send cancelled"), null);
+                var cancellationError = new QuasiHttpRequestProcessingException(
+                    QuasiHttpRequestProcessingException.ReasonCodeCancelled, "send cancelled");
+                _ = AbortTransfer(transfer, cancellationError, null);
             }
         }
 
@@ -254,7 +256,18 @@ namespace Kabomu.QuasiHttp.Client
             catch (Exception e)
             {
                 // let call to abort transfer determine whether exception is significant.
-                await AbortTransfer(transfer, e, null);
+                QuasiHttpRequestProcessingException abortError;
+                if (e is QuasiHttpRequestProcessingException quasiHttpError)
+                {
+                    abortError = quasiHttpError;
+                }
+                else
+                {
+                    abortError = new QuasiHttpRequestProcessingException(
+                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                        "encountered error during send request processing", e);
+                }
+                await AbortTransfer(transfer, abortError, null);
             }
 
             // by awaiting again for transfer cancellation, any significant error will bubble up, and
@@ -291,9 +304,13 @@ namespace Kabomu.QuasiHttp.Client
             Task resTask;
             using (await MutexApi.Synchronize())
             {
-                if (connectionResponse?.Connection == null)
+                if (connectionResponse == null)
                 {
-                    throw new Exception("no connection created");
+                    throw new ExpectationViolationException("received null connection allocation response");
+                }
+                if (connectionResponse.Connection == null)
+                {
+                    throw new ExpectationViolationException("no connection");
                 }
 
                 if (transfer.IsAborted)
@@ -332,7 +349,8 @@ namespace Kabomu.QuasiHttp.Client
         /// <returns>A task representing the asynchronous operation.</returns>
         public async Task Reset(Exception cause)
         {
-            var cancellationException = cause ?? new Exception("client reset");
+            var cancellationException = cause ?? new QuasiHttpRequestProcessingException(
+                QuasiHttpRequestProcessingException.ReasonCodeReset, "client reset");
 
             // since it is desired to clear all pending transfers under lock,
             // and disabling of transfer is an async transfer, we choose
@@ -370,7 +388,9 @@ namespace Kabomu.QuasiHttp.Client
             }
             transfer.TimeoutId = timer.WhenSetTimeout(async () =>
             {
-                await AbortTransfer(transfer, new Exception("send timeout"), null);
+                var timeoutError = new QuasiHttpRequestProcessingException(
+                    QuasiHttpRequestProcessingException.ReasonCodeTimeout, "send timeout");
+                await AbortTransfer(transfer, timeoutError, null);
             }, transfer.TimeoutMillis).Item2;
         }
 

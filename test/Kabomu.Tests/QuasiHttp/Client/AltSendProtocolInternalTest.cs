@@ -20,7 +20,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
                 new AltSendProtocolInternal().Send(new DefaultQuasiHttpRequest()));
 
-            var ex = await Assert.ThrowsAnyAsync<Exception>(() =>
+            var ex = await Assert.ThrowsAsync<ExpectationViolationException>(() =>
             {
                 var transport = new ConfigurableQuasiHttpTransport
                 {

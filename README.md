@@ -1,6 +1,6 @@
 # Kabomu - C#.NET Core version
 
-Kabomu is a software communication library that seeks to extend the success story of HTTP to protocol stacks other than TCP/IP. It enables building applications running on non-IP networks which will resemble web applications.
+Kabomu is a networking library that extends the semantics of HTTP to transports other than TCP on localhost. It enables building applications running on non-IP networks which will resemble web applications.
 
 Such applications are termed "quasi web applications" in Kabomu. The end result is that Kabomu enables building quasi web applications that can connect endpoints within localhost and even within an OS process, through IPC mechanisms other than TCP.
 

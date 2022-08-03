@@ -37,7 +37,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Application = app,
                 AbortCallback = (parent, res) => Task.CompletedTask
             };
-            await Assert.ThrowsAnyAsync<Exception>(() =>
+            await Assert.ThrowsAsync<ExpectationViolationException>(() =>
             {
                 return instance.SendToApplication(new DefaultQuasiHttpRequest());
             });

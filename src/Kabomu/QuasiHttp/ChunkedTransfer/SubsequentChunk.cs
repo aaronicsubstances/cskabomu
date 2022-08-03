@@ -96,13 +96,13 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
             if (length < 2)
             {
-                throw new Exception("too small to be a valid subsequent chunk");
+                throw new ArgumentException("too small to be a valid subsequent chunk");
             }
             var instance = new SubsequentChunk();
             instance.Version = data[offset];
             if (instance.Version == 0)
             {
-                throw new Exception("version not set");
+                throw new ArgumentException("version not set");
             }
             instance.Flags = data[offset + 1];
             instance.Data = data;

@@ -24,7 +24,7 @@ namespace Kabomu.QuasiHttp.Server
 
             if (res == null)
             {
-                throw new Exception("no response");
+                throw new ExpectationViolationException("no response");
             }
 
             await AbortCallback.Invoke(Parent, res);

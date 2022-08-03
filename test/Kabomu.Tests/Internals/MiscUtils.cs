@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace Kabomu.Tests.Internals
 {
@@ -76,6 +77,20 @@ namespace Kabomu.Tests.Internals
             }
             stream.Position = 0; // rewind read pointer.
             return stream;
+        }
+
+        public static void AssertMessageInErrorTree(string expectedSubstring, Exception actualError)
+        {
+            Exception e = actualError;
+            while (e != null)
+            {
+                if (e.Message.Contains(expectedSubstring))
+                {
+                    break;
+                }
+                e = e.InnerException;
+            }
+            Assert.True(e != null, $"could not find substring in error tree: {expectedSubstring}");
         }
 
         public static MemoryStream CreateResponseInputStream(IQuasiHttpResponse response,
