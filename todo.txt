@@ -9,6 +9,7 @@ Release
 -------
 copyright
 author
+owners
 readme
 xml documentation
 release config
