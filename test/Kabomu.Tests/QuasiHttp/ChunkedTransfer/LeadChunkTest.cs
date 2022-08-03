@@ -68,15 +68,15 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             {
                 LeadChunk.Deserialize(new byte[6], 6, 1);
             });
-            Assert.Throws<Exception>(() =>
+            Assert.Throws<ArgumentException>(() =>
             {
                 LeadChunk.Deserialize(new byte[7], 0, 7);
             });
-            Assert.Throws<Exception>(() =>
+            Assert.Throws<ArgumentException>(() =>
             {
                 LeadChunk.Deserialize(new byte[] { 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 9 }, 0, 11);
             });
-            var ex = Assert.Throws<Exception>(() =>
+            var ex = Assert.Throws<ArgumentException>(() =>
             {
                 var data = new byte[] { 0, 0, (byte)'1', (byte)',', (byte)'1', (byte)',',
                     (byte)'1', (byte)',',(byte)'1', (byte)',',(byte)'1', (byte)',',(byte)'1', (byte)',',

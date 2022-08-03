@@ -60,7 +60,7 @@ namespace Kabomu.QuasiHttp.Server
             var response = await Application.ProcessRequest(request, RequestEnvironment); 
             if (response == null)
             {
-                throw new Exception("no response");
+                throw new ExpectationViolationException("no response");
             }
 
             // ensure response is closed.

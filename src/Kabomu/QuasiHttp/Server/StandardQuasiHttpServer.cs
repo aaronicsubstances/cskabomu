@@ -210,7 +210,11 @@ namespace Kabomu.QuasiHttp.Server
                     var connectionAllocationResponse = await connectTask;
                     if (connectionAllocationResponse == null)
                     {
-                        throw new Exception("received null for connection allocation response");
+                        throw new ExpectationViolationException("received null connection allocation response");
+                    }
+                    if (connectionAllocationResponse.Connection == null)
+                    {
+                        throw new ExpectationViolationException("no connection");
                     }
                     // let TaskScheduler.UnobservedTaskException handle any uncaught task exceptions.
                     _ = AcceptConnection(transport, connectionAllocationResponse);
@@ -246,11 +250,6 @@ namespace Kabomu.QuasiHttp.Server
 
         private async Task Receive(IQuasiHttpTransport transport, IConnectionAllocationResponse connectionResponse)
         {
-            if (connectionResponse?.Connection == null)
-            {
-                throw new ArgumentException("null connection");
-            }
-
             var transfer = new ReceiveTransferInternal
             {
                 Transport = transport,
@@ -295,7 +294,18 @@ namespace Kabomu.QuasiHttp.Server
             catch (Exception e)
             {
                 // let call to abort transfer determine whether exception is significant.
-                await AbortTransfer(transfer, e, null);
+                QuasiHttpRequestProcessingException abortError;
+                if (e is QuasiHttpRequestProcessingException quasiHttpError)
+                {
+                    abortError = quasiHttpError;
+                }
+                else
+                {
+                    abortError = new QuasiHttpRequestProcessingException(
+                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                        "encountered error during receive connection processing", e);
+                }
+                await AbortTransfer(transfer, abortError, null);
             }
 
             // by awaiting again for transfer cancellation, any significant error will bubble up, and
@@ -366,7 +376,18 @@ namespace Kabomu.QuasiHttp.Server
             catch (Exception e)
             {
                 // let call to abort transfer determine whether exception is significant.
-                await AbortTransfer(transfer, e, null);
+                QuasiHttpRequestProcessingException abortError;
+                if (e is QuasiHttpRequestProcessingException quasiHttpError)
+                {
+                    abortError = quasiHttpError;
+                }
+                else
+                {
+                    abortError = new QuasiHttpRequestProcessingException(
+                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                        "encountered error during receive request processing", e);
+                }
+                await AbortTransfer(transfer, abortError, null);
             }
 
             return await transfer.CancellationTcs.Task;
@@ -383,7 +404,8 @@ namespace Kabomu.QuasiHttp.Server
         /// <returns>A task representing the asynchronous operation.</returns>
         public async Task Reset(Exception cause)
         {
-            var cancellationException = cause ?? new Exception("server reset");
+            var cancellationException = cause ?? new QuasiHttpRequestProcessingException(
+                QuasiHttpRequestProcessingException.ReasonCodeReset, "server reset");
 
             // since it is desired to clear all pending transfers under lock,
             // and disabling of transfer is an async transfer, we choose
@@ -421,7 +443,9 @@ namespace Kabomu.QuasiHttp.Server
             }
             transfer.TimeoutId = timer.WhenSetTimeout(async () =>
             {
-                await AbortTransfer(transfer, new Exception("receive timeout"), null);
+                var timeoutError = new QuasiHttpRequestProcessingException(
+                    QuasiHttpRequestProcessingException.ReasonCodeTimeout, "receive timeout");
+                await AbortTransfer(transfer, timeoutError, null);
             }, transfer.TimeoutMillis).Item2;
         }
 

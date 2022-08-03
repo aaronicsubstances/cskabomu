@@ -59,7 +59,7 @@ namespace Kabomu.QuasiHttp.Client
 
             if (response == null)
             {
-                throw new Exception("no response");
+                throw new ExpectationViolationException("no response");
             }
 
             var responseBody = response.Body;

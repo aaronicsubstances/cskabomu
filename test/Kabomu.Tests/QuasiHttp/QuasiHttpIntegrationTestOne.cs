@@ -5,6 +5,7 @@ using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
+using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -49,7 +50,7 @@ namespace Kabomu.Tests.QuasiHttp
                 ResponseStreamingProbabilty = 1
             };
             IQuasiHttpResponse actualResponse = null;
-            string actualResponseError = null;
+            Exception actualResponseError = null;
 
             // act.
             try
@@ -58,14 +59,14 @@ namespace Kabomu.Tests.QuasiHttp
             }
             catch (Exception e)
             {
-                actualResponseError = e.Message;
+                actualResponseError = e;
             }
 
             // assert.
             if (expectedResponseError != null)
             {
                 Assert.NotNull(actualResponseError);
-                Assert.Equal(expectedResponseError, actualResponseError);
+                MiscUtils.AssertMessageInErrorTree(expectedResponseError, actualResponseError);
             }
             else
             {

@@ -190,14 +190,14 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
             if (length < 10)
             {
-                throw new Exception("too small to be a valid lead chunk");
+                throw new ArgumentException("too small to be a valid lead chunk");
             }
 
             var instance = new LeadChunk();
             instance.Version = data[offset];
             if (instance.Version == 0)
             {
-                throw new Exception("version not set");
+                throw new ArgumentException("version not set");
             }
             instance.Flags = data[offset + 1];
 
@@ -205,12 +205,12 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             var csvData = CsvUtils.Deserialize(csv);
             if (csvData.Count == 0)
             {
-                throw new Exception("invalid lead chunk");
+                throw new ArgumentException("invalid lead chunk");
             }
             var specialHeader = csvData[0];
             if (specialHeader.Count < 14)
             {
-                throw new Exception("invalid special header");
+                throw new ArgumentException("invalid special header");
             }
             if (specialHeader[0] != "0")
             {

@@ -73,7 +73,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             {
                 cbCallCount++;
             };
-            var ex = await Assert.ThrowsAnyAsync<Exception>(() =>
+            var ex = await Assert.ThrowsAsync<ExpectationViolationException>(() =>
             {
                 return instance.Receive();
             });

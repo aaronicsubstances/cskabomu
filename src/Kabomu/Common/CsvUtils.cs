@@ -149,7 +149,7 @@ namespace Kabomu.Common
                     }
                     else
                     {
-                        throw new Exception("unexpected token type: " + tokenType);
+                        throw new NotImplementedException("unexpected token type: " + tokenType);
                     }
                 }
 

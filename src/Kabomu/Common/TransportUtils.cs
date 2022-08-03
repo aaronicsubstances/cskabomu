@@ -57,7 +57,7 @@ namespace Kabomu.Common
                 {
                     if (bytesRead <= 0)
                     {
-                        throw new Exception("unexpected end of read");
+                        throw new EndOfReadException("unexpected end of read");
                     }
                     offset += bytesRead;
                     bytesToRead -= bytesRead;
@@ -170,7 +170,7 @@ namespace Kabomu.Common
                 {
                     if (bytesRead <= 0)
                     {
-                        throw new Exception("unexpected end of read");
+                        throw new EndOfReadException("unexpected end of read");
                     }
                     offset += bytesRead;
                     bytesToRead -= bytesRead;
