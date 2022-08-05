@@ -94,11 +94,11 @@ namespace Kabomu.Tests.MemoryBasedTransport
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
                 instance.AllocateConnection(null));
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.ReadBytes(new MemoryBasedTransportConnectionInternal(null, null), new byte[1], 0, 0));
+                instance.ReadBytes(new MemoryBasedTransportConnectionInternal(null, null, 0, 0), new byte[1], 0, 0));
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.WriteBytes(new MemoryBasedTransportConnectionInternal(null, null), new byte[1], 0, 0));
+                instance.WriteBytes(new MemoryBasedTransportConnectionInternal(null, null, 0, 0), new byte[1], 0, 0));
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.ReleaseConnection(new MemoryBasedTransportConnectionInternal(null, null)));
+                instance.ReleaseConnection(new MemoryBasedTransportConnectionInternal(null, null, 0, 0)));
 
             instance.Hub = new DefaultMemoryBasedTransportHub();
 
@@ -112,7 +112,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             });
             await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                return instance.ReadBytes(new MemoryBasedTransportConnectionInternal(null, null), new byte[1], 1, 1);
+                return instance.ReadBytes(new MemoryBasedTransportConnectionInternal(null, null, 0, 0), new byte[1], 1, 1);
             });
             await Assert.ThrowsAsync<ArgumentNullException>(() =>
             {
@@ -124,7 +124,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             });
             await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                return instance.WriteBytes(new MemoryBasedTransportConnectionInternal(null, null), new byte[1], 1, 1);
+                return instance.WriteBytes(new MemoryBasedTransportConnectionInternal(null, null, 0, 0), new byte[1], 1, 1);
             });
         }
 
@@ -282,7 +282,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             {
                 Assert.Equal(ExpectedClient, client);
                 Assert.Equal(ExpectedConnectivityParams, connectivityParams);
-                var connection = new MemoryBasedTransportConnectionInternal(null, null);
+                var connection = new MemoryBasedTransportConnectionInternal(null, null, 0, 0);
                 IConnectionAllocationResponse response = new DefaultConnectionAllocationResponse
                 {
                     Connection = connection

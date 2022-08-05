@@ -14,7 +14,8 @@ namespace Kabomu.MemoryBasedTransport
         private readonly MemoryPipeBackedBody _serverPipe;
         private readonly MemoryPipeBackedBody _clientPipe;
 
-        public MemoryBasedTransportConnectionInternal(IMutexApi serverMutex, IMutexApi clientMutex)
+        public MemoryBasedTransportConnectionInternal(IMutexApi serverMutex, IMutexApi clientMutex,
+            int serverMaxWriteBufferLimit, int clientMaxWriteBufferLimit)
         {
             _serverPipe = new MemoryPipeBackedBody
             {
@@ -32,9 +33,11 @@ namespace Kabomu.MemoryBasedTransport
             {
                 _clientPipe.MutexApi = clientMutex;
             }
+            SetMaxWriteBufferLimit(true, serverMaxWriteBufferLimit);
+            SetMaxWriteBufferLimit(false, clientMaxWriteBufferLimit);
         }
 
-        public void SetMaxWriteBufferLimit(bool fromServer, int maxWriteBufferLimit)
+        private void SetMaxWriteBufferLimit(bool fromServer, int maxWriteBufferLimit)
         {
             if (maxWriteBufferLimit <= 0)
             {
