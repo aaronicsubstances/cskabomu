@@ -118,7 +118,8 @@ namespace Kabomu.MemoryBasedTransport
         /// <returns>task whose result will contain connection allocated for a client</returns>
         /// <exception cref="TransportNotStartedException">if this instance is not running, ie has not been started.</exception>
         /// <exception cref="TransportResetException">If this instance is stopped while waiting for server connection</exception>
-        public async Task<IConnectionAllocationResponse> CreateConnectionForClient(object serverEndpoint, object clientEndpoint)
+        internal async Task<IConnectionAllocationResponse> CreateConnectionForClient(object serverEndpoint, object clientEndpoint,
+            int clientMaxWriteBufferLimit)
         {
             Task<IConnectionAllocationResponse> connectTask;
             Task resolveTask = null;
@@ -132,6 +133,7 @@ namespace Kabomu.MemoryBasedTransport
                 {
                     ServerEndpoint = serverEndpoint,
                     ClientEndpoint = clientEndpoint,
+                    MaxWriteBufferLimit = clientMaxWriteBufferLimit,
                     Callback = new TaskCompletionSource<IConnectionAllocationResponse>(
                         TaskCreationOptions.RunContinuationsAsynchronously)
                 };
@@ -217,8 +219,8 @@ namespace Kabomu.MemoryBasedTransport
                 clientSideMutexApi = await MutexApiFactory.Create();
             }
             var connection = new MemoryBasedTransportConnectionInternal(
-                serverSideMutexApi, clientSideMutexApi);
-            connection.SetMaxWriteBufferLimit(true, MaxWriteBufferLimit);
+                serverSideMutexApi, clientSideMutexApi, 
+                MaxWriteBufferLimit, pendingClientConnectRequest.MaxWriteBufferLimit);
             var requestEnvironment = CreateRequestEnvironment(
                 pendingClientConnectRequest.ServerEndpoint,
                 pendingClientConnectRequest.ClientEndpoint);
@@ -346,6 +348,7 @@ namespace Kabomu.MemoryBasedTransport
             public object ServerEndpoint { get; set; }
             public object ClientEndpoint { get; set; }
             public TaskCompletionSource<IConnectionAllocationResponse> Callback { get; set; }
+            public int MaxWriteBufferLimit { get; set; }
         }
     }
 }

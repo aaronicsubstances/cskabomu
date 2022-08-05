@@ -16,9 +16,8 @@ This enables programming the same HTTP semantics at the level of web application
 
 This library has the goal of letting the software community have their cake and eat it, by enforcing monolithic architectures with serializable inter module communications, so that monolithic architectures remain simple to manage, and at the same time become straightforward to evolve into distributed systems.</Description>
     <Copyright>Copyright ©2022 Aaronic Substances</Copyright>
-    <Version>1.0.1</Version>
-    <PackageReleaseNotes>Added limiting of write buffer of pending writes for memory-based transport and pipe backed body.
-Changed interface of memory based transport hub for true flexibility of implementations.</PackageReleaseNotes>
+    <Version>1.0.2</Version>
+    <PackageReleaseNotes>Reduced public interface of memory based transport.</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

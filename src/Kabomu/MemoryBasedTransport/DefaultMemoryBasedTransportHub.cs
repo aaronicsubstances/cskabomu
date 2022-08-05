@@ -195,18 +195,15 @@ namespace Kabomu.MemoryBasedTransport
             if (serverTransport is MemoryBasedServerTransport memoryBasedServerTransport)
             {
                 object clientEndpoint = null;
+                int clientMaxWriteBufferLimit = 0;
                 var memoryBasedClientTransport = client as MemoryBasedClientTransport;
                 if (memoryBasedClientTransport != null)
                 {
                     clientEndpoint = memoryBasedClientTransport.LocalEndpoint;
+                    clientMaxWriteBufferLimit = memoryBasedClientTransport.MaxWriteBufferLimit;
                 }
                 var connectionAllocationResponse = await memoryBasedServerTransport.CreateConnectionForClient(
-                    serverEndpoint, clientEndpoint);
-                if (memoryBasedClientTransport != null)
-                {
-                    var memoryBasedConnection = (MemoryBasedTransportConnectionInternal)connectionAllocationResponse.Connection;
-                    memoryBasedConnection.SetMaxWriteBufferLimit(false, memoryBasedClientTransport.MaxWriteBufferLimit);
-                }
+                    serverEndpoint, clientEndpoint, clientMaxWriteBufferLimit);
                 return connectionAllocationResponse;
             }
             else
