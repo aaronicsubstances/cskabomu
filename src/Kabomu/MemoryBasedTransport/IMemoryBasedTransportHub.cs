@@ -31,21 +31,55 @@ namespace Kabomu.MemoryBasedTransport
         /// <summary>
         /// Processes a send request to an attached server on behalf of clients.
         /// </summary>
-        /// <param name="clientEndpoint">the endpoint identifying the client making the send request.</param>
+        /// <param name="client">the client making the send request.</param>
         /// <param name="connectivityParams">endpoint information identifying the attached server</param>
         /// <param name="request">the request to be processed.</param>
         /// <returns>a task whose result will be the response from an attached server to the request from the client.</returns>
-        Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,
+        Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpClientTransport client,
             IConnectivityParams connectivityParams, IQuasiHttpRequest request);
 
         /// <summary>
         /// Allocates a connection to an attached server on behalf of clients.
         /// </summary>
-        /// <param name="clientEndpoint">the endpoint identifying the client making the send request.</param>
+        /// <param name="client">the client requesting for a connection to be allocated.</param>
         /// <param name="connectivityParams">endpoint information identifying the attached server</param>
         /// <returns>a task whose result will contain a newly allocated connection from the request client
         /// to an attached server</returns>
-        Task<IConnectionAllocationResponse> AllocateConnection(object clientEndpoint, 
+        Task<IConnectionAllocationResponse> AllocateConnection(IQuasiHttpClientTransport client, 
             IConnectivityParams connectivityParams);
+
+        /// <summary>
+        /// Reads bytes from connections returned by calling
+        /// the <see cref="AllocateConnection(IQuasiHttpClientTransport, IConnectivityParams)"/> method.
+        /// </summary>
+        /// <param name="client">the client making the read request</param>
+        /// <param name="connection">the connection to read from</param>
+        /// <param name="data">destination byte buffer of read request</param>
+        /// <param name="offset">starting position in data buffer</param>
+        /// <param name="length">number of bytes to read</param>
+        /// <returns>a task whose result will be the number of bytes actually read. that number may be
+        /// less than that requested.</returns>
+        Task<int> ReadClientBytes(IQuasiHttpClientTransport client, object connection, byte[] data, int offset, int length);
+
+        /// <summary>
+        /// Write bytes to connections returned by calling the
+        /// <see cref="AllocateConnection(IQuasiHttpClientTransport, IConnectivityParams)"/> method.
+        /// </summary>
+        /// <param name="client">the client making the read request</param>
+        /// <param name="connection">the connection to write to</param>
+        /// <param name="data">source byte buffer of write request</param>
+        /// <param name="offset">starting position in data buffer</param>
+        /// <param name="length">number of bytes to write</param>
+        /// <returns>a task representing the asynchronous operation</returns>
+        Task WriteClientBytes(IQuasiHttpClientTransport client, object connection, byte[] data, int offset, int length);
+
+        /// <summary>
+        /// Releases connections returned by calling the
+        /// <see cref="AllocateConnection(IQuasiHttpClientTransport, IConnectivityParams)"/> method.
+        /// </summary>
+        /// <param name="client">the client requesting for a connection to be released</param>
+        /// <param name="connection">the connection to be released</param>
+        /// <returns>a task representing the asynchronous operation</returns>
+        Task ReleaseClientConnection(IQuasiHttpClientTransport client, object connection);
     }
 }
