@@ -11,7 +11,7 @@
    1. load balancing is present or not
 
 4. That proved to be a herculean task, chiefly because it looked so much like re-inventing TCP even on localhost. So in the end had to stick with a design which is close to TCP, but I was still interested in persistent TCP as a means of achieving superior performance over HTTP on localhost.
-5. Concerns about load balancing and the difficult interaction with persistent TCP connections led me to give up on researching persistent TCP further.
+5. Concerns about the complexity of dealing with TCP connection resets due to idleness and possible need for connection pooling led me to give up on researching persistent TCP further.
 6. All of a sudden, it dawned on me that it is no accident that HTTP has turned out to be so successful, *given its support for upload and download of byte streams of unbounded length over transient TCP connections*.
 7. I began realising then that what I wanted in Kabomu is a request-response protocol like HTTP which can run over connections other than TCP.
 8. I delved into RINA research as it made promises of interest to my goal of having a networking library which can run over any network for both connection-oriented and connectionless modes using long lived connections.

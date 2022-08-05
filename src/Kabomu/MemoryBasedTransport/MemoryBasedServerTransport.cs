@@ -28,6 +28,18 @@ namespace Kabomu.MemoryBasedTransport
         }
 
         /// <summary>
+        /// Gets or sets the maximum write buffer limit for connections which will be created by
+        /// this class. A positive value means that
+        /// any attempt to write (excluding last writes) such that the total number of
+        /// bytse outstanding tries to exceed that positive value, will result in an instance of the
+        /// <see cref="DataBufferLimitExceededException"/> class to be thrown.
+        /// <para></para>
+        /// By default this property is zero, and so indicates that the default value of 65,6536 bytes
+        /// will be used as the maximum write buffer limit.
+        /// </summary>
+        public int MaxWriteBufferLimit { get; set; }
+
+        /// <summary>
         /// Gets or sets mutex api used to guard multithreaded 
         /// access to connection creation operations of this class.
         /// </summary>
@@ -101,7 +113,7 @@ namespace Kabomu.MemoryBasedTransport
         /// Fulfils pending receive server connections, ie calls to the <see cref="ReceiveConnection"/> method,
         /// by matching them with client connection requests.
         /// </summary>
-        /// <param name="serverEndpoint">the endpoint used to identify this instance.</param>
+        /// <param name="serverEndpoint">cthe endpoint used to identify this instance</param>
         /// <param name="clientEndpoint">the endpoint the remote client identifies itself with</param>
         /// <returns>task whose result will contain connection allocated for a client</returns>
         /// <exception cref="TransportNotStartedException">if this instance is not running, ie has not been started.</exception>
@@ -206,6 +218,7 @@ namespace Kabomu.MemoryBasedTransport
             }
             var connection = new MemoryBasedTransportConnectionInternal(
                 serverSideMutexApi, clientSideMutexApi);
+            connection.SetMaxWriteBufferLimit(true, MaxWriteBufferLimit);
             var requestEnvironment = CreateRequestEnvironment(
                 pendingClientConnectRequest.ServerEndpoint,
                 pendingClientConnectRequest.ClientEndpoint);

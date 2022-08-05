@@ -38,6 +38,11 @@ namespace Kabomu.Common
         public static readonly int DefaultResponseBodyBufferingSizeLimit = 65_536 * 2 * 1024; // 128 MB.
 
         /// <summary>
+        /// The limit of data buffering to use when a default value is needed. Currently equal to 65,536.
+        /// </summary>
+        public static readonly int DefaultDataBufferLimit = 65_536;
+
+        /// <summary>
         /// Reads in data from a quasi http body in order to completely fill in a byte buffer slice.
         /// </summary>
         /// <param name="body">source of bytes to read</param>

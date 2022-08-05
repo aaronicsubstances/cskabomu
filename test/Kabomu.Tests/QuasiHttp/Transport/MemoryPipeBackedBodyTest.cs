@@ -83,7 +83,10 @@ namespace Kabomu.Tests.QuasiHttp.Transport
             await CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
 
             // look out for specific errors.
-            instance = new MemoryPipeBackedBody();
+            instance = new MemoryPipeBackedBody
+            {
+                MaxWriteBufferLimit = 2
+            };
             var writeTasks = new List<Tuple<Task, string>>();
             var readTasks = new List<Tuple<Task<int>, string, int>>();
 
@@ -93,6 +96,8 @@ namespace Kabomu.Tests.QuasiHttp.Transport
                 instance.ReadBytes(new byte[4], 0, 2), null, 1));
             readTasks.Add(Tuple.Create<Task<int>, string, int>(
                 instance.ReadBytes(new byte[4], 0, 2), null, 0));
+            writeTasks.Add(Tuple.Create<Task, string>(
+                instance.WriteBytes(new byte[3], 0, 3), "write buffer limit"));
             writeTasks.Add(Tuple.Create<Task, string>(
                 instance.WriteBytes(new byte[] { (byte)'c', (byte)'2' }, 0, 2), null));
             writeTasks.Add(Tuple.Create<Task, string>(
