@@ -24,7 +24,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             };
 
             instance.LocalEndpoint = "Lome";
-            hub.ExpectedClientEndpoint = instance.LocalEndpoint;
+            hub.ExpectedClient = instance;
             hub.ExpectedRequest = new DefaultQuasiHttpRequest();
             hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
             hub.ProcessSendRequestResult = new DefaultQuasiHttpResponse();
@@ -33,7 +33,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
 
             instance.LocalEndpoint = "Accra";
-            hub.ExpectedClientEndpoint = instance.LocalEndpoint;
+            hub.ExpectedClient = instance;
             hub.ExpectedRequest = new DefaultQuasiHttpRequest();
             hub.ExpectedConnectivityParams = null;
             hub.ProcessSendRequestResult = null;
@@ -42,7 +42,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
 
             instance.LocalEndpoint = null;
-            hub.ExpectedClientEndpoint = instance.LocalEndpoint;
+            hub.ExpectedClient = instance;
             hub.ExpectedRequest = null;
             hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
             hub.ProcessSendRequestResult = new DefaultQuasiHttpResponse();
@@ -51,7 +51,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             Assert.Equal(hub.ProcessSendRequestResult, directSendResponse);
 
             instance.LocalEndpoint = "Abuja";
-            hub.ExpectedClientEndpoint = instance.LocalEndpoint;
+            hub.ExpectedClient = instance;
             hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
             var connectionResponse = await instance.AllocateConnection(hub.ExpectedConnectivityParams);
             Assert.True(connectionResponse.Connection is MemoryBasedTransportConnectionInternal);
@@ -93,6 +93,15 @@ namespace Kabomu.Tests.MemoryBasedTransport
                 instance.ProcessSendRequest(null, null).Item1);
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
                 instance.AllocateConnection(null));
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+                instance.ReadBytes(new MemoryBasedTransportConnectionInternal(null, null), new byte[1], 0, 0));
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+                instance.WriteBytes(new MemoryBasedTransportConnectionInternal(null, null), new byte[1], 0, 0));
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+                instance.ReleaseConnection(new MemoryBasedTransportConnectionInternal(null, null)));
+
+            instance.Hub = new DefaultMemoryBasedTransportHub();
+
             await Assert.ThrowsAsync<ArgumentNullException>(() =>
             {
                 return instance.ReadBytes(null, new byte[0], 0, 0);
@@ -138,7 +147,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
                 LocalEndpoint = localEndpoint,
                 Hub = hub
             };
-            hub.ExpectedClientEndpoint = localEndpoint;
+            hub.ExpectedClient = instance;
             hub.ExpectedConnectivityParams = new DefaultConnectivityParams();
             var connectionResponse = await instance.AllocateConnection(hub.ExpectedConnectivityParams);
             Assert.True(connectionResponse.Connection is MemoryBasedTransportConnectionInternal);
@@ -252,26 +261,26 @@ namespace Kabomu.Tests.MemoryBasedTransport
             public IQuasiHttpResponse ProcessSendRequestResult { get; set; }
             public DefaultQuasiHttpRequest ExpectedRequest { get; set; }
             public DefaultConnectivityParams ExpectedConnectivityParams { get;  set; }
-            public object ExpectedClientEndpoint { get; set; }
+            public IQuasiHttpClientTransport ExpectedClient { get; set; }
 
             public Task AddServer(object endpoint, IQuasiHttpServer server)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IQuasiHttpResponse> ProcessSendRequest(object clientEndpoint,
+            public Task<IQuasiHttpResponse> ProcessSendRequest(IQuasiHttpClientTransport client,
                 IConnectivityParams connectivityParams, IQuasiHttpRequest request)
             {
-                Assert.Equal(ExpectedClientEndpoint, clientEndpoint);
+                Assert.Equal(ExpectedClient, client);
                 Assert.Equal(ExpectedRequest, request);
                 Assert.Equal(ExpectedConnectivityParams, connectivityParams);
                 return Task.FromResult(ProcessSendRequestResult);
             }
 
-            public Task<IConnectionAllocationResponse> AllocateConnection(object clientEndpoint,
+            public Task<IConnectionAllocationResponse> AllocateConnection(IQuasiHttpClientTransport client,
                 IConnectivityParams connectivityParams)
             {
-                Assert.Equal(ExpectedClientEndpoint, clientEndpoint);
+                Assert.Equal(ExpectedClient, client);
                 Assert.Equal(ExpectedConnectivityParams, connectivityParams);
                 var connection = new MemoryBasedTransportConnectionInternal(null, null);
                 IConnectionAllocationResponse response = new DefaultConnectionAllocationResponse
@@ -279,6 +288,21 @@ namespace Kabomu.Tests.MemoryBasedTransport
                     Connection = connection
                 };
                 return Task.FromResult(response);
+            }
+
+            public Task<int> ReadClientBytes(IQuasiHttpClientTransport client, object connection, byte[] data, int offset, int length)
+            {
+                return new DefaultMemoryBasedTransportHub().ReadClientBytes(client, connection, data, offset, length);
+            }
+
+            public Task WriteClientBytes(IQuasiHttpClientTransport client, object connection, byte[] data, int offset, int length)
+            {
+                return new DefaultMemoryBasedTransportHub().WriteClientBytes(client, connection, data, offset, length);
+            }
+
+            public Task ReleaseClientConnection(IQuasiHttpClientTransport client, object connection)
+            {
+                return new DefaultMemoryBasedTransportHub().ReleaseClientConnection(client, connection);
             }
         }
     }

@@ -23,6 +23,7 @@ namespace Kabomu.QuasiHttp.Transport
         private readonly LinkedList<WriteRequest> _writeRequests;
         private bool _endOfWriteSeen;
         private Exception _endOfReadError;
+        private int _pendingWriteByteCount;
 
         /// <summary>
         /// Creates a new instance.
@@ -50,6 +51,17 @@ namespace Kabomu.QuasiHttp.Transport
         public long ContentLength => -1;
 
         public string ContentType { get; set; }
+
+        /// <summary>
+        /// Gets or sets the maximum write buffer limit. A positive value means that
+        /// any attempt to write (excluding last writes) such that the total number of
+        /// bytse outstanding tries to exceed that positive value, will result in an instance of the
+        /// <see cref="DataBufferLimitExceededException"/> class to be thrown.
+        /// <para></para>
+        /// By default this property is zero, and so indicates that no maximum
+        /// limit will be imposed on outstanding writes.
+        /// </summary>
+        public int MaxWriteBufferLimit { get; set; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
@@ -138,11 +150,26 @@ namespace Kabomu.QuasiHttp.Transport
                 {
                     throw new EndOfWriteException();
                 }
-                // respond immediately to any zero-byte write except if it is a last write.
-                if (length == 0 && !isLastBytes)
+
+                if (!isLastBytes)
                 {
-                    return;
+                    // respond immediately to any zero-byte write
+                    if (length == 0)
+                    {
+                        return;
+                    }
+
+                    // enforce maximum write buffer size limit if non positive.
+                    if (MaxWriteBufferLimit > 0)
+                    {
+                        if (_pendingWriteByteCount + length > MaxWriteBufferLimit)
+                        {
+                            throw new DataBufferLimitExceededException(MaxWriteBufferLimit,
+                                $"maximum write buffer limit of {MaxWriteBufferLimit} bytes exceeded", null);
+                        }
+                    }
                 }
+
                 var writeRequest = new WriteRequest
                 {
                     Data = data,
@@ -152,6 +179,8 @@ namespace Kabomu.QuasiHttp.Transport
                     WriteCallback = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously)
                 };
                 _writeRequests.AddLast(writeRequest);
+                _pendingWriteByteCount += writeRequest.Length;
+
                 writeTask = writeRequest.WriteCallback.Task;
 
                 if (_readRequests.Count > 0)
@@ -170,6 +199,7 @@ namespace Kabomu.QuasiHttp.Transport
             var bytesToReturn = Math.Min(pendingWrite.Length, pendingRead.Length);
             Array.Copy(pendingWrite.Data, pendingWrite.Offset,
                 pendingRead.Data, pendingRead.Offset, bytesToReturn);
+            _pendingWriteByteCount -= bytesToReturn;
 
             // do not invoke callbacks until state of this body is updated,
             // to prevent error of re-entrant read byte requests
@@ -180,7 +210,6 @@ namespace Kabomu.QuasiHttp.Transport
             // promisify the entire Kabomu library.
             _readRequests.RemoveFirst();
             List<ReadRequest> readsToEnd = null;
-            List<WriteRequest> writesToFail = null;
             if (bytesToReturn < pendingWrite.Length)
             {
                 pendingWrite.Offset += bytesToReturn;
@@ -195,20 +224,23 @@ namespace Kabomu.QuasiHttp.Transport
                     _endOfWriteSeen = true;
                     readsToEnd = new List<ReadRequest>(_readRequests);
                     _readRequests.Clear();
-                    writesToFail = new List<WriteRequest>(_writeRequests);
-                    _writeRequests.Clear();
+                    if (_writeRequests.Count > 0)
+                    {
+                        throw new InvalidOperationException("expected write requests to be empty at this stage");
+                    }
+                    _pendingWriteByteCount = 0;
                 }
             }
 
             // now we can invoke callbacks.
             // but depend only on local variables due to re-entrancy
             // reason stated above.
-            InvokeCallbacksForPendingWriteAndRead(bytesToReturn, pendingRead, pendingWrite, readsToEnd, writesToFail);
+            InvokeCallbacksForPendingWriteAndRead(bytesToReturn, pendingRead, pendingWrite, readsToEnd);
         }
 
         private static void InvokeCallbacksForPendingWriteAndRead(int bytesToReturn, 
             ReadRequest pendingRead, WriteRequest pendingWrite,
-            List<ReadRequest> readsToEnd, List<WriteRequest> writesToFail)
+            List<ReadRequest> readsToEnd)
         {
             pendingRead.ReadCallback.SetResult(bytesToReturn);
             if (pendingWrite != null)
@@ -220,14 +252,6 @@ namespace Kabomu.QuasiHttp.Transport
                 foreach (var readReq in readsToEnd)
                 {
                     readReq.ReadCallback.SetResult(0);
-                }
-            }
-            if (writesToFail != null)
-            {
-                var writeError = new EndOfWriteException("end of write");
-                foreach (var writeReq in writesToFail)
-                {
-                    writeReq.WriteCallback.SetException(writeError);
                 }
             }
         }
@@ -262,6 +286,7 @@ namespace Kabomu.QuasiHttp.Transport
                 }
                 _readRequests.Clear();
                 _writeRequests.Clear();
+                _pendingWriteByteCount = 0;
             }
         }
 
