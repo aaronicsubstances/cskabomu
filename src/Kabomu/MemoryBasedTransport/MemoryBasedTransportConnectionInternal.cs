@@ -1,4 +1,5 @@
-﻿using Kabomu.Concurrency;
+﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -15,15 +16,38 @@ namespace Kabomu.MemoryBasedTransport
 
         public MemoryBasedTransportConnectionInternal(IMutexApi serverMutex, IMutexApi clientMutex)
         {
-            _serverPipe = new MemoryPipeBackedBody();
+            _serverPipe = new MemoryPipeBackedBody
+            {
+                MaxWriteBufferLimit = TransportUtils.DefaultDataBufferLimit
+            };
             if (serverMutex != null)
             {
                 _serverPipe.MutexApi = serverMutex;
             }
-            _clientPipe = new MemoryPipeBackedBody();
+            _clientPipe = new MemoryPipeBackedBody
+            {
+                MaxWriteBufferLimit = TransportUtils.DefaultDataBufferLimit
+            };
             if (clientMutex != null)
             {
                 _clientPipe.MutexApi = clientMutex;
+            }
+        }
+
+        public void SetMaxWriteBufferLimit(bool fromServer, int maxWriteBufferLimit)
+        {
+            if (maxWriteBufferLimit <= 0)
+            {
+                return;
+            }
+            // set write buffer limit of the pipe for other participant.
+            if (fromServer)
+            {
+                _clientPipe.MaxWriteBufferLimit = maxWriteBufferLimit;
+            }
+            else
+            {
+                _serverPipe.MaxWriteBufferLimit = maxWriteBufferLimit;
             }
         }
 

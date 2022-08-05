@@ -30,9 +30,9 @@ namespace Kabomu.Tests.MemoryBasedTransport
 
             // test for errors if server is absent fom hub or found to be null.
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.AllocateConnection("kl", validConnectivityParams));
+                instance.AllocateConnection(null , validConnectivityParams));
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.ProcessSendRequest("kl", validConnectivityParams, qHttpRequest));
+                instance.ProcessSendRequest(null, validConnectivityParams, qHttpRequest));
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
             {
                 var externalServers = new Dictionary<object, IQuasiHttpServer>
@@ -40,7 +40,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
                     { serverEndpoint, null }
                 };
                 var instanceWithExternalServers = new DefaultMemoryBasedTransportHub(externalServers);
-                return instanceWithExternalServers.ProcessSendRequest(serverEndpoint, validConnectivityParams, qHttpRequest);
+                return instanceWithExternalServers.ProcessSendRequest(null, validConnectivityParams, qHttpRequest);
             });
 
             await instance.AddServer(serverEndpoint, server);
@@ -53,33 +53,33 @@ namespace Kabomu.Tests.MemoryBasedTransport
             await Assert.ThrowsAsync<ArgumentNullException>(() =>
                 instance.AddServer(null, new ConfigurableQuasiHttpServer()));
             await Assert.ThrowsAsync<ArgumentException>(() =>
-                instance.AllocateConnection("kl", null));
+                instance.AllocateConnection(null, null));
             await Assert.ThrowsAsync<ArgumentException>(() =>
-                instance.AllocateConnection("kl", new DefaultConnectivityParams()));
+                instance.AllocateConnection(null, new DefaultConnectivityParams()));
             await Assert.ThrowsAsync<ArgumentException>(() =>
-                instance.ProcessSendRequest("kl", null, qHttpRequest));
+                instance.ProcessSendRequest(null, null, qHttpRequest));
             await Assert.ThrowsAsync<ArgumentException>(() =>
-                instance.ProcessSendRequest("kl", new DefaultConnectivityParams(), qHttpRequest));
+                instance.ProcessSendRequest(null, new DefaultConnectivityParams(), qHttpRequest));
             await Assert.ThrowsAsync<ArgumentNullException>(() =>
-                instance.ProcessSendRequest("kl", validConnectivityParams, null));
+                instance.ProcessSendRequest(null, validConnectivityParams, null));
 
             // test for errors if server transport is not provided or not memory based.
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.ProcessSendRequest("kl", validConnectivityParams, qHttpRequest));
+                instance.ProcessSendRequest(null, validConnectivityParams, qHttpRequest));
             server.Transport = new ConfigurableQuasiHttpTransport();
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.ProcessSendRequest("kl", validConnectivityParams, qHttpRequest));
+                instance.ProcessSendRequest(null, validConnectivityParams, qHttpRequest));
 
             // test for errors if server transport is valid but is not started.
             var serverTransport = new MemoryBasedServerTransport();
             server.Transport = serverTransport;
             await Assert.ThrowsAnyAsync<Exception>(() =>
-                instance.AllocateConnection("kl", validConnectivityParams));
+                instance.AllocateConnection(null, validConnectivityParams));
 
             // test for errors if application is not set after server transport is started.
             await serverTransport.Start();
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                instance.ProcessSendRequest("te", validConnectivityParams, qHttpRequest));
+                instance.ProcessSendRequest(null, validConnectivityParams, qHttpRequest));
         }
 
         [Fact]
@@ -134,7 +134,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             {
                 RemoteEndpoint = serverEndpoint
             };
-            var response = await instance.ProcessSendRequest("cy", connectivityParams, expectedReq);
+            var response = await instance.ProcessSendRequest(null, connectivityParams, expectedReq);
             Assert.Equal(expectedRes, response);
         }
     }

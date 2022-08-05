@@ -33,6 +33,18 @@ namespace Kabomu.MemoryBasedTransport
         public IMemoryBasedTransportHub Hub { get; set; }
 
         /// <summary>
+        /// Gets or sets the maximum write buffer limit for connections which will be allocated by
+        /// this class. A positive value means that
+        /// any attempt to write (excluding last writes) such that the total number of
+        /// bytse outstanding tries to exceed that positive value, will result in an instance of the
+        /// <see cref="DataBufferLimitExceededException"/> class to be thrown.
+        /// <para></para>
+        /// By default this property is zero, and so indicates that the default value of 65,6536 bytes
+        /// will be used as the maximum write buffer limit.
+        /// </summary>
+        public int MaxWriteBufferLimit { get; set; }
+
+        /// <summary>
         /// Processes send requests directly by forwarding to the <see cref="Hub"/> dependency.
         /// </summary>
         /// <param name="request">the quasi http request to send.</param>
@@ -49,7 +61,7 @@ namespace Kabomu.MemoryBasedTransport
             {
                 throw new MissingDependencyException("transport hub");
             }
-            var resTask = hub.ProcessSendRequest(LocalEndpoint, connectivityParams, request);
+            var resTask = hub.ProcessSendRequest(this, connectivityParams, request);
             object sendCancellationHandle = null;
             return Tuple.Create(resTask, sendCancellationHandle);
         }
@@ -78,22 +90,29 @@ namespace Kabomu.MemoryBasedTransport
             {
                 throw new MissingDependencyException("transport hub");
             }
-            return hub.AllocateConnection(LocalEndpoint, connectivityParams);
+            return hub.AllocateConnection(this, connectivityParams);
         }
 
         /// <summary>
-        /// Releases a connection allocated by a instance of this class.
+        /// Releases a connection allocated by a instance of this class by
+        /// forwarding to the <see cref="Hub"/> dependency.
         /// </summary>
         /// <param name="connection">connection to release. null, invalid and already released connections are ignored.</param>
         /// <returns>task representing asynchronous operation</returns>
+        /// <exception cref="MissingDependencyException">The <see cref="Hub"/> property is null.</exception>
         public Task ReleaseConnection(object connection)
         {
-            return MemoryBasedServerTransport.ReleaseConnectionInternal(connection);
+            var hub = Hub;
+            if (hub == null)
+            {
+                throw new MissingDependencyException("transport hub");
+            }
+            return hub.ReleaseClientConnection(this, connection);
         }
 
         /// <summary>
         /// Reads data from a connection returned from the <see cref="AllocateConnection(IConnectivityParams)"/>
-        /// method.
+        /// method by forwarding to the <see cref="Hub"/> dependency.
         /// </summary>
         /// <param name="connection">the connection to read from</param>
         /// <param name="data">the destination byte buffer</param>
@@ -108,14 +127,20 @@ namespace Kabomu.MemoryBasedTransport
         /// <exception cref="ArgumentException">The <paramref name="connection"/> argument is not a valid connection
         /// returned by instances of this class.</exception>
         /// <exception cref="ConnectionReleasedException">The connection has been released.</exception>
+        /// <exception cref="MissingDependencyException">The <see cref="Hub"/> property is null.</exception>
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {
-            return MemoryBasedServerTransport.ReadBytesInternal(false, connection, data, offset, length);
+            var hub = Hub;
+            if (hub == null)
+            {
+                throw new MissingDependencyException("transport hub");
+            }
+            return hub.ReadClientBytes(this, connection, data, offset, length);
         }
 
         /// <summary>
         /// Writes data to a connection returned from the <see cref="AllocateConnection(IConnectivityParams)"/>
-        /// method.
+        /// method by forwarding to the <see cref="Hub"/> dependency.
         /// </summary>
         /// <param name="connection">the connection to write to</param>
         /// <param name="data">the source byte buffer</param>
@@ -129,9 +154,15 @@ namespace Kabomu.MemoryBasedTransport
         /// <exception cref="ArgumentException">The <paramref name="connection"/> argument is not a valid connection
         /// returned by instances of this class.</exception>
         /// <exception cref="ConnectionReleasedException">The connection has been released.</exception>
+        /// <exception cref="MissingDependencyException">The <see cref="Hub"/> property is null.</exception>
         public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
-            return MemoryBasedServerTransport.WriteBytesInternal(false, connection, data, offset, length);
+            var hub = Hub;
+            if (hub == null)
+            {
+                throw new MissingDependencyException("transport hub");
+            }
+            return hub.WriteClientBytes(this, connection, data, offset, length);
         }
     }
 }
