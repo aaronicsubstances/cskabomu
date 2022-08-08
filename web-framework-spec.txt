@@ -1,0 +1,40 @@
+IRegistry
+- tryGet -> Task<Optional<object>>
+- get(string or Type) -> Task<object>
+- getAll(string or Type) -> Task<IEnumerable<object>>
+- first -> Task<Optional<object>> - can't this be done on top of getAll()?
+- join(IRegistry child) -> Task. looks like an extension method to me.
+
+IMutableRegistry extends IRegistry
+- put(string or Type, object) -> Task
+- putLazy(string or Type, Func<Task<object>>) -> Task
+- tryRemove(string or Type) -> Task<bool>
+
+------------------------------------
+IHandler
+- void handle​(Context ctx) throws Exception
+
+IContext:
+void error​(Context context, Throwable throwable) throws Exception
+*void send(Context context, Object responseBody) throws Exception
+
+*void    send(Object responseBody)
+void 	error​(Throwable throwable)
+void 	insert​(Handler... handlers)
+void 	insert​(Registry registry, Handler... handlers)
+void 	next()
+void 	next​(Registry registry)
+Request 	getRequest()
+Response 	getResponse()
+
+*void methods should return Task
+*Request is registry - global
+*Context is registry - local which can be overriden in scopes
+*Response.send takes body argument
+
+
+
+
+---------------------------------------------------------------
+
+PathBinding 	getPathBinding()
