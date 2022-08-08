@@ -43,7 +43,7 @@ namespace Http.FileServer
             // adapted from https://github.com/PeteX/StandaloneKestrel
 
             var serverOptions = new KestrelServerOptions();
-            serverOptions.ListenAnyIP(port);
+            serverOptions.ListenLocalhost(port);
 
             var transportOptions = new SocketTransportOptions();
             var loggerFactory = new NullLoggerFactory();
@@ -58,12 +58,13 @@ namespace Http.FileServer
                     TimeoutMillis = 5_000
                 }
             };
-            instance.Application = new FileReceiver(port, uploadDirPath);
+            var serverUrl = new Uri($"http://127.0.0.1:{port}");
+            instance.Application = new FileReceiver(serverUrl, uploadDirPath);
             using (var server = new KestrelServer(new OptionsWrapper<KestrelServerOptions>(serverOptions),
                 transportFactory, loggerFactory))
             {
                 await server.StartAsync(new DemoHttpMiddleware(instance), CancellationToken.None);
-                LOG.Info("Started Http.FileServer at {0}", port);
+                LOG.Info("Started Http.FileServer at {0}", serverUrl);
 
                 Console.ReadLine();
                 LOG.Debug("Stopping Http.FileServer...");

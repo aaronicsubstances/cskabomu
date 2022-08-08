@@ -14,9 +14,9 @@ namespace Http.FileClient
 
         public class Options
         {
-            [Option('s', "server-port", Required = false,
-                HelpText = "Server Host and Port. Defaults to localhost:5001")]
-            public string ServerAuthority { get; set; }
+            [Option('s', "server-url", Required = false,
+                HelpText = "Server base url. Defaults to http://localhost:5001")]
+            public string ServerUrl { get; set; }
 
             [Option('d', "upload-dir", Required = false,
                 HelpText = "Path to directory of files to upload. Defaults to current directory")]
@@ -28,12 +28,12 @@ namespace Http.FileClient
             Parser.Default.ParseArguments<Options>(args)
                    .WithParsed<Options>(o =>
                    {
-                       RunMain(o.ServerAuthority ?? "localhost:5001",
+                       RunMain(o.ServerUrl ?? "http://localhost:5001",
                            o.UploadDirPath ?? ".").Wait();
                    });
         }
 
-        static async Task RunMain(string serverAuthority, string uploadDirPath)
+        static async Task RunMain(string serverUrlStr, string uploadDirPath)
         {
             var httpClient = new HttpClient();
             var transport = new HttpBasedTransport(httpClient);
@@ -49,9 +49,10 @@ namespace Http.FileClient
 
             try
             {
-                LOG.Info("Started Http.FileClient to {0}", serverAuthority);
+                var serverUrl = new Uri(serverUrlStr);
+                LOG.Info("Started Http.FileClient to {0}", serverUrl);
 
-                await FileSender.StartTransferringFiles(instance, serverAuthority, uploadDirPath);
+                await FileSender.StartTransferringFiles(instance, serverUrl, uploadDirPath);
             }
             catch (Exception e)
             {
