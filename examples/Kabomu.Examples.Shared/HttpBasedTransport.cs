@@ -53,24 +53,10 @@ namespace Kabomu.Examples.Shared
             {
                 requestWrapper.Version = Version.Parse(request.HttpVersion);
             }
-            if (connectivityParams?.RemoteEndpoint == null)
+            requestWrapper.RequestUri = (Uri)connectivityParams.RemoteEndpoint;
+            if (request.Path != null)
             {
-                throw new ArgumentException("null Uri or authority (host:port)");
-            }
-            if (connectivityParams.RemoteEndpoint is Uri requestUri)
-            {
-                requestWrapper.RequestUri = requestUri;
-            }
-            else
-            {
-                var authority = (string)connectivityParams.RemoteEndpoint;
-                string scheme = null;
-                if (connectivityParams.ExtraParams != null &&
-                    connectivityParams.ExtraParams.ContainsKey("scheme"))
-                {
-                    scheme = (string)connectivityParams.ExtraParams["scheme"];
-                }
-                requestWrapper.RequestUri = new Uri($"{scheme ?? "http"}://{authority}{request.Path ?? ""}");
+                requestWrapper.RequestUri = new Uri(requestWrapper.RequestUri, request.Path);
             }
             if (request.Body != null)
             {
