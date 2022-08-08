@@ -28,7 +28,7 @@ Overall mission starts with enforcing the architecture of monolithic application
    1. Also leverages atomic compare-and-swap CPU instructions to skip mutual exclusion entirely where possible.
 
 3. Quasi web request processing strategies: one of the following
-   1. use upcoming Kabomu.WebFramework: it resembles [ExpressJS](https://expressjs.com/), [Ratpack](https://ratpack.io/)
+   1. use Kabomu.WebFramework: it resembles [ExpressJS](https://expressjs.com/) but was copied from [Ratpack](https://ratpack.io/)
    1. use an existing web server gateway interface (e.g. Python WSGI, C#.NET OWIN, Java Servlet, Ruby Rack) and hook it to a quasi web transport.
    2. separation of concerns between services and access points:
        1. Assume that the services to be developed over favourite web framework can be accesssed by different web framework or networking protocol aside HTTP, with different security policies and serialization mechanisms.    
