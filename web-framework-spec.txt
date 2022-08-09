@@ -6,9 +6,6 @@ ratpack.core.render.RenderException
 ratpack.core.render.NoSuchRendererException
 ratpack.core.render.RendererException
 
-ratpack.core.http.Headers
-ratpack.core.http.MutableHeaders
-
 -------------------------------
 IRegistry
 - tryGet -> Task<Optional<object>>
