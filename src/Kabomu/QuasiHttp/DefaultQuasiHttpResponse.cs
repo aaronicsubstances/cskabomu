@@ -8,8 +8,8 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp
 {
     /// <summary>
-    /// Provides convenient implementation of <see cref="IQuasiHttpResponse"/> interface
-    /// in which properties of the interface are mutable.
+    /// Provides default implementation of <see cref="IQuasiHttpResponse"/> and
+    /// <see cref="IQuasiHttpMutableResponse"/> interfaces.
     /// </summary>
     public class DefaultQuasiHttpResponse : IQuasiHttpMutableResponse
     {
