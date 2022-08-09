@@ -166,7 +166,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 HttpMethod = "POST",
                 Path = "/koobi",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "variant", new List<string>{ "sea", "drive" } }
                 }
@@ -182,7 +182,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 StatusIndicatesSuccess = true,
                 StatusMessage = "ok",
                 HttpStatusCode = 200,
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "dkt", new List<string>{ "bb" } }
                 },
@@ -245,7 +245,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             request = new DefaultQuasiHttpRequest
             {
                 Path = "/fxn",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "x", new List<string>() },
                     { "a", new List<string>{ "A" } },
@@ -260,7 +260,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 StatusIndicatesSuccess = false,
                 StatusIndicatesClientError = false,
                 StatusMessage = "server error",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "x", new List<string>{ "A" } },
                     { "y", new List<string>{ "B1", "B2", "C1", "C2", "C3" } }
@@ -284,7 +284,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             expectedResponse = new DefaultQuasiHttpResponse
             {
                 StatusIndicatesSuccess = true,
-                Headers = new Dictionary<string, List<string>>()
+                Headers = new Dictionary<string, IList<string>>()
             };
             expectedResBodyBytes = new byte[110];
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
@@ -303,7 +303,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             expectedResponse = new DefaultQuasiHttpResponse
             {
                 StatusIndicatesSuccess = true,
-                Headers = new Dictionary<string, List<string>>()
+                Headers = new Dictionary<string, IList<string>>()
             };
             expectedResBodyBytes = Encoding.UTF8.GetBytes("dk".PadRight(120));
             expectedResponse.Body = new StringBody("dk".PadRight(120))

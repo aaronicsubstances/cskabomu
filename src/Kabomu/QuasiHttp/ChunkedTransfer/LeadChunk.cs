@@ -106,7 +106,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// HTTP headers, such as Content-Length and Content-Type. So setting a Content-Length header
         /// here will have no bearing on how to transmit or receive quasi http bodies.
         /// </remarks>
-        public IDictionary<string, List<string>> Headers { get; set; }
+        public IDictionary<string, IList<string>> Headers { get; set; }
 
         /// <summary>
         /// Serializes the structure into bytes. The serialization format version must be set, or
@@ -246,7 +246,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 var headerValue = new List<string>(headerRow.GetRange(1, headerRow.Count - 1));
                 if (instance.Headers == null)
                 {
-                    instance.Headers = new Dictionary<string, List<string>>();
+                    instance.Headers = new Dictionary<string, IList<string>>();
                 }
                 instance.Headers.Add(headerRow[0], headerValue);
             }

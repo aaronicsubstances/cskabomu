@@ -34,7 +34,7 @@ namespace Kabomu.QuasiHttp
         /// <summary>
         /// Gets or sets the equivalent of HTTP response headers.
         /// </summary>
-        public IDictionary<string, List<string>> Headers { get; set; }
+        public IDictionary<string, IList<string>> Headers { get; set; }
 
         /// <summary>
         /// Gets or sets the response body.

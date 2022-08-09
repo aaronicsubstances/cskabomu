@@ -259,7 +259,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             {
                 HttpMethod = "POST",
                 Path = "/koobi",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "variant", new List<string>{ "sea", "drive" } }
                 }
@@ -276,7 +276,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 StatusIndicatesSuccess = true,
                 StatusMessage = "ok",
                 HttpStatusCode = 200,
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "dkt", new List<string>{ "bb" } }
                 },
@@ -341,7 +341,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             request = new DefaultQuasiHttpRequest
             {
                 Path = "/fxn",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "x", new List<string>() },
                     { "a", new List<string>{ "A" } },
@@ -360,7 +360,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 StatusIndicatesSuccess = false,
                 StatusIndicatesClientError = false,
                 StatusMessage = "server error",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "x", new List<string>{ "A" } },
                     { "y", new List<string>{ "B1", "B2", "C1", "C2", "C3" } }
@@ -387,7 +387,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             public string StatusMessage => throw new NotImplementedException();
 
-            public IDictionary<string, List<string>> Headers => throw new NotImplementedException();
+            public IDictionary<string, IList<string>> Headers => throw new NotImplementedException();
 
             public IQuasiHttpBody Body => throw new NotImplementedException();
 
