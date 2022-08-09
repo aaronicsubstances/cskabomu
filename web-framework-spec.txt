@@ -1,3 +1,15 @@
+ratpack.core.parse.NoSuchParserException
+ratpack.core.parse.ParseException
+ratpack.core.parse.ParserException
+
+ratpack.core.render.RenderException
+ratpack.core.render.NoSuchRendererException
+ratpack.core.render.RendererException
+
+ratpack.core.http.Headers
+ratpack.core.http.MutableHeaders
+
+-------------------------------
 IRegistry
 - tryGet -> Task<Optional<object>>
 - get(string or Type) -> Task<object>
@@ -14,11 +26,8 @@ IMutableRegistry extends IRegistry
 IHandler
 - void handle​(Context ctx) throws Exception
 
-IContext:
-void error​(Context context, Throwable throwable) throws Exception
-*void send(Context context, Object responseBody) throws Exception
-
-*void    send(Object responseBody)
+IContext
+*void    render(Object responseBody)
 void 	error​(Throwable throwable)
 void 	insert​(Handler... handlers)
 void 	insert​(Registry registry, Handler... handlers)
