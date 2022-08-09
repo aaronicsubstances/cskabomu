@@ -11,7 +11,7 @@ namespace Kabomu.QuasiHttp
     /// Provides convenient implementation of <see cref="IQuasiHttpResponse"/> interface
     /// in which properties of the interface are mutable.
     /// </summary>
-    public class DefaultQuasiHttpResponse : IQuasiHttpResponse
+    public class DefaultQuasiHttpResponse : IQuasiHttpMutableResponse
     {
         /// <summary>
         /// Status code value of 200, equivalent to HTTP status code 200 OK.
