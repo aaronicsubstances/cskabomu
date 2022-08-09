@@ -107,12 +107,12 @@ namespace Kabomu.Examples.Shared
                     ContentType = contentType
                 };
             }
-            response.Headers = new Dictionary<string, List<string>>();
+            response.Headers = new Dictionary<string, IList<string>>();
             AdddResponseHeaders(response.Headers, responseWrapper);
             return response;
         }
 
-        private void AddRequestHeaders(HttpRequestMessage request, IDictionary<string, List<string>> src)
+        private void AddRequestHeaders(HttpRequestMessage request, IDictionary<string, IList<string>> src)
         {
             if (src != null)
             {
@@ -141,7 +141,7 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        private static void AdddResponseHeaders(IDictionary<string, List<string>> dest, HttpResponseMessage src)
+        private static void AdddResponseHeaders(IDictionary<string, IList<string>> dest, HttpResponseMessage src)
         {
             foreach (var entry in src.Headers)
             {

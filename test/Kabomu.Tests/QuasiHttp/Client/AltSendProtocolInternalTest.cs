@@ -313,7 +313,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 StatusIndicatesSuccess = true,
                 HttpStatusCode = 200,
                 HttpVersion = "",
-                Headers = new Dictionary<string, List<string>>(),
+                Headers = new Dictionary<string, IList<string>>(),
                 Body = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
                     expectedResBodyBytes.Length))
             };
@@ -357,7 +357,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 StatusMessage = "not found",
                 HttpStatusCode = 404,
                 HttpVersion = "1.1",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "one", new List<string>{ "1" } },
                     { "two", new List<string>{ "2", "2" } },
@@ -384,7 +384,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             public string StatusMessage => throw new NotImplementedException();
 
-            public IDictionary<string, List<string>> Headers => throw new NotImplementedException();
+            public IDictionary<string, IList<string>> Headers => throw new NotImplementedException();
 
             public int HttpStatusCode => throw new NotImplementedException();
 
@@ -426,7 +426,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             public string StatusMessage { get; set; }
 
-            public IDictionary<string, List<string>> Headers { get; set; }
+            public IDictionary<string, IList<string>> Headers { get; set; }
 
             public int HttpStatusCode { get; set; }
 
