@@ -24,7 +24,7 @@ namespace Kabomu.QuasiHttp
         /// Unlike in HTTP, setting a Content-Length header
         /// here will have no bearing on how to transmit or receive the request body.
         /// </remarks>
-        IDictionary<string, List<string>> Headers { get; }
+        IDictionary<string, IList<string>> Headers { get; }
 
         /// <summary>
         /// Gets the request body.

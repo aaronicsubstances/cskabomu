@@ -105,9 +105,9 @@ namespace Http.FileServer
             return quasiHttpRequestPath.ToString();
         }
 
-        private IDictionary<string, List<string>> ReconstructRequestHeaders(IHeaderDictionary headers)
+        private IDictionary<string, IList<string>> ReconstructRequestHeaders(IHeaderDictionary headers)
         {
-            var quasiHttpRequestHeaders = new Dictionary<string, List<string>>();
+            var quasiHttpRequestHeaders = new Dictionary<string, IList<string>>();
             foreach (var entry in headers)
             {
                 quasiHttpRequestHeaders.Add(entry.Key, entry.Value.ToList());

@@ -83,7 +83,7 @@ namespace Kabomu.Tests.QuasiHttp
             var request = new DefaultQuasiHttpRequest
             {
                 Path = "/",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "tr", new List<string>{ "e", "d" } }
                 },
@@ -119,7 +119,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 StatusIndicatesSuccess = true,
                 StatusMessage = "ok",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "year", new List<string>{ "2022" } }
                 }
@@ -154,6 +154,9 @@ namespace Kabomu.Tests.QuasiHttp
             return testData;
         }
 
+        /// <summary>
+        /// Currently a flaky test.
+        /// </summary>
         [Fact]
         public async Task TestResetOfTransfersWithoutConnections()
         {
@@ -518,7 +521,7 @@ namespace Kabomu.Tests.QuasiHttp
                 StatusIndicatesSuccess = false,
                 StatusIndicatesClientError = true,
                 StatusMessage = "bad request",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "origin", new List<string>{ kumasiEndpoint } },
                     { "method", new List<string>{ "PUT" } },
@@ -535,7 +538,7 @@ namespace Kabomu.Tests.QuasiHttp
             request = new DefaultQuasiHttpRequest
             {
                 Path = "/",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "op", new List<string>{ "sub" } },
                     { "first", new List<string>{ "02", "034f" } },
@@ -551,7 +554,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 StatusIndicatesSuccess = true,
                 StatusMessage = "ok",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "origin", new List<string>{ kumasiEndpoint } },
                     { "path", new List<string>{ "/" } },
@@ -569,7 +572,7 @@ namespace Kabomu.Tests.QuasiHttp
             request = new DefaultQuasiHttpRequest
             {
                 Path = "/compute",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "op", new List<string>{ "div" } },
                     { "first", new List<string>{ "02", "034f" } },
@@ -583,7 +586,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 StatusIndicatesSuccess = true,
                 StatusMessage = "ok",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "origin", new List<string>{ accraEndpoint } },
                     { "path", new List<string>{ "/compute" } },
@@ -602,7 +605,7 @@ namespace Kabomu.Tests.QuasiHttp
             request = new DefaultQuasiHttpRequest
             {
                 Path = "/grind",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "op", new List<string>{ "sub" } },
                     { "first", new List<string>{ "0a" } },
@@ -616,7 +619,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 StatusIndicatesSuccess = true,
                 StatusMessage = "ok",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "origin", new List<string>{ accraEndpoint } },
                     { "path", new List<string>{ "/grind" } },
@@ -635,7 +638,7 @@ namespace Kabomu.Tests.QuasiHttp
             request = new DefaultQuasiHttpRequest
             {
                 Path = "/ping",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "op", new List<string>{ "div" } },
                     { "first", new List<string>{ "" } },
@@ -651,7 +654,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 StatusIndicatesSuccess = true,
                 StatusMessage = "ok",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "origin", new List<string>{ kumasiEndpoint } },
                     { "path", new List<string>{ "/ping" } },
@@ -672,7 +675,7 @@ namespace Kabomu.Tests.QuasiHttp
             request = new DefaultQuasiHttpRequest
             {
                 Path = "/pong",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "op", new List<string>{ "sub" } },
                     { "first", new List<string>{ "" } },
@@ -686,7 +689,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 StatusIndicatesSuccess = true,
                 StatusMessage = "ok",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "origin", new List<string>{ accraEndpoint } },
                     { "path", new List<string>{ "/pong" } },
@@ -705,7 +708,7 @@ namespace Kabomu.Tests.QuasiHttp
             request = new DefaultQuasiHttpRequest
             {
                 Path = "/t",
-                Headers = new Dictionary<string, List<string>>
+                Headers = new Dictionary<string, IList<string>>
                 {
                     { "op", new List<string>{ "sub" } },
                     { "first", new List<string>{ "082b" } },
@@ -754,7 +757,7 @@ namespace Kabomu.Tests.QuasiHttp
                     }
                     var res = new DefaultQuasiHttpResponse
                     {
-                        Headers = new Dictionary<string, List<string>>()
+                        Headers = new Dictionary<string, IList<string>>()
                     };
                     res.Headers.Add("origin", new List<string> { endpoint });
                     if (req.Path != null)
