@@ -88,7 +88,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             public string StatusMessage => throw new NotImplementedException();
 
-            public IDictionary<string, List<string>> Headers => throw new NotImplementedException();
+            public IDictionary<string, IList<string>> Headers => throw new NotImplementedException();
 
             public IQuasiHttpBody Body => throw new NotImplementedException();
 

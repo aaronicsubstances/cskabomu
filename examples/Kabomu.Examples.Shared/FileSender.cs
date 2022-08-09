@@ -42,7 +42,7 @@ namespace Kabomu.Examples.Shared
         {
             var request = new DefaultQuasiHttpRequest
             {
-                Headers = new Dictionary<string, List<string>>()
+                Headers = new Dictionary<string, IList<string>>()
             };
             request.Headers.Add("f", new List<string> { f.Name });
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
