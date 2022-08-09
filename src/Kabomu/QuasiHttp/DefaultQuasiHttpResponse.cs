@@ -11,7 +11,7 @@ namespace Kabomu.QuasiHttp
     /// Provides convenient implementation of <see cref="IQuasiHttpResponse"/> interface
     /// in which properties of the interface are mutable.
     /// </summary>
-    public class DefaultQuasiHttpResponse : IQuasiHttpResponse
+    public class DefaultQuasiHttpResponse : IQuasiHttpMutableResponse
     {
         /// <summary>
         /// Gets or sets a value indicating response success: true for response success, false for response
