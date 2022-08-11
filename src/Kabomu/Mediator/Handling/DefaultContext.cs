@@ -111,7 +111,7 @@ namespace Kabomu.Mediator.Handling
                 }
                 else
                 {
-                    throw new HandlerException(e);
+                    throw new HandlerException("", e);
                 }
             }
         }
