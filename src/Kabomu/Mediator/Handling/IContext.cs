@@ -1,7 +1,9 @@
-﻿using System;
+﻿using Kabomu.Mediator.Registry;
+using Kabomu.Mediator.RequestParsing;
+using System;
 using System.Threading.Tasks;
 
-namespace Kabomu.Mediator
+namespace Kabomu.Mediator.Handling
 {
     public interface IContext : IRegistry
     {

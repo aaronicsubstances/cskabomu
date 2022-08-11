@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Mediator.Registry;
+using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
