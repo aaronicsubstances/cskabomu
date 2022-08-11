@@ -18,7 +18,7 @@ namespace Kabomu.Mediator.Handling
         public IResponse Response { get; set; }
         public IRegistry InitialReadonlyLocalRegistry { get; set; }
         public IRegistry ReadonlyGlobalRegistry { get; set; }
-        public Handler[] InitialHandlers { get; set; }
+        public IList<Handler> InitialHandlers { get; set; }
         public Handler FinalHandler { get; set; }
 
         public async Task Start()
@@ -47,11 +47,11 @@ namespace Kabomu.Mediator.Handling
             }
         }
 
-        public Task Insert(params Handler[] handlers)
+        public Task Insert(IList<Handler> handlers)
         {
-            if (handlers.Length == 0)
+            if ((handlers?.Count ?? 0) == 0)
             {
-                throw new ArgumentException("handlers is empty", nameof(handlers));
+                throw new ArgumentException("no handlers provided", nameof(handlers));
             }
 
             var newHandlerGroup = new HandlerGroup(handlers, CurrentRegistry);
@@ -59,11 +59,11 @@ namespace Kabomu.Mediator.Handling
             return Next();
         }
 
-        public Task Insert(IRegistry registry, params Handler[] handlers)
+        public Task Insert(IRegistry registry, IList<Handler> handlers)
         {
-            if (handlers.Length == 0)
+            if ((handlers?.Count ?? 0) == 0)
             {
-                throw new ArgumentException("handlers is empty", nameof(handlers));
+                throw new ArgumentException("no handlers provided", nameof(handlers));
             }
 
             var newHandlerGroup = new HandlerGroup(handlers, CurrentRegistry.Join(registry));
@@ -126,14 +126,15 @@ namespace Kabomu.Mediator.Handling
 
         public Task<T> ParseRequest<T>(object parseOpts)
         {
+            // allow null parsers to be inserted.
             Func<IRequestParser, (bool, Task<T>)> parserCode = (parser) =>
             {
-                if (!parser.CanParse<T>(this, parseOpts))
+                if (parser != null && parser.CanParse<T>(this, parseOpts))
                 {
-                    return (false, null);
+                    var result = parser.Parse<T>(this, parseOpts);
+                    return (true, result);
                 }
-                var result = parser.Parse<T>(this, parseOpts);
-                return (true, result);
+                return (false, null);
             };
             var (found, parserTask) = _joinedRegistry.TryGetFirst(parserCode);
             if (!found)
@@ -154,12 +155,12 @@ namespace Kabomu.Mediator.Handling
             }
             Func<IRenderer, (bool, Task)> renderingCode = (renderer) =>
             {
-                if (!renderer.CanRender(this, body))
+                if (renderer != null && renderer.CanRender(this, body))
                 {
-                    return (false, null);
+                    var result = renderer.Render(this, body);
+                    return (true, result);
                 }
-                var result = renderer.Render(this, body);
-                return (true, result);
+                return (false, null);
             };
             var (found, renderTask) = _joinedRegistry.TryGetFirst(renderingCode);
             if (!found)
@@ -282,11 +283,11 @@ namespace Kabomu.Mediator.Handling
 
         private class HandlerGroup
         {
-            public readonly Handler[] handlers;
+            public readonly IList<Handler> handlers;
             public IRegistry registry;
             private int _nextIndex;
 
-            public HandlerGroup(Handler[] handlers, IRegistry registry)
+            public HandlerGroup(IList<Handler> handlers, IRegistry registry)
             {
                 this.handlers = handlers;
                 this.registry = registry;
@@ -295,7 +296,7 @@ namespace Kabomu.Mediator.Handling
 
             public bool HasNext()
             {
-                return _nextIndex < handlers.Length;
+                return _nextIndex < handlers.Count;
             }
 
             public Handler Next()

@@ -4,10 +4,10 @@ namespace Kabomu.Mediator
 {
     public interface IMutableHeaders : IHeaders
     {
-        void Add(string name, string value);
-        void Set(string name, string value);
-        void Set(string name, IEnumerable<string> values);
-        void Clear();
-        void Remove(string name);
+        IMutableHeaders Add(string name, string value);
+        IMutableHeaders Set(string name, string value);
+        IMutableHeaders Set(string name, IEnumerable<string> values);
+        IMutableHeaders Clear();
+        IMutableHeaders Remove(string name);
     }
 }
