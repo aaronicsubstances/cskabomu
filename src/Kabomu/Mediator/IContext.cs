@@ -6,6 +6,7 @@ namespace Kabomu.Mediator
     public interface IContext : IRegistry
     {
         IRequest Request { get; }
+        IPathBinding PathBinding { get; }
         IResponse Response { get; }
         Task Insert​(params Handler[] handlers);
         Task Insert​(IRegistry registry, params Handler[] handlers);
