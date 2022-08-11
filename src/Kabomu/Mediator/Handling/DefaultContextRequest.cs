@@ -14,7 +14,7 @@ namespace Kabomu.Mediator.Handling
         public DefaultContextRequest(IQuasiHttpRequest rawRequest)
         {
             RawRequest = rawRequest ?? throw new ArgumentNullException(nameof(rawRequest));
-            Headers = new DefaultHeadersWrapper(rawRequest.Headers ?? new Dictionary<string, IList<string>>());
+            Headers = new DefaultHeadersWrapper(rawRequest);
             _registry = new DefaultMutableRegistry();
         }
 
@@ -59,6 +59,31 @@ namespace Kabomu.Mediator.Handling
         public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)
         {
             return _registry.TryGetFirst(key, transformFunction);
+        }
+
+        class DefaultHeadersWrapper : IHeaders
+        {
+            private readonly IQuasiHttpRequest _parent;
+
+            public DefaultHeadersWrapper(IQuasiHttpRequest parent)
+            {
+                _parent = parent;
+            }
+
+            public string Get(string name)
+            {
+                var rawHeaders = _parent.Headers;
+                IList<string> values = null;
+                if (rawHeaders != null && rawHeaders.ContainsKey(name))
+                {
+                    values = rawHeaders[name];
+                }
+                if (values != null && values.Count > 0)
+                {
+                    return values[0];
+                }
+                return null;
+            }
         }
     }
 }
