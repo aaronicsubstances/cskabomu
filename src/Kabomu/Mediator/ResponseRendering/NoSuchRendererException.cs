@@ -3,8 +3,7 @@ using System.Runtime.Serialization;
 
 namespace Kabomu.Mediator.ResponseRendering
 {
-    [Serializable]
-    internal class NoSuchRendererException : Exception
+    public class NoSuchRendererException : Exception
     {
         public NoSuchRendererException()
         {
@@ -15,10 +14,6 @@ namespace Kabomu.Mediator.ResponseRendering
         }
 
         public NoSuchRendererException(string message, Exception innerException) : base(message, innerException)
-        {
-        }
-
-        protected NoSuchRendererException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }

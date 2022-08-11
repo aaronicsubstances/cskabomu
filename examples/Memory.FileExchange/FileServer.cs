@@ -33,7 +33,7 @@ namespace Memory.FileExchange
                 Transport = transport,
                 ErrorHandler = errorHandler,
             };
-            _instance.Application = new FileReceiver(endpoint, uploadDirPath);
+            _instance.Application = new FileReceiver2(endpoint, uploadDirPath);
 
             await hub.AddServer(endpoint, _instance);
 
