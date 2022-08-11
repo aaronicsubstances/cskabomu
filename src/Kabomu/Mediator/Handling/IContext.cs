@@ -1,6 +1,7 @@
 ﻿using Kabomu.Mediator.Registry;
 using Kabomu.Mediator.RequestParsing;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Kabomu.Mediator.Handling
@@ -10,8 +11,8 @@ namespace Kabomu.Mediator.Handling
         IRequest Request { get; }
         IPathBinding PathBinding { get; }
         IResponse Response { get; }
-        Task Insert​(params Handler[] handlers);
-        Task Insert​(IRegistry registry, params Handler[] handlers);
+        Task Insert​(IList<Handler> handlers);
+        Task Insert​(IRegistry registry, IList<Handler> handlers);
         Task Next();
         Task Next​(IRegistry registry);
         Task<T> ParseRequest<T>(object parseOpts);
