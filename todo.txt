@@ -3,6 +3,7 @@ remaining
 -introduce enough timeout gaps to remove flakiness of QuasiHttpIntegrationTestOne
 -DefaultQuasiHttpClient
 -DefaultQuasiHttpServer
+-Mediator.*
 *can skip above if library works with all examples
 
 Release
@@ -28,26 +29,14 @@ UdpTransport
 
 default application pipeline - v1.1.0
 ----------------------------
-- switch role model from ExpressJS to Ratpack (https://ratpack.io/manual/current/handlers.html)
-- create Kabomu.WebFramework namespace
-- IRegistry - tryGet/get(string or Type) -> object, getAll(string or Type) -> IEnumerable, join(IRegistry child), static mutableRegistry()
-- IMutableRegistry extends IRegistry and IRegistryBuilder - tryRemove(string or Type) -> bool
-- IRegistryBuilder - put(string or Type, object), putlazy(string or Type, Func<object>), build() -> IRegistry
-- IQuasiHttpHandler
-- IQuasiHttpContext inherits IRegistry
-- Supplies next(registry) and insert(registry, handlers)
-- Also supplies request getter/setter, response getter/setter as any object, commitresponse(response of exact type resembling use of send() methods in Ratpack)
-- request should be a mutable registry, so as to have a global read/write context, as opposed to a local readonly context.
-- Implement features as typed interfaces to retrieve from context, such as error handling, mime types, fetching files relative to document root (file system binding), parsing of urls (path binding, generation of urls (PublicAddress and Redirector), setting up TLS, etc.
-- Entry point (RatpackServerSpec) - initial registry, root handler, server bootstrap config - can act as immutable portion of request context/environment
 
 create default middleware - create in examples after v1.1.0, later migrate to StandardAddons
 ------------------
 -path
 -method+path
--json
--csv
--string
+-json (parsing and formatting)
+-csv (parsing and formatting)
+-string (parsing and formatting)
 -byte buffer
 
 -URL Path validation middleware (based on https://datatracker.ietf.org/doc/html/rfc1630). 
