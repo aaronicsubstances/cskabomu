@@ -1,13 +1,14 @@
-﻿using System;
+﻿using Kabomu.Mediator.Handling;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.Mediator
+namespace Kabomu.Mediator.ResponseRendering
 {
     public interface IRenderer
     {
-        Type RenderableType { get; }
+        bool CanRender(IContext context, object obj);
         Task Render(IContext context, object obj);
     }
 }
