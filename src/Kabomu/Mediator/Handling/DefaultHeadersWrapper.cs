@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Mediator
+namespace Kabomu.Mediator.Handling
 {
-    public class DefaultHeadersWrapper : IHeaders
+    internal class DefaultHeadersWrapper : IHeaders
     {
         private readonly IDictionary<string, IList<string>> _rawHeaders;
 

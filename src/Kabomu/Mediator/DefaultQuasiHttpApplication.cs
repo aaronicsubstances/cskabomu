@@ -1,4 +1,5 @@
-﻿using Kabomu.Mediator.Handling;
+﻿using Kabomu.Common;
+using Kabomu.Mediator.Handling;
 using Kabomu.Mediator.Registry;
 using Kabomu.QuasiHttp;
 using System;
@@ -20,31 +21,40 @@ namespace Kabomu.Mediator
             var contextRequest = new DefaultContextRequest(request);
             var tcs = new TaskCompletionSource<IQuasiHttpResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponse(new DefaultQuasiHttpResponse(), tcs);
-            var contextBuilder = new DefaultContextBuilder()
-                .SetRequest(contextRequest)
-                .SetResponse(contextResponse)
-                .SetInitialHandlers(InitialHandlers)
-                .SetFinalHandler(FinalHandler)
-                .SetInitialReadonlyLocalRegistry(InitialReadonlyLocalRegistry)
-                .SetReadonlyGlobalRegistry(ReadonlyGlobalRegistry);
+            var context = new DefaultContext
+            {
+                Request = contextRequest,
+                Response = contextResponse,
+                InitialHandlers = InitialHandlers,
+                FinalHandler = FinalHandler ?? new Handler(_ => Task.CompletedTask),
+                InitialReadonlyLocalRegistry = InitialReadonlyLocalRegistry ?? EmptyRegistry.Instance,
+                ReadonlyGlobalRegistry = ReadonlyGlobalRegistry,
+            };
+            if (context.InitialHandlers == null || context.InitialHandlers.Count == 0)
+            {
+                throw new MissingDependencyException("no initial handlers provided");
+            }
+            // add more readonly global constants
+            var extraGlobalRegistry = new DefaultMutableRegistry();
+            extraGlobalRegistry.Add<IContext>(context)
+                .Add<IRequest>(contextRequest)
+                .Add<IResponse>(contextResponse);
             if (requestEnvironment != null)
             {
-                var requestEnvBasedRegistry = new DefaultMutableRegistry();
                 foreach (var entry in requestEnvironment)
                 {
-                    requestEnvBasedRegistry.Add(entry.Key, entry.Value);
-                }
-                if (contextBuilder.ReadonlyGlobalRegistry == null)
-                {
-                    contextBuilder.SetReadonlyGlobalRegistry(requestEnvBasedRegistry);
-                }
-                else
-                {
-                    contextBuilder.SetReadonlyGlobalRegistry(
-                        contextBuilder.ReadonlyGlobalRegistry.Join(requestEnvBasedRegistry));
+                    extraGlobalRegistry.Add(entry.Key, entry.Value);
                 }
             }
-            _ = contextBuilder.Start();
+            if (context.ReadonlyGlobalRegistry == null)
+            {
+                context.ReadonlyGlobalRegistry = extraGlobalRegistry;
+            }
+            else
+            {
+                context.ReadonlyGlobalRegistry = context.ReadonlyGlobalRegistry.Join(extraGlobalRegistry);
+            }
+            _ = context.Start();
             return tcs.Task;
         }
     }

@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Mediator
+namespace Kabomu.Mediator.Handling
 {
     public interface IRequest : IMutableRegistry
     {
