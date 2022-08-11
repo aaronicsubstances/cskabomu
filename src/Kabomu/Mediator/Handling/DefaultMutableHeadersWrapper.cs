@@ -1,11 +1,10 @@
-﻿using Kabomu.QuasiHttp;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Mediator
+namespace Kabomu.Mediator.Handling
 {
-    public class DefaultMutableHeadersWrapper : IMutableHeaders
+    internal class DefaultMutableHeadersWrapper : IMutableHeaders
     {
         private readonly Func<IDictionary<string, IList<string>>> _rawHeadersGetter;
         private readonly Action<IDictionary<string, IList<string>>> _rawHeadersSetter;
