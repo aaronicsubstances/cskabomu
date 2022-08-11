@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Mediator
+namespace Kabomu.Mediator.RequestParsing
 {
     public interface IPathBinding
     {
