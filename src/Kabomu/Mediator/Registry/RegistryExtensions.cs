@@ -155,30 +155,35 @@ namespace Kabomu.Mediator.Registry
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            if (!typeof(T).IsAssignableFrom(value.GetType()))
-            {
-                throw new ArgumentException($"cannot add registry value of type '{typeof(T)} " +
-                    $"from value source of type '{value.GetType()}'", nameof(value));
-            }
             return instance.Add(typeof(T), value);
         }
 
-        public static IMutableRegistry AddValueSource<T>(this IMutableRegistry instance, IRegistryValueSource valueSource)
+        public static IMutableRegistry AddLazy<T>(this IMutableRegistry instance, Func<T> valueGenerator)
         {
             if (instance == null)
             {
                 throw new ArgumentNullException(nameof(instance));
             }
-            if (valueSource == null)
+            if (valueGenerator == null)
             {
-                throw new ArgumentNullException(nameof(valueSource));
+                throw new ArgumentNullException(nameof(valueGenerator));
             }
-            if (!typeof(T).IsAssignableFrom(valueSource.ValueType))
+            Func<object> lazyGenerator = RegistryUtils.MakeLazyGenerator(() => (object)valueGenerator.Invoke());
+            return instance.AddGenerator(typeof(T), lazyGenerator);
+        }
+
+        public static IMutableRegistry AddGenerator<T>(this IMutableRegistry instance, Func<T> valueGenerator)
+        {
+            if (instance == null)
             {
-                throw new ArgumentException($"cannot add registry value of type '{typeof(T)} " +
-                    $"from value source of type '{valueSource.ValueType}'", nameof(valueSource));
+                throw new ArgumentNullException(nameof(instance));
             }
-            return instance.AddValueSource(typeof(T), valueSource);
+            if (valueGenerator == null)
+            {
+                throw new ArgumentNullException(nameof(valueGenerator));
+            }
+            Func<object> valueGeneratorWrapper = () => valueGenerator.Invoke();
+            return instance.AddGenerator(typeof(T), valueGeneratorWrapper);
         }
     }
 }
