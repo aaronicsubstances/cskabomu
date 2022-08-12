@@ -65,6 +65,12 @@ namespace Kabomu.Mediator.Handling
             _ = RunNext();
         }
 
+        public void UndoInsert()
+        {
+            _handlerStack.Peek().EndIteration();
+            _ = RunNext();
+        }
+
         public void Next(IRegistry registry)
         {
             _handlerStack.Peek().registry = CurrentRegistry.Join(registry);
@@ -82,7 +88,7 @@ namespace Kabomu.Mediator.Handling
             {
                 // tolerate prescence of nulls.
                 Handler handler = null;
-                while (_handlerStack.Count > 0 && handler == null)
+                while (handler == null)
                 {
                     var currentHandlerGroup = _handlerStack.Peek();
                     if (currentHandlerGroup.HasNext())
@@ -91,6 +97,12 @@ namespace Kabomu.Mediator.Handling
                     }
                     else
                     {
+                        // Always ensure first handler group is never popped off the stack, so that
+                        // calls to CurrentRegistry always succeed.
+                        if (_handlerStack.Count == 0)
+                        {
+                            break;
+                        }
                         _handlerStack.Pop();
                     }
                 }
@@ -331,6 +343,12 @@ namespace Kabomu.Mediator.Handling
             public Handler Next()
             {
                 return handlers[_nextIndex++];
+            }
+
+            public void EndIteration()
+            {
+                // Ensure HasNext() returns false afterwards.
+                _nextIndex = handlers.Count;
             }
         }
     }
