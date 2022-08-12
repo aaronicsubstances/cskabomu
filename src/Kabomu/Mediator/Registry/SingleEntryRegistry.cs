@@ -5,20 +5,22 @@ using System.Text;
 
 namespace Kabomu.Mediator.Registry
 {
-    public class SingleValueRegistry : IRegistry
+    public class SingleEntryRegistry : IRegistry
     {
-        private readonly object _value;
+        private readonly Type _key;
+        private readonly IRegistryValueSource _value;
 
-        public SingleValueRegistry(object value)
+        public SingleEntryRegistry(Type key, IRegistryValueSource valueSource)
         {
-            _value = value ?? throw new ArgumentNullException(nameof(value));
+            _key = key ?? throw new ArgumentNullException(nameof(key));
+            _value = valueSource ?? throw new ArgumentNullException(nameof(valueSource));
         }
 
         public (bool, object) TryGet(object key)
         {
-            if (key is Type typeKey && typeKey.IsAssignableFrom(_value.GetType()))
+            if (key is Type typeKey && typeKey.IsAssignableFrom(_key))
             {
-                return (true, _value);
+                return (true, _value.Get());
             }
             return (false, null);
         }

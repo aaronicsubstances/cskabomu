@@ -12,8 +12,8 @@ namespace Kabomu.Mediator.Registry
 
         public HierarchicalRegistry(IRegistry parent, IRegistry child)
         {
-            _parent = parent;
-            _child = child;
+            _parent = parent ?? throw new ArgumentNullException(nameof(parent));
+            _child = child ?? throw new ArgumentNullException(nameof(child));
         }
 
         public (bool, object) TryGet(object key)

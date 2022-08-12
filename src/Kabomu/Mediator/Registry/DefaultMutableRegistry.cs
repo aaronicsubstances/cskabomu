@@ -7,61 +7,39 @@ namespace Kabomu.Mediator.Registry
 {
     public class DefaultMutableRegistry : IMutableRegistry
     {
-        private readonly LinkedList<IRegisterValue> _typeKeyEntries; // serves as deque data structure.
-        private readonly Dictionary<string, Stack<IRegisterValue>> _stringKeyEntries;
+        private readonly LinkedList<(Type, IRegistryValueSource)> _typeKeyEntries; // serves as deque data structure.
+        private readonly Dictionary<string, Stack<IRegistryValueSource>> _stringKeyEntries;
 
         public DefaultMutableRegistry()
         {
-            _typeKeyEntries = new LinkedList<IRegisterValue>();
-            _stringKeyEntries = new Dictionary<string, Stack<IRegisterValue>>();
+            _typeKeyEntries = new LinkedList<(Type, IRegistryValueSource)>();
+            _stringKeyEntries = new Dictionary<string, Stack<IRegistryValueSource>>();
         }
 
         public IMutableRegistry Add(object key, object value)
         {
-            if (key is string stringKey)
-            {
-                Stack<IRegisterValue> registerValues;
-                if (_stringKeyEntries.ContainsKey(stringKey))
-                {
-                    registerValues = _stringKeyEntries[stringKey];
-                }
-                else
-                {
-                    registerValues = new Stack<IRegisterValue>();
-                    _stringKeyEntries.Add(stringKey, registerValues);
-                }
-                registerValues.Push(new EagerValue(null, value));
-            }
-            else if (key is Type typeKey)
-            {
-                _typeKeyEntries.AddFirst(new EagerValue(typeKey, value));
-            }
-            else
-            {
-                throw new ArgumentException("key must be a string or Type object", nameof(key));
-            }
-            return this;
+            return AddValueSource(key, new ConstantRegistryValueSource(value));
         }
 
-        public IMutableRegistry AddLazy(object key, Func<object> valueGenerator)
+        public IMutableRegistry AddValueSource(object key, IRegistryValueSource valueSource)
         {
             if (key is string stringKey)
             {
-                Stack<IRegisterValue> registerValues;
+                Stack<IRegistryValueSource> selectedValueSources;
                 if (_stringKeyEntries.ContainsKey(stringKey))
                 {
-                    registerValues = _stringKeyEntries[stringKey];
+                    selectedValueSources = _stringKeyEntries[stringKey];
                 }
                 else
                 {
-                    registerValues = new Stack<IRegisterValue>();
-                    _stringKeyEntries.Add(stringKey, registerValues);
+                    selectedValueSources = new Stack<IRegistryValueSource>();
+                    _stringKeyEntries.Add(stringKey, selectedValueSources);
                 }
-                registerValues.Push(new LazyValue(null, valueGenerator));
+                selectedValueSources.Push(valueSource);
             }
             else if (key is Type typeKey)
             {
-                _typeKeyEntries.AddFirst(new LazyValue(typeKey, valueGenerator));
+                _typeKeyEntries.AddFirst((typeKey, valueSource));
             }
             else
             {
@@ -86,7 +64,7 @@ namespace Kabomu.Mediator.Registry
                 {
                     var node = _typeKeyEntries.First;
                     _typeKeyEntries.RemoveFirst();
-                    if (typeKey.IsAssignableFrom(node.Value.Key))
+                    if (typeKey.IsAssignableFrom(node.Value.Item1))
                     {
                         // remove by not re-adding.
                     }
@@ -106,7 +84,7 @@ namespace Kabomu.Mediator.Registry
             {
                 if (_stringKeyEntries.ContainsKey(stringKey))
                 {
-                    var valueToUse = _stringKeyEntries[stringKey].Peek();
+                    var valueToUse = _stringKeyEntries[stringKey].Peek().Get();
                     return (true, valueToUse);
                 }
             }
@@ -114,9 +92,9 @@ namespace Kabomu.Mediator.Registry
             {
                 foreach (var entry in _typeKeyEntries)
                 {
-                    if (typeKey.IsAssignableFrom(entry.Key))
+                    if (typeKey.IsAssignableFrom(entry.Item1))
                     {
-                        return (true, entry.Value);
+                        return (true, entry.Item2.Get());
                     }
                 }
             }
@@ -125,26 +103,28 @@ namespace Kabomu.Mediator.Registry
 
         public IEnumerable<object> GetAll(object key)
         {
+            var selected = new List<object>();
             if (key is string stringKey)
             {
                 if (_stringKeyEntries.ContainsKey(stringKey))
                 {
-                    return _stringKeyEntries[stringKey];
+                    foreach (var valueSource in _stringKeyEntries[stringKey])
+                    {
+                        selected.Add(valueSource.Get());
+                    }
                 }
             }
             else if (key is Type typeKey)
             {
-                var selected = new List<object>();
                 foreach (var entry in _typeKeyEntries)
                 {
-                    if (typeKey.IsAssignableFrom(entry.Key))
+                    if (typeKey.IsAssignableFrom(entry.Item1))
                     {
-                        selected.Add(entry.Value);
+                        selected.Add(entry.Item2.Get());
                     }
                 }
-                return selected;
             }
-            return Enumerable.Empty<object>();
+            return selected;
         }
 
         public object Get(object key)
@@ -155,61 +135,6 @@ namespace Kabomu.Mediator.Registry
         public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)
         {
             return RegistryUtils.TryGetFirst(this, key, transformFunction);
-        }
-
-        private interface IRegisterValue
-        {
-            Type Key { get; }
-            object Value { get; }
-        }
-
-        private class EagerValue : IRegisterValue
-        {
-            public EagerValue(Type key, object value)
-            {
-                Key = key;
-                Value = value;
-            }
-
-            public Type Key { get; }
-
-            public object Value { get; }
-        }
-
-        private class LazyValue : IRegisterValue
-        {
-            private readonly object _lock = new object();
-            private readonly Func<object> _valueGenerator;
-            private bool _valueSet;
-            private object _value;
-
-            public LazyValue(Type key, Func<object> valueGenerator)
-            {
-                Key = key;
-                _valueGenerator = valueGenerator;
-            }
-
-            public Type Key { get; }
-
-            public object Value
-            {
-                get
-                {
-                    // use recommended double condition check strategy to implement lazy loading pattern
-                    if (!_valueSet)
-                    {
-                        lock (_lock)
-                        {
-                            if (!_valueSet)
-                            {
-                                _value = _valueGenerator.Invoke();
-                                _valueSet = true;
-                            }
-                        }
-                    }
-                    return _value;
-                }
-            }
         }
     }
 }

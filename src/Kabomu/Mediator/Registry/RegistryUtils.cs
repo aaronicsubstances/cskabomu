@@ -9,6 +9,10 @@ namespace Kabomu.Mediator.Registry
     {
         public static object Get(IRegistry instance, object key)
         {
+            if (instance == null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
             var (present, value) = instance.TryGet(key);
             if (!present)
             {
@@ -19,6 +23,14 @@ namespace Kabomu.Mediator.Registry
 
         public static (bool, object) TryGetFirst(IRegistry instance, object key, Func<object, (bool, object)> transformFunction)
         {
+            if (instance == null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+            if (transformFunction == null)
+            {
+                throw new ArgumentNullException(nameof(transformFunction));
+            }
             return instance.GetAll(key)
                 .Select(x => transformFunction.Invoke(x))
                 .FirstOrDefault(x => x.Item1);
