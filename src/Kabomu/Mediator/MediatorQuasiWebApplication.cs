@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using Kabomu.Mediator.Handling;
 using Kabomu.Mediator.Registry;
 using Kabomu.QuasiHttp;
@@ -9,12 +10,13 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Mediator
 {
-    public class DefaultQuasiHttpApplication : IQuasiHttpApplication
+    public class MediatorQuasiWebApplication : IQuasiHttpApplication
     {
         public IList<Handler> InitialHandlers { get; set; }
         public Handler FinalHandler { get; set; }
         public IRegistry InitialReadonlyLocalRegistry { get; set; }
         public IRegistry ReadonlyGlobalRegistry { get; set; }
+        public IMutexApiFactory MutexApiFactory { get; set; }
 
         public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
         {
@@ -47,7 +49,15 @@ namespace Kabomu.Mediator
             {
                 context.ReadonlyGlobalRegistry = EmptyRegistry.Instance;
             }
+
+            var mutexApiTask = MutexApiFactory?.Create();
+            if (mutexApiTask != null)
+            {
+                context.MutexApi = await mutexApiTask;
+            }
+
             await context.Start();
+
             return await tcs.Task;
         }
     }
