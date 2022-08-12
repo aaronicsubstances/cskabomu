@@ -11,14 +11,17 @@ namespace Kabomu.Mediator.Handling
     {
         private readonly DefaultMutableRegistry _registry;
 
-        public DefaultContextRequest(IQuasiHttpRequest rawRequest)
+        public DefaultContextRequest(IQuasiHttpRequest rawRequest, IDictionary<string, object> requestEnvironment)
         {
             RawRequest = rawRequest ?? throw new ArgumentNullException(nameof(rawRequest));
+            Environment = requestEnvironment ?? new Dictionary<string, object>();
             Headers = new DefaultHeadersWrapper(rawRequest);
             _registry = new DefaultMutableRegistry();
         }
 
         public IQuasiHttpRequest RawRequest { get; }
+
+        public IDictionary<string, object> Environment { get; }
 
         public string Path => RawRequest.Path;
 
@@ -29,11 +32,11 @@ namespace Kabomu.Mediator.Handling
         public IMutableRegistry Add(object key, object value)
         {
             return _registry.Add(key, value);
-
         }
-        public IMutableRegistry AddValueSource(object key, IRegistryValueSource valueSource)
+
+        public IMutableRegistry AddGenerator(object key, Func<object> valueGenerator)
         {
-            return _registry.AddValueSource(key, valueSource);
+            return _registry.AddGenerator(key, valueGenerator);
         }
 
         public object Get(object key)

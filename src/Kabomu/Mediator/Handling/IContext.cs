@@ -11,10 +11,10 @@ namespace Kabomu.Mediator.Handling
         IRequest Request { get; }
         IPathBinding PathBinding { get; }
         IResponse Response { get; }
-        Task Insert​(IList<Handler> handlers);
-        Task Insert​(IRegistry registry, IList<Handler> handlers);
-        Task Next();
-        Task Next​(IRegistry registry);
+        void Insert​(IList<Handler> handlers);
+        void Insert​(IRegistry registry, IList<Handler> handlers);
+        void Next();
+        void Next​(IRegistry registry);
         Task<T> ParseRequest<T>(object parseOpts);
         Task RenderResponse(object body);
         Task HandleError​(Exception error);

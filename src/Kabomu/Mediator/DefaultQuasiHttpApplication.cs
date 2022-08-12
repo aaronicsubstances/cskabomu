@@ -16,46 +16,39 @@ namespace Kabomu.Mediator
         public IRegistry InitialReadonlyLocalRegistry { get; set; }
         public IRegistry ReadonlyGlobalRegistry { get; set; }
 
-        public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
+        public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
         {
-            var contextRequest = new DefaultContextRequest(request);
-            var tcs = new TaskCompletionSource<IQuasiHttpResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var contextRequest = new DefaultContextRequest(request, requestEnvironment);
+            var tcs = new TaskCompletionSource<IQuasiHttpResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponse(new DefaultQuasiHttpResponse(), tcs);
             var context = new DefaultContext
             {
                 Request = contextRequest,
                 Response = contextResponse,
                 InitialHandlers = InitialHandlers,
-                FinalHandler = FinalHandler ?? new Handler(_ => Task.CompletedTask),
-                InitialReadonlyLocalRegistry = InitialReadonlyLocalRegistry ?? EmptyRegistry.Instance,
+                FinalHandler = FinalHandler,
+                InitialReadonlyLocalRegistry = InitialReadonlyLocalRegistry,
                 ReadonlyGlobalRegistry = ReadonlyGlobalRegistry,
             };
             if (context.InitialHandlers == null || context.InitialHandlers.Count == 0)
             {
                 throw new MissingDependencyException("no initial handlers provided");
             }
-            // add more readonly global constants
-            var extraGlobalRegistry = new DefaultMutableRegistry();
-            extraGlobalRegistry.Add<IContext>(context)
-                .Add<IRequest>(contextRequest)
-                .Add<IResponse>(contextResponse);
-            if (requestEnvironment != null)
+            if (context.FinalHandler == null)
             {
-                foreach (var entry in requestEnvironment)
-                {
-                    extraGlobalRegistry.Add(entry.Key, entry.Value);
-                }
+                context.FinalHandler = _ => Task.CompletedTask;
+            }
+            if (context.InitialReadonlyLocalRegistry == null)
+            {
+                context.InitialReadonlyLocalRegistry = EmptyRegistry.Instance;
             }
             if (context.ReadonlyGlobalRegistry == null)
             {
-                context.ReadonlyGlobalRegistry = extraGlobalRegistry;
+                context.ReadonlyGlobalRegistry = EmptyRegistry.Instance;
             }
-            else
-            {
-                context.ReadonlyGlobalRegistry = context.ReadonlyGlobalRegistry.Join(extraGlobalRegistry);
-            }
-            _ = context.Start();
-            return tcs.Task;
+            await context.Start();
+            return await tcs.Task;
         }
     }
 }
