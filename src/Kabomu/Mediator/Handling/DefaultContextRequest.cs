@@ -29,11 +29,11 @@ namespace Kabomu.Mediator.Handling
         public IMutableRegistry Add(object key, object value)
         {
             return _registry.Add(key, value);
-        }
 
-        public IMutableRegistry AddLazy(object key, Func<object> valueGenerator)
+        }
+        public IMutableRegistry AddValueSource(object key, IRegistryValueSource valueSource)
         {
-            return _registry.AddLazy(key, valueGenerator);
+            return _registry.AddValueSource(key, valueSource);
         }
 
         public object Get(object key)
