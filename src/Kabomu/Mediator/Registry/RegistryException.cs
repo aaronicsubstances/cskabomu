@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kabomu.Mediator.Registry
 {
-    public class RegistryException : Exception
+    public class RegistryException : MediatorQuasiWebException
     {
         public RegistryException()
         {

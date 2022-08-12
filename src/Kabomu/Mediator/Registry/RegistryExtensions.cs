@@ -158,6 +158,20 @@ namespace Kabomu.Mediator.Registry
             return instance.Add(typeof(T), value);
         }
 
+        public static IMutableRegistry AddLazy(this IMutableRegistry instance, string key, Func<object> valueGenerator)
+        {
+            if (instance == null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+            if (valueGenerator == null)
+            {
+                throw new ArgumentNullException(nameof(valueGenerator));
+            }
+            Func<object> lazyGenerator = RegistryUtils.MakeLazyGenerator(() => valueGenerator.Invoke());
+            return instance.AddGenerator(key, lazyGenerator);
+        }
+
         public static IMutableRegistry AddLazy<T>(this IMutableRegistry instance, Func<T> valueGenerator)
         {
             if (instance == null)

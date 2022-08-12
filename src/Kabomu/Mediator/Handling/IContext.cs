@@ -13,6 +13,7 @@ namespace Kabomu.Mediator.Handling
         IResponse Response { get; }
         void Insert​(IList<Handler> handlers);
         void Insert​(IRegistry registry, IList<Handler> handlers);
+        void UndoInsert();
         void Next();
         void Next​(IRegistry registry);
         Task<T> ParseRequest<T>(object parseOpts);

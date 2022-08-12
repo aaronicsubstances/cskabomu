@@ -2,7 +2,7 @@
 
 namespace Kabomu.Mediator.ResponseRendering
 {
-    public class RenderException : Exception
+    public class RenderException : MediatorQuasiWebException
     {
         public RenderException()
         {
