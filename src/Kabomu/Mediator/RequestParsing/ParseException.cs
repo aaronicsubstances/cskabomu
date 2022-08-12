@@ -2,7 +2,7 @@
 
 namespace Kabomu.Mediator.RequestParsing
 {
-    public class ParseException : Exception
+    public class ParseException : MediatorQuasiWebException
     {
         public ParseException()
         {

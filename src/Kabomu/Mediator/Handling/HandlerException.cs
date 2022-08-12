@@ -2,7 +2,7 @@
 
 namespace Kabomu.Mediator.Handling
 {
-    public class HandlerException : Exception
+    public class HandlerException : MediatorQuasiWebException
     {
         public HandlerException()
         {
