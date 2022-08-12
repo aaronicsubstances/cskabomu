@@ -4,6 +4,10 @@ namespace Kabomu.Mediator.Handling
 {
     public class HandlerException : Exception
     {
+        public HandlerException()
+        {
+        }
+
         public HandlerException(string message) : base(message)
         {
         }

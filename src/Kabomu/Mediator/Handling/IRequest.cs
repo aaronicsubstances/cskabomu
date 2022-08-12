@@ -10,6 +10,7 @@ namespace Kabomu.Mediator.Handling
     public interface IRequest : IMutableRegistry
     {
         IQuasiHttpRequest RawRequest { get; }
+        IDictionary<string, object> Environment { get; }
         string Path { get; }
         IHeaders Headers { get; }
         IQuasiHttpBody Body { get; }

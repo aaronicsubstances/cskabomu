@@ -4,18 +4,16 @@ using System.Text;
 
 namespace Kabomu.Mediator.Registry
 {
-    public class LazyRegistryValueSource<T> : IRegistryValueSource
+    internal class LazyValueGenerator<T>
     {
         private readonly object _lock = new object();
         private bool _valueSet;
         private T _value;
 
-        public LazyRegistryValueSource(Func<T> valueGenerator)
+        public LazyValueGenerator(Func<T> valueGenerator)
         {
             ValueGenerator = valueGenerator ?? throw new ArgumentNullException(nameof(valueGenerator));
         }
-
-        public Type ValueType => typeof(T);
 
         private Func<T> ValueGenerator { get; }
 
@@ -34,11 +32,6 @@ namespace Kabomu.Mediator.Registry
                 }
             }
             return _value;
-        }
-
-        object IRegistryValueSource.Get()
-        {
-            throw new NotImplementedException();
         }
     }
 }

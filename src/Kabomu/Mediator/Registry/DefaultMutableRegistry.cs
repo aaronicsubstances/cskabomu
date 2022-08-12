@@ -1,45 +1,51 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace Kabomu.Mediator.Registry
 {
     public class DefaultMutableRegistry : IMutableRegistry
     {
-        private readonly LinkedList<(Type, IRegistryValueSource)> _typeKeyEntries; // serves as deque data structure.
-        private readonly Dictionary<string, Stack<IRegistryValueSource>> _stringKeyEntries;
+        private readonly LinkedList<IRegistryEntry> _typeKeyEntries; // serves as deque data structure.
+        private readonly Dictionary<string, Stack<IRegistryEntry>> _stringKeyEntries;
 
         public DefaultMutableRegistry()
         {
-            _typeKeyEntries = new LinkedList<(Type, IRegistryValueSource)>();
-            _stringKeyEntries = new Dictionary<string, Stack<IRegistryValueSource>>();
+            _typeKeyEntries = new LinkedList<IRegistryEntry>();
+            _stringKeyEntries = new Dictionary<string, Stack<IRegistryEntry>>();
         }
 
         public IMutableRegistry Add(object key, object value)
         {
-            return AddValueSource(key, new ConstantRegistryValueSource(value));
+            return AddGenerator(key, () => value);
         }
 
-        public IMutableRegistry AddValueSource(object key, IRegistryValueSource valueSource)
+        public IMutableRegistry AddGenerator(object key, Func<object> valueGenerator)
         {
             if (key is string stringKey)
             {
-                Stack<IRegistryValueSource> selectedValueSources;
+                Stack<IRegistryEntry> selectedEntries;
                 if (_stringKeyEntries.ContainsKey(stringKey))
                 {
-                    selectedValueSources = _stringKeyEntries[stringKey];
+                    selectedEntries = _stringKeyEntries[stringKey];
                 }
                 else
                 {
-                    selectedValueSources = new Stack<IRegistryValueSource>();
-                    _stringKeyEntries.Add(stringKey, selectedValueSources);
+                    selectedEntries = new Stack<IRegistryEntry>();
+                    _stringKeyEntries.Add(stringKey, selectedEntries);
                 }
-                selectedValueSources.Push(valueSource);
+                selectedEntries.Push(new DefaultRegistryEntry
+                {
+                    ValueGenerator = valueGenerator
+                });
             }
-            else if (key is Type typeKey)
+            else if (key is Type)
             {
-                _typeKeyEntries.AddFirst((typeKey, valueSource));
+                _typeKeyEntries.AddFirst(new DefaultRegistryEntry
+                {
+                    Key = key,
+                    ValueGenerator = valueGenerator
+                });
             }
             else
             {
@@ -64,7 +70,7 @@ namespace Kabomu.Mediator.Registry
                 {
                     var node = _typeKeyEntries.First;
                     _typeKeyEntries.RemoveFirst();
-                    if (typeKey.IsAssignableFrom(node.Value.Item1))
+                    if (typeKey.IsAssignableFrom((Type)node.Value.Key))
                     {
                         // remove by not re-adding.
                     }
@@ -84,7 +90,7 @@ namespace Kabomu.Mediator.Registry
             {
                 if (_stringKeyEntries.ContainsKey(stringKey))
                 {
-                    var valueToUse = _stringKeyEntries[stringKey].Peek().Get();
+                    var valueToUse = _stringKeyEntries[stringKey].Peek().ValueGenerator.Invoke();
                     return (true, valueToUse);
                 }
             }
@@ -92,9 +98,9 @@ namespace Kabomu.Mediator.Registry
             {
                 foreach (var entry in _typeKeyEntries)
                 {
-                    if (typeKey.IsAssignableFrom(entry.Item1))
+                    if (typeKey.IsAssignableFrom((Type)entry.Key))
                     {
-                        return (true, entry.Item2.Get());
+                        return (true, entry.ValueGenerator.Invoke());
                     }
                 }
             }
@@ -108,9 +114,9 @@ namespace Kabomu.Mediator.Registry
             {
                 if (_stringKeyEntries.ContainsKey(stringKey))
                 {
-                    foreach (var valueSource in _stringKeyEntries[stringKey])
+                    foreach (var entry in _stringKeyEntries[stringKey])
                     {
-                        selected.Add(valueSource.Get());
+                        selected.Add(entry.ValueGenerator.Invoke());
                     }
                 }
             }
@@ -118,9 +124,9 @@ namespace Kabomu.Mediator.Registry
             {
                 foreach (var entry in _typeKeyEntries)
                 {
-                    if (typeKey.IsAssignableFrom(entry.Item1))
+                    if (typeKey.IsAssignableFrom((Type)entry.Key))
                     {
-                        selected.Add(entry.Item2.Get());
+                        selected.Add(entry.ValueGenerator.Invoke());
                     }
                 }
             }

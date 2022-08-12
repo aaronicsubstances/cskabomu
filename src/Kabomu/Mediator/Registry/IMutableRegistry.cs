@@ -7,7 +7,7 @@ namespace Kabomu.Mediator.Registry
     public interface IMutableRegistry : IRegistry
     {
         IMutableRegistry Add(object key, object value);
-        IMutableRegistry AddValueSource(object key, IRegistryValueSource valueSource);
+        IMutableRegistry AddGenerator(object key, Func<object> valueGenerator);
         IMutableRegistry Remove(object key);
     }
 }

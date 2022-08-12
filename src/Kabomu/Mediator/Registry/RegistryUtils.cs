@@ -16,7 +16,7 @@ namespace Kabomu.Mediator.Registry
             var (present, value) = instance.TryGet(key);
             if (!present)
             {
-                throw new NotInRegistryException($"No object found in registry for key: {key}");
+                throw new RegistryException($"No object found in registry for key: {key}");
             }
             return value;
         }
@@ -34,6 +34,12 @@ namespace Kabomu.Mediator.Registry
             return instance.GetAll(key)
                 .Select(x => transformFunction.Invoke(x))
                 .FirstOrDefault(x => x.Item1);
+        }
+
+        public static Func<T> MakeLazyGenerator<T>(Func<T> valueGenerator)
+        {
+            Func<T> lazyValueGenerator = new LazyValueGenerator<T>(valueGenerator).Get;
+            return lazyValueGenerator;
         }
     }
 }
