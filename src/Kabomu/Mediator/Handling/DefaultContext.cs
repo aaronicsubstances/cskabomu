@@ -1,9 +1,11 @@
-﻿using Kabomu.Mediator.Registry;
+﻿using Kabomu.Concurrency;
+using Kabomu.Mediator.Registry;
 using Kabomu.Mediator.RequestParsing;
 using Kabomu.Mediator.ResponseRendering;
 using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -20,19 +22,25 @@ namespace Kabomu.Mediator.Handling
         public IRegistry ReadonlyGlobalRegistry { get; set; }
         public IList<Handler> InitialHandlers { get; set; }
         public Handler FinalHandler { get; set; }
+        public IMutexApi MutexApi { get; set; }
 
-        public Task Start()
+        public async Task Start()
         {
-            _handlerStack = new Stack<HandlerGroup>();
-            var firstHandlerGroup = new HandlerGroup(InitialHandlers, InitialReadonlyLocalRegistry);
-            _handlerStack.Push(firstHandlerGroup);
+            using (await MutexApi.Synchronize())
+            {
+                _handlerStack = new Stack<HandlerGroup>();
+                var firstHandlerGroup = new HandlerGroup(InitialHandlers, InitialReadonlyLocalRegistry);
+                _handlerStack.Push(firstHandlerGroup);
 
-            _joinedRegistry = new DynamicRegistry(this).Join(ReadonlyGlobalRegistry);
+                _joinedRegistry = new DynamicRegistry(this).Join(ReadonlyGlobalRegistry);
 
-            _ = RunNext();
-            return Task.CompletedTask;
+                RunNext();
+            }
         }
 
+        /// <summary>
+        /// NB: must be called from mutual exclusion
+        /// </summary>
         private IRegistry CurrentRegistry
         {
             get
@@ -41,77 +49,97 @@ namespace Kabomu.Mediator.Handling
             }
         }
 
-        public void Insert(IList<Handler> handlers)
+        public Task Insert(IList<Handler> handlers)
         {
-            if ((handlers?.Count ?? 0) == 0)
+            return Insert(handlers, null);
+        }
+
+        public async Task Insert(IList<Handler> handlers, IRegistry registry)
+        {
+            if (handlers == null || handlers.Count == 0)
             {
                 throw new ArgumentException("no handlers provided", nameof(handlers));
             }
 
-            var newHandlerGroup = new HandlerGroup(handlers, CurrentRegistry);
-            _handlerStack.Push(newHandlerGroup);
-            _ = RunNext();
+            using (await MutexApi.Synchronize())
+            {
+                var applicableRegistry = CurrentRegistry;
+                if (registry != null)
+                {
+                    applicableRegistry = CurrentRegistry.Join(registry);
+                }
+                var newHandlerGroup = new HandlerGroup(handlers, applicableRegistry);
+                _handlerStack.Push(newHandlerGroup);
+                RunNext();
+            }
         }
 
-        public void Insert(IRegistry registry, IList<Handler> handlers)
+        public async Task SkipInsert()
         {
-            if ((handlers?.Count ?? 0) == 0)
+            using (await MutexApi.Synchronize())
             {
-                throw new ArgumentException("no handlers provided", nameof(handlers));
+                _handlerStack.Peek().EndIteration();
+                RunNext();
+            }
+        }
+
+        public Task Next()
+        {
+            return Next(null);
+        }
+
+        public async Task Next(IRegistry registry)
+        {
+            if (registry != null)
+            {
+                _handlerStack.Peek().registry = CurrentRegistry.Join(registry);
+            }
+            using (await MutexApi.Synchronize())
+            {
+                RunNext();
+            }
+        }
+
+        /// <summary>
+        /// NB: must be called from mutual exclusion
+        /// </summary>
+        private void RunNext()
+        {
+            // tolerate prescence of nulls.
+            Handler handler = null;
+            while (handler == null)
+            {
+                var currentHandlerGroup = _handlerStack.Peek();
+                if (currentHandlerGroup.HasNext())
+                {
+                    handler = currentHandlerGroup.Next();
+                }
+                else
+                {
+                    // Always ensure first handler group is never popped off the stack, so that
+                    // calls to CurrentRegistry always succeed.
+                    if (_handlerStack.Count == 0)
+                    {
+                        break;
+                    }
+                    _handlerStack.Pop();
+                }
             }
 
-            var newHandlerGroup = new HandlerGroup(handlers, CurrentRegistry.Join(registry));
-            _handlerStack.Push(newHandlerGroup);
-            _ = RunNext();
+            if (handler == null)
+            {
+                handler = FinalHandler;
+            }
+
+            // call without waiting and without mutual exclusion...it is for client to decide
+            // whether to employ mutual exclusion.
+            _ = ExecuteHandler(handler);
         }
 
-        public void UndoInsert()
-        {
-            _handlerStack.Peek().EndIteration();
-            _ = RunNext();
-        }
-
-        public void Next(IRegistry registry)
-        {
-            _handlerStack.Peek().registry = CurrentRegistry.Join(registry);
-            _ = RunNext();
-        }
-
-        public void Next()
-        {
-            _ = RunNext();
-        }
-
-        private async Task RunNext()
+        private async Task ExecuteHandler(Handler handler)
         {
             try
             {
-                // tolerate prescence of nulls.
-                Handler handler = null;
-                while (handler == null)
-                {
-                    var currentHandlerGroup = _handlerStack.Peek();
-                    if (currentHandlerGroup.HasNext())
-                    {
-                        handler = currentHandlerGroup.Next();
-                    }
-                    else
-                    {
-                        // Always ensure first handler group is never popped off the stack, so that
-                        // calls to CurrentRegistry always succeed.
-                        if (_handlerStack.Count == 0)
-                        {
-                            break;
-                        }
-                        _handlerStack.Pop();
-                    }
-                }
-
-                if (handler == null)
-                {
-                    handler = FinalHandler;
-                }
-
                 await handler.Invoke(this);
             }
             catch (Exception e)
@@ -149,15 +177,17 @@ namespace Kabomu.Mediator.Handling
                     }
                     return (false, null);
                 };
-                var (found, parserTask) = _joinedRegistry.TryGetFirst(parserCode);
-                if (!found)
+                Task<T> parserTask;
+                using (await MutexApi.Synchronize())
                 {
-                    throw new ParseException("no parser found");
+                    bool found;
+                    (found, parserTask) = _joinedRegistry.TryGetFirst(parserCode);
+                    if (!found)
+                    {
+                        throw new ParseException("no parser found");
+                    }
                 }
-                else
-                {
-                    return await parserTask;
-                }
+                return await parserTask;
             }
             catch (Exception e)
             {
@@ -191,15 +221,17 @@ namespace Kabomu.Mediator.Handling
                     }
                     return (false, null);
                 };
-                var (found, renderTask) = _joinedRegistry.TryGetFirst(renderingCode);
-                if (!found)
+                Task renderTask;
+                using (await MutexApi.Synchronize())
                 {
-                    throw new RenderException("no renderer found");
+                    bool found;
+                    (found, renderTask) = _joinedRegistry.TryGetFirst(renderingCode);
+                    if (!found)
+                    {
+                        throw new RenderException("no renderer found");
+                    }
                 }
-                else
-                {
-                    await renderTask;
-                }
+                await renderTask;
             }
             catch (Exception e)
             {
@@ -218,25 +250,35 @@ namespace Kabomu.Mediator.Handling
         {
             try
             {
-                var (found, errorHandler) = _joinedRegistry.TryGet<IServerErrorHandler>();
-                if (found)
+                Task resultTask = null;
+                using (await MutexApi.Synchronize())
                 {
-                    await errorHandler.HandleError(this, error);
+                    var (found, errorHandler) = _joinedRegistry.TryGet<IServerErrorHandler>();
+                    if (found)
+                    {
+                        resultTask = errorHandler.HandleError(this, error);
+                    }
                 }
-                else
+                if (resultTask == null)
                 {
-                    await HandleErrorLastResort(error, null);
+                    resultTask = HandleErrorLastResort(error, null);
                 }
+                await resultTask;
             }
             catch (Exception e)
             {
-                await HandleErrorLastResort(error, e);
+                try
+                {
+                    await HandleErrorLastResort(error, e);
+                }
+                catch (Exception) { }
             }
         }
 
         private async Task HandleErrorLastResort(Exception original, Exception errorHandlerException)
         {
-            try
+            Task sendTask;
+            using (await MutexApi.Synchronize())
             {
                 string msg;
                 if (errorHandlerException != null)
@@ -250,11 +292,11 @@ namespace Kabomu.Mediator.Handling
                     msg = FlattenException(original);
                 }
 
-                await Response.SetStatusIndicatesSuccess(false)
+                sendTask = Response.SetStatusIndicatesSuccess(false)
                     .SetStatusIndicatesClientError(false)
                     .SendWithBody(new StringBody(msg) { ContentType = "text/plain" });
             }
-            catch (Exception) { }
+            await sendTask;
         }
 
         internal static string FlattenException(Exception exception)
@@ -324,20 +366,22 @@ namespace Kabomu.Mediator.Handling
 
         private class HandlerGroup
         {
-            public readonly IList<Handler> handlers;
+            public readonly Handler[] handlers;
             public IRegistry registry;
             private int _nextIndex;
 
             public HandlerGroup(IList<Handler> handlers, IRegistry registry)
             {
-                this.handlers = handlers;
+                // make a copy so that any subsequent changes to list of handlers will not affect 
+                // expectations.
+                this.handlers = handlers.ToArray();
                 this.registry = registry;
                 _nextIndex = 0;
             }
 
             public bool HasNext()
             {
-                return _nextIndex < handlers.Count;
+                return _nextIndex < handlers.Length;
             }
 
             public Handler Next()
@@ -348,7 +392,7 @@ namespace Kabomu.Mediator.Handling
             public void EndIteration()
             {
                 // Ensure HasNext() returns false afterwards.
-                _nextIndex = handlers.Count;
+                _nextIndex = handlers.Length;
             }
         }
     }

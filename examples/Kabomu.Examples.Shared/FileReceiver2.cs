@@ -26,7 +26,7 @@ namespace Kabomu.Examples.Shared
 
         public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
         {
-            var delegateApp = new DefaultQuasiHttpApplication
+            var delegateApp = new MediatorQuasiWebApplication
             {
                 InitialHandlers = new List<Handler>()
             };
