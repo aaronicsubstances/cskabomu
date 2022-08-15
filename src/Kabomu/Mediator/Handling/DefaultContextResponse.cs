@@ -21,22 +21,36 @@ namespace Kabomu.Mediator.Handling
 
         public IQuasiHttpMutableResponse RawResponse { get; }
 
-        public bool StatusIndicatesSuccess => RawResponse.StatusIndicatesSuccess;
+        public int StatusCode => RawResponse.StatusCode;
 
-        public bool StatusIndicatesClientError => RawResponse.StatusIndicatesClientError;
+        public bool IsSuccessStatusCode => RawResponse.StatusCode >= 200 && RawResponse.StatusCode <= 299;
 
-        public IMutableHeaders Headers { get; }
+        public bool IsClientErrorStatusCode => RawResponse.StatusCode >= 400 && RawResponse.StatusCode <= 499;
 
-        public Task Send()
+        public bool IsServerErrorStatusCode => RawResponse.StatusCode >= 500 && RawResponse.StatusCode <= 599;
+        
+        public IResponse SetSuccessStatusCode()
         {
-            _responseTransmitter.SetResult(RawResponse);
-            return Task.CompletedTask;
+            RawResponse.StatusCode = 200;
+            return this;
         }
 
-        public Task SendWithBody(IQuasiHttpBody value)
+        public IResponse SetClientErrorStatusCode()
         {
-            RawResponse.Body = value;
-            return Send();
+            RawResponse.StatusCode = 400;
+            return this;
+        }
+
+        public IResponse SetServerErrorStatusCode()
+        {
+            RawResponse.StatusCode = 500;
+            return this;
+        }
+
+        public IResponse SetStatusCode(int value)
+        {
+            RawResponse.StatusCode = value;
+            return this;
         }
 
         public IResponse SetBody(IQuasiHttpBody value)
@@ -45,22 +59,36 @@ namespace Kabomu.Mediator.Handling
             return this;
         }
 
-        public IResponse SetStatusIndicatesClientError(bool value)
+        public Task<bool> TrySend()
         {
-            RawResponse.StatusIndicatesClientError = value;
-            return this;
+            var replySucceeded = _responseTransmitter.TrySetResult(RawResponse);
+            return Task.FromResult(replySucceeded);
         }
 
-        public IResponse SetStatusIndicatesSuccess(bool value)
+        public Task<bool> TrySendWithBody(IQuasiHttpBody value)
         {
-            RawResponse.StatusIndicatesSuccess = value;
-            return this;
+            RawResponse.Body = value;
+            return TrySend();
         }
 
-        public IResponse SetStatusMessage(string value)
+        public IMutableHeaders Headers { get; }
+
+        public async Task Send()
         {
-            RawResponse.StatusMessage = value;
-            return this;
+            if (await TrySend())
+            {
+                return;
+            }
+            throw new ResponseCommittedException();
+        }
+
+        public async Task SendWithBody(IQuasiHttpBody value)
+        {
+            if (await TrySendWithBody(value))
+            {
+                return;
+            }
+            throw new ResponseCommittedException();
         }
         
         class DefaultMutableHeadersWrapper : IMutableHeaders

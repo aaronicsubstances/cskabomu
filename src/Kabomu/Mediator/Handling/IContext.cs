@@ -21,5 +21,6 @@ namespace Kabomu.Mediator.Handling
         Task<T> ParseRequest<T>(object parseOpts);
         Task RenderResponse(object body);
         Task HandleError​(Exception error);
+        Task HandleUnexpectedEnd();
     }
 }

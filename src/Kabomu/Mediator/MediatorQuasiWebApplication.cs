@@ -13,7 +13,6 @@ namespace Kabomu.Mediator
     public class MediatorQuasiWebApplication : IQuasiHttpApplication
     {
         public IList<Handler> InitialHandlers { get; set; }
-        public Handler FinalHandler { get; set; }
         public IRegistry InitialReadonlyLocalRegistry { get; set; }
         public IRegistry ReadonlyGlobalRegistry { get; set; }
         public IMutexApiFactory MutexApiFactory { get; set; }
@@ -29,17 +28,12 @@ namespace Kabomu.Mediator
                 Request = contextRequest,
                 Response = contextResponse,
                 InitialHandlers = InitialHandlers,
-                FinalHandler = FinalHandler,
                 InitialReadonlyLocalRegistry = InitialReadonlyLocalRegistry,
                 ReadonlyGlobalRegistry = ReadonlyGlobalRegistry,
             };
             if (context.InitialHandlers == null || context.InitialHandlers.Count == 0)
             {
                 throw new MissingDependencyException("no initial handlers provided");
-            }
-            if (context.FinalHandler == null)
-            {
-                context.FinalHandler = _ => Task.CompletedTask;
             }
             if (context.InitialReadonlyLocalRegistry == null)
             {

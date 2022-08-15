@@ -11,7 +11,7 @@ namespace Kabomu.Mediator.Handling
     {
         IQuasiHttpRequest RawRequest { get; }
         IDictionary<string, object> Environment { get; }
-        string Path { get; }
+        string Target { get; }
         IHeaders Headers { get; }
         IQuasiHttpBody Body { get; }
     }

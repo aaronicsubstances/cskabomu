@@ -11,17 +11,13 @@ namespace Kabomu.QuasiHttp
     /// </summary>
     public interface IQuasiHttpMutableResponse : IQuasiHttpResponse
     {
-        new bool StatusIndicatesSuccess { get; set; }
-
-        new bool StatusIndicatesClientError { get;  set; }
-
-        new string StatusMessage { get; set; }
+        new string HttpStatusMessage { get; set; }
 
         new IDictionary<string, IList<string>> Headers { get; set; }
 
         new IQuasiHttpBody Body { get; set; }
 
-        new int HttpStatusCode { get; set; }
+        new int StatusCode { get; set; }
 
         new string HttpVersion { get; set; }
     }
