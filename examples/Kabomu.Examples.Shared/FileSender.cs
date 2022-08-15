@@ -59,7 +59,7 @@ namespace Kabomu.Examples.Shared
                 LOG.Info("File {0} sent with error", f.FullName);
                 throw;
             }
-            if (res.StatusIndicatesSuccess)
+            if (res.StatusCode == DefaultQuasiHttpResponse.StatusCodeOk)
             {
                 LOG.Info("File {0} sent successfully", f.FullName);
             }
@@ -78,8 +78,8 @@ namespace Kabomu.Examples.Shared
                         // ignore.
                     }
                 }
-                throw new Exception(string.Format("status code indicates problem from {0}: {1}\n{2}",
-                    res.StatusIndicatesClientError ? "client" : "server", res.StatusMessage, responseMsg));
+                throw new Exception(string.Format("status code indicates error: {1}\n{2}",
+                    res.StatusCode, res.HttpStatusMessage, responseMsg));
             }
         }
     }

@@ -14,26 +14,32 @@ namespace Kabomu.QuasiHttp
     public class DefaultQuasiHttpResponse : IQuasiHttpResponse
     {
         /// <summary>
-        /// Gets or sets a value indicating response success: true for response success, false for response
-        /// failure
+        /// Status code value of 200, equivalent to HTTP status code 200 OK.
         /// </summary>
-        public bool StatusIndicatesSuccess { get; set; }
+        public static readonly int StatusCodeOk = 200;
 
         /// <summary>
-        /// Gets or sets a value indicating whether a false response success value is due to
-        /// a client error or server error: true for client error, false for server error.
+        /// Status code value of 400, equivalent to HTTP status code 400 Bad Request.
         /// </summary>
-        public bool StatusIndicatesClientError { get; set; }
+        public static readonly int StatusCodeClientError = 400;
 
         /// <summary>
-        /// Gets or sets a value providing textual description of response success or failure. Equivalent
-        /// to reason phrase of HTTP responses.
+        /// Status code value of 500, equivalent to HTTP status code 500 Internal Server Error.
         /// </summary>
-        public string StatusMessage { get; set; }
+        public static readonly int StatusCodeServerError = 500;
+
+        /// <summary>
+        /// Gets or sets the equivalent of HTTP response status code.
+        /// </summary>
+        public int StatusCode { get; set; }
 
         /// <summary>
         /// Gets or sets the equivalent of HTTP response headers.
         /// </summary>
+        /// <remarks>
+        /// Unlike in HTTP, headers are case-sensitive. Also, setting a Content-Length header
+        /// here will have no bearing on how to transmit or receive the response body.
+        /// </remarks>
         public IDictionary<string, IList<string>> Headers { get; set; }
 
         /// <summary>
@@ -42,9 +48,9 @@ namespace Kabomu.QuasiHttp
         public IQuasiHttpBody Body { get; set; }
 
         /// <summary>
-        /// Gets or sets an HTTP response status code.
+        /// Gets or sets an HTTP response status text or reason phrase.
         /// </summary>
-        public int HttpStatusCode { get; set; }
+        public string HttpStatusMessage { get; set; }
 
         /// <summary>
         /// Gets or sets an HTTP response version value.

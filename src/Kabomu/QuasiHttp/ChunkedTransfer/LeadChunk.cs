@@ -31,31 +31,14 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         public byte Flags { get; set; }
 
         /// <summary>
-        /// Gets or sets the equivalent of path component of HTTP request line.
+        /// Gets or sets the equivalent of request target component of HTTP request line.
         /// </summary>
-        public string Path { get; set; }
+        public string RequestTarget { get; set; }
 
         /// <summary>
-        /// Gets or sets a value indicating response success: true for response success, false for response
-        /// failure
+        /// Gets or sets the equivalent of HTTP response status code.
         /// </summary>
-        /// <remarks>Equivalent to HTTP status code 200-299.</remarks>
-        public bool StatusIndicatesSuccess { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether a false response success value is due to
-        /// a client error or server error: true for client error, false for server error. 
-        /// </summary>
-        /// <remarks>
-        /// Equivalent to HTTP status code 400-499 if true, and 500 and above if false.
-        /// </remarks>
-        public bool StatusIndicatesClientError { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value providing textual description of response success or failure. Equivalent
-        /// to reason phrase of HTTP responses.
-        /// </summary>
-        public string StatusMessage { get; set; }
+        public int StatusCode { get; set; }
 
         /// <summary>
         /// Gets or sets a value providing the length in bytes of a quasi http body which will
@@ -94,9 +77,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         public string HttpVersion { get; set; }
 
         /// <summary>
-        /// Gets or sets an HTTP response status code.
+        /// Gets or sets HTTP status text, ie the reason phrase component of HTTP response lines.
         /// </summary>
-        public int HttpStatusCode { get; set; }
+        public string HttpStatusMessage { get; set; }
 
         /// <summary>
         /// Gets or sets the equivalent of HTTP request or response headers. Null keys and values are not allowed.
@@ -126,12 +109,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
             var csvData = new List<List<string>>();
             var specialHeaderRow = new List<string>();
-            specialHeaderRow.Add((Path != null ? 1 : 0).ToString());
-            specialHeaderRow.Add(Path ?? "");
-            specialHeaderRow.Add((StatusIndicatesSuccess ? 1 : 0).ToString());
-            specialHeaderRow.Add((StatusIndicatesClientError ? 1 : 0).ToString());
-            specialHeaderRow.Add((StatusMessage != null ? 1 : 0).ToString());
-            specialHeaderRow.Add(StatusMessage ?? "");
+            specialHeaderRow.Add((RequestTarget != null ? 1 : 0).ToString());
+            specialHeaderRow.Add(RequestTarget ?? "");
+            specialHeaderRow.Add(StatusCode.ToString());
             specialHeaderRow.Add(ContentLength.ToString());
             specialHeaderRow.Add((ContentType != null ? 1 : 0).ToString());
             specialHeaderRow.Add(ContentType ?? "");
@@ -139,7 +119,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             specialHeaderRow.Add(HttpMethod ?? "");
             specialHeaderRow.Add((HttpVersion != null ? 1 : 0).ToString());
             specialHeaderRow.Add(HttpVersion ?? "");
-            specialHeaderRow.Add(HttpStatusCode.ToString());
+            specialHeaderRow.Add((HttpStatusMessage != null ? 1 : 0).ToString());
+            specialHeaderRow.Add(HttpStatusMessage ?? "");
             csvData.Add(specialHeaderRow);
             if (Headers != null)
             {
@@ -208,34 +189,32 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 throw new ArgumentException("invalid lead chunk");
             }
             var specialHeader = csvData[0];
-            if (specialHeader.Count < 14)
+            if (specialHeader.Count < 12)
             {
                 throw new ArgumentException("invalid special header");
             }
             if (specialHeader[0] != "0")
             {
-                instance.Path = specialHeader[1];
+                instance.RequestTarget = specialHeader[1];
             }
-            instance.StatusIndicatesSuccess = specialHeader[2] != "0";
-            instance.StatusIndicatesClientError = specialHeader[3] != "0";
+            instance.StatusCode = int.Parse(specialHeader[2]);
+            instance.ContentLength = long.Parse(specialHeader[3]);
             if (specialHeader[4] != "0")
             {
-                instance.StatusMessage = specialHeader[5];
+                instance.ContentType = specialHeader[5];
             }
-            instance.ContentLength = long.Parse(specialHeader[6]);
-            if (specialHeader[7] != "0")
+            if (specialHeader[6] != "0")
             {
-                instance.ContentType = specialHeader[8];
+                instance.HttpMethod = specialHeader[7];
             }
-            if (specialHeader[9] != "0")
+            if (specialHeader[8] != "0")
             {
-                instance.HttpMethod = specialHeader[10];
+                instance.HttpVersion = specialHeader[9];
             }
-            if (specialHeader[11] != "0")
+            if (specialHeader[10] != "0")
             {
-                instance.HttpVersion = specialHeader[12];
+                instance.HttpStatusMessage = specialHeader[11];
             }
-            instance.HttpStatusCode = int.Parse(specialHeader[13]);
             for (int i = 1; i < csvData.Count; i++)
             {
                 var headerRow = csvData[i];

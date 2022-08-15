@@ -42,7 +42,7 @@ namespace Http.FileServer
                 HttpMethod = httpContext.Request.Method,
                 HttpVersion = httpContext.Request.Protocol
             };
-            quasiRequest.Path = ReconstructRequestPath(httpContext.Request);
+            quasiRequest.Target = ReconstructRequestPath(httpContext.Request);
             quasiRequest.Headers = ReconstructRequestHeaders(httpContext.Request.Headers);
             if (httpContext.Request.Body != null)
             {
@@ -118,12 +118,7 @@ namespace Http.FileServer
         private void SetResponseStatusAndHeaders(IQuasiHttpResponse quasiHttpResponse,
             HttpResponse response)
         {
-            response.StatusCode = quasiHttpResponse.StatusIndicatesSuccess ?
-                200 : (quasiHttpResponse.StatusIndicatesClientError ? 400 : 500);
-            if (quasiHttpResponse.HttpStatusCode > 0)
-            {
-                response.StatusCode = quasiHttpResponse.HttpStatusCode;
-            }
+            response.StatusCode = quasiHttpResponse.StatusCode;
             if (quasiHttpResponse.Headers != null)
             {
                 foreach (var entry in quasiHttpResponse.Headers)

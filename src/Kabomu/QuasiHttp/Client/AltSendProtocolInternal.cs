@@ -87,12 +87,10 @@ namespace Kabomu.QuasiHttp.Client
                 }
                 response = new DefaultQuasiHttpResponse
                 {
-                    StatusIndicatesSuccess = response.StatusIndicatesSuccess,
-                    StatusIndicatesClientError = response.StatusIndicatesClientError,
-                    StatusMessage = response.StatusMessage,
+                    StatusCode = response.StatusCode,
                     Headers = response.Headers,
-                    HttpStatusCode = response.HttpStatusCode,
                     HttpVersion = response.HttpVersion,
+                    HttpStatusMessage = response.HttpStatusMessage,
                     Body = eqResponseBody
                 };
             }

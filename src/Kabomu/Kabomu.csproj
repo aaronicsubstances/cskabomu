@@ -16,8 +16,9 @@ This enables programming the same HTTP semantics at the level of web application
 
 This library has the goal of letting the software community have their cake and eat it, by enforcing monolithic architectures with serializable inter module communications, so that monolithic architectures remain simple to manage, and at the same time become straightforward to evolve into distributed systems.</Description>
     <Copyright>Copyright ©2022 Aaronic Substances</Copyright>
-    <Version>1.0.3</Version>
-    <PackageReleaseNotes>Made interface of request and response headers cleaner.</PackageReleaseNotes>
+    <Version>1.0.4</Version>
+    <PackageReleaseNotes>- Updated library to make status codes the only way to communicate quasi http processing outcomes, just like in actual HTTP.
+- Changed type of tuple used to return pairs from methods in library, from reference type to value type, for efficiency gains.</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
