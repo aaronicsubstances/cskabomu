@@ -34,12 +34,11 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var expected = new LeadChunk();
             expected.Version = LeadChunk.Version01;
             expected.Flags = 1;
-            expected.Path = "/detail";
-            expected.StatusIndicatesSuccess = true;
-            expected.StatusMessage = "ok";
+            expected.RequestTarget = "/detail";
+            expected.HttpStatusMessage = "ok";
             expected.ContentLength = 20;
             expected.ContentType = "text/plain";
-            expected.HttpStatusCode = 200;
+            expected.StatusCode = 200;
             expected.HttpVersion = "1.1";
             expected.HttpMethod = "POST";
             expected.Headers = new Dictionary<string, IList<string>>();

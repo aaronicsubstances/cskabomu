@@ -3,7 +3,6 @@ using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -21,13 +20,13 @@ namespace Kabomu.Examples.Shared
             _httpClient = httpClient;
         }
 
-        public Tuple<Task<IQuasiHttpResponse>, object> ProcessSendRequest(IQuasiHttpRequest request,
+        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(IQuasiHttpRequest request,
             IConnectivityParams connectivityParams)
         {
             var cts = new CancellationTokenSource();
             var resTask = ProcessSendRequestInternal(request, connectivityParams, cts);
             object sendCancellationHandle = cts;
-            return Tuple.Create(resTask, sendCancellationHandle);
+            return (resTask, sendCancellationHandle);
         }
 
         public void CancelSendRequest(object sendCancellationHandle)
@@ -54,9 +53,9 @@ namespace Kabomu.Examples.Shared
                 requestWrapper.Version = Version.Parse(request.HttpVersion);
             }
             requestWrapper.RequestUri = (Uri)connectivityParams.RemoteEndpoint;
-            if (request.Path != null)
+            if (request.Target != null)
             {
-                requestWrapper.RequestUri = new Uri(requestWrapper.RequestUri, request.Path);
+                requestWrapper.RequestUri = new Uri(requestWrapper.RequestUri, request.Target);
             }
             if (request.Body != null)
             {
@@ -88,15 +87,10 @@ namespace Kabomu.Examples.Shared
             var response = new DefaultQuasiHttpResponse
             {
                 HttpVersion = responseWrapper.Version?.ToString(),
-                HttpStatusCode = (int)responseWrapper.StatusCode,
-                StatusMessage = responseWrapper.ReasonPhrase,
-                StatusIndicatesSuccess = responseWrapper.IsSuccessStatusCode,
+                StatusCode = (int)responseWrapper.StatusCode,
+                HttpStatusMessage = responseWrapper.ReasonPhrase,
                 CancellationTokenSource = cancellationTokenSource
             };
-            if (response.HttpStatusCode >= 400 && response.HttpStatusCode < 500)
-            {
-                response.StatusIndicatesClientError = true;
-            }
             if (responseWrapper.Content != null)
             {
                 var responseStream = await responseWrapper.Content.ReadAsStreamAsync();

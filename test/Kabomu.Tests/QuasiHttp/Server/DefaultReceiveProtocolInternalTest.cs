@@ -137,14 +137,12 @@ namespace Kabomu.Tests.QuasiHttp.Server
             var expectedResChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
-                StatusIndicatesSuccess = expectedResponse.StatusIndicatesSuccess,
-                StatusIndicatesClientError = expectedResponse.StatusIndicatesClientError,
-                StatusMessage = expectedResponse.StatusMessage,
+                StatusCode = expectedResponse.StatusCode,
+                HttpStatusMessage = expectedResponse.HttpStatusMessage,
                 Headers = expectedResponse.Headers,
                 ContentLength = expectedResponse.Body?.ContentLength ?? 0,
                 ContentType = expectedResponse.Body?.ContentType,
                 HttpVersion = expectedResponse.HttpVersion,
-                HttpStatusCode = expectedResponse.HttpStatusCode
             };
 
             var inputStream = MiscUtils.CreateRequestInputStream(request, requestBodyBytes);
@@ -258,7 +256,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             var request = new DefaultQuasiHttpRequest
             {
                 HttpMethod = "POST",
-                Path = "/koobi",
+                Target = "/koobi",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "variant", new List<string>{ "sea", "drive" } }
@@ -273,9 +271,8 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             var expectedResponse = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = true,
-                StatusMessage = "ok",
-                HttpStatusCode = 200,
+                StatusCode = 200,
+                HttpStatusMessage = "ok",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "dkt", new List<string>{ "bb" } }
@@ -293,7 +290,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             maxChunkSize = 95;
             request = new DefaultQuasiHttpRequest
             {
-                Path = "/p"
+                Target = "/p"
             };
             reqBodyBytes = null;
             reqEnv = new Dictionary<string, object>
@@ -303,9 +300,8 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = false,
-                StatusIndicatesClientError = true,
-                StatusMessage = "not found"
+                StatusCode = DefaultQuasiHttpResponse.StatusCodeClientError,
+                HttpStatusMessage = "not found"
             };
             expectedResBodyBytes = null;
             testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
@@ -316,7 +312,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             request = new DefaultQuasiHttpRequest
             {
                 HttpVersion = "1.1",
-                Path = "/bread"
+                Target = "/bread"
             };
             reqBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
             request.Body = new StringBody("<a>this is news</a>")
@@ -328,9 +324,8 @@ namespace Kabomu.Tests.QuasiHttp.Server
             expectedResponse = new DefaultQuasiHttpResponse
             {
                 HttpVersion = "1.1",
-                StatusIndicatesSuccess = false,
-                StatusIndicatesClientError = false,
-                StatusMessage = "server error"
+                StatusCode = DefaultQuasiHttpResponse.StatusCodeServerError,
+                HttpStatusMessage = "server error"
             };
             expectedResBodyBytes = null;
             testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
@@ -340,7 +335,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             maxChunkSize = 150;
             request = new DefaultQuasiHttpRequest
             {
-                Path = "/fxn",
+                Target = "/fxn",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "x", new List<string>() },
@@ -357,9 +352,8 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = false,
-                StatusIndicatesClientError = false,
-                StatusMessage = "server error",
+                StatusCode = DefaultQuasiHttpResponse.StatusCodeServerError,
+                HttpStatusMessage = "server error",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "x", new List<string>{ "A" } },
@@ -381,17 +375,13 @@ namespace Kabomu.Tests.QuasiHttp.Server
         {
             public bool CloseCalled { get; set; }
 
-            public bool StatusIndicatesSuccess => throw new NotImplementedException();
-
-            public bool StatusIndicatesClientError => throw new NotImplementedException();
-
-            public string StatusMessage => throw new NotImplementedException();
+            public string HttpStatusMessage => throw new NotImplementedException();
 
             public IDictionary<string, IList<string>> Headers => throw new NotImplementedException();
 
             public IQuasiHttpBody Body => throw new NotImplementedException();
 
-            public int HttpStatusCode => throw new NotImplementedException();
+            public int StatusCode => throw new NotImplementedException();
 
             public string HttpVersion => throw new NotImplementedException();
 

@@ -16,15 +16,13 @@ namespace Kabomu.Tests.Shared
         {
             Assert.Equal(expected.Version, actual.Version);
             Assert.Equal(expected.Flags, actual.Flags);
-            Assert.Equal(expected.Path, actual.Path);
-            Assert.Equal(expected.StatusIndicatesSuccess, actual.StatusIndicatesSuccess);
-            Assert.Equal(expected.StatusIndicatesClientError, actual.StatusIndicatesClientError);
-            Assert.Equal(expected.StatusMessage, actual.StatusMessage);
+            Assert.Equal(expected.RequestTarget, actual.RequestTarget);
+            Assert.Equal(expected.StatusCode, actual.StatusCode);
             Assert.Equal(expected.ContentLength, actual.ContentLength);
             Assert.Equal(expected.ContentType, actual.ContentType);
             Assert.Equal(expected.HttpMethod, actual.HttpMethod);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
-            Assert.Equal(expected.HttpStatusCode, actual.HttpStatusCode);
+            Assert.Equal(expected.HttpStatusMessage, actual.HttpStatusMessage);
             CompareHeaders(expected.Headers, actual.Headers);
         }
 
@@ -42,7 +40,7 @@ namespace Kabomu.Tests.Shared
         {
             Assert.Equal(expected.HttpMethod, actual.HttpMethod);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
-            Assert.Equal(expected.Path, actual.Path);
+            Assert.Equal(expected.Target, actual.Target);
             CompareHeaders(expected.Headers, actual.Headers);
             if (expectedReqBodyBytes == null)
             {
@@ -62,11 +60,9 @@ namespace Kabomu.Tests.Shared
             IQuasiHttpResponse expected, IQuasiHttpResponse actual,
             byte[] expectedResBodyBytes)
         {
-            Assert.Equal(expected.HttpStatusCode, actual.HttpStatusCode);
+            Assert.Equal(expected.StatusCode, actual.StatusCode);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
-            Assert.Equal(expected.StatusIndicatesSuccess, actual.StatusIndicatesSuccess);
-            Assert.Equal(expected.StatusIndicatesClientError, actual.StatusIndicatesClientError);
-            Assert.Equal(expected.StatusMessage, actual.StatusMessage);
+            Assert.Equal(expected.HttpStatusMessage, actual.HttpStatusMessage);
             CompareHeaders(expected.Headers, actual.Headers);
             await CompareBodies(maxChunkSize, expected.Body, actual.Body, expectedResBodyBytes);
         }

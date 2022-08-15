@@ -48,7 +48,7 @@ namespace Kabomu.QuasiHttp.Client
             var chunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
-                Path = request.Path,
+                RequestTarget = request.Target,
                 Headers = request.Headers,
                 HttpVersion = request.HttpVersion,
                 HttpMethod = request.HttpMethod
@@ -93,12 +93,10 @@ namespace Kabomu.QuasiHttp.Client
                 MaxChunkSize);
             var response = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = chunk.StatusIndicatesSuccess,
-                StatusIndicatesClientError = chunk.StatusIndicatesClientError,
-                StatusMessage = chunk.StatusMessage,
+                StatusCode = chunk.StatusCode,
                 Headers = chunk.Headers,
+                HttpStatusMessage = chunk.HttpStatusMessage,
                 HttpVersion = chunk.HttpVersion,
-                HttpStatusCode = chunk.HttpStatusCode
             };
 
             if (chunk.ContentLength != 0)

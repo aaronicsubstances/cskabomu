@@ -39,7 +39,7 @@ namespace Kabomu.QuasiHttp.Server
 
             var request = new DefaultQuasiHttpRequest
             {
-                Path = chunk.Path,
+                Target = chunk.RequestTarget,
                 Headers = chunk.Headers,
                 HttpVersion = chunk.HttpVersion,
                 HttpMethod = chunk.HttpMethod
@@ -83,12 +83,10 @@ namespace Kabomu.QuasiHttp.Server
             var chunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
-                StatusIndicatesSuccess = response.StatusIndicatesSuccess,
-                StatusIndicatesClientError = response.StatusIndicatesClientError,
-                StatusMessage = response.StatusMessage,
+                StatusCode = response.StatusCode,
                 Headers = response.Headers,
                 HttpVersion = response.HttpVersion,
-                HttpStatusCode = response.HttpStatusCode
+                HttpStatusMessage = response.HttpStatusMessage,
             };
 
             if (response.Body != null)
