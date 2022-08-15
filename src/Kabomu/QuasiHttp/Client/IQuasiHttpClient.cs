@@ -110,7 +110,7 @@ namespace Kabomu.QuasiHttp.Client
         /// streaming probability.</param>
         /// <returns>handles which can be used to await reply from the remote endpoint, or
         /// used to cancel the request sending.</returns>
-        Tuple<Task<IQuasiHttpResponse>, object> Send2(object remoteEndpoint,
+        (Task<IQuasiHttpResponse>, object) Send2(object remoteEndpoint,
             IQuasiHttpRequest request, IQuasiHttpSendOptions options);
 
         /// <summary>

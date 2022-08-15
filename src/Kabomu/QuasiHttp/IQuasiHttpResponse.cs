@@ -13,34 +13,15 @@ namespace Kabomu.QuasiHttp
     public interface IQuasiHttpResponse
     {
         /// <summary>
-        /// Gets a value indicating response success: true for response success, false for response
-        /// failure
+        /// Gets the equivalent of HTTP response status code.
         /// </summary>
-        /// <remarks>
-        /// Equivalent to HTTP status code 200-299.
-        /// </remarks>
-        bool StatusIndicatesSuccess { get; }
-
-        /// <summary>
-        /// Gets a value indicating whether a false response success value is due to
-        /// a client error or server error: true for client error, false for server error.
-        /// </summary>
-        /// <remarks>
-        /// Equivalent to HTTP status code 400-499 if true, and 500 and above if false.
-        /// </remarks>
-        bool StatusIndicatesClientError { get; }
-
-        /// <summary>
-        /// Gets a value providing textual description of response success or failure. Equivalent
-        /// to reason phrase of HTTP responses.
-        /// </summary>
-        string StatusMessage { get; }
+        int StatusCode { get; }
 
         /// <summary>
         /// Gets the equivalent of HTTP response headers.
         /// </summary>
         /// <remarks>
-        /// Unlike in HTTP, setting a Content-Length header
+        /// Unlike in HTTP, headers are case-sensitive. Also setting a Content-Length header
         /// here will have no bearing on how to transmit or receive the response body.
         /// </remarks>
         IDictionary<string, IList<string>> Headers { get; }
@@ -51,9 +32,9 @@ namespace Kabomu.QuasiHttp
         IQuasiHttpBody Body { get; }
 
         /// <summary>
-        /// Gets an HTTP response status code.
+        /// Gets an HTTP response status text or reason phrase.
         /// </summary>
-        int HttpStatusCode { get; }
+        string HttpStatusMessage { get; }
 
         /// <summary>
         /// Gets an HTTP response version value.

@@ -39,14 +39,14 @@ namespace Kabomu.Concurrency
         /// the returned task to never complete.</returns>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="eventLoopApi"/> or
         /// <paramref name="cb"/> argument is null.</exception>
-        public static Tuple<Task, object> WhenSetImmediate(this IEventLoopApi eventLoopApi, Func<Task> cb)
+        public static (Task, object) WhenSetImmediate(this IEventLoopApi eventLoopApi, Func<Task> cb)
         {
             var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
             var cancellationHandle = eventLoopApi.SetImmediate(() =>
             {
                 _ = ProcessCallback(cb, tcs);
             });
-            return Tuple.Create<Task, object>(tcs.Task, cancellationHandle);
+            return (tcs.Task, cancellationHandle);
         }
 
         /// <summary>
@@ -62,14 +62,14 @@ namespace Kabomu.Concurrency
         /// <exception cref="T:System.ArgumentNullException"><paramref name="timerApi"/> or
         /// <paramref name="cb"/> argument is null.</exception>
         /// <exception cref="T:System.ArgumentException">The <paramref name="millis"/> argument is negative.</exception>
-        public static Tuple<Task, object> WhenSetTimeout(this ITimerApi timerApi, Func<Task> cb, int millis)
+        public static (Task, object) WhenSetTimeout(this ITimerApi timerApi, Func<Task> cb, int millis)
         {
             var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
             var cancellationHandle = timerApi.SetTimeout(() =>
             {
                 _ = ProcessCallback(cb, tcs);
             }, millis);
-            return Tuple.Create<Task, object>(tcs.Task, cancellationHandle);
+            return (tcs.Task, cancellationHandle);
         }
 
         private static async Task ProcessCallback(Func<Task> cb, TaskCompletionSource<object> tcs)

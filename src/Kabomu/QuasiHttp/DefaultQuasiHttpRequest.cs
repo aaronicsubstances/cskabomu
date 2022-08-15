@@ -13,13 +13,17 @@ namespace Kabomu.QuasiHttp
     public class DefaultQuasiHttpRequest : IQuasiHttpRequest
     {
         /// <summary>
-        /// Gets or sets the equivalent of path component of HTTP request line.
+        /// Gets or sets the equivalent of request target component of HTTP request line.
         /// </summary>
-        public string Path { get; set; }
+        public string Target { get; set; }
 
         /// <summary>
         /// Gets or sets the equivalent of HTTP request headers.
         /// </summary>
+        /// <remarks>
+        /// Unlike in HTTP, headers are case sensitive. Also setting a Content-Length header
+        /// here will have no bearing on how to transmit or receive the request body.
+        /// </remarks>
         public IDictionary<string, IList<string>> Headers { get; set; }
 
         /// <summary>

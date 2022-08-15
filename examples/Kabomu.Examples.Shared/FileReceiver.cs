@@ -59,8 +59,9 @@ namespace Kabomu.Examples.Shared
 
             var response = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = transferError == null,
-                StatusMessage = transferError?.Message ?? "OK"
+                StatusCode = transferError == null ? DefaultQuasiHttpResponse.StatusCodeOk : 
+                    DefaultQuasiHttpResponse.StatusCodeServerError,
+                HttpStatusMessage = transferError?.Message ?? "OK"
             };
             return response;
         }
