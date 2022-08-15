@@ -53,7 +53,7 @@ namespace Kabomu.MemoryBasedTransport
         /// processed by this tranport instance; and whose second task is always null to indicate that
         /// this class does not support cancellation requests.</returns>
         /// <exception cref="MissingDependencyException">The <see cref="Hub"/> property is null.</exception>
-        public Tuple<Task<IQuasiHttpResponse>, object> ProcessSendRequest(IQuasiHttpRequest request,
+        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(IQuasiHttpRequest request,
             IConnectivityParams connectivityParams)
         {
             var hub = Hub;
@@ -63,7 +63,7 @@ namespace Kabomu.MemoryBasedTransport
             }
             var resTask = hub.ProcessSendRequest(this, connectivityParams, request);
             object sendCancellationHandle = null;
-            return Tuple.Create(resTask, sendCancellationHandle);
+            return (resTask, sendCancellationHandle);
         }
 
         /// <summary>

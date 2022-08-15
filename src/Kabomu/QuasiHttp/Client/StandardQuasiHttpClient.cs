@@ -182,7 +182,7 @@ namespace Kabomu.QuasiHttp.Client
         /// property is null.</exception>
         /// <exception cref="MissingDependencyException">The <see cref="TimerApi"/>
         /// property is null at a point where timer functionality is needed.</exception>
-        public Tuple<Task<IQuasiHttpResponse>, object> Send2(object remoteEndpoint,
+        public (Task<IQuasiHttpResponse>, object) Send2(object remoteEndpoint,
             IQuasiHttpRequest request, IQuasiHttpSendOptions options)
         {
             if (request == null)
@@ -202,7 +202,7 @@ namespace Kabomu.QuasiHttp.Client
                     TaskCreationOptions.RunContinuationsAsynchronously)
             };
             var sendTask = ProcessSend(transfer);
-            return Tuple.Create(sendTask, (object)transfer);
+            return (sendTask, (object)transfer);
         }
 
         private async Task<IQuasiHttpResponse> ProcessSend(SendTransferInternal transfer)

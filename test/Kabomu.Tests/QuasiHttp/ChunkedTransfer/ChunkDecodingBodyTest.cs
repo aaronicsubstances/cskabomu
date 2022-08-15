@@ -340,7 +340,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var expectedChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
-                Path = "/abcdefghijklmop"
+                RequestTarget = "/abcdefghijklmop"
             };
             var leadChunkSlices = expectedChunk.Serialize();
             var encodedLength = new byte[MiscUtils.LengthOfEncodedChunkLength];

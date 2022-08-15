@@ -26,7 +26,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     ProcessSendRequestCallback = (req, connectivityParams) =>
                     {
-                        return Tuple.Create(Task.FromResult((IQuasiHttpResponse)null), (object)null);
+                        return (Task.FromResult((IQuasiHttpResponse)null), (object)null);
                     }
                 };
                 var instance = new AltSendProtocolInternal
@@ -57,7 +57,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     Assert.Equal(request, actualRequest);
                     Assert.Equal(connectivityParams, actualConnectivityParams);
-                    return Tuple.Create(Task.FromResult((IQuasiHttpResponse)response), sendCancellationHandle);
+                    return (Task.FromResult((IQuasiHttpResponse)response), sendCancellationHandle);
                 },
                 CancelSendRequestCallback = (actualSendCancellationHandle) =>
                 {
@@ -104,7 +104,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     Assert.Equal(request, actualRequest);
                     Assert.Equal(connectivityParams, actualConnectivityParams);
-                    return Tuple.Create(Task.FromResult((IQuasiHttpResponse)expectedResponse), (object)null);
+                    return (Task.FromResult((IQuasiHttpResponse)expectedResponse), (object)null);
                 },
                 CancelSendRequestCallback = _ => Task.FromException(new NotImplementedException())
             };
@@ -147,7 +147,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     Assert.Equal(request, actualRequest);
                     Assert.Equal(connectivityParams, actualConnectivityParams);
-                    return Tuple.Create(Task.FromResult((IQuasiHttpResponse)expectedResponse), sendCancellationHandle);
+                    return (Task.FromResult((IQuasiHttpResponse)expectedResponse), sendCancellationHandle);
                 },
                 CancelSendRequestCallback = (actualSendCancellationHandle) =>
                 {
@@ -201,7 +201,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     Assert.Equal(request, actualRequest);
                     Assert.Equal(connectivityParams, actualConnectivityParams);
-                    return Tuple.Create(Task.FromResult((IQuasiHttpResponse)expectedResponse), sendCancellationHandle);
+                    return (Task.FromResult((IQuasiHttpResponse)expectedResponse), sendCancellationHandle);
                 },
                 CancelSendRequestCallback = (actualSendCancellationHandle) =>
                 {
@@ -249,8 +249,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     Assert.Equal(request, actualRequest);
                     Assert.Equal(connectivityParams, actualConnectivityParams);
-                    return Tuple.Create(Task.FromResult((IQuasiHttpResponse)expectedResponse),
-                        sendCancellationHandle);
+                    return (Task.FromResult((IQuasiHttpResponse)expectedResponse), sendCancellationHandle);
                 },
                 CancelSendRequestCallback = (actualSendCancellationHandle) =>
                 {
@@ -310,8 +309,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             expectedResBodyBytes = new byte[0];
             expectedResponse = new QuasiHttpResponseImpl2
             {
-                StatusIndicatesSuccess = true,
-                HttpStatusCode = 200,
+                StatusCode = 200,
                 HttpVersion = "",
                 Headers = new Dictionary<string, IList<string>>(),
                 Body = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
@@ -353,9 +351,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
             responseBodyBufferingLimit = 8;
             expectedResponse = new QuasiHttpResponseImpl2
             {
-                StatusIndicatesClientError = true,
-                StatusMessage = "not found",
-                HttpStatusCode = 404,
+                StatusCode = 404,
+                HttpStatusMessage = "not found",
                 HttpVersion = "1.1",
                 Headers = new Dictionary<string, IList<string>>
                 {
@@ -378,15 +375,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             public IQuasiHttpBody Body { get; set; }
 
-            public bool StatusIndicatesSuccess => throw new NotImplementedException();
-
-            public bool StatusIndicatesClientError => throw new NotImplementedException();
-
-            public string StatusMessage => throw new NotImplementedException();
+            public string HttpStatusMessage => throw new NotImplementedException();
 
             public IDictionary<string, IList<string>> Headers => throw new NotImplementedException();
 
-            public int HttpStatusCode => throw new NotImplementedException();
+            public int StatusCode => throw new NotImplementedException();
 
             public string HttpVersion => throw new NotImplementedException();
 
@@ -420,17 +413,19 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             public IQuasiHttpBody Body { get; set; }
 
-            public bool StatusIndicatesSuccess { get; set; }
-
-            public bool StatusIndicatesClientError { get; set; }
-
-            public string StatusMessage { get; set; }
+            public int StatusCode { get; set; }
 
             public IDictionary<string, IList<string>> Headers { get; set; }
 
-            public int HttpStatusCode { get; set; }
-
             public string HttpVersion { get; set; }
+
+            public string HttpStatusMessage { get; set; }
+
+            public bool IsSuccessStatusCode { get; set; }
+
+            public bool IsClientErrorStatusCode { get; set; }
+
+            public bool IsServerErrorStatusCode { get; set; }
 
             public Task Close()
             {

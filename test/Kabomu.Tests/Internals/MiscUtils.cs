@@ -41,7 +41,7 @@ namespace Kabomu.Tests.Internals
             var reqChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
-                Path = request.Path,
+                RequestTarget = request.Target,
                 Headers = request.Headers,
                 ContentLength = request.Body?.ContentLength ?? 0,
                 ContentType = request.Body?.ContentType,
@@ -99,14 +99,12 @@ namespace Kabomu.Tests.Internals
             var resChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
-                StatusIndicatesSuccess = response.StatusIndicatesSuccess,
-                StatusIndicatesClientError = response.StatusIndicatesClientError,
-                StatusMessage = response.StatusMessage,
+                StatusCode = response.StatusCode,
+                HttpStatusMessage = response.HttpStatusMessage,
                 Headers = response.Headers,
                 ContentLength = response.Body?.ContentLength ?? 0,
                 ContentType = response.Body?.ContentType,
                 HttpVersion = response.HttpVersion,
-                HttpStatusCode = response.HttpStatusCode
             };
             var stream = new MemoryStream();
             var serializedRes = resChunk.Serialize();

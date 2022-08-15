@@ -37,7 +37,7 @@ namespace Kabomu.Tests.QuasiHttp
                         return expectedResponse;
                     };
                     var resTask = helperFunc.Invoke();
-                    return Tuple.Create(resTask, (object)null);
+                    return (resTask, (object)null);
                 }
             };
             var instance = new StandardQuasiHttpClient
@@ -82,7 +82,7 @@ namespace Kabomu.Tests.QuasiHttp
             object remoteEndpoint = "s";
             var request = new DefaultQuasiHttpRequest
             {
-                Path = "/",
+                Target = "/",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "tr", new List<string>{ "e", "d" } }
@@ -94,8 +94,8 @@ namespace Kabomu.Tests.QuasiHttp
             string expectedResponseError = null;
             var expectedResponse = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = true,
-                StatusMessage = "ok",
+                StatusCode = 200,
+                HttpStatusMessage = "ok",
                 Body = new StringBody("A,a")
                 {
                     ContentType = "text/csv"
@@ -107,7 +107,7 @@ namespace Kabomu.Tests.QuasiHttp
             remoteEndpoint = 3;
             request = new DefaultQuasiHttpRequest
             {
-                Path = "/co",
+                Target = "/co",
             };
             options = new DefaultQuasiHttpSendOptions
             {
@@ -117,8 +117,8 @@ namespace Kabomu.Tests.QuasiHttp
             expectedResponseError = null;
             expectedResponse = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = true,
-                StatusMessage = "ok",
+                StatusCode = 200,
+                HttpStatusMessage = "ok",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "year", new List<string>{ "2022" } }
@@ -130,7 +130,7 @@ namespace Kabomu.Tests.QuasiHttp
             remoteEndpoint = 3;
             request = new DefaultQuasiHttpRequest
             {
-                Path = "/long",
+                Target = "/long",
             };
             options = null;
             responseTimeMillis = 127;
@@ -142,7 +142,7 @@ namespace Kabomu.Tests.QuasiHttp
             remoteEndpoint = null;
             request = new DefaultQuasiHttpRequest
             {
-                Path = "/ping",
+                Target = "/ping",
             };
             options = null;
             responseTimeMillis = 15;
@@ -177,7 +177,7 @@ namespace Kabomu.Tests.QuasiHttp
                         return null;
                     };
                     var resTask = helperFunc.Invoke();
-                    return Tuple.Create(resTask, (object)null);
+                    return (resTask, (object)null);
                 }
             };
             var client = new StandardQuasiHttpClient
@@ -457,11 +457,9 @@ namespace Kabomu.Tests.QuasiHttp
                     var d = await TransportUtils.ReadBodyToEnd(res.Body, maxChunkSizes[testDataIndex]);
                     var equivalentRes = new DefaultQuasiHttpResponse
                     {
-                        StatusIndicatesSuccess = res.StatusIndicatesSuccess,
-                        StatusIndicatesClientError = res.StatusIndicatesClientError,
-                        StatusMessage = res.StatusMessage,
+                        StatusCode = res.StatusCode,
                         Headers = res.Headers,
-                        HttpStatusCode = res.HttpStatusCode,
+                        HttpStatusMessage = res.HttpStatusMessage,
                         HttpVersion = res.HttpVersion
                     };
                     equivalentRes.Body = new StreamBackedBody(new MemoryStream(d),
@@ -518,16 +516,14 @@ namespace Kabomu.Tests.QuasiHttp
             string responseError = null;
             var response = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = false,
-                StatusIndicatesClientError = true,
-                StatusMessage = "bad request",
+                StatusCode = 400,
+                HttpStatusMessage = "bad request",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "origin", new List<string>{ kumasiEndpoint } },
                     { "method", new List<string>{ "PUT" } },
                     { "version", new List<string>{ "1.0" } }
-                },
-                HttpStatusCode = 400
+                }
             };
             byte[] responseBodyBytes = null;
             testData.Add(new object[] { scheduledTime, localEndpoint, request, options, 
@@ -537,7 +533,7 @@ namespace Kabomu.Tests.QuasiHttp
             localEndpoint = accraEndpoint;
             request = new DefaultQuasiHttpRequest
             {
-                Path = "/",
+                Target = "/",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "op", new List<string>{ "sub" } },
@@ -552,15 +548,14 @@ namespace Kabomu.Tests.QuasiHttp
             responseError = null;
             response = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = true,
-                StatusMessage = "ok",
+                StatusCode = 200,
+                HttpStatusMessage = "ok",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "origin", new List<string>{ kumasiEndpoint } },
                     { "path", new List<string>{ "/" } },
                     { "ans", new List<string>{ "00", "014d" } }
                 },
-                HttpStatusCode = 200,
                 HttpVersion = "1.1"
             };
             responseBodyBytes = null;
@@ -571,7 +566,7 @@ namespace Kabomu.Tests.QuasiHttp
             localEndpoint = kumasiEndpoint;
             request = new DefaultQuasiHttpRequest
             {
-                Path = "/compute",
+                Target = "/compute",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "op", new List<string>{ "div" } },
@@ -584,15 +579,14 @@ namespace Kabomu.Tests.QuasiHttp
             responseError = null;
             response = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = true,
-                StatusMessage = "ok",
+                StatusCode = 200,
+                HttpStatusMessage = "ok",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "origin", new List<string>{ accraEndpoint } },
                     { "path", new List<string>{ "/compute" } },
                     { "ans", new List<string>{ "01", "0127" } }
                 },
-                HttpStatusCode = 200,
                 HttpVersion = "1.1"
             };
             response.Body = new ByteBufferBody(new byte[] { 0x09, 0x0a, 0x0a, 0x0b }, 0, 4);
@@ -604,7 +598,7 @@ namespace Kabomu.Tests.QuasiHttp
             localEndpoint = kumasiEndpoint;
             request = new DefaultQuasiHttpRequest
             {
-                Path = "/grind",
+                Target = "/grind",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "op", new List<string>{ "sub" } },
@@ -617,15 +611,14 @@ namespace Kabomu.Tests.QuasiHttp
             responseError = null;
             response = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = true,
-                StatusMessage = "ok",
+                StatusCode = 200,
+                HttpStatusMessage = "ok",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "origin", new List<string>{ accraEndpoint } },
                     { "path", new List<string>{ "/grind" } },
                     { "ans", new List<string>{ "09" } }
                 },
-                HttpStatusCode = 200,
                 HttpVersion = "1.1"
             };
             response.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0x25, 0 }, 0, 1), -1);
@@ -637,7 +630,7 @@ namespace Kabomu.Tests.QuasiHttp
             localEndpoint = accraEndpoint;
             request = new DefaultQuasiHttpRequest
             {
-                Path = "/ping",
+                Target = "/ping",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "op", new List<string>{ "div" } },
@@ -652,8 +645,8 @@ namespace Kabomu.Tests.QuasiHttp
             responseError = null;
             response = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = true,
-                StatusMessage = "ok",
+                StatusCode = 200,
+                HttpStatusMessage = "ok",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "origin", new List<string>{ kumasiEndpoint } },
@@ -662,7 +655,6 @@ namespace Kabomu.Tests.QuasiHttp
                     { "version", new List<string>{ "1.1" } },
                     { "method", new List<string>{ "GET" } }
                 },
-                HttpStatusCode = 200,
                 HttpVersion = "1.1"
             };
             response.Body = null;
@@ -674,7 +666,7 @@ namespace Kabomu.Tests.QuasiHttp
             localEndpoint = kumasiEndpoint;
             request = new DefaultQuasiHttpRequest
             {
-                Path = "/pong",
+                Target = "/pong",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "op", new List<string>{ "sub" } },
@@ -687,15 +679,14 @@ namespace Kabomu.Tests.QuasiHttp
             responseError = null;
             response = new DefaultQuasiHttpResponse
             {
-                StatusIndicatesSuccess = true,
-                StatusMessage = "ok",
+                StatusCode = 200,
+                HttpStatusMessage = "ok",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "origin", new List<string>{ accraEndpoint } },
                     { "path", new List<string>{ "/pong" } },
                     { "ans", new List<string>{ "" } }
                 },
-                HttpStatusCode = 200,
                 HttpVersion = "1.1"
             };
             response.Body = new StreamBackedBody(new MemoryStream(new byte[] { 0x25, 0 }, 1, 0), -1);
@@ -707,7 +698,7 @@ namespace Kabomu.Tests.QuasiHttp
             localEndpoint = accraEndpoint;
             request = new DefaultQuasiHttpRequest
             {
-                Path = "/t",
+                Target = "/t",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "op", new List<string>{ "sub" } },
@@ -760,10 +751,10 @@ namespace Kabomu.Tests.QuasiHttp
                         Headers = new Dictionary<string, IList<string>>()
                     };
                     res.Headers.Add("origin", new List<string> { endpoint });
-                    if (req.Path != null)
+                    if (req.Target != null)
                     {
                         // test that path was received correctly.
-                        res.Headers.Add("path", new List<string> { req.Path });
+                        res.Headers.Add("path", new List<string> { req.Target });
                     }
                     if (req.HttpVersion != null)
                     {
@@ -777,15 +768,13 @@ namespace Kabomu.Tests.QuasiHttp
                     }
                     if (selectedOp == null)
                     {
-                        res.StatusIndicatesClientError = true;
-                        res.StatusMessage = "bad request";
-                        res.HttpStatusCode = 400;
+                        res.StatusCode = DefaultQuasiHttpResponse.StatusCodeClientError;
+                        res.HttpStatusMessage = "bad request";
                     }
                     else
                     {
-                        res.StatusIndicatesSuccess = true;
-                        res.StatusMessage = "ok";
-                        res.HttpStatusCode = 200;
+                        res.StatusCode = DefaultQuasiHttpResponse.StatusCodeOk;
+                        res.HttpStatusMessage = "ok";
                         res.HttpVersion = "1.1";
                         if (req.Headers.ContainsKey("first"))
                         {

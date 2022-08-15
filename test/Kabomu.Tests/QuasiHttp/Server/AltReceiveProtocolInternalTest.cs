@@ -82,17 +82,13 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
         class ErrorQuasiHttpResponse : IQuasiHttpResponse
         {
-            public bool StatusIndicatesSuccess => throw new NotImplementedException();
-
-            public bool StatusIndicatesClientError => throw new NotImplementedException();
-
-            public string StatusMessage => throw new NotImplementedException();
+            public string HttpStatusMessage => throw new NotImplementedException();
 
             public IDictionary<string, IList<string>> Headers => throw new NotImplementedException();
 
             public IQuasiHttpBody Body => throw new NotImplementedException();
 
-            public int HttpStatusCode => throw new NotImplementedException();
+            public int StatusCode => throw new NotImplementedException();
 
             public string HttpVersion => throw new NotImplementedException();
 
