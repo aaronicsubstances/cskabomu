@@ -10,14 +10,19 @@ namespace Kabomu.Mediator.Handling
     public interface IResponse
     {
         IQuasiHttpMutableResponse RawResponse { get; }
-        bool StatusIndicatesSuccess { get; }
-        bool StatusIndicatesClientError { get; }
+        int StatusCode { get; }
+        bool IsSuccessStatusCode { get; }
+        bool IsClientErrorStatusCode { get; }
+        bool IsServerErrorStatusCode { get; }
         IMutableHeaders Headers { get; }
-        IResponse SetStatusIndicatesSuccess(bool value);
-        IResponse SetStatusIndicatesClientError(bool value);
-        IResponse SetStatusMessage(string value);
+        IResponse SetSuccessStatusCode();
+        IResponse SetClientErrorStatusCode();
+        IResponse SetServerErrorStatusCode();
+        IResponse SetStatusCode(int value);
         IResponse SetBody(IQuasiHttpBody value);
         Task Send();
         Task SendWithBody(IQuasiHttpBody value);
+        Task<bool> TrySend();
+        Task<bool> TrySendWithBody(IQuasiHttpBody value);
     }
 }

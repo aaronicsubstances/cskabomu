@@ -6,7 +6,7 @@ namespace Kabomu.Mediator.RequestParsing
 {
     public interface IPathBinding
     {
-        IDictionary<string, string> Tokens { get; }
+        IDictionary<string, object> Tokens { get; }
         string Description { get; }
         string BoundPathPortion { get; }
         string UnboundPathPortion { get; }

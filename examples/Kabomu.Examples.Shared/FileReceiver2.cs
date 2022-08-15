@@ -71,13 +71,12 @@ namespace Kabomu.Examples.Shared
 
             if (transferError == null)
             {
-                context.Response.SetStatusIndicatesSuccess(true)
-                    .SetStatusMessage("OK");
+                context.Response.SetSuccessStatusCode();
             }
             else
             {
-                context.Response.SetStatusIndicatesSuccess(false)
-                    .SetStatusMessage(transferError.Message);
+                context.Response.SetServerErrorStatusCode();
+                context.Response.RawResponse.HttpStatusMessage = transferError.Message;
             }
 
             await context.Response.Send();

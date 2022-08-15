@@ -21,7 +21,6 @@ namespace Kabomu.Mediator.Handling
         public IRegistry InitialReadonlyLocalRegistry { get; set; }
         public IRegistry ReadonlyGlobalRegistry { get; set; }
         public IList<Handler> InitialHandlers { get; set; }
-        public Handler FinalHandler { get; set; }
         public IMutexApi MutexApi { get; set; }
 
         public async Task Start()
@@ -126,9 +125,11 @@ namespace Kabomu.Mediator.Handling
                 }
             }
 
+
             if (handler == null)
             {
-                handler = FinalHandler;
+                _ = HandleUnexpectedEnd();
+                return;
             }
 
             // call without waiting and without mutual exclusion...it is for client to decide
@@ -246,6 +247,50 @@ namespace Kabomu.Mediator.Handling
             }
         }
 
+        public async Task HandleUnexpectedEnd()
+        {
+            try
+            {
+                // tolerate prescence of nulls.
+                Func<IUnexpectedEndHandler, (bool, Task)> unexpectedEndCode = (handler) =>
+                {
+                    if (handler != null)
+                    {
+                        var result = handler.HandleUnexpectedEnd(this);
+                        return (true, result);
+                    }
+                    return (false, null);
+                };
+                Task unexpectedEndTask;
+                using (await MutexApi.Synchronize())
+                {
+                    bool found;
+                    (found, unexpectedEndTask) = _joinedRegistry.TryGetFirst(unexpectedEndCode);
+                    if (!found)
+                    {
+                        unexpectedEndTask = HandleUnexpectedEndLastResort();
+                    }
+                }
+                await unexpectedEndTask;
+            }
+            catch (Exception e)
+            {
+                if (!(e is HandlerException))
+                {
+                    await HandleError(new HandlerException(null, e));
+                }
+                else
+                {
+                    await HandleError(e);
+                }
+            }
+        }
+
+        private Task HandleUnexpectedEndLastResort()
+        {
+            return Response.SetStatusCode(404).TrySend();
+        }
+
         public async Task HandleError(Exception error)
         {
             try
@@ -292,9 +337,8 @@ namespace Kabomu.Mediator.Handling
                     msg = FlattenException(original);
                 }
 
-                sendTask = Response.SetStatusIndicatesSuccess(false)
-                    .SetStatusIndicatesClientError(false)
-                    .SendWithBody(new StringBody(msg) { ContentType = "text/plain" });
+                sendTask = Response.SetStatusCode(500)
+                    .TrySendWithBody(new StringBody(msg) { ContentType = "text/plain" });
             }
             await sendTask;
         }
