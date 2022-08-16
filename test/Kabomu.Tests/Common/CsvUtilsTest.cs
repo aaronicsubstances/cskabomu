@@ -75,7 +75,7 @@ namespace Kabomu.Tests.Common
 
         [Theory]
         [MemberData(nameof(CreateTestSerializeData))]
-        public void TestSerialize(List<List<string>> rows, string expected)
+        public void TestSerialize(IList<IList<string>> rows, string expected)
         {
             var actual = CsvUtils.Serialize(rows);
             Assert.Equal(expected, actual);
@@ -85,25 +85,25 @@ namespace Kabomu.Tests.Common
         {
             var testData = new List<object[]>();
 
-            var rows = new List<List<string>>();
+            var rows = new List<IList<string>>();
             var expected = "";
             testData.Add(new object[] { rows, expected });
 
-            rows = new List<List<string>>
+            rows = new List<IList<string>>
             {
                 new List<string>{ "" }
             };
             expected = "\"\"\n";
             testData.Add(new object[] { rows, expected });
 
-            rows = new List<List<string>>
+            rows = new List<IList<string>>
             {
                 new List<string>()
             };
             expected = "\n";
             testData.Add(new object[] { rows, expected });
 
-            rows = new List<List<string>>
+            rows = new List<IList<string>>
             {
                 new List<string>{ "a" },
                 new List<string>{ "b", "c" },
@@ -111,7 +111,7 @@ namespace Kabomu.Tests.Common
             expected = "a\nb,c\n";
             testData.Add(new object[] { rows, expected });
 
-            rows = new List<List<string>>
+            rows = new List<IList<string>>
             {
                 new List<string>{ },
                 new List<string>{ ",", "c" },
@@ -119,7 +119,7 @@ namespace Kabomu.Tests.Common
             expected = "\n\",\",c\n";
             testData.Add(new object[] { rows, expected });
 
-            rows = new List<List<string>>
+            rows = new List<IList<string>>
             {
                 new List<string>{ "head", "tail", "." },
                 new List<string>{ "\n", " c\"d " },
@@ -128,7 +128,7 @@ namespace Kabomu.Tests.Common
             expected = "head,tail,.\n\"\n\",\" c\"\"d \"\n\n";
             testData.Add(new object[] { rows, expected });
 
-            rows = new List<List<string>>
+            rows = new List<IList<string>>
             {
                 new List<string>{ "a\nb,c\n" },
                 new List<string>{ "\n\",\",c\n", "head,tail,.\n\"\n\",\" c\"\"d \"\n\n" },

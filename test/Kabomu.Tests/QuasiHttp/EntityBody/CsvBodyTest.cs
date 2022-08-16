@@ -14,7 +14,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public Task TestEmptyRead()
         {
             // arrange.
-            var content = new Dictionary<string, List<string>>();
+            var content = new Dictionary<string, IList<string>>();
             var instance = new CsvBody(content)
             {
                 ContentType = "text/csv"
@@ -29,7 +29,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public Task TestNonEmptyRead()
         {
             // arrange.
-            var content = new Dictionary<string, List<string>>
+            var content = new Dictionary<string, IList<string>>
             {
                 { "A", new List<string> {"b", "2"} },
                 { "B", new List<string> { "2"} },
@@ -53,7 +53,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             {
                 new StringBody(null);
             });
-            var content = new Dictionary<string, List<string>>
+            var content = new Dictionary<string, IList<string>>
             {
                 { "c", new List<string> { "2"} },
             };

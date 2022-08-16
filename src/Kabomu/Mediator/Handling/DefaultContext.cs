@@ -47,11 +47,8 @@ namespace Kabomu.Mediator.Handling
                 Request);
             additionalRegistry.Add(ContextUtils.TypePatternResponse,
                 Response);
-            if (Request.Target != null)
-            {
-                additionalRegistry.AddLazy(ContextUtils.TypePatternPathMatchResult,
-                    () => CreateRootPathMatch());
-            }
+            additionalRegistry.Add(ContextUtils.TypePatternPathMatchResult,
+                CreateRootPathMatch());
 
             using (await MutexApi.Synchronize())
             {
@@ -76,7 +73,13 @@ namespace Kabomu.Mediator.Handling
 
         private IPathMatchResult CreateRootPathMatch()
         {
-            return DefaultPathParser.Parse("*").Match(Request.Target);
+            var pathMatchResult = new DefaultPathMatchResult
+            {
+                PathValues = new Dictionary<string, string>(),
+                BoundPathPortion = "",
+                UnboundPathPortion = Request.Target ?? ""
+            };
+            return pathMatchResult;
         }
 
         /// <summary>

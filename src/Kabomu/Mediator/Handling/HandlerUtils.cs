@@ -50,30 +50,20 @@ namespace Kabomu.Mediator.Handling
             };
         }
 
-        public static Handler Path(string path, Handler handler)
+        public static Handler Path(IPathTemplate pathTemplate, Handler handler)
         {
-            if (path == null)
+            if (pathTemplate == null)
             {
-                throw new ArgumentNullException(nameof(path));
-            }
-            var pathBinder = DefaultPathParser.Parse(path);
-            return Path(pathBinder, handler);
-        }
-
-        public static Handler Path(IPathMatcher pathMatcher, Handler handler)
-        {
-            if (pathMatcher == null)
-            {
-                throw new ArgumentNullException(nameof(pathMatcher));
+                throw new ArgumentNullException(nameof(pathTemplate));
             }
             return async (context) =>
             {
-                IPathMatchResult parentPathMatcher;
+                IPathMatchResult parentPathMatchResult;
                 using (await context.MutexApi.Synchronize())
                 {
-                    parentPathMatcher = context.PathMatchResult;
+                    parentPathMatchResult = context.PathMatchResult;
                 }
-                var pathMatchResult = pathMatcher.Match(parentPathMatcher.UnboundPathPortion);
+                var pathMatchResult = pathTemplate.Match(context, parentPathMatchResult.UnboundPathPortion);
                 if (pathMatchResult != null)
                 {
                     var additionalRegistry = new DefaultMutableRegistry()
