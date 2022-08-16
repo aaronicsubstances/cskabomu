@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Mediator.ResponseRendering
 {
-    public interface IRenderer
+    public interface IResponseRenderer
     {
         bool CanRender(IContext context, object obj);
         Task Render(IContext context, object obj);

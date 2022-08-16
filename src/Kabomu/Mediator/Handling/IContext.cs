@@ -1,6 +1,6 @@
 ﻿using Kabomu.Concurrency;
+using Kabomu.Mediator.Path;
 using Kabomu.Mediator.Registry;
-using Kabomu.Mediator.RequestParsing;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -10,7 +10,7 @@ namespace Kabomu.Mediator.Handling
     public interface IContext : IRegistry
     {
         IRequest Request { get; }
-        IPathBinding PathBinding { get; }
+        IPathMatchResult PathMatchResult { get; }
         IResponse Response { get; }
         IMutexApi MutexApi { get; set; }
         Task Insert​(IList<Handler> handlers);

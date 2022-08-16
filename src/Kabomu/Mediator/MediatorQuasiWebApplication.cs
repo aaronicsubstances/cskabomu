@@ -31,18 +31,6 @@ namespace Kabomu.Mediator
                 InitialReadonlyLocalRegistry = InitialReadonlyLocalRegistry,
                 ReadonlyGlobalRegistry = ReadonlyGlobalRegistry,
             };
-            if (context.InitialHandlers == null || context.InitialHandlers.Count == 0)
-            {
-                throw new MissingDependencyException("no initial handlers provided");
-            }
-            if (context.InitialReadonlyLocalRegistry == null)
-            {
-                context.InitialReadonlyLocalRegistry = EmptyRegistry.Instance;
-            }
-            if (context.ReadonlyGlobalRegistry == null)
-            {
-                context.ReadonlyGlobalRegistry = EmptyRegistry.Instance;
-            }
 
             var mutexApiTask = MutexApiFactory?.Create();
             if (mutexApiTask != null)

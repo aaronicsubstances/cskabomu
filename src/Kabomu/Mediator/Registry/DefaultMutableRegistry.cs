@@ -6,13 +6,11 @@ namespace Kabomu.Mediator.Registry
 {
     public class DefaultMutableRegistry : IMutableRegistry
     {
-        private readonly LinkedList<IRegistryEntry> _typeKeyEntries; // serves as deque data structure.
-        private readonly Dictionary<string, Stack<IRegistryEntry>> _stringKeyEntries;
+        private readonly Dictionary<object, Stack<Func<object>>> _entries;
 
         public DefaultMutableRegistry()
         {
-            _typeKeyEntries = new LinkedList<IRegistryEntry>();
-            _stringKeyEntries = new Dictionary<string, Stack<IRegistryEntry>>();
+            _entries = new Dictionary<object, Stack<Func<object>>>();
         }
 
         public IMutableRegistry Add(object key, object value)
@@ -22,86 +20,47 @@ namespace Kabomu.Mediator.Registry
 
         public IMutableRegistry AddGenerator(object key, Func<object> valueGenerator)
         {
-            if (key is string stringKey)
+            Stack<Func<object>> selectedEntries;
+            if (_entries.ContainsKey(key))
             {
-                Stack<IRegistryEntry> selectedEntries;
-                if (_stringKeyEntries.ContainsKey(stringKey))
-                {
-                    selectedEntries = _stringKeyEntries[stringKey];
-                }
-                else
-                {
-                    selectedEntries = new Stack<IRegistryEntry>();
-                    _stringKeyEntries.Add(stringKey, selectedEntries);
-                }
-                selectedEntries.Push(new DefaultRegistryEntry
-                {
-                    ValueGenerator = valueGenerator
-                });
-            }
-            else if (key is Type)
-            {
-                _typeKeyEntries.AddFirst(new DefaultRegistryEntry
-                {
-                    Key = key,
-                    ValueGenerator = valueGenerator
-                });
+                selectedEntries = _entries[key];
             }
             else
             {
-                throw new ArgumentException("key must be a string or Type object", nameof(key));
+                selectedEntries = new Stack<Func<object>>();
+                _entries.Add(key, selectedEntries);
             }
+            selectedEntries.Push(valueGenerator);
             return this;
         }
 
         public IMutableRegistry Remove(object key)
         {
-            if (key is string stringKey)
-            {
-                _stringKeyEntries.Remove(stringKey);
-            }
-            else if (key is Type typeKey)
-            {
-                // remove efficiently by re-adding all items in queue unto itself
-                // enough number of times, exempting only the items which have to
-                // be removed.
-                int snapshotCount = _typeKeyEntries.Count;
-                for (int i = 0; i < snapshotCount; i++)
-                {
-                    var node = _typeKeyEntries.First;
-                    _typeKeyEntries.RemoveFirst();
-                    if (typeKey.IsAssignableFrom((Type)node.Value.Key))
-                    {
-                        // remove by not re-adding.
-                    }
-                    else
-                    {
-                        // preserve ordering by enqueueing rather than pushing.
-                        _typeKeyEntries.AddLast(node.Value);
-                    }
-                }
-            }
+            _entries.Remove(key);
             return this;
         }
 
         public (bool, object) TryGet(object key)
         {
-            if (key is string stringKey)
+            if (key is IRegistryKeyPattern keyPattern)
             {
-                if (_stringKeyEntries.ContainsKey(stringKey))
+                foreach (var k in _entries.Keys)
                 {
-                    var valueToUse = _stringKeyEntries[stringKey].Peek().ValueGenerator.Invoke();
-                    return (true, valueToUse);
+                    if (keyPattern.IsMatch(k))
+                    {
+                        var valueGenerator = _entries[k].Peek();
+                        var value = valueGenerator.Invoke();
+                        return (true, value);
+                    }
                 }
             }
-            else if (key is Type typeKey)
+            else
             {
-                foreach (var entry in _typeKeyEntries)
+                if (_entries.ContainsKey(key))
                 {
-                    if (typeKey.IsAssignableFrom((Type)entry.Key))
-                    {
-                        return (true, entry.ValueGenerator.Invoke());
-                    }
+                    var valueGenerator = _entries[key].Peek();
+                    var value = valueGenerator.Invoke();
+                    return (true, value);
                 }
             }
             return (false, null);
@@ -110,24 +69,25 @@ namespace Kabomu.Mediator.Registry
         public IEnumerable<object> GetAll(object key)
         {
             var selected = new List<object>();
-            if (key is string stringKey)
+            if (key is IRegistryKeyPattern keyPattern)
             {
-                if (_stringKeyEntries.ContainsKey(stringKey))
+                foreach (var k in _entries.Keys)
                 {
-                    foreach (var entry in _stringKeyEntries[stringKey])
+                    if (keyPattern.IsMatch(k))
                     {
-                        selected.Add(entry.ValueGenerator.Invoke());
+                        var valueGenerator = _entries[k].Peek();
+                        var value = valueGenerator.Invoke();
+                        selected.Add(value);
                     }
                 }
             }
-            else if (key is Type typeKey)
+            else
             {
-                foreach (var entry in _typeKeyEntries)
+                if (_entries.ContainsKey(key))
                 {
-                    if (typeKey.IsAssignableFrom((Type)entry.Key))
-                    {
-                        selected.Add(entry.ValueGenerator.Invoke());
-                    }
+                    var valueGenerator = _entries[key].Peek();
+                    var value = valueGenerator.Invoke();
+                    selected.Add(value);
                 }
             }
             return selected;
