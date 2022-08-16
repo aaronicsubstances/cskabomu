@@ -89,9 +89,9 @@ namespace Kabomu.Common
         /// <param name="csv">the csv string to parse.</param>
         /// <returns>CSV parse results as a list of rows, in which each row is represented as a list of values
         /// corresponding to the row's columns.</returns>
-        public static List<List<string>> Deserialize(string csv)
+        public static IList<IList<string>> Deserialize(string csv)
         {
-            var parsedCsv = new List<List<string>>();
+            var parsedCsv = new List<IList<string>>();
             var currentRow = new List<string>();
             var nextValueStartIdx = 0;
             var isCommaTheLastSeparatorSeen = false;
@@ -260,7 +260,7 @@ namespace Kabomu.Common
         /// <param name="rows">Data for CSV generation. Each row is a list whose entries will be treated as the values of
         /// columns in the row. Also no row is treated specially.</param>
         /// <returns>CSV string corresponding to rows</returns>
-        public static string Serialize(List<List<string>> rows)
+        public static string Serialize(IList<IList<string>> rows)
         {
             var csvBuilder = new StringBuilder();
             foreach (var row in rows)

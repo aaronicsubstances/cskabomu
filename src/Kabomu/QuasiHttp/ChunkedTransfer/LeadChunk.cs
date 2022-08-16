@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Kabomu.QuasiHttp.ChunkedTransfer
@@ -107,7 +108,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 Length = csvDataPrefix.Length
             };
 
-            var csvData = new List<List<string>>();
+            var csvData = new List<IList<string>>();
             var specialHeaderRow = new List<string>();
             specialHeaderRow.Add((RequestTarget != null ? 1 : 0).ToString());
             specialHeaderRow.Add(RequestTarget ?? "");
@@ -222,7 +223,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 {
                     continue;
                 }
-                var headerValue = new List<string>(headerRow.GetRange(1, headerRow.Count - 1));
+                var headerValue = headerRow.Skip(1).ToList();
                 if (instance.Headers == null)
                 {
                     instance.Headers = new Dictionary<string, IList<string>>();
