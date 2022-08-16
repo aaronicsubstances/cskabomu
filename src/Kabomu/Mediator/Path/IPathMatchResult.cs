@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Mediator.RequestParsing
+namespace Kabomu.Mediator.Path
 {
-    public interface IPathBinding
+    public interface IPathMatchResult
     {
         IDictionary<string, object> Tokens { get; }
         string Description { get; }

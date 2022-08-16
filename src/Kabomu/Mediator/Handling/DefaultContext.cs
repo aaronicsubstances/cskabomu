@@ -1,4 +1,6 @@
-﻿using Kabomu.Concurrency;
+﻿using Kabomu.Common;
+using Kabomu.Concurrency;
+using Kabomu.Mediator.Path;
 using Kabomu.Mediator.Registry;
 using Kabomu.Mediator.RequestParsing;
 using Kabomu.Mediator.ResponseRendering;
@@ -18,23 +20,63 @@ namespace Kabomu.Mediator.Handling
 
         public IRequest Request { get; set; }
         public IResponse Response { get; set; }
+        public IList<Handler> InitialHandlers { get; set; }
         public IRegistry InitialReadonlyLocalRegistry { get; set; }
         public IRegistry ReadonlyGlobalRegistry { get; set; }
-        public IList<Handler> InitialHandlers { get; set; }
         public IMutexApi MutexApi { get; set; }
 
         public async Task Start()
         {
+            if (Request == null)
+            {
+                throw new MissingDependencyException("request");
+            }
+            if (Response == null)
+            {
+                throw new MissingDependencyException("response");
+            }
+            if (InitialHandlers == null || InitialHandlers.Count == 0)
+            {
+                throw new MissingDependencyException("no initial handlers provided");
+            }
+
+            var additionalRegistry = new DefaultMutableRegistry();
+            additionalRegistry.Add(ContextUtils.TypePatternContext,
+                this);
+            additionalRegistry.Add(ContextUtils.TypePatternRequest,
+                Request);
+            additionalRegistry.Add(ContextUtils.TypePatternResponse,
+                Response);
+            if (Request.Target != null)
+            {
+                additionalRegistry.AddLazy(ContextUtils.TypePatternPathMatchResult,
+                    () => CreateRootPathMatch());
+            }
+
             using (await MutexApi.Synchronize())
             {
                 _handlerStack = new Stack<HandlerGroup>();
                 var firstHandlerGroup = new HandlerGroup(InitialHandlers, InitialReadonlyLocalRegistry);
                 _handlerStack.Push(firstHandlerGroup);
+                if (CurrentRegistry == null)
+                {
+                    _handlerStack.Peek().registry = EmptyRegistry.Instance;
+                }
 
-                _joinedRegistry = new DynamicRegistry(this).Join(ReadonlyGlobalRegistry);
+                _joinedRegistry = new DynamicRegistry(this);
+                if (ReadonlyGlobalRegistry != null)
+                {
+                    _joinedRegistry = _joinedRegistry.Join(ReadonlyGlobalRegistry);
+                }
+                _joinedRegistry = _joinedRegistry.Join(additionalRegistry);
 
                 RunNext();
             }
+        }
+
+        private IPathMatchResult CreateRootPathMatch()
+        {
+            return DefaultPathParser.Parse("*").Match(Request.Target);
         }
 
         /// <summary>
@@ -156,11 +198,11 @@ namespace Kabomu.Mediator.Handling
             }
         }
 
-        public IPathBinding PathBinding
+        public IPathMatchResult PathMatchResult
         {
             get
             {
-                return _joinedRegistry.Get<IPathBinding>();
+                return _joinedRegistry.Get<IPathMatchResult>(ContextUtils.TypePatternPathMatchResult);
             }
         }
 
@@ -169,8 +211,9 @@ namespace Kabomu.Mediator.Handling
             try
             {
                 // tolerate prescence of nulls.
-                Func<IRequestParser, (bool, Task<T>)> parserCode = (parser) =>
+                Func<object, (bool, Task<T>)> parserCode = (obj) =>
                 {
+                    var parser = obj as IRequestParser;
                     if (parser != null && parser.CanParse<T>(this, parseOpts))
                     {
                         var result = parser.Parse<T>(this, parseOpts);
@@ -182,7 +225,8 @@ namespace Kabomu.Mediator.Handling
                 using (await MutexApi.Synchronize())
                 {
                     bool found;
-                    (found, parserTask) = _joinedRegistry.TryGetFirst(parserCode);
+                    (found, parserTask) = _joinedRegistry.TryGetFirst(
+                        ContextUtils.TypePatternRequestParser, parserCode);
                     if (!found)
                     {
                         throw new ParseException("no parser found");
@@ -213,8 +257,9 @@ namespace Kabomu.Mediator.Handling
                     return;
                 }
                 // tolerate prescence of nulls.
-                Func<IRenderer, (bool, Task)> renderingCode = (renderer) =>
+                Func<object, (bool, Task)> renderingCode = (obj) =>
                 {
+                    var renderer = obj as IResponseRenderer;
                     if (renderer != null && renderer.CanRender(this, body))
                     {
                         var result = renderer.Render(this, body);
@@ -226,7 +271,8 @@ namespace Kabomu.Mediator.Handling
                 using (await MutexApi.Synchronize())
                 {
                     bool found;
-                    (found, renderTask) = _joinedRegistry.TryGetFirst(renderingCode);
+                    (found, renderTask) = _joinedRegistry.TryGetFirst(
+                        ContextUtils.TypePatternResponseRenderer, renderingCode);
                     if (!found)
                     {
                         throw new RenderException("no renderer found");
@@ -252,8 +298,9 @@ namespace Kabomu.Mediator.Handling
             try
             {
                 // tolerate prescence of nulls.
-                Func<IUnexpectedEndHandler, (bool, Task)> unexpectedEndCode = (handler) =>
+                Func<object, (bool, Task)> unexpectedEndCode = (obj) =>
                 {
+                    var handler = obj as IUnexpectedEndHandler;
                     if (handler != null)
                     {
                         var result = handler.HandleUnexpectedEnd(this);
@@ -265,7 +312,8 @@ namespace Kabomu.Mediator.Handling
                 using (await MutexApi.Synchronize())
                 {
                     bool found;
-                    (found, unexpectedEndTask) = _joinedRegistry.TryGetFirst(unexpectedEndCode);
+                    (found, unexpectedEndTask) = _joinedRegistry.TryGetFirst(
+                        ContextUtils.TypePatternUnexpectedEndHandler, unexpectedEndCode);
                     if (!found)
                     {
                         unexpectedEndTask = HandleUnexpectedEndLastResort();
@@ -295,18 +343,27 @@ namespace Kabomu.Mediator.Handling
         {
             try
             {
-                Task resultTask = null;
+                // tolerate prescence of nulls.
+                Func<object, (bool, Task)> errorHandlingCode = (obj) =>
+                {
+                    var handler = obj as IServerErrorHandler;
+                    if (handler != null)
+                    {
+                        var result = handler.HandleError(this, error);
+                        return (true, result);
+                    }
+                    return (false, null);
+                };
+                Task resultTask;
                 using (await MutexApi.Synchronize())
                 {
-                    var (found, errorHandler) = _joinedRegistry.TryGet<IServerErrorHandler>();
-                    if (found)
+                    bool found;
+                    (found, resultTask) = _joinedRegistry.TryGetFirst(
+                        ContextUtils.TypePatternServerErrorHandler, errorHandlingCode);
+                    if (!found)
                     {
-                        resultTask = errorHandler.HandleError(this, error);
+                        resultTask = HandleErrorLastResort(error, null);
                     }
-                }
-                if (resultTask == null)
-                {
-                    resultTask = HandleErrorLastResort(error, null);
                 }
                 await resultTask;
             }
