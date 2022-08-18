@@ -1,5 +1,4 @@
-﻿using Kabomu.Common;
-using Kabomu.Concurrency;
+﻿using Kabomu.Concurrency;
 using Kabomu.Mediator.Handling;
 using Kabomu.Mediator.Registry;
 using Kabomu.QuasiHttp;

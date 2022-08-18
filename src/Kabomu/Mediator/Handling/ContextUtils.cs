@@ -14,10 +14,10 @@ namespace Kabomu.Mediator.Handling
             new TypeRegistryKeyPattern(typeof(IContext));
 
         public static readonly IRegistryKeyPattern TypePatternRequest =
-            new TypeRegistryKeyPattern(typeof(IRequest));
+            new TypeRegistryKeyPattern(typeof(IContextRequest));
 
         public static readonly IRegistryKeyPattern TypePatternResponse =
-            new TypeRegistryKeyPattern(typeof(IResponse));
+            new TypeRegistryKeyPattern(typeof(IContextResponse));
 
         public static readonly IRegistryKeyPattern TypePatternPathMatchResult =
             new TypeRegistryKeyPattern(typeof(IPathMatchResult));
@@ -33,5 +33,9 @@ namespace Kabomu.Mediator.Handling
 
         public static readonly IRegistryKeyPattern TypePatternServerErrorHandler =
             new TypeRegistryKeyPattern(typeof(IServerErrorHandler));
+
+        public static readonly int PathConstraintMatchDirectionMatch = 1;
+
+        public static readonly int PathConstraintMatchDirectionFormat = 2;
     }
 }

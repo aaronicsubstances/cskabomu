@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Mediator.Handling
 {
-    public interface IResponse
+    public interface IContextResponse
     {
         IQuasiHttpMutableResponse RawResponse { get; }
         int StatusCode { get; }
@@ -15,11 +15,11 @@ namespace Kabomu.Mediator.Handling
         bool IsClientErrorStatusCode { get; }
         bool IsServerErrorStatusCode { get; }
         IMutableHeaders Headers { get; }
-        IResponse SetSuccessStatusCode();
-        IResponse SetClientErrorStatusCode();
-        IResponse SetServerErrorStatusCode();
-        IResponse SetStatusCode(int value);
-        IResponse SetBody(IQuasiHttpBody value);
+        IContextResponse SetSuccessStatusCode();
+        IContextResponse SetClientErrorStatusCode();
+        IContextResponse SetServerErrorStatusCode();
+        IContextResponse SetStatusCode(int value);
+        IContextResponse SetBody(IQuasiHttpBody value);
         Task Send();
         Task SendWithBody(IQuasiHttpBody value);
         Task<bool> TrySend();

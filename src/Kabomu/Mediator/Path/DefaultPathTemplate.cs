@@ -17,11 +17,127 @@ namespace Kabomu.Mediator.Path
         public IDictionary<string, IList<IList<string>>> ParsedConstraintSpecs { get; set; }
         public IDictionary<string, IPathConstraint> PathConstraints { get; set; }
 
+        public List<string> Format(IContext context, IDictionary<string, string> pathValues,
+            IPathTemplateFormatOptions options)
+        {
+            var candidates = new List<string>();
+            foreach (var sampleSet in ParsedSampleSets)
+            {
+                var candidate = TryFormat(context, pathValues, options, sampleSet);
+                if (candidate != null)
+                {
+                    candidates.Add(candidate);
+                }
+            }
+            return candidates;
+        }
+
+        public string TryFormat(IContext context, IDictionary<string, string> pathValues,
+            IPathTemplateFormatOptions options, DefaultPathTemplateExample sampleSet)
+        {
+            // by default apply constraints.
+            var applyConstraints = options?.ApplyConstraints ?? true;
+
+            var escapeNonWildCardSegment = PathUtilsInternal.GetEffectiveEscapeNonWildCardSegment(options, sampleSet);
+
+            var segments = new List<string>();
+            var tokens = sampleSet.ParsedSamples;
+            for (int i = 0; i < tokens.Count; i++)
+            {
+                var token = tokens[i];
+                if (token.Type == DefaultPathToken.TokenTypeLiteral)
+                {
+                    segments.Add(token.Value);
+                }
+                else if (token.Type == DefaultPathToken.TokenTypeSegment)
+                {
+                    var valueKey = token.Value;
+                    string pathValue;
+                    if (pathValues.ContainsKey(token.Value))
+                    {
+                        pathValue = pathValues[valueKey];
+                        if (applyConstraints && ParsedConstraintSpecs != null &&
+                            ParsedConstraintSpecs.ContainsKey(valueKey))
+                        {
+                            var constraints = ParsedConstraintSpecs[valueKey];
+                            var ok = PathUtilsInternal.ApplyConstraint(this, context, pathValues, valueKey, constraints,
+                                ContextUtils.PathConstraintMatchDirectionFormat);
+                            if (!ok)
+                            {
+                                return null;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (DefaultValues != null && DefaultValues.ContainsKey(valueKey))
+                        {
+                            pathValue = DefaultValues[valueKey];
+                        }
+                        else
+                        {
+                            // no path value provided, meaning sample set is not meant to be used.
+                            return null;
+                        }
+                    }
+                    if (escapeNonWildCardSegment)
+                    {
+                        pathValue = Uri.EscapeDataString(pathValue);
+                    }
+                    segments.Add(pathValue);
+                }
+                else if (token.Type == DefaultPathToken.TokenTypeWildCard)
+                {
+                    string wildCardValue;
+                    if (pathValues.ContainsKey(token.Value))
+                    {
+                        wildCardValue = pathValues[token.Value];
+                    }
+                    else
+                    {
+                        // no wild card segment needed.
+                        continue;
+                    }
+                    // add without escaping.
+                    segments.Add(wildCardValue);
+                }
+                else
+                {
+                    throw new ExpectationViolationException("unexpected token type: " +
+                        token.Type);
+                }
+            }
+
+            // if our segments are ready then proceed to join them with intervening slashes
+            // and carefully surround with sentinel slashes.
+            bool applyLeadingSlash = PathUtilsInternal.GetEffectiveApplyLeadingSlash(options, sampleSet);
+            bool applyTrailingSlash = PathUtilsInternal.GetEffectiveApplyTrailingSlash(options, sampleSet);
+            string path;
+            if (tokens.Count == 0)
+            {
+                if (applyLeadingSlash || applyTrailingSlash)
+                {
+                    path = "/";
+                }
+                else
+                {
+                    path = "";
+                }
+            }
+            else
+            {
+                string prefix = applyLeadingSlash ? "/" : "";
+                string suffix = applyTrailingSlash ? "/" : "";
+                path = prefix + string.Join("/", segments) + suffix;
+            }
+            return path;
+        }
+
         public IPathMatchResult Match(IContext context, string requestTarget)
         {
-            var path = DefaultPathTemplateGenerator.ExtractPath(requestTarget);
+            var path = PathUtilsInternal.ExtractPath(requestTarget);
 
-            var segments = DefaultPathTemplateGenerator.NormalizeAndSplitPath(path);
+            var segments = PathUtilsInternal.NormalizeAndSplitPath(path);
 
             var pathValues = new Dictionary<string, string>();
             DefaultPathTemplateExample matchingSampleSet = null;
@@ -44,11 +160,13 @@ namespace Kabomu.Mediator.Path
                 }
                 else
                 {
-                    if (sampleSet.MatchLeadingSlash.HasValue && path.StartsWith("/") != sampleSet.MatchLeadingSlash.Value)
+                    if (sampleSet.MatchLeadingSlash.HasValue &&
+                        path.StartsWith("/") != sampleSet.MatchLeadingSlash.Value)
                     {
                         continue;
                     }
-                    if (sampleSet.MatchTrailingSlash.HasValue && path.EndsWith("/") != sampleSet.MatchTrailingSlash.Value)
+                    if (sampleSet.MatchTrailingSlash.HasValue &&
+                        path.EndsWith("/") != sampleSet.MatchTrailingSlash.Value)
                     {
                         continue;
                     }
@@ -67,20 +185,25 @@ namespace Kabomu.Mediator.Path
                 return null;
             }
 
-            string boundPathPortion = path, unboundPathPortion = "";
-            if (matchingSampleSet.ParsedSamples.Count > 0 &&
-                matchingSampleSet.ParsedSamples[matchingSampleSet.ParsedSamples.Count - 1].Type == DefaultPathToken.TokenTypeWildCard &&
-                wildCardMatch != null)
+            // run through path constraints.
+            if (ParsedConstraintSpecs != null)
             {
-                unboundPathPortion = wildCardMatch;
-                if (!path.EndsWith(unboundPathPortion))
+                foreach (var e in ParsedConstraintSpecs)
                 {
-                    throw new ExpectationViolationException($"{path} does not end with {unboundPathPortion}");
+                    if (!pathValues.ContainsKey(e.Key))
+                    {
+                        continue;
+                    }
+                    bool ok = PathUtilsInternal.ApplyConstraint(this, context, pathValues,
+                        e.Key, e.Value, ContextUtils.PathConstraintMatchDirectionMatch);
+                    if (!ok)
+                    {
+                        return null;
+                    }
                 }
-                boundPathPortion = path.Substring(0, path.Length - unboundPathPortion.Length);
             }
 
-            // augment with default values.
+            // add default values.
             if (DefaultValues != null)
             {
                 foreach (var e in DefaultValues)
@@ -92,31 +215,17 @@ namespace Kabomu.Mediator.Path
                 }
             }
 
-            // run through path constraints.
-            if (ParsedConstraintSpecs != null)
+            string boundPathPortion = path, unboundPathPortion = "";
+            if (matchingSampleSet.ParsedSamples.Count > 0 &&
+                matchingSampleSet.ParsedSamples[matchingSampleSet.ParsedSamples.Count - 1].Type == DefaultPathToken.TokenTypeWildCard &&
+                wildCardMatch != null)
             {
-                foreach (var e in ParsedConstraintSpecs)
+                unboundPathPortion = wildCardMatch;
+                if (!path.EndsWith(unboundPathPortion))
                 {
-                    foreach (var row in e.Value)
-                    {
-                        if (!pathValues.ContainsKey(e.Key))
-                        {
-                            continue;
-                        }
-                        if (row.Count == 0)
-                        {
-                            continue;
-                        }
-                        var constraintFxn = PathConstraints[row[0]];
-                        string[] args = row.Skip(1).ToArray();
-                        bool ok = constraintFxn.Match(context, this, pathValues, e.Key,
-                            args, 0);
-                        if (!ok)
-                        {
-                            return null;
-                        }
-                    }
+                    throw new ExpectationViolationException($"{path} does not end with {unboundPathPortion}");
                 }
+                boundPathPortion = path.Substring(0, path.Length - unboundPathPortion.Length);
             }
 
             var result = new DefaultPathMatchResult
@@ -182,8 +291,14 @@ namespace Kabomu.Mediator.Path
                 if (token.Type == DefaultPathToken.TokenTypeLiteral)
                 {
                     // accept empty segments
-                    var comparisonType = sampleSet.CaseSensitiveMatchEnabled ? StringComparison.Ordinal :
+                    var comparisonType = sampleSet.CaseSensitiveMatchEnabled == true ?
+                        StringComparison.Ordinal :
                         StringComparison.OrdinalIgnoreCase;
+                    // partially unescape literals by default before comparison.
+                    if (sampleSet.UnescapeNonWildCardSegments != false)
+                    {
+                        segment = PathUtilsInternal.ReverseUnnecessaryUriEscapes(segment);
+                    }
                     if (!token.Value.Equals(segment, comparisonType))
                     {
                         return (false, null);
@@ -196,8 +311,10 @@ namespace Kabomu.Mediator.Path
                     {
                         return (false, null);
                     }
-                    var dataItem = Uri.UnescapeDataString(segment);
-                    pathValues.Add(token.Value, dataItem);
+                    // fully unescape segments by default.
+                    var unescaped = sampleSet.UnescapeNonWildCardSegments == false ?
+                        segment : Uri.UnescapeDataString(segment);
+                    pathValues.Add(token.Value, unescaped);
                 }
                 else if (token.Type == DefaultPathToken.TokenTypeWildCard)
                 {
@@ -211,7 +328,7 @@ namespace Kabomu.Mediator.Path
                         continue;
                     }
 
-                    // construct wild card match and don't escape it.
+                    // construct wild card match.
                     wildCardMatch = string.Join("/", segments.Skip(wildCardTokenIndex)
                         .Take(segments.Count - tokens.Count + 1));
                     // ensure wild card match at beginning and/or ending of tokens
@@ -219,6 +336,10 @@ namespace Kabomu.Mediator.Path
                     if (wildCardTokenIndex == 0)
                     {
                         int index = path.IndexOf(wildCardMatch); // must not be -1
+                        if (index == -1)
+                        {
+                            throw new ExpectationViolationException($"{index} == -1");
+                        }
                         if (index != 0)
                         {
                             wildCardMatch = path.Substring(0, index) + wildCardMatch;
@@ -227,6 +348,10 @@ namespace Kabomu.Mediator.Path
                     if (wildCardTokenIndex == tokens.Count - 1)
                     {
                         int index = path.LastIndexOf(wildCardMatch); // must not be -1
+                        if (index == -1)
+                        {
+                            throw new ExpectationViolationException($"{index} == -1");
+                        }
                         if (index + wildCardMatch.Length != path.Length)
                         {
                             wildCardMatch += path.Substring(index + wildCardMatch.Length);
@@ -239,12 +364,9 @@ namespace Kabomu.Mediator.Path
                         wildCardMatch = '/' + wildCardMatch;
                     }
 
-                    // insert into path values if needed.
+                    // insert into path values without escaping.
                     var wildCardKey = tokens[wildCardTokenIndex].Value;
-                    if (wildCardKey.Length > 0)
-                    {
-                        pathValues.Add(wildCardKey, wildCardMatch);
-                    }
+                    pathValues.Add(wildCardKey, wildCardMatch);
                 }
                 else
                 {

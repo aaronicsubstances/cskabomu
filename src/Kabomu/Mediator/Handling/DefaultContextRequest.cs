@@ -7,7 +7,7 @@ using System.Text;
 
 namespace Kabomu.Mediator.Handling
 {
-    internal class DefaultContextRequest : IRequest
+    internal class DefaultContextRequest : IContextRequest
     {
         private readonly DefaultMutableRegistry _registry;
 

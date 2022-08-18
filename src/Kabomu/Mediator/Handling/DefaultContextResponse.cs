@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Mediator.Handling
 {
-    internal class DefaultContextResponse : IResponse
+    internal class DefaultContextResponse : IContextResponse
     {
         private readonly TaskCompletionSource<IQuasiHttpResponse> _responseTransmitter;
 
@@ -29,31 +29,31 @@ namespace Kabomu.Mediator.Handling
 
         public bool IsServerErrorStatusCode => RawResponse.StatusCode >= 500 && RawResponse.StatusCode <= 599;
         
-        public IResponse SetSuccessStatusCode()
+        public IContextResponse SetSuccessStatusCode()
         {
             RawResponse.StatusCode = 200;
             return this;
         }
 
-        public IResponse SetClientErrorStatusCode()
+        public IContextResponse SetClientErrorStatusCode()
         {
             RawResponse.StatusCode = 400;
             return this;
         }
 
-        public IResponse SetServerErrorStatusCode()
+        public IContextResponse SetServerErrorStatusCode()
         {
             RawResponse.StatusCode = 500;
             return this;
         }
 
-        public IResponse SetStatusCode(int value)
+        public IContextResponse SetStatusCode(int value)
         {
             RawResponse.StatusCode = value;
             return this;
         }
 
-        public IResponse SetBody(IQuasiHttpBody value)
+        public IContextResponse SetBody(IQuasiHttpBody value)
         {
             RawResponse.Body = value;
             return this;
