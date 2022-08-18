@@ -12,10 +12,8 @@ namespace Kabomu.Mediator.Path
         {
         }
 
-        public bool CaseSensitiveMatchEnabled { get; set; }
-        public bool? MatchTrailingSlash { get; set; }
         public IDictionary<string, string> DefaultValues { get; set; }
-        public IList<IList<DefaultPathToken>> ParsedSampleSets { get; set; }
+        public IList<DefaultPathTemplateExample> ParsedSampleSets { get; set; }
         public IDictionary<string, IList<IList<string>>> ParsedConstraintSpecs { get; set; }
         public IDictionary<string, IPathConstraint> PathConstraints { get; set; }
 
@@ -23,21 +21,39 @@ namespace Kabomu.Mediator.Path
         {
             var path = DefaultPathTemplateGenerator.ExtractPath(requestTarget);
 
-            if (MatchTrailingSlash.HasValue)
-            {
-                if (path.EndsWith("/") != MatchTrailingSlash.Value)
-                {
-                    return null;
-                }
-            }
-
-            var segments = DefaultPathTemplateGenerator.SplitPath(path);
+            var segments = DefaultPathTemplateGenerator.NormalizeAndSplitPath(path);
 
             var pathValues = new Dictionary<string, string>();
-            IList<DefaultPathToken> matchingSampleSet = null;
+            DefaultPathTemplateExample matchingSampleSet = null;
             string wildCardMatch = null;
             foreach (var sampleSet in ParsedSampleSets)
             {
+                // deal with requirements of matching surrounding slashes while
+                // treating single slash path ('/') specially.
+                if (path == "/")
+                {
+                    // we choose to always make '/' match an empty set template if MatchLeadingSlash and
+                    // MatchTrailingSlash are not both false at the same time, by interpreting '/' as
+                    //  1. both a leading and trailing slash, if both MatchLeadingSlash and MatchLeadingSlash are true
+                    //  2. trailing but not leading slash, if MatchLeadingSlash is not true and MatchTrailingSlash is true
+                    //  3. leading but not trailing slash, if MatchTrailingSlash is not true and MatchLeadingSlash is true
+                    if (sampleSet.MatchLeadingSlash == false && sampleSet.MatchTrailingSlash == false)
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    if (sampleSet.MatchLeadingSlash.HasValue && path.StartsWith("/") != sampleSet.MatchLeadingSlash.Value)
+                    {
+                        continue;
+                    }
+                    if (sampleSet.MatchTrailingSlash.HasValue && path.EndsWith("/") != sampleSet.MatchTrailingSlash.Value)
+                    {
+                        continue;
+                    }
+                }
+
                 var matchAttempt = TryMatch(path, segments, sampleSet, pathValues);
                 if (matchAttempt.Item1)
                 {
@@ -52,15 +68,14 @@ namespace Kabomu.Mediator.Path
             }
 
             string boundPathPortion = path, unboundPathPortion = "";
-            if (matchingSampleSet.Count > 0 &&
-                matchingSampleSet[matchingSampleSet.Count - 1].Type == DefaultPathToken.TokenTypeWildCard &&
+            if (matchingSampleSet.ParsedSamples.Count > 0 &&
+                matchingSampleSet.ParsedSamples[matchingSampleSet.ParsedSamples.Count - 1].Type == DefaultPathToken.TokenTypeWildCard &&
                 wildCardMatch != null)
             {
                 unboundPathPortion = wildCardMatch;
                 if (!path.EndsWith(unboundPathPortion))
                 {
-                    throw new ExpectationViolationException("bug found in computing unbound path portion: " +
-                        $"{path} does not end with {unboundPathPortion}");
+                    throw new ExpectationViolationException($"{path} does not end with {unboundPathPortion}");
                 }
                 boundPathPortion = path.Substring(0, path.Length - unboundPathPortion.Length);
             }
@@ -114,8 +129,10 @@ namespace Kabomu.Mediator.Path
         }
 
         private (bool, string) TryMatch(string path, IList<string> segments,
-            IList<DefaultPathToken> tokens, IDictionary<string, string> pathValues)
+            DefaultPathTemplateExample sampleSet, IDictionary<string, string> pathValues)
         {
+            IList<DefaultPathToken> tokens = sampleSet.ParsedSamples;
+
             int wildCardTokenIndex = -1;
             for (int i = 0; i < tokens.Count; i++)
             {
@@ -165,7 +182,7 @@ namespace Kabomu.Mediator.Path
                 if (token.Type == DefaultPathToken.TokenTypeLiteral)
                 {
                     // accept empty segments
-                    var comparisonType = CaseSensitiveMatchEnabled ? StringComparison.Ordinal :
+                    var comparisonType = sampleSet.CaseSensitiveMatchEnabled ? StringComparison.Ordinal :
                         StringComparison.OrdinalIgnoreCase;
                     if (!token.Value.Equals(segment, comparisonType))
                     {
@@ -186,8 +203,7 @@ namespace Kabomu.Mediator.Path
                 {
                     if (i != wildCardTokenIndex)
                     {
-                        throw new ExpectationViolationException($"multiple wild card tokens found: " +
-                            $"{i} != {wildCardTokenIndex}");
+                        throw new ExpectationViolationException($"{i} != {wildCardTokenIndex}");
                     }
 
                     if (segment == null)
