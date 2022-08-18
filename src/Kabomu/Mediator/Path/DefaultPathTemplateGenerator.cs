@@ -28,7 +28,7 @@ namespace Kabomu.Mediator.Path
             foreach (var sampleSet in pathTemplateSpec.SampleSets)
             {
                 setNum++;
-                var tokens = AnalyzeSampleSet(setNum, sampleSet);
+                var tokens = TokenizeSampleSet(setNum, sampleSet);
                 var parsedSample = new DefaultPathTemplateExample
                 {
                     CaseSensitiveMatchEnabled = sampleSet.CaseSensitiveMatchEnabled,
@@ -74,16 +74,32 @@ namespace Kabomu.Mediator.Path
                 pathTemplate.PathConstraints.Add(constraintId, PathConstraints[constraintId]);
             }
 
+            // remove unnecessary escapes from all literal tokens
+            foreach (var sampleSet in pathTemplate.ParsedSampleSets)
+            {
+                if (sampleSet.UnescapeNonWildCardSegments == false)
+                {
+                    continue;
+                }
+                foreach (var token in sampleSet.ParsedSamples)
+                {
+                    if (token.Type == DefaultPathToken.TokenTypeLiteral)
+                    {
+                        token.Value = PathUtilsInternal.ReverseUnnecessaryUriEscapes(token.Value);
+                    }
+                }
+            }
+
             return pathTemplate;
         }
 
-        internal static IList<DefaultPathToken> AnalyzeSampleSet(int setNum, DefaultPathTemplateExample sampleSet)
+        internal static IList<DefaultPathToken> TokenizeSampleSet(int setNum, DefaultPathTemplateExample sampleSet)
         {
             // sort by segment count. preserve original submission order for ties.
             var parsedSamples = new List<IList<string>>();
             foreach (var sample in sampleSet.Samples)
             {
-                var segments = NormalizeAndSplitPath(sample);
+                var segments = PathUtilsInternal.NormalizeAndSplitPath(sample);
                 parsedSamples.Add(segments);
             }
 
@@ -106,7 +122,7 @@ namespace Kabomu.Mediator.Path
             // else look for wild card location, ie which split succeeds.
 
             var tokens = new List<DefaultPathToken>();
-            var ignoreCase = !sampleSet.CaseSensitiveMatchEnabled;
+            var ignoreCase = sampleSet.CaseSensitiveMatchEnabled != true;
             var comparisonType = ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             int prevSegmentCount = -1;
             int wildCardTokenIndex = -1;
@@ -119,8 +135,10 @@ namespace Kabomu.Mediator.Path
                     firstTime = false;
                     foreach (var segment in sample)
                     {
-                        var token = new DefaultPathToken(null, DefaultPathToken.TokenTypeLiteral);
-                        token.Update(sampleIndex, segment);
+                        var token = new DefaultPathToken();
+                        token.Type = DefaultPathToken.TokenTypeLiteral;
+                        token.SampleIndexOfValue = sampleIndex;
+                        token.Value = segment;
                         tokens.Add(token);
                     }
                 }
@@ -138,7 +156,8 @@ namespace Kabomu.Mediator.Path
                             }
                             else if (i == wildCardTokenIndex)
                             {
-                                segment = GetFirstNonEmptyValue(sample, i, sample.Count - tokens.Count);
+                                segment = PathUtilsInternal.GetFirstNonEmptyValue(
+                                    sample, i, sample.Count - tokens.Count);
                             }
                             else
                             {
@@ -151,7 +170,7 @@ namespace Kabomu.Mediator.Path
                                     if (!token.Value.Equals(segment, comparisonType))
                                     {
                                         // replace with segment token which inherits all other attributes.
-                                        tokens[i] = new DefaultPathToken(token, DefaultPathToken.TokenTypeSegment);
+                                        token.Type = DefaultPathToken.TokenTypeSegment;
                                     }
                                     break;
                                 case DefaultPathToken.TokenTypeSegment:
@@ -166,10 +185,7 @@ namespace Kabomu.Mediator.Path
                                     throw new ExpectationViolationException("unexpected token type: " +
                                         token.Type);
                             }
-                            if (token.Type != DefaultPathToken.TokenTypeLiteral)
-                            {
-                                token.Update(sampleIndex, segment);
-                            }
+                            PathUtilsInternal.UpdateNonLiteralToken(token, sampleIndex, segment);
                         }
                     }
                     else if (wildCardTokenIndex != -1)
@@ -184,7 +200,8 @@ namespace Kabomu.Mediator.Path
                             }
                             else if (i == wildCardTokenIndex)
                             {
-                                segment = GetFirstNonEmptyValue(sample, i, sample.Count - tokens.Count);
+                                segment = PathUtilsInternal.GetFirstNonEmptyValue(
+                                    sample, i, sample.Count - tokens.Count);
                             }
                             else
                             {
@@ -201,81 +218,25 @@ namespace Kabomu.Mediator.Path
                                         $"({segment} != {token.Value})");
                                 }
                             }
-                            else
-                            {
-                                token.Update(sampleIndex, segment);
-                            }
+                            PathUtilsInternal.UpdateNonLiteralToken(token, sampleIndex, segment);
                         }
                     }
                     else
                     {
                         // locate new wild card position in tokens.
-                        StringBuilder prefix = new StringBuilder(), suffix = new StringBuilder();
-                        for (int i = 0; i < tokens.Count; i++)
-                        {
-                            if (ignoreCase)
-                            {
-                                suffix.Append(tokens[i].Value.ToLowerInvariant());
-                            }
-                            else
-                            {
-                                suffix.Append(tokens[i].Value);
-                            }
-                        }
-                        var originalSample = new StringBuilder();
-                        if (ignoreCase)
-                        {
-                            originalSample.Append(sampleSet.Samples[sampleIndex].ToLowerInvariant());
-                        }
-                        else
-                        {
-                            originalSample.Append(sampleSet.Samples[sampleIndex]);
-                        }
-                        // remove surrounding slashes.
-                        if (originalSample.Length > 0 && originalSample[0] == '/')
-                        {
-                            originalSample.Remove(0, 1);
-                        }
-                        if (originalSample.Length > 0 && originalSample[originalSample.Length - 1] == '/')
-                        {
-                            originalSample.Remove(originalSample.Length - 1, 1);
-                        }
-                        int wildCardTokenPos = -1;
-                        for (int i = 0; i <= tokens.Count; i++)
-                        {
-                            if (i > 0)
-                            {
-                                // add to end of prefix, and remove from beginning of suffix.
-                                var tokenDiff = tokens[i - 1].Value;
-                                if (ignoreCase)
-                                {
-                                    tokenDiff = tokenDiff.ToLowerInvariant();
-                                }
-                                prefix.Append(tokenDiff);
-                                suffix.Remove(0, tokenDiff.Length);
-                            }
-                            if (!MutableStringStartsWith(originalSample, prefix))
-                            {
-                                continue;
-                            }
-                            if (!MutableStringEndsWith(originalSample, suffix))
-                            {
-                                continue;
-                            }
-
-                            // found desired position, so stop search.
-                            wildCardTokenPos = i;
-                            break;
-                        }
-                        if (wildCardTokenPos == -1)
+                        wildCardTokenIndex = PathUtilsInternal.LocateWildCardTokenPosition(
+                            sampleSet.Samples[sampleIndex], ignoreCase, tokens);
+                        if (wildCardTokenIndex == -1)
                         {
                             throw new Exception($"at sample index {sampleIndex}: " +
                                 $"sample does not match a wildcard expansion of shorter samples in set");
                         }
-                        var wildCardToken = new DefaultPathToken(null, DefaultPathToken.TokenTypeWildCard);
-                        string tokenValue = GetFirstNonEmptyValue(sample, wildCardTokenPos, sample.Count - tokens.Count);
-                        wildCardToken.Update(sampleIndex, tokenValue);
-                        tokens.Insert(wildCardTokenPos, wildCardToken);
+                        var wildCardToken = new DefaultPathToken();
+                        wildCardToken.Type = DefaultPathToken.TokenTypeWildCard;
+                        string tokenValue = PathUtilsInternal.GetFirstNonEmptyValue(
+                            sample, wildCardTokenIndex, sample.Count - tokens.Count);
+                        tokens.Insert(wildCardTokenIndex, wildCardToken);
+                        PathUtilsInternal.UpdateNonLiteralToken(wildCardToken, sampleIndex, tokenValue);
                     }
 
                     // update segment count for next iteration.
@@ -284,7 +245,7 @@ namespace Kabomu.Mediator.Path
             }
 
             // ensure uniqueness of tokens
-            var tokenNames = tokens.Select(x => x.Value).Where(x => !string.IsNullOrEmpty(x));
+            var tokenNames = tokens.Select(x => x.Value);
             if (tokenNames.Count() > tokenNames.Distinct().Count())
             {
                 throw new Exception("token names in set are not unique: " +
@@ -292,103 +253,6 @@ namespace Kabomu.Mediator.Path
             }
 
             return tokens;
-        }
-
-        internal static string GetFirstNonEmptyValue(IList<string> sample, int startPos, int count)
-        {
-            for (int i = startPos; i < startPos + count; i++)
-            {
-                var v = sample[i];
-                if (v != "")
-                {
-                    return v;
-                }
-            }
-            return "";
-        }
-
-        internal static bool MutableStringStartsWith(StringBuilder originalSample, StringBuilder prefix)
-        {
-            if (originalSample.Length < prefix.Length)
-            {
-                return false;
-            }
-            for (int i = 0; i < prefix.Length; i++)
-            {
-                if (originalSample[i] != prefix[i])
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        internal static bool MutableStringEndsWith(StringBuilder originalSample, StringBuilder suffix)
-        {
-            if (originalSample.Length < suffix.Length)
-            {
-                return false;
-            }
-            for (int i = 0; i < suffix.Length; i++)
-            {
-                if (originalSample[originalSample.Length - suffix.Length + i] != suffix[i])
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        internal static string ExtractPath(string requestTarget)
-        {
-            string path = new Uri(requestTarget ?? "").AbsolutePath;
-            return path;
-        }
-
-        internal static IList<string> NormalizeAndSplitPath(string path)
-        {
-            // Generate split of normalized version of path, such that joining segements together
-            // with slash will result in normalized path which neither begin nor end with slashes.
-            // In BNF-like format, normalized paths have the form
-            //     e | no-slash [ '/' no-slash ]*
-            // where e is the empty set, and no-slash is any string lacking slashes (including empty strings).
-
-            // NB: '/' is normalized to be the same as empty string, ie as empty set.
-
-            var segments = new List<string>();
-
-            int startPos = 0, endPos = path.Length;
-
-            // remove surrounding slashes, and be mindful of empty string, single and double slash cases.
-            if (path.StartsWith("/"))
-            {
-                startPos++;
-            }
-            if (path.EndsWith("/"))
-            {
-                endPos--;
-            }
-
-            if (endPos >= startPos && path != "")
-            {
-                while (true)
-                {
-                    var slashIndex = path.IndexOf('/', startPos, endPos - startPos);
-                    if (slashIndex == -1)
-                    {
-                        break;
-                    }
-                    segments.Add(path.Substring(startPos, slashIndex - startPos));
-
-                    // advance loop by setting start position to last slash index increased by length of slash
-                    startPos = slashIndex + 1;
-                }
-
-                // add remaining segment even if it is empty
-                segments.Add(path.Substring(startPos, endPos - startPos));
-            }
-
-            return segments;
         }
     }
 }

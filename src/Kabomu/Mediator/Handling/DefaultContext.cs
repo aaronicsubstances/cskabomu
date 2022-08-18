@@ -18,8 +18,8 @@ namespace Kabomu.Mediator.Handling
         private Stack<HandlerGroup> _handlerStack;
         private IRegistry _joinedRegistry;
 
-        public IRequest Request { get; set; }
-        public IResponse Response { get; set; }
+        public IContextRequest Request { get; set; }
+        public IContextResponse Response { get; set; }
         public IList<Handler> InitialHandlers { get; set; }
         public IRegistry InitialReadonlyLocalRegistry { get; set; }
         public IRegistry ReadonlyGlobalRegistry { get; set; }

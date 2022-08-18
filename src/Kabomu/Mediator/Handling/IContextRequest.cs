@@ -7,7 +7,7 @@ using System.Text;
 
 namespace Kabomu.Mediator.Handling
 {
-    public interface IRequest : IMutableRegistry
+    public interface IContextRequest : IMutableRegistry
     {
         IQuasiHttpRequest RawRequest { get; }
         IDictionary<string, object> Environment { get; }

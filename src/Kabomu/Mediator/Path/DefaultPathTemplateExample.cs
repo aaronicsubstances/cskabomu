@@ -14,9 +14,10 @@ namespace Kabomu.Mediator.Path
     /// </remarks>
     public class DefaultPathTemplateExample
     {
-        public bool CaseSensitiveMatchEnabled { get; set; }
+        public bool? CaseSensitiveMatchEnabled { get; set; }
         public bool? MatchLeadingSlash { get; set; }
         public bool? MatchTrailingSlash { get; set; }
+        public bool? UnescapeNonWildCardSegments { get; set; }
         public IList<string> Samples { get; set; }
         internal IList<DefaultPathToken> ParsedSamples { get; set; }
     }
