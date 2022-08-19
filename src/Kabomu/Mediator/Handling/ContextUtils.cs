@@ -19,6 +19,9 @@ namespace Kabomu.Mediator.Handling
         public static readonly IRegistryKeyPattern TypePatternResponse =
             new TypeRegistryKeyPattern(typeof(IContextResponse));
 
+        public static readonly IRegistryKeyPattern TypePatternPathTemplateGenerator =
+            new TypeRegistryKeyPattern(typeof(IPathTemplateGenerator));
+
         public static readonly IRegistryKeyPattern TypePatternPathMatchResult =
             new TypeRegistryKeyPattern(typeof(IPathMatchResult));
 

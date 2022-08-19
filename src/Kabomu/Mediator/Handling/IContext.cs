@@ -10,9 +10,11 @@ namespace Kabomu.Mediator.Handling
     public interface IContext : IRegistry
     {
         IContextRequest Request { get; }
-        IPathMatchResult PathMatchResult { get; }
         IContextResponse Response { get; }
         IMutexApi MutexApi { get; set; }
+        IPathTemplateGenerator PathTemplateGenerator { get; }
+        IPathMatchResult PathMatchResult { get; }
+
         Task Insert​(IList<Handler> handlers);
         Task Insert​(IList<Handler> handlers, IRegistry registry);
         Task SkipInsert();

@@ -8,7 +8,9 @@ namespace Kabomu.Mediator.Path
     public interface IPathTemplate
     {
         IPathMatchResult Match(IContext context, string requestTarget);
-        List<string> Format(IContext context, IDictionary<string, string> pathValues,
+        string Interpolate(IContext context, IDictionary<string, string> pathValues,
+            IPathTemplateFormatOptions options);
+        IList<string> InterpolateAll(IContext context, IDictionary<string, string> pathValues,
             IPathTemplateFormatOptions options);
     }
 }

@@ -3,17 +3,104 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Kabomu.Mediator.Path
 {
-    public class DefaultPathTemplateGenerator
+    public class DefaultPathTemplateGenerator : IPathTemplateGenerator
     {
+        private static readonly Regex SimpleTemplateSpecRegex = new Regex("(/{1,3})([^/]+)");
+
         public DefaultPathTemplateGenerator()
         {
             PathConstraints = new Dictionary<string, IPathConstraint>();
         }
 
         public IDictionary<string, IPathConstraint> PathConstraints { get; }
+
+        public IPathTemplate Parse(string pathSpec)
+        {
+            // Interpret path spec as zero or more concatenations of /literal or //segment or ///wildcard.
+            // where literal, segment or wildcard cannot be empty or contain slashes, will be trimmed of surrounding whitespace,
+            // and a segment surrounded by whitespace will be interpreted to mean it allows for empty values.
+
+            int startIndex = 0;
+            int wildCardCharIndex = -1;
+            var nonLiteralNames = new HashSet<string>();
+            var tokens = new List<DefaultPathToken>();
+            while (startIndex < pathSpec.Length)
+            {
+                var m = SimpleTemplateSpecRegex.Match(pathSpec, startIndex);
+                if (!m.Success || m.Index != startIndex)
+                {
+                    throw new ArgumentException($"invalid spec seen at char pos {startIndex + 1}");
+                }
+                string tokenTypeIndicator = m.Groups[0].Value;
+                int tokenType;
+                switch (tokenTypeIndicator)
+                {
+                    case "/":
+                        tokenType = DefaultPathToken.TokenTypeLiteral;
+                        break;
+                    case "//":
+                        tokenType = DefaultPathToken.TokenTypeSegment;
+                        break;
+                    case "///":
+                        tokenType = DefaultPathToken.TokenTypeWildCard;
+                        break;
+                    default:
+                        throw new ExpectationViolationException("unexpected token type indicator: " +
+                            tokenTypeIndicator);
+                }
+
+                string tokenValueIndicator = m.Groups[1].Value;
+                string tokenValue = tokenValueIndicator.Trim();
+                bool emptyValueAllowed = tokenValueIndicator != tokenValue;
+
+                if (tokenType != DefaultPathToken.TokenTypeLiteral)
+                {
+                    if (nonLiteralNames.Contains(tokenValue))
+                    {
+                        throw new ArgumentException($"duplicate use of segment name at char pos {startIndex + 1}");
+                    }
+                    nonLiteralNames.Add(tokenValue);
+                }
+                if (tokenType == DefaultPathToken.TokenTypeWildCard)
+                {
+                    if (wildCardCharIndex != -1)
+                    {
+                        throw new ArgumentException($"duplicate specification of wild card segment at char pos {startIndex + 1}. " +
+                            $"(wild card segment already specified at {wildCardCharIndex + 1})");
+                    }
+                    wildCardCharIndex = startIndex;
+                }
+
+                // add new token
+                var token = new DefaultPathToken
+                {
+                    Type = tokenType,
+                    Value = tokenValue,
+                    EmptySegmentAllowed = emptyValueAllowed
+                };
+                tokens.Add(token);
+
+                // advance loop
+                startIndex += m.Length;
+            }
+
+            var pathTemplate = new DefaultPathTemplate();
+            pathTemplate.ParsedSampleSets = new List<DefaultPathTemplateExample>();
+            var parsedSample = new DefaultPathTemplateExample
+            {
+                ParsedSamples = tokens
+            };
+            pathTemplate.ParsedSampleSets.Add(parsedSample);
+
+            // remove unnecessary escapes from all literal tokens
+            RemoveUnnecessaryUriEscapes(pathTemplate.ParsedSampleSets);
+
+            return pathTemplate;
+        }
 
         public IPathTemplate Generate(DefaultPathTemplateSpecification pathTemplateSpec)
         {
@@ -34,6 +121,7 @@ namespace Kabomu.Mediator.Path
                     CaseSensitiveMatchEnabled = sampleSet.CaseSensitiveMatchEnabled,
                     MatchLeadingSlash = sampleSet.MatchLeadingSlash,
                     MatchTrailingSlash = sampleSet.MatchTrailingSlash,
+                    UnescapeNonWildCardSegments = sampleSet.UnescapeNonWildCardSegments,
                     ParsedSamples = tokens
                 };
                 pathTemplate.ParsedSampleSets.Add(parsedSample);
@@ -75,7 +163,13 @@ namespace Kabomu.Mediator.Path
             }
 
             // remove unnecessary escapes from all literal tokens
-            foreach (var sampleSet in pathTemplate.ParsedSampleSets)
+            RemoveUnnecessaryUriEscapes(pathTemplate.ParsedSampleSets);
+
+            return pathTemplate;
+        }
+        private static void RemoveUnnecessaryUriEscapes(IList<DefaultPathTemplateExample> sampleSets)
+        {
+            foreach (var sampleSet in sampleSets)
             {
                 if (sampleSet.UnescapeNonWildCardSegments == false)
                 {
@@ -89,8 +183,6 @@ namespace Kabomu.Mediator.Path
                     }
                 }
             }
-
-            return pathTemplate;
         }
 
         internal static IList<DefaultPathToken> TokenizeSampleSet(int setNum, DefaultPathTemplateExample sampleSet)
@@ -244,12 +336,12 @@ namespace Kabomu.Mediator.Path
                 }
             }
 
-            // ensure uniqueness of tokens
-            var tokenNames = tokens.Select(x => x.Value);
-            if (tokenNames.Count() > tokenNames.Distinct().Count())
+            // ensure uniqueness of segment names (both single and wild card).
+            var nonLiteralNames = tokens.Where(x => x.Type != DefaultPathToken.TokenTypeLiteral).Select(x => x.Value);
+            if (nonLiteralNames.Count() > nonLiteralNames.Distinct().Count())
             {
-                throw new Exception("token names in set are not unique: " +
-                    string.Join(",", tokenNames));
+                throw new Exception("segment names in sample set are not unique: " +
+                    string.Join(",", nonLiteralNames));
             }
 
             return tokens;

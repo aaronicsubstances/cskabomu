@@ -9,6 +9,7 @@ namespace Kabomu.Mediator.Registry
     {
         public static IRegistry Join(this IRegistry parent, IRegistry child)
         {
+            if (child == null) return parent;
             return new HierarchicalRegistry(parent, child);
         }
 
