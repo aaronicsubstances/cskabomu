@@ -50,7 +50,7 @@ namespace Kabomu.Mediator.Handling
             };
         }
 
-        public static Handler Path(IPathTemplate pathTemplate, Handler handler)
+        public static Handler MountPath(IPathTemplate pathTemplate, Handler handler)
         {
             if (pathTemplate == null)
             {

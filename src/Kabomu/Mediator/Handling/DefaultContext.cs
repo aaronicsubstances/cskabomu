@@ -47,8 +47,20 @@ namespace Kabomu.Mediator.Handling
                 Request);
             additionalRegistry.Add(ContextUtils.TypePatternResponse,
                 Response);
-            additionalRegistry.Add(ContextUtils.TypePatternPathMatchResult,
-                CreateRootPathMatch());
+
+            // only add these if they have not being added already
+            if (ReadonlyGlobalRegistry == null ||
+                !ReadonlyGlobalRegistry.TryGet(ContextUtils.TypePatternPathTemplateGenerator).Item1)
+            {
+                additionalRegistry.Add(ContextUtils.TypePatternPathTemplateGenerator,
+                    new DefaultPathTemplateGenerator());
+            }
+            if (ReadonlyGlobalRegistry == null ||
+                !ReadonlyGlobalRegistry.TryGet(ContextUtils.TypePatternPathMatchResult).Item1)
+            {
+                additionalRegistry.Add(ContextUtils.TypePatternPathMatchResult,
+                    CreateRootPathMatch());
+            }
 
             using (await MutexApi.Synchronize())
             {
@@ -60,12 +72,7 @@ namespace Kabomu.Mediator.Handling
                     _handlerStack.Peek().registry = EmptyRegistry.Instance;
                 }
 
-                _joinedRegistry = new DynamicRegistry(this);
-                if (ReadonlyGlobalRegistry != null)
-                {
-                    _joinedRegistry = _joinedRegistry.Join(ReadonlyGlobalRegistry);
-                }
-                _joinedRegistry = _joinedRegistry.Join(additionalRegistry);
+                _joinedRegistry = new DynamicRegistry(this).Join(ReadonlyGlobalRegistry).Join(additionalRegistry);
 
                 RunNext();
             }
@@ -198,6 +205,14 @@ namespace Kabomu.Mediator.Handling
                 {
                     await HandleError(e);
                 }
+            }
+        }
+
+        public IPathTemplateGenerator PathTemplateGenerator
+        {
+            get
+            {
+                return _joinedRegistry.Get<IPathTemplateGenerator>(ContextUtils.TypePatternPathTemplateGenerator);
             }
         }
 

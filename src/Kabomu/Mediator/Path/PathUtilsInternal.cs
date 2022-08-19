@@ -120,6 +120,11 @@ namespace Kabomu.Mediator.Path
             return path;
         }
 
+        public static string ConvertPossibleNullToString(object obj)
+        {
+            return $"{obj}";
+        }
+
         public static IList<string> NormalizeAndSplitPath(string path)
         {
             // Generate split of normalized version of path, such that joining segements together
@@ -233,6 +238,82 @@ namespace Kabomu.Mediator.Path
             return true;
         }
 
+        public static bool AreAllRelevantPathValuesSatisfiedFromDefaultValues(
+            IDictionary<string, string> pathValues,
+            IList<DefaultPathTemplateExample> sampleSets, int alreadySatisfiedIndex,
+            IDictionary<string, string> defaultValues)
+        {
+            // begin recording all value keys already satisfied.
+            var satisfiedValueKeys = new HashSet<string>();
+            foreach (var token in sampleSets[alreadySatisfiedIndex].ParsedSamples)
+            {
+                if (token.Type != DefaultPathToken.TokenTypeLiteral)
+                {
+                    satisfiedValueKeys.Add(token.Value);
+                }
+            }
+            for (var i = 0; i < sampleSets.Count; i++)
+            {
+                if (i == alreadySatisfiedIndex)
+                {
+                    continue;
+                }
+                var otherSampleSet = sampleSets[i];
+                var otherTokens = otherSampleSet.ParsedSamples;
+                foreach (var otherToken in otherTokens)
+                {
+                    var valueKey = otherToken.Value;
+                    if (!pathValues.ContainsKey(valueKey))
+                    {
+                        // not relevant.
+                        continue;
+                    }
+
+                    // relevant path key found.
+                    if (satisfiedValueKeys.Contains(valueKey))
+                    {
+                        // dealt wih already.
+                        continue;
+                    }
+
+                    // Relevant path key not already dealt with.
+                    // So it's all up to default values, not only
+                    // for the path key to be present, but also
+                    // for its value to match
+                    if (defaultValues == null || !defaultValues.ContainsKey(valueKey))
+                    {
+                        return false;
+                    }
+
+                    var pathValue = pathValues[valueKey];
+                    var defaultValue = defaultValues[valueKey];
+
+                    if (!AreTwoPossiblyNullStringsEqual(pathValue, defaultValue,
+                        otherSampleSet.CaseSensitiveMatchEnabled != true))
+                    {
+                        return false;
+                    }
+
+                    // mark as satisfied.
+                    satisfiedValueKeys.Add(valueKey);
+                }
+            }
+
+            return true;
+        }
+
+        public static bool AreTwoPossiblyNullStringsEqual(string first, string second, bool ignoreCase)
+        {
+            if (first == null)
+            {
+                return second == null;
+            }
+            var comparisonType = ignoreCase ?
+                StringComparison.OrdinalIgnoreCase :
+                StringComparison.Ordinal;
+            return first.Equals(second, comparisonType);
+        }
+
         public static bool GetEffectiveEscapeNonWildCardSegment(IPathTemplateFormatOptions options,
             DefaultPathTemplateExample sampleSet)
         {
@@ -273,6 +354,13 @@ namespace Kabomu.Mediator.Path
             }
             // omit trailing slash by default.
             return false;
+        }
+
+        public static string EncodeAlmostEveryUriChar(string uriComponent)
+        {
+            // encode every char except for those unreserved for any role according to RFC 3986: 
+            //  a-zA-Z0-9 - . _ ~
+            return Uri.EscapeDataString(uriComponent);
         }
 
         public static string ReverseUnnecessaryUriEscapes(string segment)
@@ -341,8 +429,9 @@ namespace Kabomu.Mediator.Path
                 ans += (ans * 16) + inc;
             }
 
-            // The unnecessary escapes are:
-            // a-zA-Z0-9 - . _ ~ ! $ & ' ( ) * + , ; = : @
+            // The unnecessary escapes are in the URI path portion according to RFC 3986 are
+            // unreserved / sub-delims / ":" / "@":
+            //  a-zA-Z0-9 - . _ ~ ! $ & ' ( ) * + , ; = : @
 
             var unnecesaryEscapeFound = false;
             if (ans >= lowerA && ans <= lowerZ)
