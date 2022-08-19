@@ -1,119 +1,13 @@
 ﻿using Kabomu.Mediator.Handling;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
+using static Kabomu.Mediator.Path.DefaultPathTemplateExampleInternal;
 
 namespace Kabomu.Mediator.Path
 {
     internal static class PathUtilsInternal
     {
-        public static void UpdateNonLiteralToken(DefaultPathToken token, int sampleIndex, string value)
-        {
-            if (token.Type == DefaultPathToken.TokenTypeLiteral)
-            {
-                throw new ArgumentException("received literal token");
-            }
-            if (value == "")
-            {
-                token.EmptySegmentAllowed = true;
-            }
-            bool proceedWithUpdate = false;
-            if (token.SampleIndexOfValue == -1)
-            {
-                // first time.
-                proceedWithUpdate = true;
-            }
-            else if (token.Value == "" && value != "")
-            {
-                // always allow non empty values to override empty ones
-                // even if non empty value appears after empty one in
-                // sample.
-                proceedWithUpdate = true;
-            }
-            else if (sampleIndex < token.SampleIndexOfValue)
-            {
-                // only update if incoming sample index precedes the existing sample
-                // in original submission.
-                proceedWithUpdate = true;
-            }
-
-            if (proceedWithUpdate)
-            {
-                token.SampleIndexOfValue = sampleIndex;
-                token.Value = value;
-            }
-        }
-
-        public static int LocateWildCardTokenPosition(string originalSample, bool ignoreCase,
-            IList<DefaultPathToken> tokens)
-        {
-            if (tokens.Count == 0)
-            {
-                // this means that previous sample was one of empty string or single slash,
-                // and both of these formats imply entire sample set is a wild card once a 
-                // this original sample is encountered.
-                return 0;
-            }
-            StringBuilder prefix = new StringBuilder(), suffix = new StringBuilder();
-            for (int i = 0; i < tokens.Count; i++)
-            {
-                if (ignoreCase)
-                {
-                    suffix.Append(tokens[i].Value.ToLowerInvariant());
-                }
-                else
-                {
-                    suffix.Append(tokens[i].Value);
-                }
-            }
-            var mutableOriginalSample = new StringBuilder();
-            if (ignoreCase)
-            {
-                mutableOriginalSample.Append(originalSample.ToLowerInvariant());
-            }
-            else
-            {
-                mutableOriginalSample.Append(originalSample);
-            }
-            // remove surrounding slashes.
-            if (mutableOriginalSample.Length > 0 && mutableOriginalSample[0] == '/')
-            {
-                mutableOriginalSample.Remove(0, 1);
-            }
-            if (mutableOriginalSample.Length > 0 && mutableOriginalSample[mutableOriginalSample.Length - 1] == '/')
-            {
-                mutableOriginalSample.Remove(mutableOriginalSample.Length - 1, 1);
-            }
-            for (int i = 0; i <= tokens.Count; i++)
-            {
-                if (i > 0)
-                {
-                    // add to end of prefix, and remove from beginning of suffix.
-                    var tokenDiff = tokens[i - 1].Value;
-                    if (ignoreCase)
-                    {
-                        tokenDiff = tokenDiff.ToLowerInvariant();
-                    }
-                    prefix.Append(tokenDiff);
-                    suffix.Remove(0, tokenDiff.Length);
-                }
-                if (!MutableStringStartsWith(mutableOriginalSample, prefix))
-                {
-                    continue;
-                }
-                if (!MutableStringEndsWith(mutableOriginalSample, suffix))
-                {
-                    continue;
-                }
-
-                // found desired position, so stop search.
-                return i;
-            }
-
-            return -1;
-        }
-
         public static string ExtractPath(string requestTarget)
         {
             string path = new Uri(requestTarget ?? "").AbsolutePath;
@@ -123,6 +17,15 @@ namespace Kabomu.Mediator.Path
         public static string ConvertPossibleNullToString(object obj)
         {
             return $"{obj}";
+        }
+
+        public static IList<string> SplitTemplateSpecIntoLines(string s)
+        {
+            string[] lines = s.Split(
+               new string[] { "\r\n", "\r", "\n" },
+               StringSplitOptions.None
+            );
+            return lines;
         }
 
         public static IList<string> NormalizeAndSplitPath(string path)
@@ -171,65 +74,16 @@ namespace Kabomu.Mediator.Path
             return segments;
         }
 
-        public static string GetFirstNonEmptyValue(IList<string> sample, int startPos, int count)
-        {
-            for (int i = startPos; i < startPos + count; i++)
-            {
-                var v = sample[i];
-                if (v != "")
-                {
-                    return v;
-                }
-            }
-            return "";
-        }
-
-        public static bool MutableStringStartsWith(StringBuilder originalSample, StringBuilder prefix)
-        {
-            if (originalSample.Length < prefix.Length)
-            {
-                return false;
-            }
-            for (int i = 0; i < prefix.Length; i++)
-            {
-                if (originalSample[i] != prefix[i])
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        public static bool MutableStringEndsWith(StringBuilder originalSample, StringBuilder suffix)
-        {
-            if (originalSample.Length < suffix.Length)
-            {
-                return false;
-            }
-            for (int i = 0; i < suffix.Length; i++)
-            {
-                if (originalSample[originalSample.Length - suffix.Length + i] != suffix[i])
-                {
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        public static bool ApplyConstraint(DefaultPathTemplate pathTemplate,
+        public static bool ApplyValueConstraints(DefaultPathTemplate pathTemplate,
             IContext context, IDictionary<string, string> pathValues,
-            string valueKey, IList<IList<string>> constraints, int direction)
+            string valueKey, IList<(string, string[])> constraints, int direction)
         {
-            foreach (var row in constraints)
+            foreach (var constraint in constraints)
             {
-                if (row.Count == 0)
-                {
-                    continue;
-                }
-                var constraintFxn = pathTemplate.PathConstraints[row[0]];
-                string[] args = row.Skip(1).ToArray();
+                var (constraintFunctionId, constraintFunctionArgs) = constraint;
+                var constraintFxn = pathTemplate.ConstraintFunctions[constraintFunctionId];
                 bool ok = constraintFxn.Match(context, pathTemplate, pathValues, valueKey,
-                    args, direction);
+                    constraintFunctionArgs, direction);
                 if (!ok)
                 {
                     return false;
@@ -239,27 +93,27 @@ namespace Kabomu.Mediator.Path
         }
 
         public static bool AreAllRelevantPathValuesSatisfiedFromDefaultValues(
-            IDictionary<string, string> pathValues,
-            IList<DefaultPathTemplateExample> sampleSets, int alreadySatisfiedIndex,
+            IDictionary<string, string> pathValues, bool? caseSensitiveMatchEnabledOverride,
+            IList<DefaultPathTemplateExampleInternal> parsedExamples, int alreadySatisfiedIndex,
             IDictionary<string, string> defaultValues)
         {
             // begin recording all value keys already satisfied.
             var satisfiedValueKeys = new HashSet<string>();
-            foreach (var token in sampleSets[alreadySatisfiedIndex].ParsedSamples)
+            foreach (var token in parsedExamples[alreadySatisfiedIndex].Tokens)
             {
-                if (token.Type != DefaultPathToken.TokenTypeLiteral)
+                if (token.Type != PathToken.TokenTypeLiteral)
                 {
                     satisfiedValueKeys.Add(token.Value);
                 }
             }
-            for (var i = 0; i < sampleSets.Count; i++)
+            for (var i = 0; i < parsedExamples.Count; i++)
             {
                 if (i == alreadySatisfiedIndex)
                 {
                     continue;
                 }
-                var otherSampleSet = sampleSets[i];
-                var otherTokens = otherSampleSet.ParsedSamples;
+                var otherParsedExample = parsedExamples[i];
+                var otherTokens = otherParsedExample.Tokens;
                 foreach (var otherToken in otherTokens)
                 {
                     var valueKey = otherToken.Value;
@@ -288,8 +142,16 @@ namespace Kabomu.Mediator.Path
                     var pathValue = pathValues[valueKey];
                     var defaultValue = defaultValues[valueKey];
 
-                    if (!AreTwoPossiblyNullStringsEqual(pathValue, defaultValue,
-                        otherSampleSet.CaseSensitiveMatchEnabled != true))
+                    bool ignoreCase;
+                    if (caseSensitiveMatchEnabledOverride.HasValue)
+                    {
+                        ignoreCase = !caseSensitiveMatchEnabledOverride.Value;
+                    }
+                    else
+                    {
+                        ignoreCase = otherParsedExample.CaseSensitiveMatchEnabled != true;
+                    }
+                    if (!AreTwoPossiblyNullStringsEqual(pathValue, defaultValue, ignoreCase))
                     {
                         return false;
                     }
@@ -302,7 +164,7 @@ namespace Kabomu.Mediator.Path
             return true;
         }
 
-        public static bool AreTwoPossiblyNullStringsEqual(string first, string second, bool ignoreCase)
+        internal static bool AreTwoPossiblyNullStringsEqual(string first, string second, bool ignoreCase)
         {
             if (first == null)
             {
@@ -314,43 +176,45 @@ namespace Kabomu.Mediator.Path
             return first.Equals(second, comparisonType);
         }
 
-        public static bool GetEffectiveEscapeNonWildCardSegment(IPathTemplateFormatOptions options,
-            DefaultPathTemplateExample sampleSet)
+        public static bool GetEffectiveEscapeNonWildCardSegment(DefaultPathTemplateFormatOptions options,
+            DefaultPathTemplateExampleInternal parsedExample)
         {
             if (options != null && options.EscapeNonWildCardSegments.HasValue)
             {
                 return options.EscapeNonWildCardSegments.Value;
             }
-            if (sampleSet.UnescapeNonWildCardSegments != null)
+            if (parsedExample.UnescapeNonWildCardSegments != null)
             {
-                return sampleSet.UnescapeNonWildCardSegments.Value;
+                return parsedExample.UnescapeNonWildCardSegments.Value;
             }
             return true;
         }
 
-        public static bool GetEffectiveApplyLeadingSlash(IPathTemplateFormatOptions options, DefaultPathTemplateExample sampleSet)
+        public static bool GetEffectiveApplyLeadingSlash(DefaultPathTemplateFormatOptions options,
+            DefaultPathTemplateExampleInternal parsedExample)
         {
             if (options?.ApplyLeadingSlash != null)
             {
                 return options.ApplyLeadingSlash.Value;
             }
-            if (sampleSet.MatchLeadingSlash != null)
+            if (parsedExample.MatchLeadingSlash != null)
             {
-                return sampleSet.MatchLeadingSlash.Value;
+                return parsedExample.MatchLeadingSlash.Value;
             }
             // apply leading slashes by default.
             return true;
         }
 
-        public static bool GetEffectiveApplyTrailingSlash(IPathTemplateFormatOptions options, DefaultPathTemplateExample sampleSet)
+        public static bool GetEffectiveApplyTrailingSlash(DefaultPathTemplateFormatOptions options,
+            DefaultPathTemplateExampleInternal parsedExample)
         {
             if (options?.ApplyTrailingSlash != null)
             {
                 return options.ApplyTrailingSlash.Value;
             }
-            if (sampleSet.MatchTrailingSlash != null)
+            if (parsedExample.MatchTrailingSlash != null)
             {
-                return sampleSet.MatchTrailingSlash.Value;
+                return parsedExample.MatchTrailingSlash.Value;
             }
             // omit trailing slash by default.
             return false;
@@ -384,7 +248,7 @@ namespace Kabomu.Mediator.Path
             return transformed.ToString();
         }
 
-        public static int FastConvertPercentEncodedToPositiveNum(StringBuilder s, int pos)
+        internal static int FastConvertPercentEncodedToPositiveNum(StringBuilder s, int pos)
         {
             if (pos < 0 || pos >= s.Length)
             {

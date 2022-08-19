@@ -2,6 +2,6 @@
 {
     public interface IPathTemplateGenerator
     {
-        IPathTemplate Parse(string pathSpec);
+        IPathTemplate Parse(string part1, object part2);
     }
 }

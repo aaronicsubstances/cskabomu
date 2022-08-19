@@ -40,39 +40,37 @@ namespace Kabomu.Mediator.Handling
                 throw new MissingDependencyException("no initial handlers provided");
             }
 
-            var additionalRegistry = new DefaultMutableRegistry();
-            additionalRegistry.Add(ContextUtils.TypePatternContext,
+            var additionalGlobalRegistry = new DefaultMutableRegistry();
+            additionalGlobalRegistry.Add(ContextUtils.TypePatternContext,
                 this);
-            additionalRegistry.Add(ContextUtils.TypePatternRequest,
+            additionalGlobalRegistry.Add(ContextUtils.TypePatternRequest,
                 Request);
-            additionalRegistry.Add(ContextUtils.TypePatternResponse,
+            additionalGlobalRegistry.Add(ContextUtils.TypePatternResponse,
                 Response);
 
             // only add these if they have not being added already
-            if (ReadonlyGlobalRegistry == null ||
-                !ReadonlyGlobalRegistry.TryGet(ContextUtils.TypePatternPathTemplateGenerator).Item1)
+            var additionalLocalRegistry = new DefaultMutableRegistry();
+            if (InitialReadonlyLocalRegistry == null ||
+                !InitialReadonlyLocalRegistry.TryGet(ContextUtils.TypePatternPathTemplateGenerator).Item1)
             {
-                additionalRegistry.Add(ContextUtils.TypePatternPathTemplateGenerator,
+                additionalLocalRegistry.Add(ContextUtils.TypePatternPathTemplateGenerator,
                     new DefaultPathTemplateGenerator());
             }
-            if (ReadonlyGlobalRegistry == null ||
-                !ReadonlyGlobalRegistry.TryGet(ContextUtils.TypePatternPathMatchResult).Item1)
+            if (InitialReadonlyLocalRegistry == null ||
+                !InitialReadonlyLocalRegistry.TryGet(ContextUtils.TypePatternPathMatchResult).Item1)
             {
-                additionalRegistry.Add(ContextUtils.TypePatternPathMatchResult,
+                additionalLocalRegistry.Add(ContextUtils.TypePatternPathMatchResult,
                     CreateRootPathMatch());
             }
 
             using (await MutexApi.Synchronize())
             {
                 _handlerStack = new Stack<HandlerGroup>();
-                var firstHandlerGroup = new HandlerGroup(InitialHandlers, InitialReadonlyLocalRegistry);
+                var firstHandlerGroup = new HandlerGroup(InitialHandlers,
+                    EmptyRegistry.Instance.Join(InitialReadonlyLocalRegistry).Join(additionalLocalRegistry));
                 _handlerStack.Push(firstHandlerGroup);
-                if (CurrentRegistry == null)
-                {
-                    _handlerStack.Peek().registry = EmptyRegistry.Instance;
-                }
 
-                _joinedRegistry = new DynamicRegistry(this).Join(ReadonlyGlobalRegistry).Join(additionalRegistry);
+                _joinedRegistry = new DynamicRegistry(this).Join(ReadonlyGlobalRegistry).Join(additionalGlobalRegistry);
 
                 RunNext();
             }

@@ -9,8 +9,8 @@ namespace Kabomu.Mediator.Path
     {
         IPathMatchResult Match(IContext context, string requestTarget);
         string Interpolate(IContext context, IDictionary<string, string> pathValues,
-            IPathTemplateFormatOptions options);
+            object opaqueOptionObj);
         IList<string> InterpolateAll(IContext context, IDictionary<string, string> pathValues,
-            IPathTemplateFormatOptions options);
+            object opaqueOptionObj);
     }
 }

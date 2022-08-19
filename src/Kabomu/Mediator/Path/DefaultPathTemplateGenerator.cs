@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using static Kabomu.Mediator.Path.DefaultPathTemplateExampleInternal;
 
 namespace Kabomu.Mediator.Path
 {
@@ -13,24 +14,230 @@ namespace Kabomu.Mediator.Path
 
         public DefaultPathTemplateGenerator()
         {
-            PathConstraints = new Dictionary<string, IPathConstraint>();
+            ConstraintFunctions = new Dictionary<string, IPathConstraint>();
         }
 
-        public IDictionary<string, IPathConstraint> PathConstraints { get; }
+        /// <summary>
+        /// Intended to be edited even if it leads to the removal of already existing values.
+        /// </summary>
+        public Dictionary<string, IPathConstraint> ConstraintFunctions { get; }
 
-        public IPathTemplate Parse(string pathSpec)
+        public IPathTemplate Parse(string part1, object part2)
         {
-            // Interpret path spec as zero or more concatenations of /literal or //segment or ///wildcard.
-            // where literal, segment or wildcard cannot be empty or contain slashes, will be trimmed of surrounding whitespace,
-            // and a segment surrounded by whitespace will be interpreted to mean it allows for empty values.
+            if (part1 == null)
+            {
+                throw new ArgumentNullException(nameof(part1));
+            }
+
+            DefaultPathTemplateMatchOptions optionsForAll = null;
+            IList<DefaultPathTemplateMatchOptions> individualOptions = null;
+            if (part2 != null)
+            {
+                if (part2 is IList<DefaultPathTemplateMatchOptions>)
+                {
+                    individualOptions = (IList<DefaultPathTemplateMatchOptions>)part2;
+                }
+                else
+                {
+                    optionsForAll = (DefaultPathTemplateMatchOptions)part2;
+                }
+            }
+
+            var lines = PathUtilsInternal.SplitTemplateSpecIntoLines(part1);
+
+            var endIdxOfRangeOfExamples = LocateEndIndexOfRangeOfExamples(lines);
+
+            if (endIdxOfRangeOfExamples == -1)
+            {
+                throw new ArgumentException("no path template examples specified");
+            }
+
+            var pathTemplateExamples = new List<DefaultPathTemplateExampleInternal>();
+
+            for (int i = 0; i < endIdxOfRangeOfExamples; i++)
+            {
+                var line = lines[i];
+                if (line.Trim() == "")
+                {
+                    continue;
+                }
+                var tokens = ParsePathTemplateExample(i + 1, line);
+                var parsedExample = new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = tokens
+                };
+                pathTemplateExamples.Add(parsedExample);
+            }
+
+            // parse lines after examples together as CSV
+            var remainder = new StringBuilder();
+            for (int i = endIdxOfRangeOfExamples; i < lines.Count; i++)
+            {
+                remainder.AppendLine(lines[i]);
+            }
+
+            IList<IList<string>> parsedCsv = CsvUtils.Deserialize(remainder.ToString());
+
+            Dictionary<string, string> defaultValues = null;
+            if (parsedCsv.Count > 0)
+            {
+                defaultValues = new Dictionary<string, string>();
+                var rowOfDefaultValues = parsedCsv[0];
+                for (int i = 0; i < rowOfDefaultValues.Count; i += 2)
+                {
+                    var key = rowOfDefaultValues[i];
+                    if (defaultValues.ContainsKey(key))
+                    {
+                        throw new ArgumentException("CSV row of default values contains duplicate keys");
+                    }
+                    if (i + 1 >= rowOfDefaultValues.Count)
+                    {
+                        throw new ArgumentException("last default value is missing");
+                    }
+                    var value = rowOfDefaultValues[i + 1];
+                    defaultValues.Add(key, value);
+                }
+            }
+
+            // end parsing by validating and saving constraints.
+            var allConstraints = new Dictionary<string, IList<(string, string[])>>();
+            var constraintFunctionIds = new HashSet<string>();
+            for (int i = 1; i < parsedCsv.Count; i++) // skip default values row.
+            {
+                var row = parsedCsv[i];
+                if (row.Count < 2)
+                {
+                    continue;
+                }
+                var targetValueKey = row[0];
+                var constraintFunctionId = row[1];
+                if (!ConstraintFunctions.ContainsKey(constraintFunctionId))
+                {
+                    throw new Exception($"constraint function '{constraintFunctionId}' not found");
+                }
+                constraintFunctionIds.Add(constraintFunctionId);
+                IList<(string, string[])> targetValueConstraints;
+                if (allConstraints.ContainsKey(targetValueKey))
+                {
+                    targetValueConstraints = allConstraints[targetValueKey];
+                }
+                else
+                {
+                    targetValueConstraints = new List<(string, string[])>();
+                    allConstraints.Add(targetValueKey, targetValueConstraints);
+                }
+                var constraintFunctionArgs = row.Skip(2).ToArray();
+                targetValueConstraints.Add(ValueTuple.Create(constraintFunctionId, constraintFunctionArgs));
+            }
+
+            // Copy over path constraints to make them available even after 
+            // an update to this generator.
+            var constraintFunctions = new Dictionary<string, IPathConstraint>();
+            foreach (var constraintFunctionId in constraintFunctionIds)
+            {
+                constraintFunctions.Add(constraintFunctionId, ConstraintFunctions[constraintFunctionId]);
+            }
+
+            // assign options to parsed examples.
+            if (individualOptions != null || optionsForAll != null)
+            {
+                int index = 0;
+                foreach (var parsedExample in pathTemplateExamples)
+                {
+                    DefaultPathTemplateMatchOptions optionToUse;
+                    if (individualOptions != null)
+                    {
+                        optionToUse = individualOptions[index];
+                        index++;
+                    }
+                    else
+                    {
+                        optionToUse = optionsForAll;
+                    }
+                    SetParsedExampleOptions(parsedExample, optionToUse);
+                }
+            }
+
+            // remove unnecessary escapes from all literal tokens after just determining
+            // which of them are exempt from escaping.
+            RemoveUnnecessaryUriEscapes(pathTemplateExamples);
+
+            var pathTemplate = new DefaultPathTemplate
+            {
+                ParsedExamples = pathTemplateExamples,
+                DefaultValues = defaultValues,
+                AllConstraints = allConstraints,
+                ConstraintFunctions = constraintFunctions,
+            };
+
+            return pathTemplate;
+        }
+
+        private static int LocateEndIndexOfRangeOfExamples(IList<string> lines)
+        {
+            int endIdx = -1;
+
+            // locate first non-whitespace line.
+            int i = 0;
+            for (; i < lines.Count; i++)
+            {
+                var line = lines[i];
+                if (line.Trim() != "")
+                {
+                    break;
+                }
+            }
+
+            // locate next whitespace line.
+            for (; i < lines.Count; i++)
+            {
+                var line = lines[i];
+                if (line.Trim() == "")
+                {
+                    endIdx = i;
+                    break;
+                }
+            }
+
+            // extend end to next non-whitespace line
+            endIdx++;
+            for (; i < lines.Count; i++)
+            {
+                var line = lines[i];
+                if (line.Trim() != "")
+                {
+                    break;
+                }
+                endIdx++;
+            }
+
+            return endIdx;
+        }
+
+        private IList<PathToken> ParsePathTemplateExample(int lineNum, string lineOfTokens)
+        {
+            // Interpret path spec as either 
+            //  1. a single slash, or
+            //  2. zero or more concatenations of /literal or //segment or ///wildcard.
+            // where literal, segment or wildcard have the ff x'tics:
+            //  a. cannot be empty
+            //  b. cannot contain slashes
+            //  c. surrounding whitespace will be trimmed off.
+            //  d. a segment surrounded by whitespace will be interpreted to mean it allows for empty values.
 
             int startIndex = 0;
             int wildCardCharIndex = -1;
             var nonLiteralNames = new HashSet<string>();
-            var tokens = new List<DefaultPathToken>();
-            while (startIndex < pathSpec.Length)
+            var tokens = new List<PathToken>();
+            // deal specially with '/' to be the same as the empty string.
+            if (lineOfTokens == "/")
             {
-                var m = SimpleTemplateSpecRegex.Match(pathSpec, startIndex);
+                // return empty tokens
+                return tokens;
+            }
+            while (startIndex < lineOfTokens.Length)
+            {
+                var m = SimpleTemplateSpecRegex.Match(lineOfTokens, startIndex);
                 if (!m.Success || m.Index != startIndex)
                 {
                     throw new ArgumentException($"invalid spec seen at char pos {startIndex + 1}");
@@ -40,13 +247,13 @@ namespace Kabomu.Mediator.Path
                 switch (tokenTypeIndicator)
                 {
                     case "/":
-                        tokenType = DefaultPathToken.TokenTypeLiteral;
+                        tokenType = PathToken.TokenTypeLiteral;
                         break;
                     case "//":
-                        tokenType = DefaultPathToken.TokenTypeSegment;
+                        tokenType = PathToken.TokenTypeSegment;
                         break;
                     case "///":
-                        tokenType = DefaultPathToken.TokenTypeWildCard;
+                        tokenType = PathToken.TokenTypeWildCard;
                         break;
                     default:
                         throw new ExpectationViolationException("unexpected token type indicator: " +
@@ -57,7 +264,7 @@ namespace Kabomu.Mediator.Path
                 string tokenValue = tokenValueIndicator.Trim();
                 bool emptyValueAllowed = tokenValueIndicator != tokenValue;
 
-                if (tokenType != DefaultPathToken.TokenTypeLiteral)
+                if (tokenType != PathToken.TokenTypeLiteral)
                 {
                     if (nonLiteralNames.Contains(tokenValue))
                     {
@@ -65,7 +272,7 @@ namespace Kabomu.Mediator.Path
                     }
                     nonLiteralNames.Add(tokenValue);
                 }
-                if (tokenType == DefaultPathToken.TokenTypeWildCard)
+                if (tokenType == PathToken.TokenTypeWildCard)
                 {
                     if (wildCardCharIndex != -1)
                     {
@@ -76,7 +283,7 @@ namespace Kabomu.Mediator.Path
                 }
 
                 // add new token
-                var token = new DefaultPathToken
+                var token = new PathToken
                 {
                     Type = tokenType,
                     Value = tokenValue,
@@ -88,263 +295,34 @@ namespace Kabomu.Mediator.Path
                 startIndex += m.Length;
             }
 
-            var pathTemplate = new DefaultPathTemplate();
-            pathTemplate.ParsedSampleSets = new List<DefaultPathTemplateExample>();
-            var parsedSample = new DefaultPathTemplateExample
-            {
-                ParsedSamples = tokens
-            };
-            pathTemplate.ParsedSampleSets.Add(parsedSample);
-
-            // remove unnecessary escapes from all literal tokens
-            RemoveUnnecessaryUriEscapes(pathTemplate.ParsedSampleSets);
-
-            return pathTemplate;
+            return tokens;
         }
 
-        public IPathTemplate Generate(DefaultPathTemplateSpecification pathTemplateSpec)
+        private static void SetParsedExampleOptions(DefaultPathTemplateExampleInternal parsedExample,
+            DefaultPathTemplateMatchOptions option)
         {
-            var pathTemplate = new DefaultPathTemplate
-            {
-                DefaultValues = pathTemplateSpec.DefaultValues
-            };
-
-            // Parse examples for each set.
-            pathTemplate.ParsedSampleSets = new List<DefaultPathTemplateExample>();
-            int setNum = 0;
-            foreach (var sampleSet in pathTemplateSpec.SampleSets)
-            {
-                setNum++;
-                var tokens = TokenizeSampleSet(setNum, sampleSet);
-                var parsedSample = new DefaultPathTemplateExample
-                {
-                    CaseSensitiveMatchEnabled = sampleSet.CaseSensitiveMatchEnabled,
-                    MatchLeadingSlash = sampleSet.MatchLeadingSlash,
-                    MatchTrailingSlash = sampleSet.MatchTrailingSlash,
-                    UnescapeNonWildCardSegments = sampleSet.UnescapeNonWildCardSegments,
-                    ParsedSamples = tokens
-                };
-                pathTemplate.ParsedSampleSets.Add(parsedSample);
-            }
-
-            // Validate that each constraint spec is valid CSV and that
-            // all given constraint ids are present.
-            // Save parsed CSV results.
-            pathTemplate.ParsedConstraintSpecs = new Dictionary<string, IList<IList<string>>>();
-            HashSet<string> constraintIds = new HashSet<string>();
-            if (pathTemplateSpec.ConstraintSpecs != null)
-            {
-                foreach (var e in pathTemplateSpec.ConstraintSpecs)
-                {
-                    var parsed = CsvUtils.Deserialize(e.Value);
-                    foreach (var row in parsed)
-                    {
-                        if (row.Count == 0)
-                        {
-                            continue;
-                        }
-                        var constraintId = row[0];
-                        if (!PathConstraints.ContainsKey(constraintId))
-                        {
-                            throw new Exception($"constraint {constraintId} not found");
-                        }
-                        constraintIds.Add(constraintId);
-                    }
-                    pathTemplate.ParsedConstraintSpecs.Add(e.Key, parsed);
-                }
-            }
-
-            // Copy over path constraints to make them available even after 
-            // an update to this generator.
-            pathTemplate.PathConstraints = new Dictionary<string, IPathConstraint>();
-            foreach (var constraintId in constraintIds)
-            {
-                pathTemplate.PathConstraints.Add(constraintId, PathConstraints[constraintId]);
-            }
-
-            // remove unnecessary escapes from all literal tokens
-            RemoveUnnecessaryUriEscapes(pathTemplate.ParsedSampleSets);
-
-            return pathTemplate;
+            parsedExample.UnescapeNonWildCardSegments = option.UnescapeNonWildCardSegments;
+            parsedExample.CaseSensitiveMatchEnabled = option.CaseSensitiveMatchEnabled;
+            parsedExample.MatchLeadingSlash = option.MatchLeadingSlash;
+            parsedExample.MatchTrailingSlash = option.MatchTrailingSlash;
         }
-        private static void RemoveUnnecessaryUriEscapes(IList<DefaultPathTemplateExample> sampleSets)
+
+        private static void RemoveUnnecessaryUriEscapes(IList<DefaultPathTemplateExampleInternal> parsedExamples)
         {
-            foreach (var sampleSet in sampleSets)
+            foreach (var parsedExample in parsedExamples)
             {
-                if (sampleSet.UnescapeNonWildCardSegments == false)
+                if (parsedExample.UnescapeNonWildCardSegments == false)
                 {
                     continue;
                 }
-                foreach (var token in sampleSet.ParsedSamples)
+                foreach (var token in parsedExample.Tokens)
                 {
-                    if (token.Type == DefaultPathToken.TokenTypeLiteral)
+                    if (token.Type == PathToken.TokenTypeLiteral)
                     {
                         token.Value = PathUtilsInternal.ReverseUnnecessaryUriEscapes(token.Value);
                     }
                 }
             }
-        }
-
-        internal static IList<DefaultPathToken> TokenizeSampleSet(int setNum, DefaultPathTemplateExample sampleSet)
-        {
-            // sort by segment count. preserve original submission order for ties.
-            var parsedSamples = new List<IList<string>>();
-            foreach (var sample in sampleSet.Samples)
-            {
-                var segments = PathUtilsInternal.NormalizeAndSplitPath(sample);
-                parsedSamples.Add(segments);
-            }
-
-            // NB: stable sort needed, hence cannot use List.Sort
-            var sortedSamples = parsedSamples.Select((x, i) => (i, x))
-                .OrderBy(x => x.Item2.Count)
-                .ToList();
-
-            // if first time, mark all as literals.
-            // else it is a subsequent one.
-
-            // if same count as latest one, convert some literals before and after wild card
-            // to single segments. 
-            // Allow both new and existing ones to be empty.
-            // else must have more;
-
-            // if wild card has already been determined, then just validate that
-            // it matches expected literals in prefixes and suffixes.
-
-            // else look for wild card location, ie which split succeeds.
-
-            var tokens = new List<DefaultPathToken>();
-            var ignoreCase = sampleSet.CaseSensitiveMatchEnabled != true;
-            var comparisonType = ignoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            int prevSegmentCount = -1;
-            int wildCardTokenIndex = -1;
-            bool firstTime = true;
-            foreach (var sortedSample in sortedSamples)
-            {
-                var (sampleIndex, sample) = sortedSample;
-                if (firstTime)
-                {
-                    firstTime = false;
-                    foreach (var segment in sample)
-                    {
-                        var token = new DefaultPathToken();
-                        token.Type = DefaultPathToken.TokenTypeLiteral;
-                        token.SampleIndexOfValue = sampleIndex;
-                        token.Value = segment;
-                        tokens.Add(token);
-                    }
-                }
-                else
-                {
-                    if (sample.Count == prevSegmentCount)
-                    {
-                        for (int i = 0; i < tokens.Count; i++)
-                        {
-                            var token = tokens[i];
-                            string segment;
-                            if (wildCardTokenIndex == -1 || i < wildCardTokenIndex)
-                            {
-                                segment = sample[i];
-                            }
-                            else if (i == wildCardTokenIndex)
-                            {
-                                segment = PathUtilsInternal.GetFirstNonEmptyValue(
-                                    sample, i, sample.Count - tokens.Count);
-                            }
-                            else
-                            {
-                                // skip extra wild card segments.
-                                segment = sample[i + sample.Count - tokens.Count];
-                            }
-                            switch (token.Type)
-                            {
-                                case DefaultPathToken.TokenTypeLiteral:
-                                    if (!token.Value.Equals(segment, comparisonType))
-                                    {
-                                        // replace with segment token which inherits all other attributes.
-                                        token.Type = DefaultPathToken.TokenTypeSegment;
-                                    }
-                                    break;
-                                case DefaultPathToken.TokenTypeSegment:
-                                    break;
-                                case DefaultPathToken.TokenTypeWildCard:
-                                    if (i != wildCardTokenIndex)
-                                    {
-                                        throw new ExpectationViolationException($"{i} != {wildCardTokenIndex}");
-                                    }
-                                    break;
-                                default:
-                                    throw new ExpectationViolationException("unexpected token type: " +
-                                        token.Type);
-                            }
-                            PathUtilsInternal.UpdateNonLiteralToken(token, sampleIndex, segment);
-                        }
-                    }
-                    else if (wildCardTokenIndex != -1)
-                    {
-                        for (int i = 0; i < tokens.Count; i++)
-                        {
-                            var token = tokens[i];
-                            string segment;
-                            if (i < wildCardTokenIndex)
-                            {
-                                segment = sample[i];
-                            }
-                            else if (i == wildCardTokenIndex)
-                            {
-                                segment = PathUtilsInternal.GetFirstNonEmptyValue(
-                                    sample, i, sample.Count - tokens.Count);
-                            }
-                            else
-                            {
-                                // skip extra wild card segments.
-                                segment = sample[i + sample.Count - tokens.Count];
-                            }
-                            if (token.Type == DefaultPathToken.TokenTypeLiteral)
-                            {
-                                if (!token.Value.Equals(segment, comparisonType))
-                                {
-                                    throw new Exception($"at sample index {sampleIndex}: " +
-                                        $"literal value does not match literal value " +
-                                        $"at previous index {token.SampleIndexOfValue} " +
-                                        $"({segment} != {token.Value})");
-                                }
-                            }
-                            PathUtilsInternal.UpdateNonLiteralToken(token, sampleIndex, segment);
-                        }
-                    }
-                    else
-                    {
-                        // locate new wild card position in tokens.
-                        wildCardTokenIndex = PathUtilsInternal.LocateWildCardTokenPosition(
-                            sampleSet.Samples[sampleIndex], ignoreCase, tokens);
-                        if (wildCardTokenIndex == -1)
-                        {
-                            throw new Exception($"at sample index {sampleIndex}: " +
-                                $"sample does not match a wildcard expansion of shorter samples in set");
-                        }
-                        var wildCardToken = new DefaultPathToken();
-                        wildCardToken.Type = DefaultPathToken.TokenTypeWildCard;
-                        string tokenValue = PathUtilsInternal.GetFirstNonEmptyValue(
-                            sample, wildCardTokenIndex, sample.Count - tokens.Count);
-                        tokens.Insert(wildCardTokenIndex, wildCardToken);
-                        PathUtilsInternal.UpdateNonLiteralToken(wildCardToken, sampleIndex, tokenValue);
-                    }
-
-                    // update segment count for next iteration.
-                    prevSegmentCount = sample.Count;
-                }
-            }
-
-            // ensure uniqueness of segment names (both single and wild card).
-            var nonLiteralNames = tokens.Where(x => x.Type != DefaultPathToken.TokenTypeLiteral).Select(x => x.Value);
-            if (nonLiteralNames.Count() > nonLiteralNames.Distinct().Count())
-            {
-                throw new Exception("segment names in sample set are not unique: " +
-                    string.Join(",", nonLiteralNames));
-            }
-
-            return tokens;
         }
     }
 }
