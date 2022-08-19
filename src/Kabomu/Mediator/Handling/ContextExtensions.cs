@@ -7,14 +7,10 @@ namespace Kabomu.Mediator.Handling
 {
     public static class ContextExtensions
     {
-        public static Handler MountPath(this IContext context, string pathSpec, Handler handler)
+        public static Handler MountPath(this IContext context, string part1, object part2, Handler handler)
         {
-            if (pathSpec == null)
-            {
-                throw new ArgumentNullException(nameof(pathSpec));
-            }
             var pathTemplateGenerator = context.PathTemplateGenerator;
-            IPathTemplate pathTemplate = pathTemplateGenerator.Parse(pathSpec);
+            IPathTemplate pathTemplate = pathTemplateGenerator.Parse(part1, part2);
             return HandlerUtils.MountPath(pathTemplate, handler);
         }
     }
