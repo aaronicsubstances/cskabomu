@@ -106,7 +106,7 @@ namespace Kabomu.Tests.Concurrency
                     }
 
                     // finally ensure correct ordering of execution of tasks.
-                    new OutputEventLogger { Logs = actual }.AssertEqual(expected, _outputHelper);
+                    ComparisonUtils.AssertLogsEqual(expected, actual, _outputHelper);
                     return Task.CompletedTask;
                 }).Item1;
             }).Item1;
@@ -179,7 +179,7 @@ namespace Kabomu.Tests.Concurrency
             }
 
             // finally ensure correct ordering of execution of tasks.
-            new OutputEventLogger { Logs = actual }.AssertEqual(expected, _outputHelper);
+            ComparisonUtils.AssertLogsEqual(expected, actual, _outputHelper);
         }
 
         [Fact]

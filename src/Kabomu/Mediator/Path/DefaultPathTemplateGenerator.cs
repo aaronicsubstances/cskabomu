@@ -15,15 +15,7 @@ namespace Kabomu.Mediator.Path
         private static readonly string KeyDefaults = "defaults";
         private static readonly string KeyNamed = "named";
 
-        public DefaultPathTemplateGenerator()
-        {
-            ConstraintFunctions = new Dictionary<string, IPathConstraint>();
-        }
-
-        /// <summary>
-        /// Intended to be edited even if it leads to the removal of already existing values.
-        /// </summary>
-        public Dictionary<string, IPathConstraint> ConstraintFunctions { get; }
+        public IDictionary<string, IPathConstraint> ConstraintFunctions { get; set; }
 
         public IPathTemplate Parse(string part1, object part2)
         {
@@ -60,9 +52,10 @@ namespace Kabomu.Mediator.Path
             string referenceKey = null;
             string referenceAfterKey = null;
 
-            for (int rowNum = 1; rowNum <= parsedCsv.Count; rowNum++)
+            for (int i = 0; i < parsedCsv.Count; i++)
             {
-                var row = parsedCsv[rowNum - 1];
+                int rowNum = i + 1;
+                var row = parsedCsv[i];
 
                 // identify type of row.
                 if (row.Count == 0)
@@ -85,25 +78,24 @@ namespace Kabomu.Mediator.Path
                     }
                     if (referenceKey == KeyNamed)
                     {
-                        if (row.Count <= 1)
-                        {
-                            continue;
-                        }
-                        string name = row[1];
-                        if (name == "")
-                        {
-                            name = referenceAfterKey;
-                        }
-                        // even if there is no example specified, still make 
+                        // even if there is no name or example specified, still make 
                         // it possible to use as reference.
-                        referenceAfterKey = name;
-                        DefaultPathTemplateMatchOptions optionToUse = null;
-                        if (individualOptions != null && individualOptions.ContainsKey(name))
+                        if (row.Count > 1)
                         {
-                            optionToUse = individualOptions[name];
+                            string name = row[1];
+                            if (name == "")
+                            {
+                                name = referenceAfterKey;
+                            }
+                            referenceAfterKey = name;
+                            DefaultPathTemplateMatchOptions optionToUse = null;
+                            if (individualOptions != null && individualOptions.ContainsKey(name))
+                            {
+                                optionToUse = individualOptions[name];
+                            }
+                            var parsedRow = ParseExamples(rowNum, row, 2, optionToUse);
+                            parsedExamples.AddRange(parsedRow);
                         }
-                        var parsedRow = ParseExamples(rowNum, row, 2, optionToUse);
-                        parsedExamples.AddRange(parsedRow);
                     }
                     else if (referenceKey == KeyDefaults)
                     {
@@ -111,19 +103,18 @@ namespace Kabomu.Mediator.Path
                     }
                     else if (referenceKey == KeyConstraints)
                     {
-                        if (row.Count <= 1)
-                        {
-                            continue;
-                        }
-                        string targetValueKey = row[1];
-                        if (targetValueKey == "")
-                        {
-                            targetValueKey = referenceAfterKey;
-                        }
-                        // even if there is no constraint function specified, still make 
+                        // even if there is no target value key or constraint function specified, still make 
                         // it possible to use as reference.
-                        referenceAfterKey = targetValueKey;
-                        ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
+                        if (row.Count > 1)
+                        {
+                            string targetValueKey = row[1];
+                            if (targetValueKey == "")
+                            {
+                                targetValueKey = referenceAfterKey;
+                            }
+                            referenceAfterKey = targetValueKey;
+                            ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
+                        }
                     }
                     else
                     {
@@ -133,23 +124,23 @@ namespace Kabomu.Mediator.Path
                 else
                 {
                     var key = row[0];
+                    referenceKey = key;
                     if (key == KeyNamed)
                     {
-                        if (row.Count <= 1)
-                        {
-                            continue;
-                        }
-                        string name = row[1];
-                        // even if there is no example specified, still make 
+                        // even if there is no name or example specified, still make 
                         // it possible to use as reference.
-                        referenceAfterKey = name;
-                        DefaultPathTemplateMatchOptions optionToUse = null;
-                        if (individualOptions != null && individualOptions.ContainsKey(name))
+                        if (row.Count > 1)
                         {
-                            optionToUse = individualOptions[name];
+                            string name = row[1];
+                            referenceAfterKey = name;
+                            DefaultPathTemplateMatchOptions optionToUse = null;
+                            if (individualOptions != null && individualOptions.ContainsKey(name))
+                            {
+                                optionToUse = individualOptions[name];
+                            }
+                            var parsedRow = ParseExamples(rowNum, row, 2, optionToUse);
+                            parsedExamples.AddRange(parsedRow);
                         }
-                        var parsedRow = ParseExamples(rowNum, row, 2, optionToUse);
-                        parsedExamples.AddRange(parsedRow);
                     }
                     else if (key == KeyDefaults)
                     {
@@ -157,22 +148,19 @@ namespace Kabomu.Mediator.Path
                     }
                     else if (key == KeyConstraints)
                     {
-                        if (row.Count <= 1)
-                        {
-                            continue;
-                        }
-                        string targetValueKey = row[1];
                         // even if there is no constraint function specified, still make 
                         // it possible to use as reference.
-                        referenceAfterKey = targetValueKey;
-                        ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
+                        if (row.Count > 1)
+                        {
+                            string targetValueKey = row[1];
+                            referenceAfterKey = targetValueKey;
+                            ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
+                        }
                     }
                     else
                     {
                         throw AbortParse(rowNum, 1, $"unknown key: {key}");
                     }
-
-                    referenceKey = key;
                 }
             }
 
@@ -181,9 +169,9 @@ namespace Kabomu.Mediator.Path
                 var lastColNum = 0;
                 if (parsedCsv.Count > 0)
                 {
-                    lastColNum = parsedCsv[parsedExamples.Count - 1].Count;
+                    lastColNum = parsedCsv[parsedCsv.Count - 1].Count;
                 }
-                throw AbortParse(parsedExamples.Count, lastColNum, "no examples specified");
+                throw AbortParse(parsedCsv.Count, lastColNum, "no examples specified");
             }
 
             // remove unnecessary escapes from all literal tokens after just determining
@@ -206,11 +194,11 @@ namespace Kabomu.Mediator.Path
             throw new ArgumentException($"parse error in CSV at row {rowNum} column {colNum}: {msg}");
         }
 
-        private IList<DefaultPathTemplateExampleInternal> ParseExamples(int rowNum, IList<string> row, int startIndex,
-            DefaultPathTemplateMatchOptions options)
+        private IList<DefaultPathTemplateExampleInternal> ParseExamples(int rowNum, IList<string> row,
+            int startColIndex, DefaultPathTemplateMatchOptions options)
         {
             var parsedExamples = new List<DefaultPathTemplateExampleInternal>();
-            for (int i = startIndex; i <= row.Count; i++)
+            for (int i = startColIndex; i < row.Count; i++)
             {
                 var src = row[i];
                 var tokens = ParseExample(rowNum, i + 1, src);
@@ -238,8 +226,8 @@ namespace Kabomu.Mediator.Path
             //  c. surrounding whitespace will be trimmed off.
             //  d. a segment surrounded by whitespace will be interpreted to mean it allows for empty values.
 
-            int startChIndex = 0;
-            int wildCardCharIndex = -1;
+            int startIndex = 0;
+            int wildCardChPos = -1;
             var nonLiteralNames = new HashSet<string>();
             var tokens = new List<PathToken>();
             // deal specially with '/' to be the same as the empty string.
@@ -248,14 +236,15 @@ namespace Kabomu.Mediator.Path
                 // return empty tokens
                 return tokens;
             }
-            while (startChIndex < src.Length)
+            while (startIndex < src.Length)
             {
-                var m = SimpleTemplateSpecRegex.Match(src, startChIndex);
-                if (!m.Success || m.Index != startChIndex)
+                int startChPos = startIndex + 1;
+                var m = SimpleTemplateSpecRegex.Match(src, startIndex);
+                if (!m.Success || m.Index != startIndex)
                 {
-                    throw AbortParse(rowNum, colNum, $"invalid spec seen at char pos {startChIndex + 1}");
+                    throw AbortParse(rowNum, colNum, $"invalid spec seen at char pos {startChPos}");
                 }
-                string tokenTypeIndicator = m.Groups[0].Value;
+                string tokenTypeIndicator = m.Groups[1].Value;
                 int tokenType;
                 switch (tokenTypeIndicator)
                 {
@@ -273,7 +262,7 @@ namespace Kabomu.Mediator.Path
                             tokenTypeIndicator);
                 }
 
-                string tokenValueIndicator = m.Groups[1].Value;
+                string tokenValueIndicator = m.Groups[2].Value;
                 string tokenValue = tokenValueIndicator.Trim();
                 bool emptyValueAllowed = tokenValueIndicator != tokenValue;
 
@@ -281,19 +270,19 @@ namespace Kabomu.Mediator.Path
                 {
                     if (nonLiteralNames.Contains(tokenValue))
                     {
-                        throw AbortParse(rowNum, colNum, $"duplicate use of segment name at char pos {startChIndex + 1}");
+                        throw AbortParse(rowNum, colNum, $"duplicate use of segment name at char pos {startChPos}");
                     }
                     nonLiteralNames.Add(tokenValue);
                 }
                 if (tokenType == PathToken.TokenTypeWildCard)
                 {
-                    if (wildCardCharIndex != -1)
+                    if (wildCardChPos != -1)
                     {
                         throw AbortParse(rowNum, colNum, "duplicate specification of wild card segment " +
-                            $"at char pos {startChIndex + 1} " +
-                            $"(wild card segment already specified at {wildCardCharIndex + 1})");
+                            $"at char pos {startChPos} " +
+                            $"(wild card segment already specified at {wildCardChPos})");
                     }
-                    wildCardCharIndex = startChIndex;
+                    wildCardChPos = startChPos;
                 }
 
                 // add new token
@@ -306,7 +295,7 @@ namespace Kabomu.Mediator.Path
                 tokens.Add(token);
 
                 // advance loop
-                startChIndex += m.Length;
+                startIndex += m.Length;
             }
 
             return tokens;
@@ -352,7 +341,7 @@ namespace Kabomu.Mediator.Path
             }
             string constraintFunctionId = row[2];
 
-            if (!ConstraintFunctions.ContainsKey(constraintFunctionId))
+            if (ConstraintFunctions == null || !ConstraintFunctions.ContainsKey(constraintFunctionId))
             {
                 throw AbortParse(rowNum, 3, $"constraint function '{constraintFunctionId}' not found");
             }

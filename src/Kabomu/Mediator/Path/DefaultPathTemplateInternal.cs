@@ -15,7 +15,7 @@ namespace Kabomu.Mediator.Path
 
         public IList<DefaultPathTemplateExampleInternal> ParsedExamples { get; set; }
         public IDictionary<string, string> DefaultValues { get; set; }
-        public Dictionary<string, IList<(string, string[])>> AllConstraints { get; set; }
+        public IDictionary<string, IList<(string, string[])>> AllConstraints { get; set; }
         public IDictionary<string, IPathConstraint> ConstraintFunctions { get; set; }
 
         public string Interpolate(IContext context, IDictionary<string, string> pathValues,
