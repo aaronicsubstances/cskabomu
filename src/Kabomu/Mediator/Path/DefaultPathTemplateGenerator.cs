@@ -11,6 +11,9 @@ namespace Kabomu.Mediator.Path
     public class DefaultPathTemplateGenerator : IPathTemplateGenerator
     {
         private static readonly Regex SimpleTemplateSpecRegex = new Regex("(/{1,3})([^/]+)");
+        private static readonly string KeyConstraints = "constraints";
+        private static readonly string KeyDefaults = "defaults";
+        private static readonly string KeyNamed = "named";
 
         public DefaultPathTemplateGenerator()
         {
@@ -30,12 +33,12 @@ namespace Kabomu.Mediator.Path
             }
 
             DefaultPathTemplateMatchOptions optionsForAll = null;
-            IList<DefaultPathTemplateMatchOptions> individualOptions = null;
+            IDictionary<string, DefaultPathTemplateMatchOptions> individualOptions = null;
             if (part2 != null)
             {
                 if (part2 is IList<DefaultPathTemplateMatchOptions>)
                 {
-                    individualOptions = (IList<DefaultPathTemplateMatchOptions>)part2;
+                    individualOptions = (IDictionary<string, DefaultPathTemplateMatchOptions>)part2;
                 }
                 else
                 {
@@ -43,178 +46,188 @@ namespace Kabomu.Mediator.Path
                 }
             }
 
-            var lines = PathUtilsInternal.SplitTemplateSpecIntoLines(part1);
+            var parsedCsv = CsvUtils.Deserialize(part1);
 
-            var endIdxOfRangeOfExamples = LocateEndIndexOfRangeOfExamples(lines);
+            var parsedExamples = new List<DefaultPathTemplateExampleInternal>();
+            var defaultValues = new Dictionary<string, string>();
 
-            if (endIdxOfRangeOfExamples == -1)
-            {
-                throw new ArgumentException("no path template examples specified");
-            }
-
-            var pathTemplateExamples = new List<DefaultPathTemplateExampleInternal>();
-
-            for (int i = 0; i < endIdxOfRangeOfExamples; i++)
-            {
-                var line = lines[i];
-                if (line.Trim() == "")
-                {
-                    continue;
-                }
-                var tokens = ParsePathTemplateExample(i + 1, line);
-                var parsedExample = new DefaultPathTemplateExampleInternal
-                {
-                    Tokens = tokens
-                };
-                pathTemplateExamples.Add(parsedExample);
-            }
-
-            // parse lines after examples together as CSV
-            var remainder = new StringBuilder();
-            for (int i = endIdxOfRangeOfExamples; i < lines.Count; i++)
-            {
-                remainder.AppendLine(lines[i]);
-            }
-
-            IList<IList<string>> parsedCsv = CsvUtils.Deserialize(remainder.ToString());
-
-            Dictionary<string, string> defaultValues = null;
-            if (parsedCsv.Count > 0)
-            {
-                defaultValues = new Dictionary<string, string>();
-                var rowOfDefaultValues = parsedCsv[0];
-                for (int i = 0; i < rowOfDefaultValues.Count; i += 2)
-                {
-                    var key = rowOfDefaultValues[i];
-                    if (defaultValues.ContainsKey(key))
-                    {
-                        throw new ArgumentException("CSV row of default values contains duplicate keys");
-                    }
-                    if (i + 1 >= rowOfDefaultValues.Count)
-                    {
-                        throw new ArgumentException("last default value is missing");
-                    }
-                    var value = rowOfDefaultValues[i + 1];
-                    defaultValues.Add(key, value);
-                }
-            }
-
-            // end parsing by validating and saving constraints.
             var allConstraints = new Dictionary<string, IList<(string, string[])>>();
-            var constraintFunctionIds = new HashSet<string>();
-            for (int i = 1; i < parsedCsv.Count; i++) // skip default values row.
-            {
-                var row = parsedCsv[i];
-                if (row.Count < 2)
-                {
-                    continue;
-                }
-                var targetValueKey = row[0];
-                var constraintFunctionId = row[1];
-                if (!ConstraintFunctions.ContainsKey(constraintFunctionId))
-                {
-                    throw new Exception($"constraint function '{constraintFunctionId}' not found");
-                }
-                constraintFunctionIds.Add(constraintFunctionId);
-                IList<(string, string[])> targetValueConstraints;
-                if (allConstraints.ContainsKey(targetValueKey))
-                {
-                    targetValueConstraints = allConstraints[targetValueKey];
-                }
-                else
-                {
-                    targetValueConstraints = new List<(string, string[])>();
-                    allConstraints.Add(targetValueKey, targetValueConstraints);
-                }
-                var constraintFunctionArgs = row.Skip(2).ToArray();
-                targetValueConstraints.Add(ValueTuple.Create(constraintFunctionId, constraintFunctionArgs));
-            }
 
-            // Copy over path constraints to make them available even after 
+            // Copy over used constraints to make them available even after 
             // an update to this generator.
-            var constraintFunctions = new Dictionary<string, IPathConstraint>();
-            foreach (var constraintFunctionId in constraintFunctionIds)
-            {
-                constraintFunctions.Add(constraintFunctionId, ConstraintFunctions[constraintFunctionId]);
-            }
+            var usedConstraintFunctions = new Dictionary<string, IPathConstraint>();
 
-            // assign options to parsed examples.
-            if (individualOptions != null || optionsForAll != null)
+            string referenceKey = null;
+            string referenceAfterKey = null;
+
+            for (int rowNum = 1; rowNum <= parsedCsv.Count; rowNum++)
             {
-                int index = 0;
-                foreach (var parsedExample in pathTemplateExamples)
+                var row = parsedCsv[rowNum - 1];
+
+                // identify type of row.
+                if (row.Count == 0)
                 {
-                    DefaultPathTemplateMatchOptions optionToUse;
-                    if (individualOptions != null)
+                    // cancel reference points of empty keys.
+                    referenceKey = null;
+                    referenceAfterKey = null;
+                }
+                else if (row[0].StartsWith("/"))
+                {
+                    var parsedRow = ParseExamples(rowNum, row, 0, optionsForAll);
+                    parsedExamples.AddRange(parsedRow);
+                }
+                else if (row[0] == "")
+                {
+                    if (referenceKey == null)
                     {
-                        optionToUse = individualOptions[index];
-                        index++;
+                        throw AbortParse(rowNum, 1, "non-empty key expected at the " +
+                            "beginning or just after an empty CSV row");
+                    }
+                    if (referenceKey == KeyNamed)
+                    {
+                        if (row.Count <= 1)
+                        {
+                            continue;
+                        }
+                        string name = row[1];
+                        if (name == "")
+                        {
+                            name = referenceAfterKey;
+                        }
+                        // even if there is no example specified, still make 
+                        // it possible to use as reference.
+                        referenceAfterKey = name;
+                        DefaultPathTemplateMatchOptions optionToUse = null;
+                        if (individualOptions != null && individualOptions.ContainsKey(name))
+                        {
+                            optionToUse = individualOptions[name];
+                        }
+                        var parsedRow = ParseExamples(rowNum, row, 2, optionToUse);
+                        parsedExamples.AddRange(parsedRow);
+                    }
+                    else if (referenceKey == KeyDefaults)
+                    {
+                        ParseDefaultValues(row, defaultValues);
+                    }
+                    else if (referenceKey == KeyConstraints)
+                    {
+                        if (row.Count <= 1)
+                        {
+                            continue;
+                        }
+                        string targetValueKey = row[1];
+                        if (targetValueKey == "")
+                        {
+                            targetValueKey = referenceAfterKey;
+                        }
+                        // even if there is no constraint function specified, still make 
+                        // it possible to use as reference.
+                        referenceAfterKey = targetValueKey;
+                        ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
                     }
                     else
                     {
-                        optionToUse = optionsForAll;
+                        throw new ExpectationViolationException($"unexpected reference key: {referenceKey}");
                     }
-                    SetParsedExampleOptions(parsedExample, optionToUse);
                 }
+                else
+                {
+                    var key = row[0];
+                    if (key == KeyNamed)
+                    {
+                        if (row.Count <= 1)
+                        {
+                            continue;
+                        }
+                        string name = row[1];
+                        // even if there is no example specified, still make 
+                        // it possible to use as reference.
+                        referenceAfterKey = name;
+                        DefaultPathTemplateMatchOptions optionToUse = null;
+                        if (individualOptions != null && individualOptions.ContainsKey(name))
+                        {
+                            optionToUse = individualOptions[name];
+                        }
+                        var parsedRow = ParseExamples(rowNum, row, 2, optionToUse);
+                        parsedExamples.AddRange(parsedRow);
+                    }
+                    else if (key == KeyDefaults)
+                    {
+                        ParseDefaultValues(row, defaultValues);
+                    }
+                    else if (key == KeyConstraints)
+                    {
+                        if (row.Count <= 1)
+                        {
+                            continue;
+                        }
+                        string targetValueKey = row[1];
+                        // even if there is no constraint function specified, still make 
+                        // it possible to use as reference.
+                        referenceAfterKey = targetValueKey;
+                        ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
+                    }
+                    else
+                    {
+                        throw AbortParse(rowNum, 1, $"unknown key: {key}");
+                    }
+
+                    referenceKey = key;
+                }
+            }
+
+            if (parsedExamples.Count == 0)
+            {
+                var lastColNum = 0;
+                if (parsedCsv.Count > 0)
+                {
+                    lastColNum = parsedCsv[parsedExamples.Count - 1].Count;
+                }
+                throw AbortParse(parsedExamples.Count, lastColNum, "no examples specified");
             }
 
             // remove unnecessary escapes from all literal tokens after just determining
             // which of them are exempt from escaping.
-            RemoveUnnecessaryUriEscapes(pathTemplateExamples);
+            RemoveUnnecessaryUriEscapes(parsedExamples);
 
-            var pathTemplate = new DefaultPathTemplate
+            var pathTemplate = new DefaultPathTemplateInternal
             {
-                ParsedExamples = pathTemplateExamples,
+                ParsedExamples = parsedExamples,
                 DefaultValues = defaultValues,
                 AllConstraints = allConstraints,
-                ConstraintFunctions = constraintFunctions,
+                ConstraintFunctions = usedConstraintFunctions,
             };
 
             return pathTemplate;
         }
 
-        private static int LocateEndIndexOfRangeOfExamples(IList<string> lines)
+        private Exception AbortParse(int rowNum, int colNum, string msg)
         {
-            int endIdx = -1;
-
-            // locate first non-whitespace line.
-            int i = 0;
-            for (; i < lines.Count; i++)
-            {
-                var line = lines[i];
-                if (line.Trim() != "")
-                {
-                    break;
-                }
-            }
-
-            // locate next whitespace line.
-            for (; i < lines.Count; i++)
-            {
-                var line = lines[i];
-                if (line.Trim() == "")
-                {
-                    endIdx = i;
-                    break;
-                }
-            }
-
-            // extend end to next non-whitespace line
-            endIdx++;
-            for (; i < lines.Count; i++)
-            {
-                var line = lines[i];
-                if (line.Trim() != "")
-                {
-                    break;
-                }
-                endIdx++;
-            }
-
-            return endIdx;
+            throw new ArgumentException($"parse error in CSV at row {rowNum} column {colNum}: {msg}");
         }
 
-        private IList<PathToken> ParsePathTemplateExample(int lineNum, string lineOfTokens)
+        private IList<DefaultPathTemplateExampleInternal> ParseExamples(int rowNum, IList<string> row, int startIndex,
+            DefaultPathTemplateMatchOptions options)
+        {
+            var parsedExamples = new List<DefaultPathTemplateExampleInternal>();
+            for (int i = startIndex; i <= row.Count; i++)
+            {
+                var src = row[i];
+                var tokens = ParseExample(rowNum, i + 1, src);
+                var parsedExample = new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = tokens
+                };
+                parsedExamples.Add(parsedExample);
+                if (options != null)
+                {
+                    SetParsedExampleOptions(parsedExample, options);
+                }
+            }
+            return parsedExamples;
+        }
+
+        private IList<PathToken> ParseExample(int rowNum, int colNum, string src)
         {
             // Interpret path spec as either 
             //  1. a single slash, or
@@ -225,22 +238,22 @@ namespace Kabomu.Mediator.Path
             //  c. surrounding whitespace will be trimmed off.
             //  d. a segment surrounded by whitespace will be interpreted to mean it allows for empty values.
 
-            int startIndex = 0;
+            int startChIndex = 0;
             int wildCardCharIndex = -1;
             var nonLiteralNames = new HashSet<string>();
             var tokens = new List<PathToken>();
             // deal specially with '/' to be the same as the empty string.
-            if (lineOfTokens == "/")
+            if (src == "/")
             {
                 // return empty tokens
                 return tokens;
             }
-            while (startIndex < lineOfTokens.Length)
+            while (startChIndex < src.Length)
             {
-                var m = SimpleTemplateSpecRegex.Match(lineOfTokens, startIndex);
-                if (!m.Success || m.Index != startIndex)
+                var m = SimpleTemplateSpecRegex.Match(src, startChIndex);
+                if (!m.Success || m.Index != startChIndex)
                 {
-                    throw new ArgumentException($"invalid spec seen at char pos {startIndex + 1}");
+                    throw AbortParse(rowNum, colNum, $"invalid spec seen at char pos {startChIndex + 1}");
                 }
                 string tokenTypeIndicator = m.Groups[0].Value;
                 int tokenType;
@@ -268,7 +281,7 @@ namespace Kabomu.Mediator.Path
                 {
                     if (nonLiteralNames.Contains(tokenValue))
                     {
-                        throw new ArgumentException($"duplicate use of segment name at char pos {startIndex + 1}");
+                        throw AbortParse(rowNum, colNum, $"duplicate use of segment name at char pos {startChIndex + 1}");
                     }
                     nonLiteralNames.Add(tokenValue);
                 }
@@ -276,10 +289,11 @@ namespace Kabomu.Mediator.Path
                 {
                     if (wildCardCharIndex != -1)
                     {
-                        throw new ArgumentException($"duplicate specification of wild card segment at char pos {startIndex + 1}. " +
+                        throw AbortParse(rowNum, colNum, "duplicate specification of wild card segment " +
+                            $"at char pos {startChIndex + 1} " +
                             $"(wild card segment already specified at {wildCardCharIndex + 1})");
                     }
-                    wildCardCharIndex = startIndex;
+                    wildCardCharIndex = startChIndex;
                 }
 
                 // add new token
@@ -292,7 +306,7 @@ namespace Kabomu.Mediator.Path
                 tokens.Add(token);
 
                 // advance loop
-                startIndex += m.Length;
+                startChIndex += m.Length;
             }
 
             return tokens;
@@ -305,6 +319,59 @@ namespace Kabomu.Mediator.Path
             parsedExample.CaseSensitiveMatchEnabled = option.CaseSensitiveMatchEnabled;
             parsedExample.MatchLeadingSlash = option.MatchLeadingSlash;
             parsedExample.MatchTrailingSlash = option.MatchTrailingSlash;
+        }
+
+        private void ParseDefaultValues(IList<string> row, Dictionary<string, string> defaultValues)
+        {
+            for (int i = 1; i < row.Count; i += 2)
+            {
+                var defaultKey = row[i];
+                string defaultValue = null;
+                if (i + 1 < row.Count)
+                {
+                    defaultValue = row[i + 1];
+                }
+                if (defaultValues.ContainsKey(defaultKey))
+                {
+                    defaultValues[defaultKey] = defaultValue;
+                }
+                else
+                {
+                    defaultValues.Add(defaultKey, defaultValue);
+                }
+            }
+        }
+
+        private void ParseConstraints(int rowNum, IList<string> row, string targetValueKey,
+            IDictionary<string, IList<(string, string[])>> allConstraints,
+            IDictionary<string, IPathConstraint> usedConstraintFunctions)
+        {
+            if (row.Count <= 2)
+            {
+                return;
+            }
+            string constraintFunctionId = row[2];
+
+            if (!ConstraintFunctions.ContainsKey(constraintFunctionId))
+            {
+                throw AbortParse(rowNum, 3, $"constraint function '{constraintFunctionId}' not found");
+            }
+            if (!usedConstraintFunctions.ContainsKey(constraintFunctionId))
+            {
+                usedConstraintFunctions.Add(constraintFunctionId, ConstraintFunctions[constraintFunctionId]);
+            }
+            IList<(string, string[])> targetValueConstraints;
+            if (allConstraints.ContainsKey(targetValueKey))
+            {
+                targetValueConstraints = allConstraints[targetValueKey];
+            }
+            else
+            {
+                targetValueConstraints = new List<(string, string[])>();
+                allConstraints.Add(targetValueKey, targetValueConstraints);
+            }
+            var constraintFunctionArgs = row.Skip(3).ToArray();
+            targetValueConstraints.Add(ValueTuple.Create(constraintFunctionId, constraintFunctionArgs));
         }
 
         private static void RemoveUnnecessaryUriEscapes(IList<DefaultPathTemplateExampleInternal> parsedExamples)

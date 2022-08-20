@@ -74,7 +74,7 @@ namespace Kabomu.Mediator.Path
             return segments;
         }
 
-        public static bool ApplyValueConstraints(DefaultPathTemplate pathTemplate,
+        public static bool ApplyValueConstraints(DefaultPathTemplateInternal pathTemplate,
             IContext context, IDictionary<string, string> pathValues,
             string valueKey, IList<(string, string[])> constraints, int direction)
         {

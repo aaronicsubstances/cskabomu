@@ -7,9 +7,9 @@ using static Kabomu.Mediator.Path.DefaultPathTemplateExampleInternal;
 
 namespace Kabomu.Mediator.Path
 {
-    internal class DefaultPathTemplate : IPathTemplate
+    internal class DefaultPathTemplateInternal : IPathTemplate
     {
-        public DefaultPathTemplate()
+        public DefaultPathTemplateInternal()
         {
         }
 
