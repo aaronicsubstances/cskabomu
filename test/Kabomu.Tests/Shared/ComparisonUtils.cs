@@ -1,17 +1,41 @@
 ﻿using Kabomu.Common;
+using Kabomu.Mediator.Path;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 using Xunit;
+using Xunit.Abstractions;
+using static Kabomu.Mediator.Path.DefaultPathTemplateExampleInternal;
 
 namespace Kabomu.Tests.Shared
 {
     public static class ComparisonUtils
     {
+        public static void AssertLogsEqual(List<string> expectedLogs, List<string> actualLogs, ITestOutputHelper outputHelper)
+        {
+            try
+            {
+                Assert.Equal(expectedLogs, actualLogs);
+            }
+            catch (Exception)
+            {
+                if (outputHelper != null)
+                {
+                    outputHelper.WriteLine("Expected:");
+                    outputHelper.WriteLine(string.Join(Environment.NewLine, expectedLogs));
+                    outputHelper.WriteLine("Actual:");
+                    outputHelper.WriteLine(string.Join(Environment.NewLine, actualLogs));
+                }
+                throw;
+            }
+        }
+
         public static void CompareLeadChunks(LeadChunk expected, LeadChunk actual)
         {
             Assert.Equal(expected.Version, actual.Version);
@@ -132,6 +156,84 @@ namespace Kabomu.Tests.Shared
                 var actualByte = actualData[actualDataOffset + i];
                 Assert.Equal(expectedByte, actualByte);
             }
+        }
+
+        public static void AssertTemplatesEqual(IPathTemplate expected, IPathTemplate actual,
+            ITestOutputHelper outputHelper)
+        {
+            try
+            {
+                CompareTemplates((DefaultPathTemplateInternal)expected,
+                    (DefaultPathTemplateInternal)actual);
+            }
+            catch (Exception)
+            {
+                if (outputHelper != null)
+                {
+                    outputHelper.WriteLine("Expected:");
+                    outputHelper.WriteLine(JsonConvert.SerializeObject(expected, Newtonsoft.Json.Formatting.Indented));
+                    outputHelper.WriteLine("Actual:");
+                    outputHelper.WriteLine(JsonConvert.SerializeObject(actual, Newtonsoft.Json.Formatting.Indented));
+                }
+                throw;
+            }
+        }
+
+        internal static void CompareTemplates(DefaultPathTemplateInternal expected,
+            DefaultPathTemplateInternal actual)
+        {
+            Assert.Equal(expected.DefaultValues, actual.DefaultValues);
+            Assert.Equal(expected.ConstraintFunctions, actual.ConstraintFunctions);
+            var expectedConstraintKeys = new List<string>();
+            if (expected != null)
+            {
+                expectedConstraintKeys.AddRange(expected.AllConstraints.Keys);
+            }
+            expectedConstraintKeys.Sort();
+            var actualConstraintKeys = new List<string>();
+            if (actual != null)
+            {
+                actualConstraintKeys.AddRange(actual.AllConstraints.Keys);
+            }
+            actualConstraintKeys.Sort();
+            Assert.Equal(expectedConstraintKeys, actualConstraintKeys);
+            foreach (var key in expectedConstraintKeys)
+            {
+                var expectedValue = expected.AllConstraints[key];
+                var actualValue = actual.AllConstraints[key];
+                Assert.Equal(expectedValue, actualValue);
+            }
+
+            Assert.Equal(expected.ParsedExamples.Count, actual.ParsedExamples.Count);
+            for (int i = 0; i < expected.ParsedExamples.Count; i++)
+            {
+                var expectedParsedExample = expected.ParsedExamples[i];
+                var actualParsedExample = actual.ParsedExamples[i];
+                Assert.Equal(expectedParsedExample.CaseSensitiveMatchEnabled,
+                    actualParsedExample.CaseSensitiveMatchEnabled);
+                Assert.Equal(expectedParsedExample.UnescapeNonWildCardSegments,
+                    actualParsedExample.UnescapeNonWildCardSegments);
+                Assert.Equal(expectedParsedExample.MatchLeadingSlash,
+                    actualParsedExample.MatchLeadingSlash);
+                Assert.Equal(expectedParsedExample.MatchTrailingSlash,
+                    actualParsedExample.MatchTrailingSlash);
+
+                Assert.Equal(expectedParsedExample.Tokens.Count,
+                    actualParsedExample.Tokens.Count);
+
+                for (int j = 0; j < expectedParsedExample.Tokens.Count; j++)
+                {
+                    CompareTokens(expectedParsedExample.Tokens[j],
+                        actualParsedExample.Tokens[j]);
+                }
+            }
+        }
+
+        internal static void CompareTokens(PathToken expected, PathToken actual)
+        {
+            Assert.Equal(expected.Type, actual.Type);
+            Assert.Equal(expected.Value, actual.Value);
+            Assert.Equal(expected.EmptySegmentAllowed, actual.EmptySegmentAllowed);
         }
     }
 }
