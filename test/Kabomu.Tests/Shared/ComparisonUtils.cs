@@ -185,13 +185,13 @@ namespace Kabomu.Tests.Shared
             Assert.Equal(expected.DefaultValues, actual.DefaultValues);
             Assert.Equal(expected.ConstraintFunctions, actual.ConstraintFunctions);
             var expectedConstraintKeys = new List<string>();
-            if (expected != null)
+            if (expected.AllConstraints != null)
             {
                 expectedConstraintKeys.AddRange(expected.AllConstraints.Keys);
             }
             expectedConstraintKeys.Sort();
             var actualConstraintKeys = new List<string>();
-            if (actual != null)
+            if (actual.AllConstraints != null)
             {
                 actualConstraintKeys.AddRange(actual.AllConstraints.Keys);
             }
