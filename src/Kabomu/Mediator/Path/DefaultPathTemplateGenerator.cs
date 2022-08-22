@@ -28,7 +28,7 @@ namespace Kabomu.Mediator.Path
             IDictionary<string, DefaultPathTemplateMatchOptions> individualOptions = null;
             if (part2 != null)
             {
-                if (part2 is IList<DefaultPathTemplateMatchOptions>)
+                if (part2 is IDictionary<string, DefaultPathTemplateMatchOptions>)
                 {
                     individualOptions = (IDictionary<string, DefaultPathTemplateMatchOptions>)part2;
                 }
@@ -73,8 +73,8 @@ namespace Kabomu.Mediator.Path
                 {
                     if (referenceKey == null)
                     {
-                        throw AbortParse(rowNum, 1, "non-empty key expected at the " +
-                            "beginning or just after an empty CSV row");
+                        throw AbortParse(rowNum, 1, "empty key found at the " +
+                            "beginning of CSV or just after empty CSV row");
                     }
                     if (referenceKey == KeyNamed)
                     {
@@ -85,9 +85,16 @@ namespace Kabomu.Mediator.Path
                             string name = row[1];
                             if (name == "")
                             {
+                                if (referenceAfterKey == null)
+                                {
+                                    throw AbortParse(rowNum, 2, "no reference spec name found");
+                                }
                                 name = referenceAfterKey;
                             }
-                            referenceAfterKey = name;
+                            else
+                            {
+                                referenceAfterKey = name;
+                            }
                             DefaultPathTemplateMatchOptions optionToUse = null;
                             if (individualOptions != null && individualOptions.ContainsKey(name))
                             {
@@ -110,9 +117,16 @@ namespace Kabomu.Mediator.Path
                             string targetValueKey = row[1];
                             if (targetValueKey == "")
                             {
+                                if (referenceAfterKey == null)
+                                {
+                                    throw AbortParse(rowNum, 2, "no reference constraint value key found");
+                                }
                                 targetValueKey = referenceAfterKey;
                             }
-                            referenceAfterKey = targetValueKey;
+                            else
+                            {
+                                referenceAfterKey = targetValueKey;
+                            }
                             ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
                         }
                     }
@@ -159,7 +173,7 @@ namespace Kabomu.Mediator.Path
                     }
                     else
                     {
-                        throw AbortParse(rowNum, 1, $"unknown key: {key}");
+                        throw AbortParse(rowNum, 1, $"missing leading slash or unknown key: {key}");
                     }
                 }
             }
@@ -180,11 +194,17 @@ namespace Kabomu.Mediator.Path
 
             var pathTemplate = new DefaultPathTemplateInternal
             {
-                ParsedExamples = parsedExamples,
-                DefaultValues = defaultValues,
-                AllConstraints = allConstraints,
-                ConstraintFunctions = usedConstraintFunctions,
+                ParsedExamples = parsedExamples
             };
+            if (defaultValues.Count > 0)
+            {
+                pathTemplate.DefaultValues = defaultValues;
+            }
+            if (allConstraints.Count > 0)
+            {
+                pathTemplate.AllConstraints = allConstraints;
+                pathTemplate.ConstraintFunctions = usedConstraintFunctions;
+            }
 
             return pathTemplate;
         }
@@ -230,6 +250,13 @@ namespace Kabomu.Mediator.Path
             int wildCardChPos = -1;
             var nonLiteralNames = new HashSet<string>();
             var tokens = new List<PathToken>();
+
+            // remove leading whitespace, but keep track of starting position
+            // of first non whitespace char for error reporting purposes.
+            int chPosAdj = src.Length;
+            src = src.TrimStart();
+            chPosAdj -= src.Length;
+
             // deal specially with '/' to be the same as the empty string.
             if (src == "/")
             {
@@ -238,7 +265,7 @@ namespace Kabomu.Mediator.Path
             }
             while (startIndex < src.Length)
             {
-                int startChPos = startIndex + 1;
+                int startChPos = startIndex + 1 + chPosAdj;
                 var m = SimpleTemplateSpecRegex.Match(src, startIndex);
                 if (!m.Success || m.Index != startIndex)
                 {
@@ -347,7 +374,12 @@ namespace Kabomu.Mediator.Path
             }
             if (!usedConstraintFunctions.ContainsKey(constraintFunctionId))
             {
-                usedConstraintFunctions.Add(constraintFunctionId, ConstraintFunctions[constraintFunctionId]);
+                var constraintFunction = ConstraintFunctions[constraintFunctionId];
+                if (constraintFunction == null)
+                {
+                    throw AbortParse(rowNum, 3, "null constraint function found");
+                }
+                usedConstraintFunctions.Add(constraintFunctionId, constraintFunction);
             }
             IList<(string, string[])> targetValueConstraints;
             if (allConstraints.ContainsKey(targetValueKey))

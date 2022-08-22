@@ -12,7 +12,6 @@ namespace Kabomu.Tests.Mediator.Path
 {
     public class DefaultPathTemplateGeneratorTest
     {
-
         private readonly ITestOutputHelper _outputHelper;
 
         public DefaultPathTemplateGeneratorTest(ITestOutputHelper outputHelper)
@@ -21,81 +20,222 @@ namespace Kabomu.Tests.Mediator.Path
         }
 
         [Theory]
-        [MemberData(nameof(CreateTestParseData))]
-        public void TestParse(string part1, object part2,
+        [MemberData(nameof(CreateTestParseForErrorData))]
+        public void TestParseForError(string part1, object part2,
             IDictionary<string, IPathConstraint> constraintFunctions,
-            IPathTemplate expected, string expectedError, int errorRowNum, int errorColNum)
+            string expectedError, int errorRowNum, int errorColNum)
         {
             var instance = new DefaultPathTemplateGenerator
             {
                 ConstraintFunctions = constraintFunctions
             };
 
-            Exception actualError = null;
-            IPathTemplate actual = null;
-            try
-            {
-                actual = instance.Parse(part1, part2);
-            }
-            catch (Exception e)
-            {
-                actualError = e;
-            }
+            var actualError = Assert.Throws<ArgumentException>(() => instance.Parse(part1, part2));
 
-            if (expectedError == null)
-            {
-                Assert.Null(actualError);
-                ComparisonUtils.AssertTemplatesEqual(expected, actual, _outputHelper);
-            }
-            else
-            {
-                Assert.NotNull(actualError);
-                Assert.Contains($"row {errorRowNum}", actualError.Message);
-                Assert.Contains($"column {errorColNum}", actualError.Message);
-                Assert.Contains(expectedError, actualError.Message);
-            }
+            Assert.Contains($"row {errorRowNum}", actualError.Message);
+            Assert.Contains($"column {errorColNum}", actualError.Message);
+            Assert.Contains(expectedError, actualError.Message);
         }
 
-        public static List<object[]> CreateTestParseData()
+        public static List<object[]> CreateTestParseForErrorData()
         {
             var testData = new List<object[]>();
 
             string part1 = "";
             object part2 = null;
             IDictionary<string, IPathConstraint> constraintFunctions = null;
-            DefaultPathTemplateInternal expected = null;
             string expectedError = "no examples";
             int errorRowNum = 0;
             int errorColNum = 0;
 
             testData.Add(new object[] { part1, part2, constraintFunctions,
-                expected, expectedError, errorRowNum, errorColNum });
+                expectedError, errorRowNum, errorColNum });
 
-            part1 = "/";
+            part1 = "/\n" +
+                "constraints,k,e";
             part2 = null;
             constraintFunctions = null;
-            expected = new DefaultPathTemplateInternal
+            expectedError = "not found";
+            errorRowNum = 2;
+            errorColNum = 3;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            part1 = "/\n" +
+                "constraints,k,e";
+            part2 = null;
+            constraintFunctions = new Dictionary<string, IPathConstraint>
+            {
+                { "e", null }
+            };
+            expectedError = "null constraint function found";
+            errorRowNum = 2;
+            errorColNum = 3;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            part1 = "/\n" +
+                "constraints,k\n" +
+                "\n" +
+                ",,e";
+            part2 = null;
+            constraintFunctions = new Dictionary<string, IPathConstraint>
+            {
+                { "e", new TempPathConstraint() }
+            };
+            expectedError = "empty key";
+            errorRowNum = 4;
+            errorColNum = 1;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            part1 = "/\n" +
+                "constraints\n" +
+                ",,e";
+            part2 = null;
+            constraintFunctions = new Dictionary<string, IPathConstraint>
+            {
+                { "e", new TempPathConstraint() }
+            };
+            expectedError = "no reference constraint value key";
+            errorRowNum = 3;
+            errorColNum = 2;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            part1 = "/\n" +
+                "named\n" +
+                ",,/";
+            part2 = null;
+            constraintFunctions = null;
+            expectedError = "no reference spec name";
+            errorRowNum = 3;
+            errorColNum = 2;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            part1 = "save";
+            part2 = null;
+            constraintFunctions = null;
+            expectedError = "missing leading slash or unknown key";
+            errorRowNum = 1;
+            errorColNum = 1;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            part1 = "//";
+            part2 = null;
+            constraintFunctions = null;
+            expectedError = "invalid";
+            errorRowNum = 1;
+            errorColNum = 1;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            part1 = "////";
+            part2 = null;
+            constraintFunctions = null;
+            expectedError = "invalid";
+            errorRowNum = 1;
+            errorColNum = 1;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            part1 = "//two// two ";
+            part2 = null;
+            constraintFunctions = null;
+            expectedError = "duplicate";
+            errorRowNum = 1;
+            errorColNum = 1;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            part1 = "///one/// two ";
+            part2 = null;
+            constraintFunctions = null;
+            expectedError = "duplicate";
+            errorRowNum = 1;
+            errorColNum = 1;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            // test correct reporting of character positions during errors with path spec parsing.
+            part1 = "named,e.g.,  ///";
+            part2 = null;
+            constraintFunctions = null;
+            expectedError = "3";
+            errorRowNum = 1;
+            errorColNum = 3;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            return testData;
+        }
+
+        [Fact]
+        public void TestParseForOtherErrors()
+        {
+            var instance = new DefaultPathTemplateGenerator();
+
+            Assert.Throws<ArgumentNullException>(() =>
+                instance.Parse(null, null));
+
+            Assert.ThrowsAny<Exception>(() =>
+                instance.Parse("/", "wrong option type"));
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestParseData))]
+        public void TestParse(string part1, object part2,
+            IDictionary<string, IPathConstraint> constraintFunctions,
+            IPathTemplate expected)
+        {
+            var instance = new DefaultPathTemplateGenerator
+            {
+                ConstraintFunctions = constraintFunctions
+            };
+
+            var actual = instance.Parse(part1, part2);
+            ComparisonUtils.AssertTemplatesEqual(expected, actual, _outputHelper);
+        }
+
+        public static List<object[]> CreateTestParseData()
+        {
+            var testData = new List<object[]>();
+
+            string part1 = "/";
+            object part2 = null;
+            IDictionary<string, IPathConstraint> constraintFunctions = null;
+            DefaultPathTemplateInternal expected = new DefaultPathTemplateInternal
             {
                 ParsedExamples = new List<DefaultPathTemplateExampleInternal>
                 {
                    new DefaultPathTemplateExampleInternal
                    {
                        Tokens = new List<PathToken>()
-                   }  
-                },
-                DefaultValues = new Dictionary<string, string>(),
-                AllConstraints = new Dictionary<string, IList<(string, string[])>>(),
-                ConstraintFunctions = new Dictionary<string, IPathConstraint>(),
+                   }
+                }
             };
-            expectedError = null;
-            errorRowNum = 0;
-            errorColNum = 0;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
-                expected, expectedError, errorRowNum, errorColNum });
+            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
 
             part1 = "/  ";
-            part2 = null;
+            part2 = new DefaultPathTemplateMatchOptions
+            {
+                MatchTrailingSlash = true,
+                UnescapeNonWildCardSegments = true
+            };
             constraintFunctions = null;
             expected = new DefaultPathTemplateInternal
             {
@@ -111,19 +251,14 @@ namespace Kabomu.Tests.Mediator.Path
                                Value = "",
                                EmptySegmentAllowed = true
                            }
-                       }
+                       },
+                       MatchTrailingSlash = true,
+                       UnescapeNonWildCardSegments = true
                    }
-                },
-                DefaultValues = new Dictionary<string, string>(),
-                AllConstraints = new Dictionary<string, IList<(string, string[])>>(),
-                ConstraintFunctions = new Dictionary<string, IPathConstraint>(),
+                }
             };
-            expectedError = null;
-            errorRowNum = 0;
-            errorColNum = 0;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
-                expected, expectedError, errorRowNum, errorColNum });
+            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
 
             part1 = "/car";
             part2 = null;
@@ -143,20 +278,18 @@ namespace Kabomu.Tests.Mediator.Path
                            }
                        }
                    }
-                },
-                DefaultValues = new Dictionary<string, string>(),
-                AllConstraints = new Dictionary<string, IList<(string, string[])>>(),
-                ConstraintFunctions = new Dictionary<string, IPathConstraint>(),
+                }
             };
-            expectedError = null;
-            errorRowNum = 0;
-            errorColNum = 0;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
-                expected, expectedError, errorRowNum, errorColNum });
+            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
 
-            part1 = "/car ";
-            part2 = null;
+            // test correct path spec parsing with surrounding whitespace,
+            // and null match options.
+            part1 = "named,default,  /car ";
+            part2 = new Dictionary<string, DefaultPathTemplateMatchOptions>
+            {
+                { "default", null }
+            };
             constraintFunctions = null;
             expected = new DefaultPathTemplateInternal
             {
@@ -174,19 +307,12 @@ namespace Kabomu.Tests.Mediator.Path
                            }
                        }
                    }
-                },
-                DefaultValues = new Dictionary<string, string>(),
-                AllConstraints = new Dictionary<string, IList<(string, string[])>>(),
-                ConstraintFunctions = new Dictionary<string, IPathConstraint>(),
+                }
             };
-            expectedError = null;
-            errorRowNum = 0;
-            errorColNum = 0;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
-                expected, expectedError, errorRowNum, errorColNum });
+            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
 
-            part1 = "/car //vehicle";
+            part1 = "/c%61r //vehicle";
             part2 = null;
             constraintFunctions = null;
             expected = new DefaultPathTemplateInternal
@@ -211,17 +337,10 @@ namespace Kabomu.Tests.Mediator.Path
                            }
                        }
                    }
-                },
-                DefaultValues = new Dictionary<string, string>(),
-                AllConstraints = new Dictionary<string, IList<(string, string[])>>(),
-                ConstraintFunctions = new Dictionary<string, IPathConstraint>(),
+                }
             };
-            expectedError = null;
-            errorRowNum = 0;
-            errorColNum = 0;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
-                expected, expectedError, errorRowNum, errorColNum });
+            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
 
             part1 = "/car //vehicle /// ,///yr//second// first/sei/du\n" +
                 "defaults,country,gh,capital,accra\n" +
@@ -292,16 +411,227 @@ namespace Kabomu.Tests.Mediator.Path
                 DefaultValues = new Dictionary<string, string>
                 {
                     { "country", "gh" }, { "capital", "accra" }, { "yr", null }
-                },
-                AllConstraints = new Dictionary<string, IList<(string, string[])>>(),
-                ConstraintFunctions = new Dictionary<string, IPathConstraint>(),
+                }
             };
-            expectedError = null;
-            errorRowNum = 0;
-            errorColNum = 0;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
-                expected, expectedError, errorRowNum, errorColNum });
+            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+
+            part1 = "defaults,controller,Home\n" +
+                ",action,Index\n" +
+                "\n" +
+                "named,general,/\n" +
+                ",,//controller\n" +
+                ",,//controller//action\n" +
+                ",specific,//controller//action//id\n" +
+                "\n" +
+                "constraints,id,int";
+            part2 = new Dictionary<string, DefaultPathTemplateMatchOptions>
+            {
+                {
+                    "general",
+                    new DefaultPathTemplateMatchOptions
+                    {
+                        CaseSensitiveMatchEnabled = true,
+                        MatchLeadingSlash = true,
+                        MatchTrailingSlash = false,
+                        UnescapeNonWildCardSegments = false
+                    }
+                }
+            };
+            var tt = new TempPathConstraint();
+            constraintFunctions = new Dictionary<string, IPathConstraint>
+            {
+                { "int", tt }
+            };
+            expected = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new List<DefaultPathTemplateExampleInternal>
+                {
+                   new DefaultPathTemplateExampleInternal
+                   {
+                       Tokens = new List<PathToken>(),
+                       CaseSensitiveMatchEnabled = true,
+                       MatchLeadingSlash = true,
+                       MatchTrailingSlash = false,
+                       UnescapeNonWildCardSegments = false
+                   },
+                   new DefaultPathTemplateExampleInternal
+                   {
+                       Tokens = new List<PathToken>
+                       {
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeSegment,
+                               Value = "controller",
+                           }
+                       },
+                       CaseSensitiveMatchEnabled = true,
+                       MatchLeadingSlash = true,
+                       MatchTrailingSlash = false,
+                       UnescapeNonWildCardSegments = false
+                   },
+                   new DefaultPathTemplateExampleInternal
+                   {
+                       Tokens = new List<PathToken>
+                       {
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeSegment,
+                               Value = "controller"
+                           },
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeSegment,
+                               Value = "action"
+                           }
+                       },
+                       CaseSensitiveMatchEnabled = true,
+                       MatchLeadingSlash = true,
+                       MatchTrailingSlash = false,
+                       UnescapeNonWildCardSegments = false
+                   },
+                   new DefaultPathTemplateExampleInternal
+                   {
+                       Tokens = new List<PathToken>
+                       {
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeSegment,
+                               Value = "controller"
+                           },
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeSegment,
+                               Value = "action"
+                           },
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeSegment,
+                               Value = "id"
+                           }
+                       }
+                   }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "controller", "Home" }, { "action", "Index" }
+                },
+                AllConstraints = new Dictionary<string, IList<(string, string[])>>
+                {
+                    { "id", new List<(string, string[])>{ ("int", new string[0]) } }
+                },
+                ConstraintFunctions = new Dictionary<string, IPathConstraint>
+                {
+                    { "int", tt }
+                }
+            };
+
+            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+
+            // test defaults and constraints with more additions.
+            part1 = "/car\n" +
+                "\n" +
+                "constraints,action,f3,c\n" +
+                "constraints,controller,f3,a,b\r\n" +
+                ",,f4,a,b,char\n" +
+                "\n" +
+                "defaults,a,v,b,v,c\n" +
+                "defaults,a,3,b,4,c,5,d\n" +
+                ",e";
+            part2 = null;
+            var f3Tpc = new TempPathConstraint();
+            var f4Tpc = new TempPathConstraint();
+            constraintFunctions = new Dictionary<string, IPathConstraint>
+            {
+                { "f1", new TempPathConstraint() },
+                { "f2", new TempPathConstraint() },
+                { "f3", f3Tpc }, { "f4", f4Tpc }
+            };
+            expected = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new List<DefaultPathTemplateExampleInternal>
+                {
+                   new DefaultPathTemplateExampleInternal
+                   {
+                       Tokens = new List<PathToken>
+                       {
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeLiteral,
+                               Value = "car"
+                           }
+                       }
+                   }
+                },
+                ConstraintFunctions = new Dictionary<string, IPathConstraint>
+                {
+                    { "f3", f3Tpc }, { "f4", f4Tpc }
+                },
+                AllConstraints = new Dictionary<string, IList<(string, string[])>>
+                {
+                    {
+                        "controller",
+                        new List<(string, string[])>
+                        {
+                            ("f3", new string[]{ "a", "b" }),
+                            ("f4", new string[]{ "a", "b", "char" })
+                        }
+                    },
+                    {
+                        "action",
+                        new List<(string, string[])>
+                        {
+                            ("f3", new string[]{ "c" })
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "a", "3" }, { "b", "4" }, { "c", "5" },
+                    { "d", null }, { "e", null }
+                }
+            };
+
+            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            
+            // test reversal of percent encoding.
+            part1 = "//%41/%20%41%42%43%58%59%5a%61%62%63%78%79%7a%30%31%38%39-._~%21%24%26%27%28%29%2A%2B%2C%3B%3D%3A%40%20";
+            part2 = new DefaultPathTemplateMatchOptions
+            {
+                CaseSensitiveMatchEnabled = false,
+                MatchLeadingSlash = false,
+                MatchTrailingSlash = false,
+                UnescapeNonWildCardSegments = true
+            };
+            constraintFunctions = null;
+            expected = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new List<DefaultPathTemplateExampleInternal>
+                {
+                   new DefaultPathTemplateExampleInternal
+                   {
+                       Tokens = new List<PathToken>
+                       {
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeSegment,
+                               Value = "%41"
+                           },
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeLiteral,
+                               Value = "%20ABCXYZabcxyz0189-._~!$&'()*+,;=:@%20"
+                           }
+                       },
+                       CaseSensitiveMatchEnabled = false,
+                       MatchLeadingSlash = false,
+                       MatchTrailingSlash = false,
+                       UnescapeNonWildCardSegments = true
+                   }
+                }
+            };
+
+            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
 
             return testData;
         }

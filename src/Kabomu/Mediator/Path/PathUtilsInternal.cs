@@ -19,15 +19,6 @@ namespace Kabomu.Mediator.Path
             return $"{obj}";
         }
 
-        public static IList<string> SplitTemplateSpecIntoLines(string s)
-        {
-            string[] lines = s.Split(
-               new string[] { "\r\n", "\r", "\n" },
-               StringSplitOptions.None
-            );
-            return lines;
-        }
-
         public static IList<string> NormalizeAndSplitPath(string path)
         {
             // Generate split of normalized version of path, such that joining segements together
@@ -229,6 +220,10 @@ namespace Kabomu.Mediator.Path
 
         public static string ReverseUnnecessaryUriEscapes(string segment)
         {
+            if (!segment.Contains("%"))
+            {
+                return segment;
+            }
             var transformed = new StringBuilder(segment);
             int i = 0;
             while (i < transformed.Length)
@@ -236,7 +231,7 @@ namespace Kabomu.Mediator.Path
                 var ch = transformed[i];
                 if (ch == '%')
                 {
-                    int possibleReplacement = FastConvertPercentEncodedToPositiveNum(transformed, i);
+                    int possibleReplacement = FastConvertPercentEncodedToPositiveNum(transformed, i + 1);
                     if (possibleReplacement > 0)
                     {
                         transformed.Remove(i, 3);
@@ -250,7 +245,7 @@ namespace Kabomu.Mediator.Path
 
         internal static int FastConvertPercentEncodedToPositiveNum(StringBuilder s, int pos)
         {
-            if (pos < 0 || pos >= s.Length)
+            if (pos >= s.Length)
             {
                 return 0;
             }
@@ -261,20 +256,20 @@ namespace Kabomu.Mediator.Path
             char hi = s[pos];
             char lo = s[pos + 1];
             int ans = 0;
-            int lowerA = 'a', lowerF = 'f', lowerZ = (int)'z';
-            int upperA = 'A', upperF = 'F', upperZ = (int)'Z';
+            int lowerA = 'a';
+            int upperA = 'A';
             int zeroCh = '0', nineCh = '9';
             for (int i = 0; i < 2; i++)
             {
                 var chToUse = i == 0 ? hi : lo;
                 int inc = 0;
                 bool validHexDigitFound = false;
-                if (chToUse >= lowerA && chToUse <= lowerF)
+                if (chToUse >= lowerA && chToUse <= 'f')
                 {
                     validHexDigitFound = true;
                     inc = (chToUse - lowerA) + 10;
                 }
-                else if (chToUse >= upperA && chToUse <= upperF)
+                else if (chToUse >= upperA && chToUse <= 'F')
                 {
                     validHexDigitFound = true;
                     inc = (chToUse - upperA) + 10;
@@ -290,7 +285,7 @@ namespace Kabomu.Mediator.Path
                     return 0;
                 }
 
-                ans += (ans * 16) + inc;
+                ans = (ans * 16) + inc;
             }
 
             // The unnecessary escapes are in the URI path portion according to RFC 3986 are
@@ -298,11 +293,11 @@ namespace Kabomu.Mediator.Path
             //  a-zA-Z0-9 - . _ ~ ! $ & ' ( ) * + , ; = : @
 
             var unnecesaryEscapeFound = false;
-            if (ans >= lowerA && ans <= lowerZ)
+            if (ans >= lowerA && ans <= 'z')
             {
                 unnecesaryEscapeFound = true;
             }
-            else if (ans >= upperA && ans <= upperZ)
+            else if (ans >= upperA && ans <= 'Z')
             {
                 unnecesaryEscapeFound = true;
             }
