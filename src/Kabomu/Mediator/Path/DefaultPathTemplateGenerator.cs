@@ -11,9 +11,9 @@ namespace Kabomu.Mediator.Path
     public class DefaultPathTemplateGenerator : IPathTemplateGenerator
     {
         private static readonly Regex SimpleTemplateSpecRegex = new Regex("(/{1,3})([^/]+)");
-        private static readonly string KeyConstraints = "constraints";
-        private static readonly string KeyDefaults = "defaults";
-        private static readonly string KeyNamed = "named";
+        private static readonly string KeyConstraints = "constraint:";
+        private static readonly string KeyDefaults = "defaults:";
+        private static readonly string KeyNamed = "name:";
 
         public IDictionary<string, IPathConstraint> ConstraintFunctions { get; set; }
 
@@ -57,78 +57,73 @@ namespace Kabomu.Mediator.Path
                 int rowNum = i + 1;
                 var row = parsedCsv[i];
 
-                // identify type of row.
-                if (row.Count == 0)
+                string firstColEntry = null;
+                if (row.Count > 0)
                 {
+                    firstColEntry = row[0].TrimStart();
+                }
+
+                // identify type of row and process accordingly.
+                if (firstColEntry == null || firstColEntry.StartsWith("/"))
+                {
+                    var parsedRow = ParseExamples(rowNum, row, 0, optionsForAll);
+                    parsedExamples.AddRange(parsedRow);
+
                     // cancel reference points of empty keys.
                     referenceKey = null;
                     referenceAfterKey = null;
                 }
-                else if (row[0].StartsWith("/"))
+                else if (firstColEntry.StartsWith(KeyDefaults))
                 {
-                    var parsedRow = ParseExamples(rowNum, row, 0, optionsForAll);
+                    referenceKey = KeyDefaults;
+                    ParseDefaultValues(row, defaultValues);
+                }
+                else if (firstColEntry.StartsWith(KeyConstraints))
+                {
+                    referenceKey = KeyConstraints;
+                    string targetValueKey = firstColEntry.Substring(KeyConstraints.Length);
+                    referenceAfterKey = targetValueKey;
+                    ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
+                }
+                else if (firstColEntry.StartsWith(KeyNamed))
+                {
+                    referenceKey = KeyNamed;
+                    string name = firstColEntry.Substring(KeyNamed.Length);
+                    referenceAfterKey = name;
+                    DefaultPathTemplateMatchOptions optionToUse = null;
+                    if (individualOptions != null && individualOptions.ContainsKey(name))
+                    {
+                        optionToUse = individualOptions[name];
+                    }
+                    var parsedRow = ParseExamples(rowNum, row, 1, optionToUse);
                     parsedExamples.AddRange(parsedRow);
                 }
-                else if (row[0] == "")
+                else if (firstColEntry.Trim() == "")
                 {
                     if (referenceKey == null)
                     {
                         throw AbortParse(rowNum, 1, "empty key found at the " +
                             "beginning of CSV or just after empty CSV row");
                     }
-                    if (referenceKey == KeyNamed)
-                    {
-                        // even if there is no name or example specified, still make 
-                        // it possible to use as reference.
-                        if (row.Count > 1)
-                        {
-                            string name = row[1];
-                            if (name == "")
-                            {
-                                if (referenceAfterKey == null)
-                                {
-                                    throw AbortParse(rowNum, 2, "no reference spec name found");
-                                }
-                                name = referenceAfterKey;
-                            }
-                            else
-                            {
-                                referenceAfterKey = name;
-                            }
-                            DefaultPathTemplateMatchOptions optionToUse = null;
-                            if (individualOptions != null && individualOptions.ContainsKey(name))
-                            {
-                                optionToUse = individualOptions[name];
-                            }
-                            var parsedRow = ParseExamples(rowNum, row, 2, optionToUse);
-                            parsedExamples.AddRange(parsedRow);
-                        }
-                    }
-                    else if (referenceKey == KeyDefaults)
+                    if (referenceKey == KeyDefaults)
                     {
                         ParseDefaultValues(row, defaultValues);
                     }
                     else if (referenceKey == KeyConstraints)
                     {
-                        // even if there is no target value key or constraint function specified, still make 
-                        // it possible to use as reference.
-                        if (row.Count > 1)
+                        string targetValueKey = referenceAfterKey;
+                        ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
+                    }
+                    else if (referenceKey == KeyNamed)
+                    {
+                        string name = referenceAfterKey;
+                        DefaultPathTemplateMatchOptions optionToUse = null;
+                        if (individualOptions != null && individualOptions.ContainsKey(name))
                         {
-                            string targetValueKey = row[1];
-                            if (targetValueKey == "")
-                            {
-                                if (referenceAfterKey == null)
-                                {
-                                    throw AbortParse(rowNum, 2, "no reference constraint value key found");
-                                }
-                                targetValueKey = referenceAfterKey;
-                            }
-                            else
-                            {
-                                referenceAfterKey = targetValueKey;
-                            }
-                            ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
+                            optionToUse = individualOptions[name];
                         }
+                        var parsedRow = ParseExamples(rowNum, row, 1, optionToUse);
+                        parsedExamples.AddRange(parsedRow);
                     }
                     else
                     {
@@ -137,43 +132,13 @@ namespace Kabomu.Mediator.Path
                 }
                 else
                 {
-                    var key = row[0];
-                    referenceKey = key;
-                    if (key == KeyNamed)
+                    if (firstColEntry.Contains("/"))
                     {
-                        // even if there is no name or example specified, still make 
-                        // it possible to use as reference.
-                        if (row.Count > 1)
-                        {
-                            string name = row[1];
-                            referenceAfterKey = name;
-                            DefaultPathTemplateMatchOptions optionToUse = null;
-                            if (individualOptions != null && individualOptions.ContainsKey(name))
-                            {
-                                optionToUse = individualOptions[name];
-                            }
-                            var parsedRow = ParseExamples(rowNum, row, 2, optionToUse);
-                            parsedExamples.AddRange(parsedRow);
-                        }
-                    }
-                    else if (key == KeyDefaults)
-                    {
-                        ParseDefaultValues(row, defaultValues);
-                    }
-                    else if (key == KeyConstraints)
-                    {
-                        // even if there is no constraint function specified, still make 
-                        // it possible to use as reference.
-                        if (row.Count > 1)
-                        {
-                            string targetValueKey = row[1];
-                            referenceAfterKey = targetValueKey;
-                            ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
-                        }
+                        throw AbortParse(rowNum, 1, "missing leading slash");
                     }
                     else
                     {
-                        throw AbortParse(rowNum, 1, $"missing leading slash or unknown key: {key}");
+                        throw AbortParse(rowNum, 1, $"unknown key: {row[0]}");
                     }
                 }
             }
@@ -265,7 +230,7 @@ namespace Kabomu.Mediator.Path
             }
             while (startIndex < src.Length)
             {
-                int startChPos = startIndex + 1 + chPosAdj;
+                int startChPos = startIndex + chPosAdj + 1;
                 var m = SimpleTemplateSpecRegex.Match(src, startIndex);
                 if (!m.Success || m.Index != startIndex)
                 {
@@ -325,6 +290,11 @@ namespace Kabomu.Mediator.Path
                 startIndex += m.Length;
             }
 
+            if (tokens.Count == 0)
+            {
+                throw AbortParse(rowNum, colNum, "encountered blank string spec");
+            }
+
             return tokens;
         }
 
@@ -362,22 +332,22 @@ namespace Kabomu.Mediator.Path
             IDictionary<string, IList<(string, string[])>> allConstraints,
             IDictionary<string, IPathConstraint> usedConstraintFunctions)
         {
-            if (row.Count <= 2)
+            if (row.Count <= 1)
             {
                 return;
             }
-            string constraintFunctionId = row[2];
+            string constraintFunctionId = row[1];
 
             if (ConstraintFunctions == null || !ConstraintFunctions.ContainsKey(constraintFunctionId))
             {
-                throw AbortParse(rowNum, 3, $"constraint function '{constraintFunctionId}' not found");
+                throw AbortParse(rowNum, 2, $"constraint function '{constraintFunctionId}' not found");
             }
             if (!usedConstraintFunctions.ContainsKey(constraintFunctionId))
             {
                 var constraintFunction = ConstraintFunctions[constraintFunctionId];
                 if (constraintFunction == null)
                 {
-                    throw AbortParse(rowNum, 3, "null constraint function found");
+                    throw AbortParse(rowNum, 2, "null constraint function found");
                 }
                 usedConstraintFunctions.Add(constraintFunctionId, constraintFunction);
             }
@@ -391,7 +361,7 @@ namespace Kabomu.Mediator.Path
                 targetValueConstraints = new List<(string, string[])>();
                 allConstraints.Add(targetValueKey, targetValueConstraints);
             }
-            var constraintFunctionArgs = row.Skip(3).ToArray();
+            var constraintFunctionArgs = row.Skip(2).ToArray();
             targetValueConstraints.Add(ValueTuple.Create(constraintFunctionId, constraintFunctionArgs));
         }
 
