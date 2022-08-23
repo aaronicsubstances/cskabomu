@@ -52,18 +52,18 @@ namespace Kabomu.Tests.Mediator.Path
                 expectedError, errorRowNum, errorColNum });
 
             part1 = "/\n" +
-                "constraints,k,e";
+                "constraint:k,e";
             part2 = null;
             constraintFunctions = null;
             expectedError = "not found";
             errorRowNum = 2;
-            errorColNum = 3;
+            errorColNum = 2;
 
             testData.Add(new object[] { part1, part2, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
             part1 = "/\n" +
-                "constraints,k,e";
+                "constraint:k,e";
             part2 = null;
             constraintFunctions = new Dictionary<string, IPathConstraint>
             {
@@ -71,13 +71,13 @@ namespace Kabomu.Tests.Mediator.Path
             };
             expectedError = "null constraint function found";
             errorRowNum = 2;
-            errorColNum = 3;
+            errorColNum = 2;
 
             testData.Add(new object[] { part1, part2, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
             part1 = "/\n" +
-                "constraints,k\n" +
+                "constraint:k\n" +
                 "\n" +
                 ",,e";
             part2 = null;
@@ -92,29 +92,12 @@ namespace Kabomu.Tests.Mediator.Path
             testData.Add(new object[] { part1, part2, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
-            part1 = "/\n" +
-                "constraints\n" +
-                ",,e";
-            part2 = null;
-            constraintFunctions = new Dictionary<string, IPathConstraint>
-            {
-                { "e", new TempPathConstraint() }
-            };
-            expectedError = "no reference constraint value key";
-            errorRowNum = 3;
-            errorColNum = 2;
-
-            testData.Add(new object[] { part1, part2, constraintFunctions,
-                expectedError, errorRowNum, errorColNum });
-
-            part1 = "/\n" +
-                "named\n" +
-                ",,/";
+            part1 = "save/";
             part2 = null;
             constraintFunctions = null;
-            expectedError = "no reference spec name";
-            errorRowNum = 3;
-            errorColNum = 2;
+            expectedError = "missing leading slash";
+            errorRowNum = 1;
+            errorColNum = 1;
 
             testData.Add(new object[] { part1, part2, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
@@ -122,7 +105,7 @@ namespace Kabomu.Tests.Mediator.Path
             part1 = "save";
             part2 = null;
             constraintFunctions = null;
-            expectedError = "missing leading slash or unknown key";
+            expectedError = "unknown key";
             errorRowNum = 1;
             errorColNum = 1;
 
@@ -169,13 +152,45 @@ namespace Kabomu.Tests.Mediator.Path
             testData.Add(new object[] { part1, part2, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
+            part1 = "///one// one ";
+            part2 = null;
+            constraintFunctions = null;
+            expectedError = "duplicate";
+            errorRowNum = 1;
+            errorColNum = 1;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
             // test correct reporting of character positions during errors with path spec parsing.
-            part1 = "named,e.g.,  ///";
+            part1 = "name:e.g.,  ///";
             part2 = null;
             constraintFunctions = null;
             expectedError = "3";
             errorRowNum = 1;
-            errorColNum = 3;
+            errorColNum = 2;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            // blank input spec
+            part1 = "name:e.g.,";
+            part2 = null;
+            constraintFunctions = null;
+            expectedError = "blank string spec";
+            errorRowNum = 1;
+            errorColNum = 2;
+
+            testData.Add(new object[] { part1, part2, constraintFunctions,
+                expectedError, errorRowNum, errorColNum });
+
+            // blank input spec
+            part1 = "/,\"\"";
+            part2 = null;
+            constraintFunctions = null;
+            expectedError = "blank string spec";
+            errorRowNum = 1;
+            errorColNum = 2;
 
             testData.Add(new object[] { part1, part2, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
@@ -285,7 +300,7 @@ namespace Kabomu.Tests.Mediator.Path
 
             // test correct path spec parsing with surrounding whitespace,
             // and null match options.
-            part1 = "named,default,  /car ";
+            part1 = "name:default, /car ";
             part2 = new Dictionary<string, DefaultPathTemplateMatchOptions>
             {
                 { "default", null }
@@ -342,8 +357,8 @@ namespace Kabomu.Tests.Mediator.Path
 
             testData.Add(new object[] { part1, part2, constraintFunctions, expected });
 
-            part1 = "/car //vehicle /// ,///yr//second// first/sei/du\n" +
-                "defaults,country,gh,capital,accra\n" +
+            part1 = "/car //vehicle /// ,  ///yr//second// first/sei/du\n" +
+                "defaults:,country,gh,capital,accra\n" +
                 ",yr";
             part2 = null;
             constraintFunctions = null;
@@ -416,15 +431,15 @@ namespace Kabomu.Tests.Mediator.Path
 
             testData.Add(new object[] { part1, part2, constraintFunctions, expected });
 
-            part1 = "defaults,controller,Home\n" +
+            part1 = "defaults:,controller,Home\n" +
                 ",action,Index\n" +
                 "\n" +
-                "named,general,/\n" +
-                ",,//controller\n" +
-                ",,//controller//action\n" +
-                ",specific,//controller//action//id\n" +
+                "name:general,/\n" +
+                ",//controller\n" +
+                ",//controller//action\n" +
+                "name:specific,//controller//action//id\n" +
                 "\n" +
-                "constraints,id,int";
+                "constraint:id,int";
             part2 = new Dictionary<string, DefaultPathTemplateMatchOptions>
             {
                 {
@@ -531,12 +546,12 @@ namespace Kabomu.Tests.Mediator.Path
             // test defaults and constraints with more additions.
             part1 = "/car\n" +
                 "\n" +
-                "constraints,action,f3,c\n" +
-                "constraints,controller,f3,a,b\r\n" +
-                ",,f4,a,b,char\n" +
+                "constraint:action,f3,c\n" +
+                "constraint:controller,f3,a,b\r\n" +
+                ",f4,a,b,char\n" +
                 "\n" +
-                "defaults,a,v,b,v,c\n" +
-                "defaults,a,3,b,4,c,5,d\n" +
+                "defaults:,a,v,b,v,c\n" +
+                "defaults:,a,3,b,4,c,5,d\n" +
                 ",e";
             part2 = null;
             var f3Tpc = new TempPathConstraint();
@@ -627,6 +642,78 @@ namespace Kabomu.Tests.Mediator.Path
                        MatchLeadingSlash = false,
                        MatchTrailingSlash = false,
                        UnescapeNonWildCardSegments = true
+                   }
+                }
+            };
+
+            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+
+            // test correct detection of duplication.
+            part1 = "//two/two/two";
+            part2 = null;
+            constraintFunctions = null;
+            expected = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new List<DefaultPathTemplateExampleInternal>
+                {
+                   new DefaultPathTemplateExampleInternal
+                   {
+                       Tokens = new List<PathToken>
+                       {
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeSegment,
+                               Value = "two"
+                           },
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeLiteral,
+                               Value = "two"
+                           },
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeLiteral,
+                               Value = "two"
+                           }
+                       }
+                   }
+                }
+            };
+
+            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+
+            // test correct skipping of escapes.
+            part1 = "///%41/%41/%41";
+            part2 = new DefaultPathTemplateMatchOptions
+            {
+                UnescapeNonWildCardSegments = false
+            };
+            constraintFunctions = null;
+            expected = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new List<DefaultPathTemplateExampleInternal>
+                {
+                   new DefaultPathTemplateExampleInternal
+                   {
+                       UnescapeNonWildCardSegments = false,
+                       Tokens = new List<PathToken>
+                       {
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeWildCard,
+                               Value = "%41"
+                           },
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeLiteral,
+                               Value = "%41"
+                           },
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeLiteral,
+                               Value = "%41"
+                           }
+                       }
                    }
                 }
             };
