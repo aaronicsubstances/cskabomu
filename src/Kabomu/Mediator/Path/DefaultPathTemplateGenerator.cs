@@ -11,9 +11,15 @@ namespace Kabomu.Mediator.Path
     public class DefaultPathTemplateGenerator : IPathTemplateGenerator
     {
         private static readonly Regex SimpleTemplateSpecRegex = new Regex("(/{1,3})([^/]+)");
-        private static readonly string KeyConstraints = "constraint:";
-        private static readonly string KeyDefaults = "defaults:";
-        private static readonly string KeyNamed = "name:";
+        private static readonly Regex UnnamedSpecRegex = new Regex(@"^\s*/");
+        private static readonly Regex DefaultsKeyRegex = new Regex(@"^(?i)\s*defaults\s*:");
+        private static readonly Regex ConstraintKeyRegex = new Regex(@"^(?is)\s*check\s*:(.*)$");
+        private static readonly Regex SpecNameKeyRegex = new Regex(@"^(?is)\s*name\s*:(.*)$");
+        private static readonly Regex RepeatKeyRegex = new Regex(@"^\s*$");
+
+        private static readonly int ReferenceKeyDefaults = 1;
+        private static readonly int ReferenceKeyConstraints = 2;
+        private static readonly int ReferenceKeyNamed = 3;
 
         public IDictionary<string, IPathConstraint> ConstraintFunctions { get; set; }
 
@@ -49,7 +55,7 @@ namespace Kabomu.Mediator.Path
             // an update to this generator.
             var usedConstraintFunctions = new Dictionary<string, IPathConstraint>();
 
-            string referenceKey = null;
+            int referenceKey = 0;
             string referenceAfterKey = null;
 
             for (int i = 0; i < parsedCsv.Count; i++)
@@ -60,35 +66,36 @@ namespace Kabomu.Mediator.Path
                 string firstColEntry = null;
                 if (row.Count > 0)
                 {
-                    firstColEntry = row[0].TrimStart();
+                    firstColEntry = row[0];
                 }
 
                 // identify type of row and process accordingly.
-                if (firstColEntry == null || firstColEntry.StartsWith("/"))
+                Match m;
+                if (firstColEntry == null || UnnamedSpecRegex.Match(firstColEntry).Success)
                 {
                     var parsedRow = ParseExamples(rowNum, row, 0, optionsForAll);
                     parsedExamples.AddRange(parsedRow);
 
                     // cancel reference points of empty keys.
-                    referenceKey = null;
+                    referenceKey = 0;
                     referenceAfterKey = null;
                 }
-                else if (firstColEntry.StartsWith(KeyDefaults))
+                else if (DefaultsKeyRegex.Match(firstColEntry).Success)
                 {
-                    referenceKey = KeyDefaults;
+                    referenceKey = ReferenceKeyDefaults;
                     ParseDefaultValues(row, defaultValues);
                 }
-                else if (firstColEntry.StartsWith(KeyConstraints))
+                else if ((m = ConstraintKeyRegex.Match(firstColEntry)).Success)
                 {
-                    referenceKey = KeyConstraints;
-                    string targetValueKey = firstColEntry.Substring(KeyConstraints.Length);
+                    referenceKey = ReferenceKeyConstraints;
+                    string targetValueKey = m.Groups[1].Value;
                     referenceAfterKey = targetValueKey;
                     ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
                 }
-                else if (firstColEntry.StartsWith(KeyNamed))
+                else if ((m = SpecNameKeyRegex.Match(firstColEntry)).Success)
                 {
-                    referenceKey = KeyNamed;
-                    string name = firstColEntry.Substring(KeyNamed.Length);
+                    referenceKey = ReferenceKeyNamed;
+                    string name = m.Groups[1].Value;
                     referenceAfterKey = name;
                     DefaultPathTemplateMatchOptions optionToUse = null;
                     if (individualOptions != null && individualOptions.ContainsKey(name))
@@ -98,23 +105,23 @@ namespace Kabomu.Mediator.Path
                     var parsedRow = ParseExamples(rowNum, row, 1, optionToUse);
                     parsedExamples.AddRange(parsedRow);
                 }
-                else if (firstColEntry.Trim() == "")
+                else if (RepeatKeyRegex.Match(firstColEntry).Success)
                 {
-                    if (referenceKey == null)
+                    if (referenceKey == 0)
                     {
                         throw AbortParse(rowNum, 1, "empty key found at the " +
                             "beginning of CSV or just after empty CSV row");
                     }
-                    if (referenceKey == KeyDefaults)
+                    if (referenceKey == ReferenceKeyDefaults)
                     {
                         ParseDefaultValues(row, defaultValues);
                     }
-                    else if (referenceKey == KeyConstraints)
+                    else if (referenceKey == ReferenceKeyConstraints)
                     {
                         string targetValueKey = referenceAfterKey;
                         ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
                     }
-                    else if (referenceKey == KeyNamed)
+                    else if (referenceKey == ReferenceKeyNamed)
                     {
                         string name = referenceAfterKey;
                         DefaultPathTemplateMatchOptions optionToUse = null;
