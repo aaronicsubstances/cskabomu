@@ -52,7 +52,7 @@ namespace Kabomu.Tests.Mediator.Path
                 expectedError, errorRowNum, errorColNum });
 
             part1 = "/\n" +
-                "constraint:k,e";
+                " check :k,e";
             part2 = null;
             constraintFunctions = null;
             expectedError = "not found";
@@ -63,7 +63,7 @@ namespace Kabomu.Tests.Mediator.Path
                 expectedError, errorRowNum, errorColNum });
 
             part1 = "/\n" +
-                "constraint:k,e";
+                " check :k,e";
             part2 = null;
             constraintFunctions = new Dictionary<string, IPathConstraint>
             {
@@ -77,7 +77,7 @@ namespace Kabomu.Tests.Mediator.Path
                 expectedError, errorRowNum, errorColNum });
 
             part1 = "/\n" +
-                "constraint:k\n" +
+                " check :k\n" +
                 "\n" +
                 ",,e";
             part2 = null;
@@ -431,15 +431,15 @@ namespace Kabomu.Tests.Mediator.Path
 
             testData.Add(new object[] { part1, part2, constraintFunctions, expected });
 
-            part1 = "defaults:,controller,Home\n" +
+            part1 = " defaults :,controller,Home\n" +
                 ",action,Index\n" +
                 "\n" +
                 "name:general,/\n" +
                 ",//controller\n" +
                 ",//controller//action\n" +
-                "name:specific,//controller//action//id\n" +
+                " name :specific,//controller//action//id\n" +
                 "\n" +
-                "constraint:id,int";
+                " check :id,int";
             part2 = new Dictionary<string, DefaultPathTemplateMatchOptions>
             {
                 {
@@ -546,8 +546,8 @@ namespace Kabomu.Tests.Mediator.Path
             // test defaults and constraints with more additions.
             part1 = "/car\n" +
                 "\n" +
-                "constraint:action,f3,c\n" +
-                "constraint:controller,f3,a,b\r\n" +
+                " check :action,f3,c\n" +
+                " check :controller,f3,a,b\r\n" +
                 ",f4,a,b,char\n" +
                 "\n" +
                 "defaults:,a,v,b,v,c\n" +

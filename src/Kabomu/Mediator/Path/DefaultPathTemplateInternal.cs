@@ -89,9 +89,10 @@ namespace Kabomu.Mediator.Path
                             AllConstraints.ContainsKey(valueKey))
                         {
                             var valueConstraints = AllConstraints[valueKey];
-                            var ok = PathUtilsInternal.ApplyValueConstraints(this, context, pathValues, valueKey, valueConstraints,
+                            var failingConstraint = PathUtilsInternal.ApplyValueConstraints(this, 
+                                context, pathValues, valueKey, valueConstraints,
                                 ContextUtils.PathConstraintMatchDirectionFormat);
-                            if (!ok)
+                            if (failingConstraint != null)
                             {
                                 return null;
                             }
@@ -134,8 +135,7 @@ namespace Kabomu.Mediator.Path
             // check that other unused non-literal tokens are satisfied from default values
             // if specified in path values.
             if (!PathUtilsInternal.AreAllRelevantPathValuesSatisfiedFromDefaultValues(
-                pathValues, options?.CaseSensitiveMatchEnabled,
-                ParsedExamples, parsedExampleIndex, DefaultValues))
+                pathValues, options, ParsedExamples, parsedExampleIndex, DefaultValues))
             {
                 return null;
             }
@@ -167,8 +167,9 @@ namespace Kabomu.Mediator.Path
 
         public IPathMatchResult Match(IContext context, string requestTarget)
         {
-            var path = PathUtilsInternal.ExtractPath(requestTarget);
+            var pathAndAftermath = PathUtilsInternal.SplitRequestTarget(requestTarget);
 
+            var path = pathAndAftermath[0];
             var segments = PathUtilsInternal.NormalizeAndSplitPath(path);
 
             var pathValues = new Dictionary<string, string>();
@@ -226,9 +227,9 @@ namespace Kabomu.Mediator.Path
                     {
                         continue;
                     }
-                    bool ok = PathUtilsInternal.ApplyValueConstraints(this, context, pathValues,
+                    var failingConstraint = PathUtilsInternal.ApplyValueConstraints(this, context, pathValues,
                         e.Key, e.Value, ContextUtils.PathConstraintMatchDirectionMatch);
-                    if (!ok)
+                    if (failingConstraint != null)
                     {
                         return null;
                     }
@@ -258,6 +259,7 @@ namespace Kabomu.Mediator.Path
                     throw new ExpectationViolationException($"{path} does not end with {unboundPathPortion}");
                 }
                 boundPathPortion = path.Substring(0, path.Length - unboundPathPortion.Length);
+                unboundPathPortion += pathAndAftermath[1];
             }
 
             var result = new DefaultPathMatchResult

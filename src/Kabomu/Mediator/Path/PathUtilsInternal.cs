@@ -8,10 +8,27 @@ namespace Kabomu.Mediator.Path
 {
     internal static class PathUtilsInternal
     {
-        public static string ExtractPath(string requestTarget)
+        public static string[] SplitRequestTarget(string requestTarget)
         {
-            string path = new Uri(requestTarget ?? "").AbsolutePath;
-            return path;
+            // interpret as URI part after scheme and authority.
+            var result = new string[] { requestTarget ?? "", "" };
+            int queryIndex = result[0].IndexOf("?");
+            int hashIndex = result[0].IndexOf("#");
+            if (queryIndex != -1 || hashIndex != -1)
+            {
+                var indexToUse = queryIndex;
+                if (indexToUse == -1)
+                {
+                    indexToUse = hashIndex;
+                }
+                else if (hashIndex != -1 && hashIndex < queryIndex)
+                {
+                    indexToUse = hashIndex;
+                }
+                result[1] = result[0].Substring(indexToUse);
+                result[0] = result[0].Substring(0, indexToUse);
+            }
+            return result;
         }
 
         public static string ConvertPossibleNullToString(object obj)
@@ -65,7 +82,7 @@ namespace Kabomu.Mediator.Path
             return segments;
         }
 
-        public static bool ApplyValueConstraints(DefaultPathTemplateInternal pathTemplate,
+        public static string ApplyValueConstraints(DefaultPathTemplateInternal pathTemplate,
             IContext context, IDictionary<string, string> pathValues,
             string valueKey, IList<(string, string[])> constraints, int direction)
         {
@@ -77,14 +94,15 @@ namespace Kabomu.Mediator.Path
                     constraintFunctionArgs, direction);
                 if (!ok)
                 {
-                    return false;
+                    return constraintFunctionId;
                 }
             }
-            return true;
+            return null;
         }
 
         public static bool AreAllRelevantPathValuesSatisfiedFromDefaultValues(
-            IDictionary<string, string> pathValues, bool? caseSensitiveMatchEnabledOverride,
+            IDictionary<string, string> pathValues,
+            DefaultPathTemplateFormatOptions formatOptions,
             IList<DefaultPathTemplateExampleInternal> parsedExamples, int alreadySatisfiedIndex,
             IDictionary<string, string> defaultValues)
         {
@@ -97,6 +115,8 @@ namespace Kabomu.Mediator.Path
                     satisfiedValueKeys.Add(token.Value);
                 }
             }
+            bool matchCase = GetEffectiveCaseSensitiveMatchEnabled(formatOptions,
+                parsedExamples[alreadySatisfiedIndex]);
             for (var i = 0; i < parsedExamples.Count; i++)
             {
                 if (i == alreadySatisfiedIndex)
@@ -133,16 +153,7 @@ namespace Kabomu.Mediator.Path
                     var pathValue = pathValues[valueKey];
                     var defaultValue = defaultValues[valueKey];
 
-                    bool ignoreCase;
-                    if (caseSensitiveMatchEnabledOverride.HasValue)
-                    {
-                        ignoreCase = !caseSensitiveMatchEnabledOverride.Value;
-                    }
-                    else
-                    {
-                        ignoreCase = otherParsedExample.CaseSensitiveMatchEnabled != true;
-                    }
-                    if (!AreTwoPossiblyNullStringsEqual(pathValue, defaultValue, ignoreCase))
+                    if (!AreTwoPossiblyNullStringsEqual(pathValue, defaultValue, matchCase))
                     {
                         return false;
                     }
@@ -155,15 +166,15 @@ namespace Kabomu.Mediator.Path
             return true;
         }
 
-        internal static bool AreTwoPossiblyNullStringsEqual(string first, string second, bool ignoreCase)
+        internal static bool AreTwoPossiblyNullStringsEqual(string first, string second, bool matchCase)
         {
             if (first == null)
             {
                 return second == null;
             }
-            var comparisonType = ignoreCase ?
-                StringComparison.OrdinalIgnoreCase :
-                StringComparison.Ordinal;
+            var comparisonType = matchCase ?
+                StringComparison.Ordinal :
+                StringComparison.OrdinalIgnoreCase;
             return first.Equals(second, comparisonType);
         }
 
@@ -208,6 +219,21 @@ namespace Kabomu.Mediator.Path
                 return parsedExample.MatchTrailingSlash.Value;
             }
             // omit trailing slash by default.
+            return false;
+        }
+
+        public static bool GetEffectiveCaseSensitiveMatchEnabled(DefaultPathTemplateFormatOptions options,
+            DefaultPathTemplateExampleInternal parsedExample)
+        {
+            if (options?.CaseSensitiveMatchEnabled != null)
+            {
+                return options.CaseSensitiveMatchEnabled.Value;
+            }
+            if (parsedExample.CaseSensitiveMatchEnabled != null)
+            {
+                return parsedExample.CaseSensitiveMatchEnabled.Value;
+            }
+            // ignore case by default.
             return false;
         }
 

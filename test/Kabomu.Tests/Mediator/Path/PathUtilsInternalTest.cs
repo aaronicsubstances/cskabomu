@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Xunit;
+using static Kabomu.Mediator.Path.DefaultPathTemplateExampleInternal;
 
 namespace Kabomu.Tests.Mediator.Path
 {
@@ -154,12 +155,20 @@ namespace Kabomu.Tests.Mediator.Path
             actual = PathUtilsInternal.AreTwoPossiblyNullStringsEqual("food", "", true);
             Assert.Equal(expected, actual);
 
-            expected = false;
-            actual = PathUtilsInternal.AreTwoPossiblyNullStringsEqual("food", "FOOD", false);
+            expected = true;
+            actual = PathUtilsInternal.AreTwoPossiblyNullStringsEqual("food", "food", true);
             Assert.Equal(expected, actual);
 
             expected = true;
+            actual = PathUtilsInternal.AreTwoPossiblyNullStringsEqual("food", "food", false);
+            Assert.Equal(expected, actual);
+
+            expected = false;
             actual = PathUtilsInternal.AreTwoPossiblyNullStringsEqual("food", "FOOD", true);
+            Assert.Equal(expected, actual);
+
+            expected = true;
+            actual = PathUtilsInternal.AreTwoPossiblyNullStringsEqual("food", "FOOD", false);
             Assert.Equal(expected, actual);
         }
 
@@ -198,7 +207,7 @@ namespace Kabomu.Tests.Mediator.Path
             DefaultPathTemplateFormatOptions options = null;
             DefaultPathTemplateExampleInternal parsedExample = new DefaultPathTemplateExampleInternal();
             bool expected = true;
-            testData.Add(new object[]{ options, parsedExample, expected });
+            testData.Add(new object[] { options, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions();
             parsedExample = new DefaultPathTemplateExampleInternal();
@@ -261,6 +270,95 @@ namespace Kabomu.Tests.Mediator.Path
             parsedExample = new DefaultPathTemplateExampleInternal
             {
                 UnescapeNonWildCardSegments = true
+            };
+            expected = true;
+            testData.Add(new object[] { options, parsedExample, expected });
+
+            return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateGetEffectiveCaseSensitiveMatchEnabledData))]
+        public void TestGetEffectiveCaseSensitiveMatchEnabled(
+            DefaultPathTemplateFormatOptions options,
+            object parsedExample,
+            bool expected)
+        {
+            var actual = PathUtilsInternal.GetEffectiveCaseSensitiveMatchEnabled(options,
+                (DefaultPathTemplateExampleInternal)parsedExample);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateGetEffectiveCaseSensitiveMatchEnabledData()
+        {
+            var testData = new List<object[]>();
+
+            DefaultPathTemplateFormatOptions options = null;
+            DefaultPathTemplateExampleInternal parsedExample = new DefaultPathTemplateExampleInternal();
+            bool expected = false;
+            testData.Add(new object[]{ options, parsedExample, expected });
+
+            options = new DefaultPathTemplateFormatOptions();
+            parsedExample = new DefaultPathTemplateExampleInternal();
+            expected = false;
+            testData.Add(new object[] { options, parsedExample, expected });
+
+            options = new DefaultPathTemplateFormatOptions();
+            parsedExample = new DefaultPathTemplateExampleInternal
+            {
+                CaseSensitiveMatchEnabled = false
+            };
+            expected = false;
+            testData.Add(new object[] { options, parsedExample, expected });
+
+            options = new DefaultPathTemplateFormatOptions
+            {
+                CaseSensitiveMatchEnabled = false
+            };
+            parsedExample = new DefaultPathTemplateExampleInternal();
+            expected = false;
+            testData.Add(new object[] { options, parsedExample, expected });
+
+            options = new DefaultPathTemplateFormatOptions
+            {
+                CaseSensitiveMatchEnabled = false
+            };
+            parsedExample = new DefaultPathTemplateExampleInternal
+            {
+                CaseSensitiveMatchEnabled = true
+            };
+            expected = false;
+            testData.Add(new object[] { options, parsedExample, expected });
+
+            options = new DefaultPathTemplateFormatOptions
+            {
+                CaseSensitiveMatchEnabled = true
+            };
+            parsedExample = new DefaultPathTemplateExampleInternal
+            {
+                CaseSensitiveMatchEnabled = false
+            };
+            expected = true;
+            testData.Add(new object[] { options, parsedExample, expected });
+
+            options = new DefaultPathTemplateFormatOptions
+            {
+                CaseSensitiveMatchEnabled = null
+            };
+            parsedExample = new DefaultPathTemplateExampleInternal
+            {
+                CaseSensitiveMatchEnabled = false
+            };
+            expected = false;
+            testData.Add(new object[] { options, parsedExample, expected });
+
+            options = new DefaultPathTemplateFormatOptions
+            {
+                CaseSensitiveMatchEnabled = null
+            };
+            parsedExample = new DefaultPathTemplateExampleInternal
+            {
+                CaseSensitiveMatchEnabled = true
             };
             expected = true;
             testData.Add(new object[] { options, parsedExample, expected });
@@ -526,32 +624,553 @@ namespace Kabomu.Tests.Mediator.Path
         }
 
         [Theory]
-        [MemberData(nameof(CreateTestExtractPathData))]
-        public void TestExtractPath(string requestTarget, string expected)
+        [MemberData(nameof(CreateTestSplitRequestTargetData))]
+        public void TestSplitRequestTarget(string requestTarget, string[] expected)
         {
-            var actual = PathUtilsInternal.ExtractPath(requestTarget);
+            var actual = PathUtilsInternal.SplitRequestTarget(requestTarget);
             Assert.Equal(expected, actual);
         }
 
-        public static List<object[]> CreateTestExtractPathData()
+        public static List<object[]> CreateTestSplitRequestTargetData()
         {
             return new List<object[]>
             {
-                new object[]{ "", "" },
-                new object[]{ null, "" },
-                new object[]{ "/", "/" },
-                new object[]{ "http://localhost", "" },
-                new object[]{ "http://localhost/", "/" },
-                new object[]{ "http://localhost?week", "" },
-                new object[]{ "http://localhost/?week", "/" },
-                new object[]{ "http://localhost/day#week", "/day" },
-                new object[]{ "http://localhost/~-_.%41ABab012%22%25%20?week#month", "/~-_.%41ABab012%22%25%20" },
-                new object[]{ "http://localhost/23/%2016?week", "/23/%2016" },
-                new object[]{ "//localhost/23/%2016?week", "/23/%2016" },
-                new object[]{ "file:/23/%2016?week", "/23/%2016" },
-                new object[]{ "file:///23/%2016?week", "/23/%2016" },
-                new object[]{ "file://localhost/23/%2016?week", "/23/%2016" },
+                new object[]{ "", new string[] { "", "" } },
+                new object[]{ null, new string[] { "", "" } },
+                new object[]{ "/", new string[] { "/", "" } },
+                new object[]{ "http://localhost", new string[] { "http://localhost", "" } },
+                new object[]{ "http://localhost/",  new string[] { "http://localhost/", "" } },
+                new object[]{ "http://localhost?week",  new string[] { "http://localhost", "?week" } },
+                new object[]{ "http://localhost/?week",  new string[] { "http://localhost/", "?week" } },
+                new object[]{ "http://localhost/day#week",  new string[] { "http://localhost/day", "#week" } },
+                new object[]{ "http://localhost/~-_.%41ABab012%22%25%20?week#month", 
+                    new string[] { "http://localhost/~-_.%41ABab012%22%25%20", "?week#month" } },
+                new object[]{ "http://localhost/23/%2016?week",
+                    new string[] { "http://localhost/23/%2016", "?week" } },
+                new object[]{ "/23/%2016", new string[] { "/23/%2016", "" } },
+                new object[]{ "/23/%2016/gh", new string[] { "/23/%2016/gh", "" } },
+                new object[]{ "//localhost/23/%2016?week",
+                    new string[] { "//localhost/23/%2016", "?week" } },
+                new object[]{ "file:/23/%2016#wer?week",
+                    new string[] { "file:/23/%2016", "#wer?week" } },
+                new object[]{ "file:///23/%2016?#week",
+                    new string[] { "file:///23/%2016", "?#week" } },
+                new object[]{ "file://localhost/23/%2016#?week",
+                    new string[] { "file://localhost/23/%2016", "#?week" } },
             };
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestAreAllRelevantPathValuesSatisfiedFromDefaultValuesData))]
+        public void TestAreAllRelevantPathValuesSatisfiedFromDefaultValues(
+            IDictionary<string, string> pathValues,
+            DefaultPathTemplateFormatOptions formatOptions,
+            object parsedExamples, int alreadySatisfiedIndex,
+            IDictionary<string, string> defaultValues,
+            bool expected)
+        {
+            bool actual = PathUtilsInternal.AreAllRelevantPathValuesSatisfiedFromDefaultValues(
+                pathValues, formatOptions, 
+                (IList<DefaultPathTemplateExampleInternal>)parsedExamples, 
+                alreadySatisfiedIndex, defaultValues);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateTestAreAllRelevantPathValuesSatisfiedFromDefaultValuesData()
+        {
+            var testData = new List<object[]>();
+
+            IDictionary<string, string> pathValues = new Dictionary<string, string>
+            {
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            IList<DefaultPathTemplateExampleInternal> parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+
+                    }
+                }
+            };
+            int alreadySatisfiedIndex = 0;
+            IDictionary<string, string> defaultValues = null;
+            bool expected = true;
+
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            pathValues = new Dictionary<string, string>
+            {
+                { "country", "gh" },
+                { "city", "ksi" }
+            };
+            formatOptions = null;
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 0;
+            defaultValues = null;
+            expected = true;
+
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            // change index
+            pathValues = new Dictionary<string, string>
+            {
+                { "country", "gh" },
+                { "city", "ksi" }
+            };
+            formatOptions = null;
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 1;
+            defaultValues = null;
+            expected = false;
+
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            // test for use of default values.
+            pathValues = new Dictionary<string, string>
+            {
+                { "country", "gh" },
+                { "city", "ksi" }
+            };
+            formatOptions = null;
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 1;
+            defaultValues = new Dictionary<string, string>
+            {
+                { "country", "GH" },
+                { "city", "KSI" }
+            };
+            expected = true;
+
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            // test for case matching.
+            pathValues = new Dictionary<string, string>
+            {
+                { "country", "gh" },
+                { "city", "ksi" }
+            };
+            formatOptions = null;
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = false,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = true,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 1;
+            defaultValues = new Dictionary<string, string>
+            {
+                { "country", "GH" },
+                { "city", "KSI" }
+            };
+            expected = false;
+
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            pathValues = new Dictionary<string, string>
+            {
+                { "country", "gh" },
+                { "city", "ksi" }
+            };
+            formatOptions = null;
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = false,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = true,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 1;
+            defaultValues = new Dictionary<string, string>
+            {
+                { "country", "gh" },
+                { "city", "ksi" }
+            };
+            expected = true;
+
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            // test for case override
+            pathValues = new Dictionary<string, string>
+            {
+                { "country", "gh" },
+                { "city", "ksi" }
+            };
+            formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                CaseSensitiveMatchEnabled = false,
+            };
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = true,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 1;
+            defaultValues = new Dictionary<string, string>
+            {
+                { "country", "GH" },
+                { "city", "KSI" }
+            };
+            expected = true;
+
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            // test for null entries
+            pathValues = new Dictionary<string, string>
+            {
+                { "country", null },
+                { "city", null }
+            };
+            formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                CaseSensitiveMatchEnabled = true,
+            };
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = true,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 1;
+            defaultValues = new Dictionary<string, string>
+            {
+                { "country", "boliva" },
+                { "city", null }
+            };
+            expected = false;
+
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            pathValues = new Dictionary<string, string>
+            {
+                { "country", null },
+                { "city", "ksi" }
+            };
+            formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                CaseSensitiveMatchEnabled = true,
+            };
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = true,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeSegment,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 1;
+            defaultValues = new Dictionary<string, string>
+            {
+                { "country", null },
+                { "city", "ksi" }
+            };
+            expected = true;
+
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            return testData;
         }
     }
 }
