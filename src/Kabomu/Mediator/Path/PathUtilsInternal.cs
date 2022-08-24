@@ -82,7 +82,7 @@ namespace Kabomu.Mediator.Path
             return segments;
         }
 
-        public static string ApplyValueConstraints(DefaultPathTemplateInternal pathTemplate,
+        public static (bool, string) ApplyValueConstraints(DefaultPathTemplateInternal pathTemplate,
             IContext context, IDictionary<string, string> pathValues,
             string valueKey, IList<(string, string[])> constraints, int direction)
         {
@@ -94,10 +94,10 @@ namespace Kabomu.Mediator.Path
                     constraintFunctionArgs, direction);
                 if (!ok)
                 {
-                    return constraintFunctionId;
+                    return (false, constraintFunctionId);
                 }
             }
-            return null;
+            return (true, null);
         }
 
         public static bool AreAllRelevantPathValuesSatisfiedFromDefaultValues(

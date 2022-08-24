@@ -1,4 +1,5 @@
-﻿using Kabomu.Mediator.Path;
+﻿using Kabomu.Mediator.Handling;
+using Kabomu.Mediator.Path;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -1171,6 +1172,230 @@ namespace Kabomu.Tests.Mediator.Path
                 alreadySatisfiedIndex, defaultValues, expected });
 
             return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateApplyValueConstraintsData))]
+        public void TestApplyValueConstraints(IList<(string, string[])> constraints,
+            Dictionary<string, bool> constraintFunctionConfigMap,
+            IContext contextArg, IDictionary<string, string> pathValuesArg,
+            string valueKeyArg, int directionArg,
+            ValueTuple<bool, string> expected, List<string> expectedConstraintArgLogs)
+        {
+            var pathTemplate = new DefaultPathTemplateInternal
+            {
+                ConstraintFunctions = new Dictionary<string, IPathConstraint>()
+            };
+            var constraintArgLogs = new List<string>();
+            foreach (var entry in constraintFunctionConfigMap)
+            {
+                var constraintFunction = new TempPathConstraint
+                {
+                    ExpectedPathTemplate = pathTemplate,
+                    ExpectedContext = contextArg,
+                    ExpectedValues = pathValuesArg,
+                    ExpectedValueKey = valueKeyArg,
+                    ExpectedDirection = directionArg,
+                    ConstraintArgLogs = constraintArgLogs,
+                    ReturnValue = entry.Value
+                };
+                pathTemplate.ConstraintFunctions.Add(entry.Key, constraintFunction);
+            }
+            var actual = PathUtilsInternal.ApplyValueConstraints(pathTemplate,
+                contextArg, pathValuesArg, valueKeyArg, constraints, directionArg);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expectedConstraintArgLogs, constraintArgLogs);
+        }
+
+        public static List<object[]> CreateApplyValueConstraintsData()
+        {
+            var testData = new List<object[]>();
+
+            var constraints = new List<(string, string[])>();
+            var constraintFunctionConfigMap = new Dictionary<string, bool>();
+            IContext context = null;
+            IDictionary<string, string> pathValues = null;
+            string valueKey = null;
+            int direction = 0;
+            ValueTuple<bool, string> expected = (true, null);
+            List<string> expectedConstraintArgLogs = new List<string>();
+            testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
+                pathValues, valueKey, direction, expected, expectedConstraintArgLogs });
+
+            constraints = new List<(string, string[])>
+            {
+                ("int", new string[0])
+            };
+            constraintFunctionConfigMap = new Dictionary<string, bool>()
+            {
+                { "int", false }
+            };
+            context = new DefaultContext();
+            pathValues = new Dictionary<string, string>
+            {
+                { "test", "t" }
+            };
+            valueKey = "v";
+            direction = 1;
+            expected = (false, "int");
+            expectedConstraintArgLogs = new List<string>
+            {
+                ""
+            };
+            testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
+                pathValues, valueKey, direction, expected, expectedConstraintArgLogs });
+
+            constraints = new List<(string, string[])>
+            {
+                ("str", new string[1]{ "plain" })
+            };
+            constraintFunctionConfigMap = new Dictionary<string, bool>()
+            {
+                { "str", true }
+            };
+            context = new DefaultContext();
+            pathValues = new Dictionary<string, string>
+            {
+                { "test", "t" }
+            };
+            valueKey = "test";
+            direction = -1;
+            expected = (true, null);
+            expectedConstraintArgLogs = new List<string>
+            {
+                "plain"
+            };
+            testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
+                pathValues, valueKey, direction, expected, expectedConstraintArgLogs });
+
+            constraints = new List<(string, string[])>
+            {
+                ("float", new string[]{ "d" }),
+                ("int", new string[0])
+            };
+            constraintFunctionConfigMap = new Dictionary<string, bool>()
+            {
+                { "int", false },
+                { "float", false },
+            };
+            context = new DefaultContext();
+            pathValues = new Dictionary<string, string>
+            {
+                { "test", "t" }
+            };
+            valueKey = "v";
+            direction = 2;
+            expected = (false, "float");
+            expectedConstraintArgLogs = new List<string>
+            {
+                "d"
+            };
+            testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
+                pathValues, valueKey, direction, expected, expectedConstraintArgLogs });
+
+            constraints = new List<(string, string[])>
+            {
+                ("int", new string[0]),
+                ("float", new string[]{ "d" }),
+            };
+            constraintFunctionConfigMap = new Dictionary<string, bool>()
+            {
+                { "int", true },
+                { "float", false },
+            };
+            context = new DefaultContext();
+            pathValues = new Dictionary<string, string>
+            {
+                { "test", "t" }, { "src", "c.py" }
+            };
+            valueKey = "y";
+            direction = 3;
+            expected = (false, "float");
+            expectedConstraintArgLogs = new List<string>
+            {
+                "", "d"
+            };
+            testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
+                pathValues, valueKey, direction, expected, expectedConstraintArgLogs });
+
+            constraints = new List<(string, string[])>
+            {
+                ("int", new string[]{ "d", "e", "c" }),
+                ("float", new string[]{ "s" }),
+            };
+            constraintFunctionConfigMap = new Dictionary<string, bool>()
+            {
+                { "int", true },
+                { "float", true },
+            };
+            context = null;
+            pathValues = new Dictionary<string, string>
+            {
+                { "test", "t" }, { "src", "6" }
+            };
+            valueKey = "src";
+            direction = 4;
+            expected = (true, null);
+            expectedConstraintArgLogs = new List<string>
+            {
+                "d,e,c", "s"
+            };
+            testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
+                pathValues, valueKey, direction, expected, expectedConstraintArgLogs });
+
+            constraints = new List<(string, string[])>
+            {
+                ("int", new string[]{ "d", "e", "c" }),
+                ("float", new string[]{ "s" }),
+                ("float", new string[]{ "d" }),
+            };
+            constraintFunctionConfigMap = new Dictionary<string, bool>()
+            {
+                { "int", true },
+                { "float", true },
+            };
+            context = null;
+            pathValues = new Dictionary<string, string>
+            {
+                { "test", "t" }, { "src", "6" }
+            };
+            valueKey = "src";
+            direction = 4;
+            expected = (true, null);
+            expectedConstraintArgLogs = new List<string>
+            {
+                "d,e,c", "s", "d"
+            };
+            testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
+                pathValues, valueKey, direction, expected, expectedConstraintArgLogs });
+
+            return testData;
+        }
+
+        class TempPathConstraint : IPathConstraint
+        {
+            public IContext ExpectedContext { get; set; }
+            public DefaultPathTemplateInternal ExpectedPathTemplate { get; set; }
+            public IDictionary<string, string> ExpectedValues { get; set; }
+            public string ExpectedValueKey { get; set; }
+            public int ExpectedDirection { get; set; }
+            public bool ReturnValue { get; set; }
+            public List<string> ConstraintArgLogs { get; set; }
+
+            public bool Match(IContext context, IPathTemplate pathTemplate,
+                IDictionary<string, string> values, string valueKey,
+                string[] constraintArgs, int direction)
+            {
+                Assert.Equal(ExpectedContext, context);
+                Assert.Equal(ExpectedPathTemplate, pathTemplate);
+                Assert.Equal(ExpectedValues, values);
+                Assert.Equal(ExpectedValueKey, valueKey);
+                Assert.Equal(ExpectedDirection, direction);
+
+                ConstraintArgLogs.Add(string.Join(",", constraintArgs));
+
+                return ReturnValue;
+            }
         }
     }
 }
