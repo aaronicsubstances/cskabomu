@@ -791,13 +791,11 @@ namespace Kabomu.Tests.Mediator.Path
 
         class TempPathConstraint : IPathConstraint
         {
-            public bool MatchValue { get; set; }
-
             public bool Match(IContext context, IPathTemplate pathTemplate,
                 IDictionary<string, string> values, string valueKey,
                 string[] constraintArgs, int direction)
             {
-                return MatchValue;
+                throw new NotImplementedException();
             }
         }
     }

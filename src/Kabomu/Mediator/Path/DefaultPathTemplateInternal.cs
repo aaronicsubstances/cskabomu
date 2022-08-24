@@ -89,10 +89,10 @@ namespace Kabomu.Mediator.Path
                             AllConstraints.ContainsKey(valueKey))
                         {
                             var valueConstraints = AllConstraints[valueKey];
-                            var failingConstraint = PathUtilsInternal.ApplyValueConstraints(this, 
+                            var (ok, _) = PathUtilsInternal.ApplyValueConstraints(this, 
                                 context, pathValues, valueKey, valueConstraints,
                                 ContextUtils.PathConstraintMatchDirectionFormat);
-                            if (failingConstraint != null)
+                            if (!ok)
                             {
                                 return null;
                             }
@@ -227,9 +227,9 @@ namespace Kabomu.Mediator.Path
                     {
                         continue;
                     }
-                    var failingConstraint = PathUtilsInternal.ApplyValueConstraints(this, context, pathValues,
+                    var (ok, _) = PathUtilsInternal.ApplyValueConstraints(this, context, pathValues,
                         e.Key, e.Value, ContextUtils.PathConstraintMatchDirectionMatch);
-                    if (failingConstraint != null)
+                    if (!ok)
                     {
                         return null;
                     }
