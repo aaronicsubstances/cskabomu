@@ -10,7 +10,8 @@ namespace Kabomu.Mediator.Path
 {
     public class DefaultPathTemplateGenerator : IPathTemplateGenerator
     {
-        private static readonly Regex SimpleTemplateSpecRegex = new Regex("(/{1,3})([^/]+)");
+        private static readonly Regex SpecSegmentRegex = new Regex("(/{1,3})([^/]+)");
+        private static readonly Regex SpecLeadingWsRegex = new Regex(@"^\s*");
         private static readonly Regex UnnamedSpecRegex = new Regex(@"^\s*/");
         private static readonly Regex DefaultsKeyRegex = new Regex(@"^(?i)\s*defaults\s*:");
         private static readonly Regex ConstraintKeyRegex = new Regex(@"^(?is)\s*check\s*:(.*)$");
@@ -18,8 +19,8 @@ namespace Kabomu.Mediator.Path
         private static readonly Regex RepeatKeyRegex = new Regex(@"^\s*$");
 
         private static readonly int ReferenceKeyDefaults = 1;
-        private static readonly int ReferenceKeyConstraints = 2;
-        private static readonly int ReferenceKeyNamed = 3;
+        private static readonly int ReferenceKeyConstraint = 2;
+        private static readonly int ReferenceKeySpecName = 3;
 
         public IDictionary<string, IPathConstraint> ConstraintFunctions { get; set; }
 
@@ -87,14 +88,14 @@ namespace Kabomu.Mediator.Path
                 }
                 else if ((m = ConstraintKeyRegex.Match(firstColEntry)).Success)
                 {
-                    referenceKey = ReferenceKeyConstraints;
+                    referenceKey = ReferenceKeyConstraint;
                     string targetValueKey = m.Groups[1].Value;
                     referenceAfterKey = targetValueKey;
                     ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
                 }
                 else if ((m = SpecNameKeyRegex.Match(firstColEntry)).Success)
                 {
-                    referenceKey = ReferenceKeyNamed;
+                    referenceKey = ReferenceKeySpecName;
                     string name = m.Groups[1].Value;
                     referenceAfterKey = name;
                     DefaultPathTemplateMatchOptions optionToUse = null;
@@ -116,12 +117,12 @@ namespace Kabomu.Mediator.Path
                     {
                         ParseDefaultValues(row, defaultValues);
                     }
-                    else if (referenceKey == ReferenceKeyConstraints)
+                    else if (referenceKey == ReferenceKeyConstraint)
                     {
                         string targetValueKey = referenceAfterKey;
                         ParseConstraints(rowNum, row, targetValueKey, allConstraints, usedConstraintFunctions);
                     }
-                    else if (referenceKey == ReferenceKeyNamed)
+                    else if (referenceKey == ReferenceKeySpecName)
                     {
                         string name = referenceAfterKey;
                         DefaultPathTemplateMatchOptions optionToUse = null;
@@ -211,34 +212,40 @@ namespace Kabomu.Mediator.Path
         {
             // Interpret path spec as either 
             //  1. a single slash, or
-            //  2. zero or more concatenations of /literal or //segment or ///wildcard.
+            //  2. one or more concatenations of /literal or //segment or ///wildcard.
             // where literal, segment or wildcard have the ff x'tics:
             //  a. cannot be empty
             //  b. cannot contain slashes
             //  c. surrounding whitespace will be trimmed off.
             //  d. a segment surrounded by whitespace will be interpreted to mean it allows for empty values.
 
-            int startIndex = 0;
             int wildCardChPos = -1;
             var nonLiteralNames = new HashSet<string>();
             var tokens = new List<PathToken>();
 
             // remove leading whitespace, but keep track of starting position
             // of first non whitespace char for error reporting purposes.
-            int chPosAdj = src.Length;
-            src = src.TrimStart();
-            chPosAdj -= src.Length;
+            Match m = SpecLeadingWsRegex.Match(src);
+            if (!m.Success)
+            {
+                throw new ExpectationViolationException("SpecLeadingWsRegex match failed");
+            }
+            if (m.Index != 0)
+            {
+                throw new ExpectationViolationException($"SpecLeadingWsRegex match index {m.Index} != 0");
+            }
+            int startIndex = m.Length;
 
-            // deal specially with '/' to be the same as the empty string.
-            if (src == "/")
+            // deal specially with '/' which is allowed to yield empty set of tokens.
+            if (startIndex == src.Length - 1 && src[startIndex] == '/')
             {
                 // return empty tokens
                 return tokens;
             }
             while (startIndex < src.Length)
             {
-                int startChPos = startIndex + chPosAdj + 1;
-                var m = SimpleTemplateSpecRegex.Match(src, startIndex);
+                int startChPos = startIndex + 1;
+                m = SpecSegmentRegex.Match(src, startIndex);
                 if (!m.Success || m.Index != startIndex)
                 {
                     throw AbortParse(rowNum, colNum, $"invalid spec seen at char pos {startChPos}");

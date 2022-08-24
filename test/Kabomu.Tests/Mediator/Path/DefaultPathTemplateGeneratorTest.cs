@@ -1,4 +1,5 @@
-﻿using Kabomu.Mediator.Handling;
+﻿using Kabomu.Common;
+using Kabomu.Mediator.Handling;
 using Kabomu.Mediator.Path;
 using Kabomu.Tests.Shared;
 using System;
@@ -715,6 +716,71 @@ namespace Kabomu.Tests.Mediator.Path
                            }
                        }
                    }
+                }
+            };
+
+            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+
+            // test case insensitive matching of keys, and non-alpha characters in keys.
+            part1 = $"{CsvUtils.EscapeValue(" \n NAME \r\n :\"\n,rty")}, ///w//L\n" +
+                "/\n" +
+                $"{CsvUtils.EscapeValue(" \n CHECK \r\n:\"\n,lty")},test\n" +
+                $"{CsvUtils.EscapeValue(" \n DEFAULTS \r\n:\"\n")}," +
+                    $"{CsvUtils.EscapeValue(" \n key \r\n:\"\n")}," +
+                    $"{CsvUtils.EscapeValue(" \n value \r\n:\"\n")}\n" +
+                "\n";
+            part2 = new Dictionary<string, DefaultPathTemplateMatchOptions>
+            {
+                {
+                    "\"\n,rty",
+                    new DefaultPathTemplateMatchOptions
+                    {
+                        MatchTrailingSlash = true
+                    }
+                }
+            };
+            tt = new TempPathConstraint();
+            constraintFunctions = new Dictionary<string, IPathConstraint>
+            {
+                { "test", tt }
+            };
+            expected = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new List<DefaultPathTemplateExampleInternal>
+                {
+                   new DefaultPathTemplateExampleInternal
+                   {
+                        MatchTrailingSlash = true,
+                        Tokens = new List<PathToken>
+                        {
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeWildCard,
+                               Value = "w"
+                           },
+                           new PathToken
+                           {
+                               Type = PathToken.TokenTypeSegment,
+                               Value = "L"
+                           }
+                        }
+                   },
+                   new DefaultPathTemplateExampleInternal
+                   {
+                       Tokens = new List<PathToken>()
+                   }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { " \n key \r\n:\"\n", " \n value \r\n:\"\n" }
+                },
+                AllConstraints = new Dictionary<string, IList<(string, string[])>>
+                {
+                    { "\"\n,lty",  new List<(string, string[])>{ ("test", new string[0]) } }
+                },
+                ConstraintFunctions = new Dictionary<string, IPathConstraint>
+                {
+                    { "test", tt }
                 }
             };
 
