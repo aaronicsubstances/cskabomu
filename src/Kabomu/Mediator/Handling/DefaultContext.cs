@@ -78,11 +78,11 @@ namespace Kabomu.Mediator.Handling
 
         private IPathMatchResult CreateRootPathMatch()
         {
-            var pathMatchResult = new DefaultPathMatchResult
+            var pathMatchResult = new DefaultPathMatchResultInternal
             {
                 PathValues = new Dictionary<string, string>(),
-                BoundPathPortion = "",
-                UnboundPathPortion = Request.Target ?? ""
+                BoundPath = "",
+                UnboundRequestTarget = Request.Target ?? ""
             };
             return pathMatchResult;
         }

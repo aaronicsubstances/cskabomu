@@ -7,7 +7,7 @@ namespace Kabomu.Mediator.Path
     public interface IPathMatchResult
     {
         IDictionary<string, string> PathValues { get; }
-        string BoundPathPortion { get; }
-        string UnboundPathPortion { get; }
+        string BoundPath { get; }
+        string UnboundRequestTarget { get; }
     }
 }

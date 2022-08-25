@@ -63,7 +63,7 @@ namespace Kabomu.Mediator.Handling
                 {
                     parentPathMatchResult = context.PathMatchResult;
                 }
-                var pathMatchResult = pathTemplate.Match(context, parentPathMatchResult.UnboundPathPortion);
+                var pathMatchResult = pathTemplate.Match(context, parentPathMatchResult.UnboundRequestTarget);
                 if (pathMatchResult != null)
                 {
                     var additionalRegistry = new DefaultMutableRegistry()

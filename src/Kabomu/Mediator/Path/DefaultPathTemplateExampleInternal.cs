@@ -8,8 +8,9 @@ namespace Kabomu.Mediator.Path
     /// 
     /// </summary>
     /// <remarks>
-    /// To specify exact matches, specify the exact match as only 1 example,
-    /// and set the values of the <see cref="MatchLeadingSlash"/> and <see cref="MatchTrailingSlash"/>
+    /// To specify exact matches, specify the exact match as only 1 spec consisting only of literal tokens,
+    /// set the <see cref="CaseSensitiveMatchEnabled"/> option to true, set the <see cref="UnescapeNonWildCardSegments"/>
+    /// option to false, and set the values of the <see cref="MatchLeadingSlash"/> and <see cref="MatchTrailingSlash"/>
     /// options to non-null values which correspond with the exact match.
     /// </remarks>
     internal class DefaultPathTemplateExampleInternal
@@ -30,7 +31,7 @@ namespace Kabomu.Mediator.Path
 
             public int Type;
             public string Value;
-            public bool EmptySegmentAllowed;
+            public bool EmptySegmentAllowed; // applies only to TokenTypeSegment
         }
     }
 }

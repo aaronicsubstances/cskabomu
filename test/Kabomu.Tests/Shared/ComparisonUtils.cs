@@ -179,7 +179,7 @@ namespace Kabomu.Tests.Shared
             }
         }
 
-        internal static void CompareTemplates(DefaultPathTemplateInternal expected,
+        private static void CompareTemplates(DefaultPathTemplateInternal expected,
             DefaultPathTemplateInternal actual)
         {
             Assert.Equal(expected.DefaultValues, actual.DefaultValues);
@@ -229,11 +229,32 @@ namespace Kabomu.Tests.Shared
             }
         }
 
-        internal static void CompareTokens(PathToken expected, PathToken actual)
+        private static void CompareTokens(PathToken expected, PathToken actual)
         {
             Assert.Equal(expected.Type, actual.Type);
             Assert.Equal(expected.Value, actual.Value);
             Assert.Equal(expected.EmptySegmentAllowed, actual.EmptySegmentAllowed);
+        }
+
+        public static void AssertPathMatchResult(IPathMatchResult expected, IPathMatchResult actual)
+        {
+            if (expected == null)
+            {
+                Assert.Null(actual);
+            }
+            else
+            {
+                Assert.NotNull(actual);
+                ComparePathMatchResult((DefaultPathMatchResultInternal)expected, (DefaultPathMatchResultInternal)actual);
+            }
+        }
+
+        private static void ComparePathMatchResult(DefaultPathMatchResultInternal expected,
+            DefaultPathMatchResultInternal actual)
+        {
+            Assert.Equal(expected.BoundPath, actual.BoundPath);
+            Assert.Equal(expected.UnboundRequestTarget, actual.UnboundRequestTarget);
+            Assert.Equal(expected.PathValues, actual.PathValues);
         }
     }
 }
