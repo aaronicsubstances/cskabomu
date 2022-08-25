@@ -248,25 +248,25 @@ namespace Kabomu.Mediator.Path
                 }
             }
 
-            string boundPathPortion = path, unboundPathPortion = "";
+            string boundPath = path, unboundRequestTarget = "";
             if (matchingExample.Tokens.Count > 0 &&
                 matchingExample.Tokens[matchingExample.Tokens.Count - 1].Type == PathToken.TokenTypeWildCard &&
                 wildCardMatch != null)
             {
-                unboundPathPortion = wildCardMatch;
-                if (!path.EndsWith(unboundPathPortion))
+                unboundRequestTarget = wildCardMatch;
+                if (!path.EndsWith(unboundRequestTarget))
                 {
-                    throw new ExpectationViolationException($"{path} does not end with {unboundPathPortion}");
+                    throw new ExpectationViolationException($"{path} does not end with {unboundRequestTarget}");
                 }
-                boundPathPortion = path.Substring(0, path.Length - unboundPathPortion.Length);
-                unboundPathPortion += pathAndAftermath[1];
+                boundPath = path.Substring(0, path.Length - unboundRequestTarget.Length);
             }
+            unboundRequestTarget += pathAndAftermath[1];
 
-            var result = new DefaultPathMatchResult
+            var result = new DefaultPathMatchResultInternal
             {
                 PathValues = pathValues,
-                BoundPathPortion = boundPathPortion,
-                UnboundPathPortion = unboundPathPortion
+                BoundPath = boundPath,
+                UnboundRequestTarget = unboundRequestTarget
             };
             return result;
         }
@@ -361,6 +361,7 @@ namespace Kabomu.Mediator.Path
                         continue;
                     }
 
+                    // accept empty segments and
                     // construct wild card match.
                     wildCardMatch = string.Join("/", segments.Skip(wildCardTokenIndex)
                         .Take(segments.Count - tokens.Count + 1));

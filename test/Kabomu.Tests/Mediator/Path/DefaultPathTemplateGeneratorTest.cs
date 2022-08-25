@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Mediator.Handling;
 using Kabomu.Mediator.Path;
 using Kabomu.Tests.Shared;
 using System;
@@ -84,7 +83,7 @@ namespace Kabomu.Tests.Mediator.Path
             part2 = null;
             constraintFunctions = new Dictionary<string, IPathConstraint>
             {
-                { "e", new TempPathConstraint() }
+                { "e", new ConfigurablePathConstraint() }
             };
             expectedError = "empty key";
             errorRowNum = 4;
@@ -454,7 +453,7 @@ namespace Kabomu.Tests.Mediator.Path
                     }
                 }
             };
-            var tt = new TempPathConstraint();
+            var tt = new ConfigurablePathConstraint();
             constraintFunctions = new Dictionary<string, IPathConstraint>
             {
                 { "int", tt }
@@ -555,12 +554,12 @@ namespace Kabomu.Tests.Mediator.Path
                 "defaults:,a,3,b,4,c,5,d\n" +
                 ",e";
             part2 = null;
-            var f3Tpc = new TempPathConstraint();
-            var f4Tpc = new TempPathConstraint();
+            var f3Tpc = new ConfigurablePathConstraint();
+            var f4Tpc = new ConfigurablePathConstraint();
             constraintFunctions = new Dictionary<string, IPathConstraint>
             {
-                { "f1", new TempPathConstraint() },
-                { "f2", new TempPathConstraint() },
+                { "f1", new ConfigurablePathConstraint() },
+                { "f2", new ConfigurablePathConstraint() },
                 { "f3", f3Tpc }, { "f4", f4Tpc }
             };
             expected = new DefaultPathTemplateInternal
@@ -739,7 +738,7 @@ namespace Kabomu.Tests.Mediator.Path
                     }
                 }
             };
-            tt = new TempPathConstraint();
+            tt = new ConfigurablePathConstraint();
             constraintFunctions = new Dictionary<string, IPathConstraint>
             {
                 { "test", tt }
@@ -787,16 +786,6 @@ namespace Kabomu.Tests.Mediator.Path
             testData.Add(new object[] { part1, part2, constraintFunctions, expected });
 
             return testData;
-        }
-
-        class TempPathConstraint : IPathConstraint
-        {
-            public bool Match(IContext context, IPathTemplate pathTemplate,
-                IDictionary<string, string> values, string valueKey,
-                string[] constraintArgs, int direction)
-            {
-                throw new NotImplementedException();
-            }
         }
     }
 }

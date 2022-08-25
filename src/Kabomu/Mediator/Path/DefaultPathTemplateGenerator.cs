@@ -217,7 +217,8 @@ namespace Kabomu.Mediator.Path
             //  a. cannot be empty
             //  b. cannot contain slashes
             //  c. surrounding whitespace will be trimmed off.
-            //  d. a segment surrounded by whitespace will be interpreted to mean it allows for empty values.
+            //  d. a non wild card segment surrounded by whitespace will be interpreted 
+            //     to mean it allows for empty values (wild card matches can always match empty segments).
 
             int wildCardChPos = -1;
             var nonLiteralNames = new HashSet<string>();
