@@ -167,12 +167,16 @@ namespace Kabomu.Mediator.Path
 
         public IPathMatchResult Match(IContext context, string requestTarget)
         {
+            if (requestTarget == null)
+            {
+                return null;
+            }
             var pathAndAftermath = PathUtilsInternal.SplitRequestTarget(requestTarget);
 
             var path = pathAndAftermath[0];
             var segments = PathUtilsInternal.NormalizeAndSplitPath(path);
 
-            var pathValues = new Dictionary<string, string>();
+            IDictionary<string, string> pathValues = null;
             DefaultPathTemplateExampleInternal matchingExample = null;
             string wildCardMatch = null;
             foreach (var parsedExample in ParsedExamples)
@@ -205,35 +209,46 @@ namespace Kabomu.Mediator.Path
                     }
                 }
 
-                var matchAttempt = TryMatch(path, segments, parsedExample, pathValues);
-                if (matchAttempt.Item1)
+                var matchAttempt = TryMatch(path, segments, parsedExample);
+                if (matchAttempt == null)
                 {
-                    matchingExample = parsedExample;
-                    wildCardMatch = matchAttempt.Item2;
-                    break;
+                    continue;
                 }
+
+                // apply constraint functions.
+                bool constraintViolationDetected = false;
+                if (AllConstraints != null)
+                {
+                    foreach (var e in AllConstraints)
+                    {
+                        if (!matchAttempt.PathValues.ContainsKey(e.Key))
+                        {
+                            continue;
+                        }
+                        var (ok, _) = PathUtilsInternal.ApplyValueConstraints(this, context, matchAttempt.PathValues,
+                            e.Key, e.Value, ContextUtils.PathConstraintMatchDirectionMatch);
+                        if (!ok)
+                        {
+                            constraintViolationDetected = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (constraintViolationDetected)
+                {
+                    continue;
+                }
+
+                matchingExample = parsedExample;
+                pathValues = matchAttempt.PathValues;
+                wildCardMatch = matchAttempt.WildCardMatch;
+                break;
             }
+
             if (matchingExample == null)
             {
                 return null;
-            }
-
-            // apply constraint functions.
-            if (AllConstraints != null)
-            {
-                foreach (var e in AllConstraints)
-                {
-                    if (!pathValues.ContainsKey(e.Key))
-                    {
-                        continue;
-                    }
-                    var (ok, _) = PathUtilsInternal.ApplyValueConstraints(this, context, pathValues,
-                        e.Key, e.Value, ContextUtils.PathConstraintMatchDirectionMatch);
-                    if (!ok)
-                    {
-                        return null;
-                    }
-                }
             }
 
             // add default values.
@@ -271,9 +286,10 @@ namespace Kabomu.Mediator.Path
             return result;
         }
 
-        private (bool, string) TryMatch(string path, IList<string> segments,
-            DefaultPathTemplateExampleInternal parsedExample, IDictionary<string, string> pathValues)
+        private MatchAttemptResult TryMatch(string path, IList<string> segments,
+            DefaultPathTemplateExampleInternal parsedExample)
         {
+            var pathValues = new Dictionary<string, string>();
             IList<PathToken> tokens = parsedExample.Tokens;
 
             int wildCardTokenIndex = -1;
@@ -289,14 +305,14 @@ namespace Kabomu.Mediator.Path
             {
                 if (segments.Count != tokens.Count)
                 {
-                    return (false, null);
+                    return null;
                 }
             }
             else
             {
                 if (segments.Count < tokens.Count - 1)
                 {
-                    return (false, null);
+                    return null;
                 }
             }
 
@@ -305,16 +321,27 @@ namespace Kabomu.Mediator.Path
             {
                 var token = tokens[i];
                 string segment;
-                if (wildCardTokenIndex == -1 || i <= wildCardTokenIndex)
+                if (wildCardTokenIndex == -1 || i < wildCardTokenIndex)
                 {
-                    if (i == wildCardTokenIndex && segments.Count < tokens.Count)
+                    segment = segments[i];
+                }
+                else if (i == wildCardTokenIndex)
+                {
+                    if (tokens.Count == 1)
+                    {
+                        // always ensure that whenever a template is just a wild card match,
+                        // it matches the whole of path regardless of the segmentation of the path.
+                        segment = path;
+                    }
+                    else if (segments.Count < tokens.Count)
                     {
                         // no wild card segment present.
                         segment = null;
                     }
                     else
                     {
-                        segment = segments[i];
+                        segment = string.Join("/", segments.Skip(wildCardTokenIndex)
+                            .Take(segments.Count - tokens.Count + 1));
                     }
                 }
                 else
@@ -333,7 +360,7 @@ namespace Kabomu.Mediator.Path
                         segment : PathUtilsInternal.ReverseUnnecessaryUriEscapes(segment);
                     if (!token.Value.Equals(unescaped, comparisonType))
                     {
-                        return (false, null);
+                        return null;
                     }
                 }
                 else if (token.Type == PathToken.TokenTypeSegment)
@@ -341,7 +368,7 @@ namespace Kabomu.Mediator.Path
                     // reject empty segments by default.
                     if (segment.Length == 0 && !token.EmptySegmentAllowed)
                     {
-                        return (false, null);
+                        return null;
                     }
                     var valueKey = token.Value;
                     // fully unescape segments by default.
@@ -363,39 +390,43 @@ namespace Kabomu.Mediator.Path
 
                     // accept empty segments and
                     // construct wild card match.
-                    wildCardMatch = string.Join("/", segments.Skip(wildCardTokenIndex)
-                        .Take(segments.Count - tokens.Count + 1));
+                    wildCardMatch = segment;
+
                     // ensure wild card match at beginning and/or ending of tokens
                     // correspond to prefix and/or suffix of path respectively.
-                    if (wildCardTokenIndex == 0)
+                    if (tokens.Count > 1)
                     {
-                        int index = path.IndexOf(wildCardMatch); // must not be -1
-                        if (index == -1)
+                        if (wildCardTokenIndex == 0)
                         {
-                            throw new ExpectationViolationException($"{index} == -1");
+                            int index = path.IndexOf(wildCardMatch); // must not be -1
+                            if (index == -1)
+                            {
+                                throw new ExpectationViolationException($"{index} == -1");
+                            }
+                            if (index != 0)
+                            {
+                                wildCardMatch = '/' + wildCardMatch;
+                                //wildCardMatch = path.Substring(0, index) + wildCardMatch;
+                            }
                         }
-                        if (index != 0)
+                        else
                         {
-                            wildCardMatch = path.Substring(0, index) + wildCardMatch;
+                            // ensure starting slash for all but prefix wild card matches
+                            wildCardMatch = '/' + wildCardMatch;
+                            if (wildCardTokenIndex == tokens.Count - 1)
+                            {
+                                int index = path.LastIndexOf(wildCardMatch); // must not be -1
+                                if (index == -1)
+                                {
+                                    throw new ExpectationViolationException($"{index} == -1");
+                                }
+                                if (index + wildCardMatch.Length != path.Length)
+                                {
+                                    wildCardMatch = wildCardMatch + '/';
+                                    //wildCardMatch += path.Substring(index + wildCardMatch.Length);
+                                }
+                            }
                         }
-                    }
-                    if (wildCardTokenIndex == tokens.Count - 1)
-                    {
-                        int index = path.LastIndexOf(wildCardMatch); // must not be -1
-                        if (index == -1)
-                        {
-                            throw new ExpectationViolationException($"{index} == -1");
-                        }
-                        if (index + wildCardMatch.Length != path.Length)
-                        {
-                            wildCardMatch += path.Substring(index + wildCardMatch.Length);
-                        }
-                    }
-
-                    // ensure starting slash for "middle" wild card matches
-                    if (wildCardTokenIndex != 0 && wildCardTokenIndex != tokens.Count - 1)
-                    {
-                        wildCardMatch = '/' + wildCardMatch;
                     }
                 }
                 else
@@ -413,7 +444,18 @@ namespace Kabomu.Mediator.Path
                 pathValues.Add(wildCardKey, wildCardMatch);
             }
 
-            return (true, wildCardMatch);
+            var result = new MatchAttemptResult
+            {
+                PathValues = pathValues,
+                WildCardMatch = wildCardMatch
+            };
+            return result;
+        }
+
+        class MatchAttemptResult
+        {
+            public string WildCardMatch { get; set; }
+            public IDictionary<string, string> PathValues { get; set; }
         }
     }
 }

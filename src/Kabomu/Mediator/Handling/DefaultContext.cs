@@ -82,7 +82,7 @@ namespace Kabomu.Mediator.Handling
             {
                 PathValues = new Dictionary<string, string>(),
                 BoundPath = "",
-                UnboundRequestTarget = Request.Target ?? ""
+                UnboundRequestTarget = Request.Target
             };
             return pathMatchResult;
         }

@@ -98,6 +98,25 @@ namespace Kabomu.Tests.Mediator.Path
         }
 
         [Fact]
+        public void TestMatch1e()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[0]
+                    }
+                }
+            };
+            IPathMatchResult expected = null;
+            IContext context = null;
+            var actual = instance.Match(context, null);
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
         public void TestMatch2a()
         {
             var instance = new DefaultPathTemplateInternal
@@ -721,6 +740,15 @@ namespace Kabomu.Tests.Mediator.Path
         [Fact]
         public void TestMatch6m()
         {
+            IContext context = new DefaultContext();
+            var actualConstraintArgLogs = new List<string>();
+            IPathConstraint intCheck = new ConfigurablePathConstraint
+            {
+                ExpectedContext = context,
+                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
+                ConstraintArgLogs = actualConstraintArgLogs,
+                ReturnValue = false
+            };
             var instance = new DefaultPathTemplateInternal
             {
                 ParsedExamples = new DefaultPathTemplateExampleInternal[]
@@ -747,6 +775,108 @@ namespace Kabomu.Tests.Mediator.Path
                 DefaultValues = new Dictionary<string, string>
                 {
                     { "ux", "matte" }, { "fallback", "metro" }
+                },
+                ConstraintFunctions = new Dictionary<string, IPathConstraint>
+                {
+                    { "int", intCheck }
+                },
+                AllConstraints = new Dictionary<string, IList<(string, string[])>>
+                {
+                    {
+                        "ux",
+                        new List<(string, string[])>
+                        {
+                            ("int", new string[]{ "short" })
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = null;
+            var expectedConstraintArgLogs = new List<string>
+            {
+                "short"
+            };
+            var actual = instance.Match(context, "UI//");
+            Assert.Equal(expectedConstraintArgLogs, actualConstraintArgLogs);
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch6n()
+        {
+            IContext context = new DefaultContext();
+            var actualConstraintArgLogs = new List<string>();
+            IPathConstraint intCheck = new ConfigurablePathConstraint
+            {
+                ExpectedContext = context,
+                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
+                ConstraintArgLogs = actualConstraintArgLogs,
+                ReturnValue = false
+            };
+            IPathConstraint strCheck = new ConfigurablePathConstraint
+            {
+                ExpectedContext = context,
+                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
+                ConstraintArgLogs = actualConstraintArgLogs,
+                ReturnValue = true
+            };
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        UnescapeNonWildCardSegments = false,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "UI"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "ux",
+                                EmptySegmentAllowed = true
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "UI"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = ""
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "ux", "matte" }, { "fallback", "metro" }
+                },
+                ConstraintFunctions = new Dictionary<string, IPathConstraint>
+                {
+                    { "int", intCheck }, { "str", strCheck }
+                },
+                AllConstraints = new Dictionary<string, IList<(string, string[])>>
+                {
+                    {
+                        "ux",
+                        new List<(string, string[])>
+                        {
+                            ("str", new string[]{ "5", "6" }),
+                            ("int", new string[]{ "short" })
+                        }
+                    }
                 }
             };
             IPathMatchResult expected = new DefaultPathMatchResultInternal
@@ -755,11 +885,1080 @@ namespace Kabomu.Tests.Mediator.Path
                 UnboundRequestTarget = "",
                 PathValues = new Dictionary<string, string>
                 {
-                    { "ux", "" }, { "fallback", "metro" }
+                    { "ux", "matte" }, { "fallback", "metro" }
+                }
+            };
+            var expectedConstraintArgLogs = new List<string>
+            {
+                "5,6", "short"
+            };
+            var actual = instance.Match(context, "UI//");
+            Assert.Equal(expectedConstraintArgLogs, actualConstraintArgLogs);
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7a()
+        {
+            IContext context = new DefaultContext();
+            var actualConstraintArgLogs = new List<string>();
+            IPathConstraint intCheck = new ConfigurablePathConstraint
+            {
+                ExpectedContext = context,
+                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
+                ConstraintArgLogs = actualConstraintArgLogs,
+                ReturnValue = true
+            };
+            IPathConstraint strCheck = new ConfigurablePathConstraint
+            {
+                ExpectedContext = context,
+                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
+                ConstraintArgLogs = actualConstraintArgLogs,
+                ReturnValue = true
+            };
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "UI"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "ux"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "UI"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "ux", "matte" }, { "fallback", "metro" }
+                },
+                ConstraintFunctions = new Dictionary<string, IPathConstraint>
+                {
+                    { "int", intCheck }, { "str", strCheck }
+                },
+                AllConstraints = new Dictionary<string, IList<(string, string[])>>
+                {
+                    {
+                        "ux",
+                        new List<(string, string[])>
+                        {
+                            ("str", new string[]{ "5", "6" }),
+                            ("int", new string[]{ "short" })
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "UI/",
+                UnboundRequestTarget = "?disp",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", null }, { "fallback", "metro" }
+                }
+            };
+            var expectedConstraintArgLogs = new List<string>
+            {
+                "5,6", "short"
+            };
+            var actual = instance.Match(context, "UI/?disp");
+            Assert.Equal(expectedConstraintArgLogs, actualConstraintArgLogs);
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7b()
+        {
+            IContext context = new DefaultContext();
+            var actualConstraintArgLogs = new List<string>();
+            IPathConstraint intCheck = new ConfigurablePathConstraint
+            {
+                ExpectedContext = context,
+                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
+                ConstraintArgLogs = actualConstraintArgLogs,
+                ReturnValue = true
+            };
+            IPathConstraint strCheck = new ConfigurablePathConstraint
+            {
+                ExpectedContext = context,
+                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
+                ConstraintArgLogs = actualConstraintArgLogs,
+                ReturnValue = true
+            };
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "UI"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "luda"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "UI"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "ux", "matte" }, { "fallback", "metro" }
+                },
+                ConstraintFunctions = new Dictionary<string, IPathConstraint>
+                {
+                    { "int", intCheck }, { "str", strCheck }
+                },
+                AllConstraints = new Dictionary<string, IList<(string, string[])>>
+                {
+                    {
+                        "ux",
+                        new List<(string, string[])>
+                        {
+                            ("str", new string[]{ "5", "6" }),
+                            ("int", new string[]{ "short" })
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "/UI/ux",
+                UnboundRequestTarget = "#disp",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "matte" }, { "fallback", "metro" }
+                }
+            };
+            var expectedConstraintArgLogs = new List<string>();
+            var actual = instance.Match(context, "/UI/ux#disp");
+            Assert.Equal(expectedConstraintArgLogs, actualConstraintArgLogs);
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7c()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "UI"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "luda"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "UI"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "ux", "matte" }, { "fallback", "metro" }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "/UI//m/nn/%51ooo/luda",
+                UnboundRequestTarget = "#disp?",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "//m/nn/%51ooo" }, { "fallback", "metro" }
                 }
             };
             IContext context = new DefaultContext();
-            var actual = instance.Match(context, "UI//");
+            var actual = instance.Match(context, "/UI//m/nn/%51ooo/luda#disp?");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7d()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "UI"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "luda"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "ux", "matte" }, { "fallback", "metro" }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "/UI/luda",
+                UnboundRequestTarget = "//m/nn/%51ooo?disp#",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "//m/nn/%51ooo" }, { "fallback", "metro" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "/UI/luda//m/nn/%51ooo?disp#");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7e()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "UI"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "luda"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "ux", "matte" }, { "fallback", "metro" }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "//m/nn/%51ooo/UI/luda",
+                UnboundRequestTarget = "?disp#",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "//m/nn/%51ooo" }, { "fallback", "metro" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "//m/nn/%51ooo/UI/luda?disp#");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7f()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "UI"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "luda"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "ux", "matte" }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "/UI/luda",
+                UnboundRequestTarget = "",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", null }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "/UI/luda");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7g()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "",
+                UnboundRequestTarget = "",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7h()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "",
+                UnboundRequestTarget = "/",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "/" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "/");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7i()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "",
+                UnboundRequestTarget = "/bread",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "/bread" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "/bread");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7k()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "",
+                UnboundRequestTarget = "/bread/?",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "/bread/" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "/bread/?");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7L()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "",
+                UnboundRequestTarget = "bread/?",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "bread/" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "bread/?");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7m()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "",
+                UnboundRequestTarget = "bread",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "bread" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "bread");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch7n()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "",
+                UnboundRequestTarget = "/bread//of//life/?",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "/bread//of//life/" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "/bread//of//life/?");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch8a()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value= "",
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "/",
+                UnboundRequestTarget = "/bread//of//life/?",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "/bread//of//life/" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "//bread//of//life/?");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch8b()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value= "",
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = null;
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "/bread//of//life/?");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch8c()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value= "tea",
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "tea",
+                UnboundRequestTarget = "/bread//of//life/?",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "/bread//of//life/" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "tea/bread//of//life/?");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch8d()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value= "tea",
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "tea",
+                UnboundRequestTarget = "/bread",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", "/bread" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "tea/bread");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch8e()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value= "tea",
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "ux"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "tea",
+                UnboundRequestTarget = "",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "ux", null }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "tea");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch8f()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "type"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value= "tea",
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "green/tea",
+                UnboundRequestTarget = "",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "type", "green" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "green/tea");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch8g()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "type"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value= "tea",
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "tea",
+                UnboundRequestTarget = "",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "type", null }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "tea");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch8i()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "type"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value= "tea",
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "/tea",
+                UnboundRequestTarget = "",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "type", null }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "/tea");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch8j()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "type"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value= "tea",
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "//tea",
+                UnboundRequestTarget = "",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "type", "" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "//tea");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch8k()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value= "colour",
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "product"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value= "origin",
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "/green/precious/te%61/from/chin%61%2fhills",
+                UnboundRequestTarget = "",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "colour", "green" },
+                    { "product", "/precious/te%61/from" },
+                    { "origin", "china/hills" }
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "/green/precious/te%61/from/chin%61%2fhills");
+            ComparisonUtils.AssertPathMatchResult(expected, actual);
+        }
+
+        [Fact]
+        public void TestMatch8L()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value= "colour",
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "product"
+                            }
+                        }
+                    }
+                }
+            };
+            IPathMatchResult expected = new DefaultPathMatchResultInternal
+            {
+                BoundPath = "/green",
+                UnboundRequestTarget = "/precious/te%61/from/chin%61%2fhills",
+                PathValues = new Dictionary<string, string>
+                {
+                    { "colour", "green" },
+                    { "product", "/precious/te%61/from/chin%61%2fhills" },
+                }
+            };
+            IContext context = new DefaultContext();
+            var actual = instance.Match(context, "/green/precious/te%61/from/chin%61%2fhills");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
     }
