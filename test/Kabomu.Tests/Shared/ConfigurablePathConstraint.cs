@@ -14,22 +14,42 @@ namespace Kabomu.Tests.Shared
         public IDictionary<string, string> ExpectedValues { get; set; }
         public string ExpectedValueKey { get; set; }
         public int ExpectedDirection { get; set; }
-        public bool ReturnValue { get; set; }
+        public bool? ReturnValue { get; set; }
         public List<string> ConstraintArgLogs { get; set; }
 
         public bool Match(IContext context, IPathTemplate pathTemplate,
             IDictionary<string, string> values, string valueKey,
             string[] constraintArgs, int direction)
         {
-            Assert.Equal(ExpectedContext, context);
-            Assert.Equal(ExpectedPathTemplate, pathTemplate);
-            Assert.Equal(ExpectedValues, values);
-            Assert.Equal(ExpectedValueKey, valueKey);
-            Assert.Equal(ExpectedDirection, direction);
-
-            ConstraintArgLogs?.Add(string.Join(",", constraintArgs));
-
-            return ReturnValue;
+            if (ExpectedContext != null)
+            {
+                Assert.Equal(ExpectedContext, context);
+            }
+            if (ExpectedPathTemplate != null)
+            {
+                Assert.Equal(ExpectedPathTemplate, pathTemplate);
+            }
+            if (ExpectedValues != null)
+            {
+                Assert.Equal(ExpectedValues, values);
+            }
+            if (ExpectedValueKey != null)
+            {
+                Assert.Equal(ExpectedValueKey, valueKey);
+            }
+            if (ExpectedDirection != 0)
+            {
+                Assert.Equal(ExpectedDirection, direction);
+            }
+            if (constraintArgs != null)
+            {
+                ConstraintArgLogs.Add(string.Join(",", constraintArgs));
+            }
+            if (ReturnValue.HasValue)
+            {
+                return ReturnValue.Value;
+            }
+            throw new NotImplementedException();
         }
     }
 }
