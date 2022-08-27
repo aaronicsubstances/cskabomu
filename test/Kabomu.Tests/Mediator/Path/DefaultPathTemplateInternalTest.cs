@@ -1868,7 +1868,7 @@ namespace Kabomu.Tests.Mediator.Path
                 UnboundRequestTarget = "",
                 PathValues = new Dictionary<string, string>
                 {
-                    { "type", "" }
+                    { "type", "/" }
                 }
             };
             IContext context = new DefaultContext();

@@ -263,19 +263,18 @@ namespace Kabomu.Mediator.Path
                 }
             }
 
-            string boundPath = path, unboundRequestTarget = "";
+            string boundPath = path, unboundRequestTarget = pathAndAftermath[1];
             if (matchingExample.Tokens.Count > 0 &&
                 matchingExample.Tokens[matchingExample.Tokens.Count - 1].Type == PathToken.TokenTypeWildCard &&
                 wildCardMatch != null)
             {
-                unboundRequestTarget = wildCardMatch;
-                if (!path.EndsWith(unboundRequestTarget))
+                boundPath = path.Substring(0, path.Length - wildCardMatch.Length);
+                unboundRequestTarget = wildCardMatch + unboundRequestTarget;
+                if (boundPath + unboundRequestTarget != requestTarget)
                 {
-                    throw new ExpectationViolationException($"{path} does not end with {unboundRequestTarget}");
+                    throw new ExpectationViolationException($"{boundPath} + {unboundRequestTarget} != {requestTarget}");
                 }
-                boundPath = path.Substring(0, path.Length - unboundRequestTarget.Length);
             }
-            unboundRequestTarget += pathAndAftermath[1];
 
             var result = new DefaultPathMatchResultInternal
             {
@@ -398,15 +397,13 @@ namespace Kabomu.Mediator.Path
                     {
                         if (wildCardTokenIndex == 0)
                         {
-                            int index = path.IndexOf(wildCardMatch); // must not be -1
-                            if (index == -1)
-                            {
-                                throw new ExpectationViolationException($"{index} == -1");
-                            }
-                            if (index != 0)
+                            if (path.StartsWith("/"))
                             {
                                 wildCardMatch = '/' + wildCardMatch;
-                                //wildCardMatch = path.Substring(0, index) + wildCardMatch;
+                            }
+                            if (!path.StartsWith(wildCardMatch))
+                            {
+                                throw new ExpectationViolationException($"!{path}.StartsWith({wildCardMatch})");
                             }
                         }
                         else
@@ -415,15 +412,20 @@ namespace Kabomu.Mediator.Path
                             wildCardMatch = '/' + wildCardMatch;
                             if (wildCardTokenIndex == tokens.Count - 1)
                             {
-                                int index = path.LastIndexOf(wildCardMatch); // must not be -1
-                                if (index == -1)
-                                {
-                                    throw new ExpectationViolationException($"{index} == -1");
-                                }
-                                if (index + wildCardMatch.Length != path.Length)
+                                if (path.EndsWith("/"))
                                 {
                                     wildCardMatch = wildCardMatch + '/';
-                                    //wildCardMatch += path.Substring(index + wildCardMatch.Length);
+                                }
+                                if (!path.EndsWith(wildCardMatch))
+                                {
+                                    throw new ExpectationViolationException($"!{path}.EndsWith({wildCardMatch})");
+                                }
+                            }
+                            else
+                            {
+                                if (!path.Contains(wildCardMatch))
+                                {
+                                    throw new ExpectationViolationException($"!{path}.Contains({wildCardMatch})");
                                 }
                             }
                         }
