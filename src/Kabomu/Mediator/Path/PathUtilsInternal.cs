@@ -48,9 +48,13 @@ namespace Kabomu.Mediator.Path
 
             var segments = new List<string>();
 
-            int startPos = 0, endPos = path.Length;
-
             // remove surrounding slashes, and be mindful of empty string, single and double slash cases.
+            if (path == "" || path == "/")
+            {
+                return segments;
+            }
+
+            int startPos = 0, endPos = path.Length;
             if (path.StartsWith("/"))
             {
                 startPos++;
@@ -59,25 +63,21 @@ namespace Kabomu.Mediator.Path
             {
                 endPos--;
             }
-
-            if (endPos >= startPos && path != "")
+            while (true)
             {
-                while (true)
+                var slashIndex = path.IndexOf('/', startPos, endPos - startPos);
+                if (slashIndex == -1)
                 {
-                    var slashIndex = path.IndexOf('/', startPos, endPos - startPos);
-                    if (slashIndex == -1)
-                    {
-                        break;
-                    }
-                    segments.Add(path.Substring(startPos, slashIndex - startPos));
-
-                    // advance loop by setting start position to last slash index increased by length of slash
-                    startPos = slashIndex + 1;
+                    break;
                 }
+                segments.Add(path.Substring(startPos, slashIndex - startPos));
 
-                // add remaining segment even if it is empty
-                segments.Add(path.Substring(startPos, endPos - startPos));
+                // advance loop by setting start position to last slash index increased by length of slash
+                startPos = slashIndex + 1;
             }
+
+            // add remaining segment even if it is empty
+            segments.Add(path.Substring(startPos, endPos - startPos));
 
             return segments;
         }

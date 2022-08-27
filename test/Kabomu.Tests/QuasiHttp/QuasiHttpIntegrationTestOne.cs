@@ -19,6 +19,9 @@ namespace Kabomu.Tests.QuasiHttp
 {
     public class QuasiHttpIntegrationTestOne
     {
+        /// <summary>
+        /// Currently a flaky test.
+        /// </summary>
         [Theory]
         [MemberData(nameof(CreateTestDirectSendData))]
         public async Task TestDirectSend(object remoteEndpoint, IQuasiHttpRequest request, IQuasiHttpSendOptions options,
