@@ -552,5 +552,1560 @@ namespace Kabomu.Tests.Mediator.Path
             Assert.Equal(expected, actual);
             Assert.Equal(expected[2], instance.Interpolate(context, pathValues, formatOptions));
         }
+
+        [Fact]
+        public void TestInterpolate4a()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "*"
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "*", null }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4b()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "*"
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "//drink"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "*", "/drink" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4c()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchLeadingSlash = false,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                ""
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "w", null }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4d()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchLeadingSlash = false,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/drink"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "w", "/drink" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4e()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchLeadingSlash = false,
+                        MatchTrailingSlash = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "singing"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "*"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "singing/all%20the/time/throughout/the/day/"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "*", "all the" },
+                { "w", "time/throughout/the/day" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4f()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "singing"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "*"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            }
+                        },
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "singing/all%20day/"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "*", "all day" },
+                { "w", null }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                ApplyLeadingSlash = false,
+                ApplyTrailingSlash = true
+            };
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4g()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchTrailingSlash = true,
+                        MatchLeadingSlash = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = ""
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "", null }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4h()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchTrailingSlash = true,
+                        MatchLeadingSlash = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = ""
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = ""
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "//"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "", null }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4i()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchTrailingSlash = true,
+                        MatchLeadingSlash = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = ""
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = ""
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "", "" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                ApplyLeadingSlash = false,
+                ApplyTrailingSlash = false
+            };
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4j()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchTrailingSlash = true,
+                        MatchLeadingSlash = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "*"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "bread"
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "//peace/and/justice//bread/"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "*", "/peace/and/justice/" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4k()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "singing"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "*"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            }
+                        },
+                    }
+                }
+            };
+            var expected = new List<string>();
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>();
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Throws<Exception>(() => instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4L()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchTrailingSlash = true,
+                        MatchLeadingSlash = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = ""
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = ""
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>();
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>();
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Throws<Exception>(() => instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4m()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchTrailingSlash = true,
+                        MatchLeadingSlash = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "tea"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = ""
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>();
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "tea", null }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Throws<Exception>(() => instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate4n()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchTrailingSlash = true,
+                        MatchLeadingSlash = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "tea"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = ""
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>();
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "tea", "" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Throws<Exception>(() => instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5a()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchTrailingSlash = true,
+                        MatchLeadingSlash = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "tea",
+                                EmptySegmentAllowed = true
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = ""
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "///"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "tea", null }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5b()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchTrailingSlash = true,
+                        MatchLeadingSlash = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "tea",
+                                EmptySegmentAllowed = true
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = ""
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "tea", "" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                ApplyLeadingSlash = false,
+                ApplyTrailingSlash = false
+            };
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5c()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[0]
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "id"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "controller", "Home" },
+                    { "action", "Index" }
+                }
+            };
+            var expected = new List<string>();
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "id", "2" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Throws<Exception>(() => instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5d()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[0]
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "id"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "controller", "Home" },
+                    { "action", "Index" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>();
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5e()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[0]
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "id"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "controller", "Home" },
+                    { "action", "Index" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/", "/Home"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "controller", "Home" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5f()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[0]
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "id"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "controller", "Home" },
+                    { "action", "Index" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/", "/home", "/home/index"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "controller", "home" }, { "action", "index" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5g()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[0]
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        CaseSensitiveMatchEnabled = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "id"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "controller", "Home" },
+                    { "action", "Index" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/", "/home/index"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "controller", "home" }, { "action", "index" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5h()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[0]
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "id"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "controller", "Home" },
+                    { "action", "Index" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/home/index/3"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "controller", "home" }, { "action", "index" }, { "id", "3" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5i()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        CaseSensitiveMatchEnabled = true,
+                        Tokens = new PathToken[0]
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        CaseSensitiveMatchEnabled = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "id"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "controller", "Home" },
+                    { "action", "Index" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/home/index"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "controller", "home" }, { "action", "index" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                CaseSensitiveMatchEnabled = null
+            };
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5k()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        CaseSensitiveMatchEnabled = true,
+                        Tokens = new PathToken[0]
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        CaseSensitiveMatchEnabled = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "id"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "controller", "Home" },
+                    { "action", "Index" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/", "/home", "/home/index"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "controller", "home" }, { "action", "index" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                CaseSensitiveMatchEnabled = false
+            };
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5L()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        CaseSensitiveMatchEnabled = true,
+                        Tokens = new PathToken[0]
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        CaseSensitiveMatchEnabled = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "id"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "controller", "Home" },
+                    { "action", "Index" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/", "/Home", "/Home/Index"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "controller", "Home" }, { "action", "Index" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                CaseSensitiveMatchEnabled = true
+            };
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5m()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[0]
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "id"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "controller", "Home" },
+                    { "action", "Index" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/ceo%20account%2F", "/ceo%20account%2F/index"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "controller", "ceo account/" }, { "action", "index" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate5n()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[0]
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "id"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "controller", "Home" },
+                    { "action", "Index" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/ceo account//upd|ate/"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "controller", "ceo account/" }, { "action", "upd|ate" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                ApplyTrailingSlash = true,
+                EscapeNonWildCardSegments = false
+            };
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
     }
 }

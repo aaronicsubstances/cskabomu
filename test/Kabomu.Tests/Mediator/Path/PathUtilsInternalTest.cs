@@ -174,22 +174,6 @@ namespace Kabomu.Tests.Mediator.Path
             Assert.Equal(expected, actual);
         }
 
-        [Fact]
-        public void TestConvertPossibleNullToString()
-        {
-            var expected = "";
-            var actual = PathUtilsInternal.ConvertPossibleNullToString(null);
-            Assert.Equal(expected, actual);
-
-            expected = "34";
-            actual = PathUtilsInternal.ConvertPossibleNullToString(34);
-            Assert.Equal(expected, actual);
-
-            expected = "tree";
-            actual = PathUtilsInternal.ConvertPossibleNullToString("tree");
-            Assert.Equal(expected, actual);
-        }
-
         [Theory]
         [MemberData(nameof(CreateGetEffectiveEscapeNonWildCardSegmentData))]
         public void TestGetEffectiveEscapeNonWildCardSegment(
