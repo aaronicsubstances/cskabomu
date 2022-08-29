@@ -699,7 +699,6 @@ namespace Kabomu.Tests.Mediator.Path
             int alreadySatisfiedIndex = 0;
             IDictionary<string, string> defaultValues = null;
             bool expected = true;
-
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
@@ -752,7 +751,6 @@ namespace Kabomu.Tests.Mediator.Path
             alreadySatisfiedIndex = 0;
             defaultValues = null;
             expected = true;
-
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
@@ -806,7 +804,6 @@ namespace Kabomu.Tests.Mediator.Path
             alreadySatisfiedIndex = 1;
             defaultValues = null;
             expected = false;
-
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
@@ -864,7 +861,6 @@ namespace Kabomu.Tests.Mediator.Path
                 { "city", "KSI" }
             };
             expected = true;
-
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
@@ -924,7 +920,6 @@ namespace Kabomu.Tests.Mediator.Path
                 { "city", "KSI" }
             };
             expected = false;
-
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
@@ -983,7 +978,6 @@ namespace Kabomu.Tests.Mediator.Path
                 { "city", "ksi" }
             };
             expected = true;
-
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
@@ -1045,7 +1039,6 @@ namespace Kabomu.Tests.Mediator.Path
                 { "city", "KSI" }
             };
             expected = true;
-
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
@@ -1107,7 +1100,6 @@ namespace Kabomu.Tests.Mediator.Path
                 { "city", null }
             };
             expected = false;
-
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
@@ -1168,7 +1160,283 @@ namespace Kabomu.Tests.Mediator.Path
                 { "city", "ksi" }
             };
             expected = true;
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
 
+            // test that only non literal tokens are used.
+            pathValues = new Dictionary<string, string>
+            {
+                { "country", "for sth else" },
+                { "zen", "ksi" }
+            };
+            formatOptions = null;
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = true,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeWildCard,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 1;
+            defaultValues = null;
+            expected = true;
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            pathValues = new Dictionary<string, string>
+            {
+                { "dklo", "for sth else" },
+                { "zen", "ksi" }
+            };
+            formatOptions = null;
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = true,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeWildCard,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 0;
+            defaultValues = new Dictionary<string, string>
+            {
+                { "zen", "ksi" }
+            };
+            expected = true;
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            pathValues = new Dictionary<string, string>
+            {
+                { "zen", "KSI" }
+            };
+            formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                CaseSensitiveMatchEnabled = false,
+            };
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = true,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = true,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeWildCard,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 0;
+            defaultValues = new Dictionary<string, string>
+            {
+                { "zen", "ksi" }
+            };
+            expected = true;
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            pathValues = new Dictionary<string, string>
+            {
+                { "zen", "ksi" }
+            };
+            formatOptions = null;
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = true,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeWildCard,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 0;
+            defaultValues = null;
+            expected = false;
+            testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
+                alreadySatisfiedIndex, defaultValues, expected });
+
+            pathValues = new Dictionary<string, string>
+            {
+                { "dklo", "for sth else" },
+                { "zen", null }
+            };
+            formatOptions = null;
+            parsedExamples = new DefaultPathTemplateExampleInternal[]
+            {
+                new DefaultPathTemplateExampleInternal
+                {
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "country"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "city"
+                        }
+                    }
+                },
+                new DefaultPathTemplateExampleInternal
+                {
+                    CaseSensitiveMatchEnabled = true,
+                    Tokens = new PathToken[]
+                    {
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeLiteral,
+                            Value = "dklo"
+                        },
+                        new PathToken
+                        {
+                            Type = PathToken.TokenTypeWildCard,
+                            Value = "zen"
+                        }
+                    }
+                }
+            };
+            alreadySatisfiedIndex = 0;
+            defaultValues = new Dictionary<string, string>
+            {
+                { "zen", null }
+            };
+            expected = true;
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
