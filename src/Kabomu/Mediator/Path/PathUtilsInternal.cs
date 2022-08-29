@@ -31,11 +31,6 @@ namespace Kabomu.Mediator.Path
             return result;
         }
 
-        public static string ConvertPossibleNullToString(object obj)
-        {
-            return $"{obj}";
-        }
-
         public static IList<string> NormalizeAndSplitPath(string path)
         {
             // Generate split of normalized version of path, such that joining segements together
@@ -110,10 +105,11 @@ namespace Kabomu.Mediator.Path
             var satisfiedValueKeys = new HashSet<string>();
             foreach (var token in parsedExamples[alreadySatisfiedIndex].Tokens)
             {
-                if (token.Type != PathToken.TokenTypeLiteral)
+                if (token.Type == PathToken.TokenTypeLiteral)
                 {
-                    satisfiedValueKeys.Add(token.Value);
+                    continue;
                 }
+                satisfiedValueKeys.Add(token.Value);
             }
             bool matchCase = GetEffectiveCaseSensitiveMatchEnabled(formatOptions,
                 parsedExamples[alreadySatisfiedIndex]);

@@ -21,11 +21,11 @@ namespace Kabomu.Mediator.Path
         public string Interpolate(IContext context, IDictionary<string, string> pathValues,
             object opaqueOptionObj)
         {
-            var possibilities = InterpolateAll(context, pathValues, opaqueOptionObj);
+            var candidates = InterpolateAll(context, pathValues, opaqueOptionObj);
 
             // pick shortest string. break ties by ordering of parsed examples.
             // stable sort needed so can't use List.sort
-            var shortest = possibilities.OrderBy(x => x.Length).FirstOrDefault();
+            var shortest = candidates.OrderBy(x => x.Length).FirstOrDefault();
             if (shortest == null)
             {
                 throw new Exception("could not interpolate template with the provided arguments");
@@ -54,10 +54,6 @@ namespace Kabomu.Mediator.Path
             DefaultPathTemplateFormatOptions options)
         {
             var parsedExample = ParsedExamples[parsedExampleIndex];
-
-            // by default apply constraints.
-            var applyConstraints = options?.ApplyConstraints ?? true;
-
             var escapeNonWildCardSegment = PathUtilsInternal.GetEffectiveEscapeNonWildCardSegment(options, parsedExample);
 
             var segments = new List<string>();
@@ -69,75 +65,88 @@ namespace Kabomu.Mediator.Path
                 {
                     segments.Add(token.Value);
                 }
-                else if (token.Type == PathToken.TokenTypeSegment ||
-                    token.Type == PathToken.TokenTypeWildCard)
+                else
                 {
-                    if (token.Type == PathToken.TokenTypeWildCard)
+                    var valueKey = token.Value;
+                    if (!pathValues.ContainsKey(token.Value))
+                    {
+                        // no path value provided, meaning parsed example is not meant to be used.
+                        return null;
+                    }
+                    var pathValue = pathValues[valueKey];
+                    if (token.Type == PathToken.TokenTypeSegment)
+                    {
+                        if (!token.EmptySegmentAllowed && (pathValue == "" || pathValue == null))
+                        {
+                            return null;
+                        }
+                        if (pathValue == null)
+                        {
+                            pathValue = "";
+                        }
+                        if (escapeNonWildCardSegment)
+                        {
+                            pathValue = PathUtilsInternal.EncodeAlmostEveryUriChar(pathValue);
+                        }
+                        segments.Add(pathValue);
+                    }
+                    else if (token.Type == PathToken.TokenTypeWildCard)
                     {
                         if (wildCardTokenSeen)
                         {
                             throw new ExpectationViolationException("wildCardTokenProcessed is true");
                         }
                         wildCardTokenSeen = true;
-                    }
-                    var valueKey = token.Value;
-                    string pathValue;
-                    if (pathValues.ContainsKey(token.Value))
-                    {
-                        pathValue = pathValues[valueKey];
-                        if (applyConstraints && AllConstraints != null &&
-                            AllConstraints.ContainsKey(valueKey))
+                        if (pathValue == null)
                         {
-                            var valueConstraints = AllConstraints[valueKey];
-                            var (ok, _) = PathUtilsInternal.ApplyValueConstraints(this, 
-                                context, pathValues, valueKey, valueConstraints,
-                                ContextUtils.PathConstraintMatchDirectionFormat);
-                            if (!ok)
-                            {
-                                return null;
-                            }
+                            // no wild card segment needed.
+                            continue;
                         }
+                        segments.Add(pathValue);
                     }
                     else
                     {
-                        if (DefaultValues != null && DefaultValues.ContainsKey(valueKey))
-                        {
-                            pathValue = DefaultValues[valueKey];
-                        }
-                        else
-                        {
-                            // no path value provided, meaning parsed example is not meant to be used.
-                            return null;
-                        }
+                        throw new ExpectationViolationException("unexpected token type: " +
+                            token.Type);
                     }
-                    if (token.Type == PathToken.TokenTypeWildCard && pathValue == null)
-                    {
-                        // no wild card segment needed.
-                        continue;
-                    }
-                    if (pathValue == null)
-                    {
-                        pathValue = PathUtilsInternal.ConvertPossibleNullToString(pathValue);
-                    }
-                    if (token.Type == PathToken.TokenTypeSegment && escapeNonWildCardSegment)
-                    {
-                        pathValue = PathUtilsInternal.EncodeAlmostEveryUriChar(pathValue);
-                    }
-                    segments.Add(pathValue);
-                }
-                else
-                {
-                    throw new ExpectationViolationException("unexpected token type: " +
-                        token.Type);
                 }
             }
 
             // check that other unused non-literal tokens are satisfied from default values
             // if specified in path values.
-            if (!PathUtilsInternal.AreAllRelevantPathValuesSatisfiedFromDefaultValues(
-                pathValues, options, ParsedExamples, parsedExampleIndex, DefaultValues))
+            if (ParsedExamples.Count > 1)
             {
-                return null;
+                if (!PathUtilsInternal.AreAllRelevantPathValuesSatisfiedFromDefaultValues(
+                    pathValues, options, ParsedExamples, parsedExampleIndex, DefaultValues))
+                {
+                    return null;
+                }
+            }
+
+            // by default apply constraints.
+            var applyConstraints = options?.ApplyConstraints ?? true;
+            if (applyConstraints && AllConstraints != null)
+            {
+                foreach (var token in tokens)
+                {
+                    if (token.Type == PathToken.TokenTypeLiteral)
+                    {
+                        continue;
+                    }
+                    var valueKey = token.Value;
+                    if (!AllConstraints.ContainsKey(valueKey))
+                    {
+                        continue;
+                    }
+                    var valueConstraints = AllConstraints[valueKey];
+                    var (ok, _) = PathUtilsInternal.ApplyValueConstraints(this,
+                        context, pathValues, valueKey, valueConstraints,
+                        ContextUtils.PathConstraintMatchDirectionFormat);
+                    if (!ok)
+                    {
+                        return null;
+                    }
+                }
             }
 
             // if our segments are ready then proceed to join them with intervening slashes
@@ -145,8 +154,10 @@ namespace Kabomu.Mediator.Path
             bool applyLeadingSlash = PathUtilsInternal.GetEffectiveApplyLeadingSlash(options, parsedExample);
             bool applyTrailingSlash = PathUtilsInternal.GetEffectiveApplyTrailingSlash(options, parsedExample);
             string path;
-            if (tokens.Count == 0)
+            if (segments.Count == 0)
             {
+                // NB: this if-branch applies to 2 cases where
+                // either tokens is empty or single wildcard token has null value.
                 if (applyLeadingSlash || applyTrailingSlash)
                 {
                     path = "/";
