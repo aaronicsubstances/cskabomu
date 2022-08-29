@@ -9,7 +9,7 @@ using static Kabomu.Mediator.Path.DefaultPathTemplateExampleInternal;
 
 namespace Kabomu.Tests.Mediator.Path
 {
-    public class DefaultPathTemplateInternalTest
+    public class DefaultPathTemplateInternalTest1
     {
         [Fact]
         public void TestMatch1a()
@@ -741,12 +741,12 @@ namespace Kabomu.Tests.Mediator.Path
         public void TestMatch6m()
         {
             IContext context = new DefaultContext();
-            var actualConstraintArgLogs = new List<string>();
+            var actualConstraintLogs = new List<string>();
             IPathConstraint intCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
                 ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
-                ConstraintArgLogs = actualConstraintArgLogs,
+                ConstraintLogs = actualConstraintLogs,
                 ReturnValue = false
             };
             var instance = new DefaultPathTemplateInternal
@@ -792,12 +792,12 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
             IPathMatchResult expected = null;
-            var expectedConstraintArgLogs = new List<string>
+            var expectedConstraintLogs = new List<string>
             {
-                "short"
+                "ux,short"
             };
             var actual = instance.Match(context, "UI//");
-            Assert.Equal(expectedConstraintArgLogs, actualConstraintArgLogs);
+            Assert.Equal(expectedConstraintLogs, actualConstraintLogs);
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
 
@@ -805,19 +805,19 @@ namespace Kabomu.Tests.Mediator.Path
         public void TestMatch6n()
         {
             IContext context = new DefaultContext();
-            var actualConstraintArgLogs = new List<string>();
+            var actualConstraintLogs = new List<string>();
             IPathConstraint intCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
                 ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
-                ConstraintArgLogs = actualConstraintArgLogs,
+                ConstraintLogs = actualConstraintLogs,
                 ReturnValue = false
             };
             IPathConstraint strCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
                 ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
-                ConstraintArgLogs = actualConstraintArgLogs,
+                ConstraintLogs = actualConstraintLogs,
                 ReturnValue = true
             };
             var instance = new DefaultPathTemplateInternal
@@ -888,12 +888,12 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "matte" }, { "fallback", "metro" }
                 }
             };
-            var expectedConstraintArgLogs = new List<string>
+            var expectedConstraintLogs = new List<string>
             {
-                "5,6", "short"
+                "ux,5,6", "ux,short"
             };
             var actual = instance.Match(context, "UI//");
-            Assert.Equal(expectedConstraintArgLogs, actualConstraintArgLogs);
+            Assert.Equal(expectedConstraintLogs, actualConstraintLogs);
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
 
@@ -901,19 +901,19 @@ namespace Kabomu.Tests.Mediator.Path
         public void TestMatch7a()
         {
             IContext context = new DefaultContext();
-            var actualConstraintArgLogs = new List<string>();
+            var actualConstraintLogs = new List<string>();
             IPathConstraint intCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
                 ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
-                ConstraintArgLogs = actualConstraintArgLogs,
+                ConstraintLogs = actualConstraintLogs,
                 ReturnValue = true
             };
             IPathConstraint strCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
                 ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
-                ConstraintArgLogs = actualConstraintArgLogs,
+                ConstraintLogs = actualConstraintLogs,
                 ReturnValue = true
             };
             var instance = new DefaultPathTemplateInternal
@@ -982,12 +982,12 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", null }, { "fallback", "metro" }
                 }
             };
-            var expectedConstraintArgLogs = new List<string>
+            var expectedConstraintLogs = new List<string>
             {
-                "5,6", "short"
+                "ux,5,6", "ux,short"
             };
             var actual = instance.Match(context, "UI/?disp");
-            Assert.Equal(expectedConstraintArgLogs, actualConstraintArgLogs);
+            Assert.Equal(expectedConstraintLogs, actualConstraintLogs);
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
 
@@ -995,19 +995,19 @@ namespace Kabomu.Tests.Mediator.Path
         public void TestMatch7b()
         {
             IContext context = new DefaultContext();
-            var actualConstraintArgLogs = new List<string>();
+            var actualConstraintLogs = new List<string>();
             IPathConstraint intCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
                 ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
-                ConstraintArgLogs = actualConstraintArgLogs,
+                ConstraintLogs = actualConstraintLogs,
                 ReturnValue = true
             };
             IPathConstraint strCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
                 ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
-                ConstraintArgLogs = actualConstraintArgLogs,
+                ConstraintLogs = actualConstraintLogs,
                 ReturnValue = true
             };
             var instance = new DefaultPathTemplateInternal
@@ -1081,9 +1081,9 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "matte" }, { "fallback", "metro" }
                 }
             };
-            var expectedConstraintArgLogs = new List<string>();
+            var expectedConstraintLogs = new List<string>();
             var actual = instance.Match(context, "/UI/ux#disp");
-            Assert.Equal(expectedConstraintArgLogs, actualConstraintArgLogs);
+            Assert.Equal(expectedConstraintLogs, actualConstraintLogs);
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
 

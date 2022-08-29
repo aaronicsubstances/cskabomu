@@ -2107,5 +2107,179 @@ namespace Kabomu.Tests.Mediator.Path
             Assert.Equal(expected, actual);
             Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
         }
+
+        [Fact]
+        public void TestInterpolate6a()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchLeadingSlash = false,
+                        UnescapeNonWildCardSegments = false,
+                        CaseSensitiveMatchEnabled = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "action", "upd|ate/" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/%2FCEO%20account%2F/UPD%7Cate%2F"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "controller", "/CEO account/" }, { "action", "UPD|ate/" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate6b()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchLeadingSlash = false,
+                        UnescapeNonWildCardSegments = false,
+                        CaseSensitiveMatchEnabled = false,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "action", "upd|ate/" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/%2FCEO%20account%2F/UPD%7Cate%2F", "/CEO account/"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "controller", "/CEO account/" }, { "action", "UPD|ate/" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions();
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[1], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate6c()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "action"
+                            }
+                        }
+                    },
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchLeadingSlash = false,
+                        UnescapeNonWildCardSegments = false,
+                        CaseSensitiveMatchEnabled = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeSegment,
+                                Value = "controller"
+                            }
+                        }
+                    }
+                },
+                DefaultValues = new Dictionary<string, string>
+                {
+                    { "action", "upd|ate/" }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/%2Fceo%20account%2F/upd%7Cate%2F", "/ceo account/"
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>
+            {
+                { "controller", "/ceo account/" }, { "action", "upd|ate/" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[1], instance.Interpolate(context, pathValues, formatOptions));
+        }
     }
 }
