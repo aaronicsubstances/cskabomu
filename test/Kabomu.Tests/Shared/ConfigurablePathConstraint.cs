@@ -12,10 +12,9 @@ namespace Kabomu.Tests.Shared
         public IContext ExpectedContext { get; set; }
         internal DefaultPathTemplateInternal ExpectedPathTemplate { get; set; }
         public IDictionary<string, string> ExpectedValues { get; set; }
-        public string ExpectedValueKey { get; set; }
         public int ExpectedDirection { get; set; }
         public bool? ReturnValue { get; set; }
-        public List<string> ConstraintArgLogs { get; set; }
+        public List<string> ConstraintLogs { get; set; }
 
         public bool Match(IContext context, IPathTemplate pathTemplate,
             IDictionary<string, string> values, string valueKey,
@@ -33,17 +32,18 @@ namespace Kabomu.Tests.Shared
             {
                 Assert.Equal(ExpectedValues, values);
             }
-            if (ExpectedValueKey != null)
-            {
-                Assert.Equal(ExpectedValueKey, valueKey);
-            }
             if (ExpectedDirection != 0)
             {
                 Assert.Equal(ExpectedDirection, direction);
             }
             if (constraintArgs != null)
             {
-                ConstraintArgLogs.Add(string.Join(",", constraintArgs));
+                var log = valueKey;
+                if (constraintArgs.Length > 0)
+                {
+                    log += "," + string.Join(",", constraintArgs);
+                }
+                ConstraintLogs.Add(log);
             }
             if (ReturnValue.HasValue)
             {
