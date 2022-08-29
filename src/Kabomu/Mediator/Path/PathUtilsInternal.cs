@@ -127,6 +127,10 @@ namespace Kabomu.Mediator.Path
                 var otherTokens = otherParsedExample.Tokens;
                 foreach (var otherToken in otherTokens)
                 {
+                    if (otherToken.Type == PathToken.TokenTypeLiteral)
+                    {
+                        continue;
+                    }
                     var valueKey = otherToken.Value;
                     if (!pathValues.ContainsKey(valueKey))
                     {
