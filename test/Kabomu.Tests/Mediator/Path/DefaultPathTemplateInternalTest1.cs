@@ -1630,11 +1630,11 @@ namespace Kabomu.Tests.Mediator.Path
             };
             IPathMatchResult expected = new DefaultPathMatchResultInternal
             {
-                BoundPath = "tea",
-                UnboundRequestTarget = "/bread//of//life/?",
+                BoundPath = "tea/",
+                UnboundRequestTarget = "bread//of//life/?",
                 PathValues = new Dictionary<string, string>
                 {
-                    { "ux", "/bread//of//life/" }
+                    { "ux", "bread//of//life/" }
                 }
             };
             IContext context = new DefaultContext();
@@ -1669,11 +1669,11 @@ namespace Kabomu.Tests.Mediator.Path
             };
             IPathMatchResult expected = new DefaultPathMatchResultInternal
             {
-                BoundPath = "tea",
-                UnboundRequestTarget = "/bread",
+                BoundPath = "tea/",
+                UnboundRequestTarget = "bread",
                 PathValues = new Dictionary<string, string>
                 {
-                    { "ux", "/bread" }
+                    { "ux", "bread" }
                 }
             };
             IContext context = new DefaultContext();

@@ -11,6 +11,40 @@ namespace Kabomu.Tests.Mediator.Path
     public class DefaultPathTemplateInternalTest2
     {
         [Fact]
+        public void TestInterpolateForErrors1()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[0]
+                    }
+                }
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>();
+            object formatOptions = "problematic";
+            Assert.ThrowsAny<Exception>(() => instance.InterpolateAll(context, pathValues, formatOptions));
+            Assert.ThrowsAny<Exception>(() => instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolateForErrors2()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[0]
+            };
+            IContext context = new DefaultContext();
+            var pathValues = new Dictionary<string, string>();
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            Assert.Empty(instance.InterpolateAll(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
         public void TestInterpolate1a()
         {
             var instance = new DefaultPathTemplateInternal
@@ -28,7 +62,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/"                
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            Dictionary<string, string> pathValues = null;
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
@@ -610,7 +644,7 @@ namespace Kabomu.Tests.Mediator.Path
             };
             var expected = new List<string>
             {
-                "//drink"
+                "/drink"
             };
             IContext context = null;
             var pathValues = new Dictionary<string, string>
@@ -729,7 +763,7 @@ namespace Kabomu.Tests.Mediator.Path
             };
             var expected = new List<string>
             {
-                "singing/all%20the/time/throughout/the/day/"
+                "singing/all%20the/time/throughout/the/day"
             };
             IContext context = null;
             var pathValues = new Dictionary<string, string>
@@ -947,7 +981,7 @@ namespace Kabomu.Tests.Mediator.Path
             };
             var expected = new List<string>
             {
-                "//peace/and/justice//bread/"
+                "/peace/and/justice/bread/"
             };
             IContext context = null;
             var pathValues = new Dictionary<string, string>
@@ -992,11 +1026,11 @@ namespace Kabomu.Tests.Mediator.Path
             };
             var expected = new List<string>();
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            Dictionary<string, string> pathValues = null; ;
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
-            Assert.Throws<Exception>(() => instance.Interpolate(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
         }
 
         [Fact]
@@ -1032,7 +1066,7 @@ namespace Kabomu.Tests.Mediator.Path
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
-            Assert.Throws<Exception>(() => instance.Interpolate(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
         }
 
         [Fact]
@@ -1071,7 +1105,7 @@ namespace Kabomu.Tests.Mediator.Path
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
-            Assert.Throws<Exception>(() => instance.Interpolate(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
         }
 
         [Fact]
@@ -1110,7 +1144,7 @@ namespace Kabomu.Tests.Mediator.Path
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
-            Assert.Throws<Exception>(() => instance.Interpolate(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
         }
 
         [Fact]
@@ -1278,7 +1312,7 @@ namespace Kabomu.Tests.Mediator.Path
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
-            Assert.Throws<Exception>(() => instance.Interpolate(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
         }
 
         [Fact]
@@ -2280,6 +2314,391 @@ namespace Kabomu.Tests.Mediator.Path
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
             Assert.Equal(expected[1], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate6d()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchLeadingSlash = false,
+                        MatchTrailingSlash = false,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/drink/"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "w", "/drink/" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate6e()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchLeadingSlash = false,
+                        MatchTrailingSlash = false,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "drink"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "w", "drink" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate6f()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchLeadingSlash = true,
+                        MatchTrailingSlash = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/drink/"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "w", "/drink/" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate6g()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchLeadingSlash = true,
+                        MatchTrailingSlash = true,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "drink"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "w", "drink" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = null;
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate6h()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        MatchTrailingSlash = false,
+                        MatchLeadingSlash = false,
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            }
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "//drink//"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "w", "/drink/" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                ApplyLeadingSlash = true,
+                ApplyTrailingSlash = true
+            };
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate6i()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "p"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "p"
+                            },
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/p/drink/p/"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "w", "/drink/" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                ApplyLeadingSlash = true,
+                ApplyTrailingSlash = true
+            };
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate6j()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "p"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "p"
+                            },
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "p/drink/p"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "w", "/drink/" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                ApplyLeadingSlash = false,
+                ApplyTrailingSlash = false
+            };
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate6k()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "p"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "p"
+                            },
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "p/drink/p/"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "w", "drink" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                ApplyLeadingSlash = false,
+                ApplyTrailingSlash = true
+            };
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
+        }
+
+        [Fact]
+        public void TestInterpolate6L()
+        {
+            var instance = new DefaultPathTemplateInternal
+            {
+                ParsedExamples = new DefaultPathTemplateExampleInternal[]
+                {
+                    new DefaultPathTemplateExampleInternal
+                    {
+                        Tokens = new PathToken[]
+                        {
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "p"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeWildCard,
+                                Value = "w"
+                            },
+                            new PathToken
+                            {
+                                Type = PathToken.TokenTypeLiteral,
+                                Value = "p"
+                            },
+                        }
+                    }
+                }
+            };
+            var expected = new List<string>
+            {
+                "/p/drink/p"
+            };
+            IContext context = null;
+            var pathValues = new Dictionary<string, string>
+            {
+                { "w", "/drink/" }
+            };
+            DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
+            {
+                ApplyLeadingSlash = true,
+                ApplyTrailingSlash = false
+            };
+            var actual = instance.InterpolateAll(context, pathValues, formatOptions);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected[0], instance.Interpolate(context, pathValues, formatOptions));
         }
     }
 }

@@ -355,11 +355,11 @@ namespace Kabomu.Tests.Mediator.Path
         [Theory]
         [MemberData(nameof(CreateGetEffectiveApplyLeadingSlashData))]
         public void TestGetEffectiveApplyLeadingSlash(
-            DefaultPathTemplateFormatOptions options,
+            DefaultPathTemplateFormatOptions options, bool wildCardOverride,
             object parsedExample,
             bool expected)
         {
-            var actual = PathUtilsInternal.GetEffectiveApplyLeadingSlash(options,
+            var actual = PathUtilsInternal.GetEffectiveApplyLeadingSlash(options, wildCardOverride,
                 (DefaultPathTemplateExampleInternal)parsedExample);
             Assert.Equal(expected, actual);
         }
@@ -369,74 +369,94 @@ namespace Kabomu.Tests.Mediator.Path
             var testData = new List<object[]>();
 
             DefaultPathTemplateFormatOptions options = null;
+            bool wildCardOverride = false;
             DefaultPathTemplateExampleInternal parsedExample = new DefaultPathTemplateExampleInternal();
             bool expected = true;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions();
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal();
             expected = true;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions();
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal
             {
                 MatchLeadingSlash = false
             };
             expected = false;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions
             {
                 ApplyLeadingSlash = false
             };
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal();
             expected = false;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions
             {
                 ApplyLeadingSlash = false
             };
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal
             {
                 MatchLeadingSlash = true
             };
             expected = false;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions
             {
                 ApplyLeadingSlash = true
             };
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal
             {
                 MatchLeadingSlash = false
             };
             expected = true;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions
             {
                 ApplyLeadingSlash = null
             };
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal
             {
                 MatchLeadingSlash = false
             };
             expected = false;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions
             {
                 ApplyLeadingSlash = null
             };
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal
             {
                 MatchLeadingSlash = true
             };
             expected = true;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
+
+            options = new DefaultPathTemplateFormatOptions
+            {
+                ApplyLeadingSlash = null
+            };
+            wildCardOverride = true;
+            parsedExample = new DefaultPathTemplateExampleInternal
+            {
+                MatchLeadingSlash = true
+            };
+            expected = false;
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             return testData;
         }
@@ -444,11 +464,11 @@ namespace Kabomu.Tests.Mediator.Path
         [Theory]
         [MemberData(nameof(CreateGetEffectiveApplyTrailingSlashData))]
         public void TestGetEffectiveApplyTrailingSlash(
-            DefaultPathTemplateFormatOptions options,
+            DefaultPathTemplateFormatOptions options, bool wildCardOverride,
             object parsedExample,
             bool expected)
         {
-            var actual = PathUtilsInternal.GetEffectiveApplyTrailingSlash(options,
+            var actual = PathUtilsInternal.GetEffectiveApplyTrailingSlash(options, wildCardOverride,
                 (DefaultPathTemplateExampleInternal)parsedExample);
             Assert.Equal(expected, actual);
         }
@@ -458,74 +478,93 @@ namespace Kabomu.Tests.Mediator.Path
             var testData = new List<object[]>();
 
             DefaultPathTemplateFormatOptions options = null;
+            bool wildCardOverride = false;
             DefaultPathTemplateExampleInternal parsedExample = new DefaultPathTemplateExampleInternal();
             bool expected = false;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions();
             parsedExample = new DefaultPathTemplateExampleInternal();
             expected = false;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions();
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal
             {
                 MatchTrailingSlash = false
             };
             expected = false;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions
             {
                 ApplyTrailingSlash = false
             };
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal();
             expected = false;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions
             {
                 ApplyTrailingSlash = false
             };
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal
             {
                 MatchTrailingSlash = true
             };
             expected = false;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions
             {
                 ApplyTrailingSlash = true
             };
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal
             {
                 MatchTrailingSlash = false
             };
             expected = true;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions
             {
                 ApplyTrailingSlash = null
             };
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal
             {
                 MatchTrailingSlash = false
             };
             expected = false;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             options = new DefaultPathTemplateFormatOptions
             {
                 ApplyTrailingSlash = null
             };
+            wildCardOverride = false;
             parsedExample = new DefaultPathTemplateExampleInternal
             {
                 MatchTrailingSlash = true
             };
             expected = true;
-            testData.Add(new object[] { options, parsedExample, expected });
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
+
+            options = new DefaultPathTemplateFormatOptions
+            {
+                ApplyTrailingSlash = null
+            };
+            wildCardOverride = true;
+            parsedExample = new DefaultPathTemplateExampleInternal
+            {
+                MatchTrailingSlash = true
+            };
+            expected = false;
+            testData.Add(new object[] { options, wildCardOverride, parsedExample, expected });
 
             return testData;
         }
