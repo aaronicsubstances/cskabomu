@@ -28,7 +28,7 @@ namespace Kabomu.Mediator.Path
             var shortest = candidates.OrderBy(x => x.Length).FirstOrDefault();
             if (shortest == null)
             {
-                throw new Exception("could not interpolate template with the provided arguments");
+                throw new PathTemplateInterpolationException("could not interpolate template with the provided arguments");
             }
             return shortest;
         }
@@ -58,9 +58,10 @@ namespace Kabomu.Mediator.Path
 
             var segments = new List<string>();
             var tokens = parsedExample.Tokens;
-            var wildCardTokenSeen = false;
-            foreach (var token in tokens)
+            var wildCardTokenIndex = -1;
+            for (int i = 0; i < tokens.Count; i++)
             {
+                var token = tokens[i];
                 if (token.Type == PathToken.TokenTypeLiteral)
                 {
                     segments.Add(token.Value);
@@ -68,7 +69,7 @@ namespace Kabomu.Mediator.Path
                 else
                 {
                     var valueKey = token.Value;
-                    if (!pathValues.ContainsKey(token.Value))
+                    if (pathValues == null || !pathValues.ContainsKey(token.Value))
                     {
                         // no path value provided, meaning parsed example is not meant to be used.
                         return null;
@@ -92,15 +93,34 @@ namespace Kabomu.Mediator.Path
                     }
                     else if (token.Type == PathToken.TokenTypeWildCard)
                     {
-                        if (wildCardTokenSeen)
+                        if (wildCardTokenIndex != -1)
                         {
-                            throw new ExpectationViolationException("wildCardTokenProcessed is true");
+                            throw new ExpectationViolationException($"{wildCardTokenIndex} != -1");
                         }
-                        wildCardTokenSeen = true;
+                        wildCardTokenIndex = i;
                         if (pathValue == null)
                         {
                             // no wild card segment needed.
                             continue;
+                        }
+                        // remove slashes as necessary to result in preservation of
+                        // segments during joining.
+                        if (tokens.Count > 1)
+                        {
+                            if (wildCardTokenIndex > 0)
+                            {
+                                if (pathValue.StartsWith("/"))
+                                {
+                                    pathValue = pathValue.Substring(1);
+                                }
+                            }
+                            if (wildCardTokenIndex < tokens.Count - 1)
+                            {
+                                if (pathValue.EndsWith("/"))
+                                {
+                                    pathValue = pathValue.Substring(0, pathValue.Length - 1);
+                                }
+                            }
                         }
                         segments.Add(pathValue);
                     }
@@ -151,8 +171,12 @@ namespace Kabomu.Mediator.Path
 
             // if our segments are ready then proceed to join them with intervening slashes
             // and carefully surround with sentinel slashes.
-            bool applyLeadingSlash = PathUtilsInternal.GetEffectiveApplyLeadingSlash(options, parsedExample);
-            bool applyTrailingSlash = PathUtilsInternal.GetEffectiveApplyTrailingSlash(options, parsedExample);
+            var wildCardValuePresent = wildCardTokenIndex != -1 &&
+                pathValues[tokens[wildCardTokenIndex].Value] != null;
+            bool applyLeadingSlash = PathUtilsInternal.GetEffectiveApplyLeadingSlash(options,
+                wildCardValuePresent && wildCardTokenIndex == 0, parsedExample);
+            bool applyTrailingSlash = PathUtilsInternal.GetEffectiveApplyTrailingSlash(options,
+                wildCardValuePresent && wildCardTokenIndex == tokens.Count - 1, parsedExample);
             string path;
             if (segments.Count == 0)
             {
@@ -281,10 +305,6 @@ namespace Kabomu.Mediator.Path
             {
                 boundPath = path.Substring(0, path.Length - wildCardMatch.Length);
                 unboundRequestTarget = wildCardMatch + unboundRequestTarget;
-                if (boundPath + unboundRequestTarget != requestTarget)
-                {
-                    throw new ExpectationViolationException($"{boundPath} + {unboundRequestTarget} != {requestTarget}");
-                }
             }
 
             var result = new DefaultPathMatchResultInternal
@@ -402,44 +422,13 @@ namespace Kabomu.Mediator.Path
                     // construct wild card match.
                     wildCardMatch = segment;
 
-                    // ensure wild card match at beginning and/or ending of tokens
-                    // correspond to prefix and/or suffix of path respectively.
+                    // ensure wild card match prefix and suffix
+                    // correspond to prefix and suffix of path respectively.
                     if (tokens.Count > 1)
                     {
-                        if (wildCardTokenIndex == 0)
-                        {
-                            if (path.StartsWith("/"))
-                            {
-                                wildCardMatch = '/' + wildCardMatch;
-                            }
-                            if (!path.StartsWith(wildCardMatch))
-                            {
-                                throw new ExpectationViolationException($"!{path}.StartsWith({wildCardMatch})");
-                            }
-                        }
-                        else
-                        {
-                            // ensure starting slash for all but prefix wild card matches
-                            wildCardMatch = '/' + wildCardMatch;
-                            if (wildCardTokenIndex == tokens.Count - 1)
-                            {
-                                if (path.EndsWith("/"))
-                                {
-                                    wildCardMatch = wildCardMatch + '/';
-                                }
-                                if (!path.EndsWith(wildCardMatch))
-                                {
-                                    throw new ExpectationViolationException($"!{path}.EndsWith({wildCardMatch})");
-                                }
-                            }
-                            else
-                            {
-                                if (!path.Contains(wildCardMatch))
-                                {
-                                    throw new ExpectationViolationException($"!{path}.Contains({wildCardMatch})");
-                                }
-                            }
-                        }
+                        string prefix = path.StartsWith("/") ? "/" : "";
+                        string suffix = path.EndsWith("/") ? "/" : "";
+                        wildCardMatch = prefix + wildCardMatch + suffix;
                     }
                 }
                 else

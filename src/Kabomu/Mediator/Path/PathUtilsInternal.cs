@@ -193,11 +193,15 @@ namespace Kabomu.Mediator.Path
         }
 
         public static bool GetEffectiveApplyLeadingSlash(DefaultPathTemplateFormatOptions options,
-            DefaultPathTemplateExampleInternal parsedExample)
+            bool wildCardOverride, DefaultPathTemplateExampleInternal parsedExample)
         {
             if (options?.ApplyLeadingSlash != null)
             {
                 return options.ApplyLeadingSlash.Value;
+            }
+            if (wildCardOverride)
+            {
+                return false;
             }
             if (parsedExample.MatchLeadingSlash != null)
             {
@@ -208,11 +212,15 @@ namespace Kabomu.Mediator.Path
         }
 
         public static bool GetEffectiveApplyTrailingSlash(DefaultPathTemplateFormatOptions options,
-            DefaultPathTemplateExampleInternal parsedExample)
+            bool wildCardOverride, DefaultPathTemplateExampleInternal parsedExample)
         {
             if (options?.ApplyTrailingSlash != null)
             {
                 return options.ApplyTrailingSlash.Value;
+            }
+            if (wildCardOverride)
+            {
+                return false;
             }
             if (parsedExample.MatchTrailingSlash != null)
             {
