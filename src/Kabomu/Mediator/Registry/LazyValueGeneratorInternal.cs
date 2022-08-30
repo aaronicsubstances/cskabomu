@@ -4,13 +4,13 @@ using System.Text;
 
 namespace Kabomu.Mediator.Registry
 {
-    internal class LazyValueGenerator<T>
+    internal class LazyValueGeneratorInternal<T>
     {
         private readonly object _lock = new object();
         private bool _valueSet;
         private T _value;
 
-        public LazyValueGenerator(Func<T> valueGenerator)
+        public LazyValueGeneratorInternal(Func<T> valueGenerator)
         {
             ValueGenerator = valueGenerator ?? throw new ArgumentNullException(nameof(valueGenerator));
         }

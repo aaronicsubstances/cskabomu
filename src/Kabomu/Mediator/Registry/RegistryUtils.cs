@@ -38,7 +38,7 @@ namespace Kabomu.Mediator.Registry
 
         public static Func<T> MakeLazyGenerator<T>(Func<T> valueGenerator)
         {
-            Func<T> lazyValueGenerator = new LazyValueGenerator<T>(valueGenerator).Get;
+            Func<T> lazyValueGenerator = new LazyValueGeneratorInternal<T>(valueGenerator).Get;
             return lazyValueGenerator;
         }
     }
