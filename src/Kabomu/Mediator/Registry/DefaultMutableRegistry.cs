@@ -1,18 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace Kabomu.Mediator.Registry
 {
     public class DefaultMutableRegistry : IMutableRegistry
     {
-        // use data structure which maintains order of insertion of keys.
-        private readonly Dictionary<object, LinkedList<Func<object>>> _entries;
+        private readonly IDictionary<object, LinkedList<Func<object>>> _entries;
+        private readonly LinkedList<object> _entryKeys; // used to maintain key insertion order in FIFO order
 
         public DefaultMutableRegistry()
         {
             _entries = new Dictionary<object, LinkedList<Func<object>>>();
+            _entryKeys = new LinkedList<object>();
         }
 
         public IMutableRegistry Add(object key, object value)
@@ -34,12 +34,43 @@ namespace Kabomu.Mediator.Registry
             }
             // insert in FIFO order.
             selectedEntries.AddFirst(valueGenerator);
+            // disallow duplicate entry keys.
+            var keyPresent = false;
+            foreach (var k in _entryKeys)
+            {
+                // use the same equality comparison mechanism as the one
+                // used to compare keys in dictionary.
+                if (EqualityComparer<object>.Default.Equals(k, key))
+                {
+                    keyPresent = true;
+                    break;
+                }
+            }
+            if (!keyPresent)
+            {
+                // insert in FIFO order.
+                _entryKeys.AddFirst(key);
+            }
             return this;
         }
 
         public IMutableRegistry Remove(object key)
         {
             _entries.Remove(key);
+            // remove all entry keys and re-add them in LIFO order, except for
+            // keys which match the supplied argument.
+            var keyCount = _entryKeys.Count;
+            for (int i = 0; i < keyCount; i++)
+            {
+                var curr = _entryKeys.First;
+                _entryKeys.RemoveFirst();
+                // use the same equality comparison mechanism as the one
+                // used to compare keys in dictionary.
+                if (!EqualityComparer<object>.Default.Equals(curr.Value, key))
+                {
+                    _entryKeys.AddLast(curr);
+                }
+            }
             return this;
         }
 
@@ -47,11 +78,11 @@ namespace Kabomu.Mediator.Registry
         {
             if (key is IRegistryKeyPattern keyPattern)
             {
-                foreach (var e in _entries.Reverse())
+                foreach (var k in _entryKeys)
                 {
-                    if (keyPattern.IsMatch(e.Key))
+                    if (keyPattern.IsMatch(k))
                     {
-                        var valueGenerator = e.Value.First.Value;
+                        var valueGenerator = _entries[k].First.Value;
                         var value = valueGenerator.Invoke();
                         return (true, value);
                     }
@@ -74,11 +105,11 @@ namespace Kabomu.Mediator.Registry
             var selected = new List<object>();
             if (key is IRegistryKeyPattern keyPattern)
             {
-                foreach (var e in _entries.Reverse())
+                foreach (var k in _entryKeys)
                 {
-                    if (keyPattern.IsMatch(e.Key))
+                    if (keyPattern.IsMatch(k))
                     {
-                        foreach (var valueGenerator in e.Value)
+                        foreach (var valueGenerator in _entries[k])
                         {
                             var value = valueGenerator.Invoke();
                             selected.Add(value);
@@ -108,11 +139,11 @@ namespace Kabomu.Mediator.Registry
             }
             if (key is IRegistryKeyPattern keyPattern)
             {
-                foreach (var e in _entries.Reverse())
+                foreach (var k in _entryKeys)
                 {
-                    if (keyPattern.IsMatch(e.Key))
+                    if (keyPattern.IsMatch(k))
                     {
-                        var valueGenerator = e.Value.First.Value;
+                        var valueGenerator = _entries[k].First.Value;
                         var value = valueGenerator.Invoke();
                         var result = transformFunction.Invoke(value);
                         if (result.Item1)

@@ -31,14 +31,14 @@ namespace Kabomu.Tests.Mediator.Registry
                 new object[]{ typeof(IRegistry), 78, false },
                 new object[]{ typeof(IRegistry), typeof(string), false },
                 new object[]{ typeof(IRegistry), typeof(EmptyRegistry), true },
-                new object[]{ typeof(IRegistry), new TypeRegistryKeyPattern(typeof(EmptyRegistry)), true },
+                new object[]{ typeof(IRegistry), new TypeBasedRegistryKey(typeof(EmptyRegistry)), true },
                 new object[]{ typeof(EmptyRegistry), typeof(DefaultMutableRegistry), false },
                 new object[]{ typeof(EmptyRegistry), typeof(EmptyRegistry), true },
-                new object[]{ typeof(EmptyRegistry), new TypeRegistryKeyPattern(typeof(EmptyRegistry)), true },
-                new object[]{ typeof(EmptyRegistry), new TypeRegistryKeyPattern(typeof(IRegistry)), false },
+                new object[]{ typeof(EmptyRegistry), new TypeBasedRegistryKey(typeof(EmptyRegistry)), true },
+                new object[]{ typeof(EmptyRegistry), new TypeBasedRegistryKey(typeof(IRegistry)), false },
                 new object[]{ typeof(string), typeof(string), true },
                 new object[]{ typeof(string), 4, false },
-                new object[]{ typeof(string), new TypeRegistryKeyPattern(typeof(string)), true },
+                new object[]{ typeof(string), new TypeBasedRegistryKey(typeof(string)), true },
             };
         }
     }

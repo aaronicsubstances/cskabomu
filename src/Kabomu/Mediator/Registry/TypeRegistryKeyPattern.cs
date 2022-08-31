@@ -19,9 +19,9 @@ namespace Kabomu.Mediator.Registry
             {
                 return _type.IsAssignableFrom(inputType);
             }
-            else if (input is TypeRegistryKeyPattern inputTypePattern)
+            else if (input is TypeBasedRegistryKey inputTypeBasedKey)
             {
-                return _type.IsAssignableFrom(inputTypePattern._type);
+                return _type.IsAssignableFrom(inputTypeBasedKey.TypeValue);
             }
             return false;
         }

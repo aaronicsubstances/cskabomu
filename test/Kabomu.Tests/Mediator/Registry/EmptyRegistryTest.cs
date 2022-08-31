@@ -1,4 +1,5 @@
 ﻿using Kabomu.Mediator.Registry;
+using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,33 +10,9 @@ namespace Kabomu.Tests.Mediator.Registry
     public class EmptyRegistryTest
     {
         [Fact]
-        public void TestTryGet()
+        public void Test1()
         {
-            ValueTuple<bool, object> expected = (false, null);
-            var actual = EmptyRegistry.Instance.TryGet("key");
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void TestGetAll()
-        {
-            var expected = new List<object>();
-            var actual = EmptyRegistry.Instance.GetAll("key");
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void TestTryGetFirst()
-        {
-            ValueTuple<bool, object> expected = (false, null);
-            var actual = EmptyRegistry.Instance.TryGetFirst("key", _ => (true, null));
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void TestGet()
-        {
-            Assert.Throws<NotInRegistryException>(() => EmptyRegistry.Instance.Get("key"));
+            CommonRegistryTestRunner.TestOps(EmptyRegistry.Instance, "any", new List<object>());
         }
     }
 }

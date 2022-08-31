@@ -10,32 +10,32 @@ namespace Kabomu.Mediator.Handling
 {
     public static class ContextUtils
     {
-        public static readonly IRegistryKeyPattern TypePatternContext =
-            new TypeRegistryKeyPattern(typeof(IContext));
+        public static readonly TypeBasedRegistryKey TypePatternContext =
+            new TypeBasedRegistryKey(typeof(IContext));
 
-        public static readonly IRegistryKeyPattern TypePatternRequest =
-            new TypeRegistryKeyPattern(typeof(IContextRequest));
+        public static readonly TypeBasedRegistryKey TypePatternRequest =
+            new TypeBasedRegistryKey(typeof(IContextRequest));
 
-        public static readonly IRegistryKeyPattern TypePatternResponse =
-            new TypeRegistryKeyPattern(typeof(IContextResponse));
+        public static readonly TypeBasedRegistryKey TypePatternResponse =
+            new TypeBasedRegistryKey(typeof(IContextResponse));
 
-        public static readonly IRegistryKeyPattern TypePatternPathTemplateGenerator =
-            new TypeRegistryKeyPattern(typeof(IPathTemplateGenerator));
+        public static readonly TypeBasedRegistryKey TypePatternPathTemplateGenerator =
+            new TypeBasedRegistryKey(typeof(IPathTemplateGenerator));
 
-        public static readonly IRegistryKeyPattern TypePatternPathMatchResult =
-            new TypeRegistryKeyPattern(typeof(IPathMatchResult));
+        public static readonly TypeBasedRegistryKey TypePatternPathMatchResult =
+            new TypeBasedRegistryKey(typeof(IPathMatchResult));
 
-        public static readonly IRegistryKeyPattern TypePatternRequestParser =
-            new TypeRegistryKeyPattern(typeof(IRequestParser));
+        public static readonly TypeBasedRegistryKey TypePatternRequestParser =
+            new TypeBasedRegistryKey(typeof(IRequestParser));
 
-        public static readonly IRegistryKeyPattern TypePatternResponseRenderer =
-            new TypeRegistryKeyPattern(typeof(IResponseRenderer));
+        public static readonly TypeBasedRegistryKey TypePatternResponseRenderer =
+            new TypeBasedRegistryKey(typeof(IResponseRenderer));
 
-        public static readonly IRegistryKeyPattern TypePatternUnexpectedEndHandler =
-            new TypeRegistryKeyPattern(typeof(IUnexpectedEndHandler));
+        public static readonly TypeBasedRegistryKey TypePatternUnexpectedEndHandler =
+            new TypeBasedRegistryKey(typeof(IUnexpectedEndHandler));
 
-        public static readonly IRegistryKeyPattern TypePatternServerErrorHandler =
-            new TypeRegistryKeyPattern(typeof(IServerErrorHandler));
+        public static readonly TypeBasedRegistryKey TypePatternServerErrorHandler =
+            new TypeBasedRegistryKey(typeof(IServerErrorHandler));
 
         public static readonly int PathConstraintMatchDirectionMatch = 1;
 
