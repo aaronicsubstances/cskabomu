@@ -351,5 +351,20 @@ namespace Kabomu.Tests.Mediator.Registry
             var actual = instance.TryGetFirst(key, x => ((int)x < 2, ((int)x) * 3));
             Assert.Equal(expected, actual);
         }
+
+        /// <summary>
+        /// test that once child contains a value, the parent is not even contacted.
+        /// </summary>
+        [Fact]
+        public void TestTryGetFirst7()
+        {
+            IRegistry parent = new TempMutableRegistry();
+            IRegistry child = new DecrementingCounterBasedRegistry();
+            var instance = new HierarchicalRegistry(parent, child);
+            object key = 2;
+            ValueTuple<bool, object> expected = (true, 2);
+            var actual = instance.TryGetFirst(key, x => (true, x));
+            Assert.Equal(expected, actual);
+        }
     }
 }

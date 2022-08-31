@@ -9,6 +9,7 @@ namespace Kabomu.Mediator.Registry
     {
         public static IRegistry Join(this IRegistry parent, IRegistry child)
         {
+            if (parent == null) return child;
             if (child == null) return parent;
             return new HierarchicalRegistry(parent, child);
         }
@@ -48,7 +49,7 @@ namespace Kabomu.Mediator.Registry
             return instance.GetAll(key).Cast<T>();
         }
        
-        public static (bool, U) TryGetFirst<T, U>(this IRegistry instance, object key, Func<T, (bool, U)> transformFunction)
+        public static (bool, T) TryGetFirst<T>(this IRegistry instance, object key, Func<object, (bool, T)> transformFunction)
         {
             if (instance == null)
             {
@@ -60,18 +61,17 @@ namespace Kabomu.Mediator.Registry
             }
             Func<object, (bool, object)> transformFunctionWrapper = obj =>
             {
-                var item = (T)obj;
-                var transformedItem = transformFunction.Invoke(item);
+                var transformedItem = transformFunction.Invoke(obj);
                 return transformedItem;
             };
             var result = instance.TryGetFirst(key, transformFunctionWrapper);
             if (result.Item1)
             {
-                return (true, (U)result.Item2);
+                return (true, (T)result.Item2);
             }
             else
             {
-                return (false, default(U));
+                return (false, default(T));
             }
         }
 
@@ -81,6 +81,7 @@ namespace Kabomu.Mediator.Registry
             {
                 throw new ArgumentNullException(nameof(instance));
             }
+            // let other argument be validated by object construction below
             Func<object> lazyValueGenerator = new LazyValueGeneratorInternal<object>(valueGenerator).Get;
             return instance.AddGenerator(key, lazyValueGenerator);
         }

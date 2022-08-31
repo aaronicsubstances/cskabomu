@@ -67,7 +67,7 @@ namespace Kabomu.Mediator.Handling
             {
                 _handlerStack = new Stack<HandlerGroup>();
                 var firstHandlerGroup = new HandlerGroup(InitialHandlers,
-                    EmptyRegistry.Instance.Join(InitialReadonlyLocalRegistry).Join(additionalLocalRegistry));
+                    additionalLocalRegistry.Join(InitialReadonlyLocalRegistry));
                 _handlerStack.Push(firstHandlerGroup);
 
                 _joinedRegistry = new DynamicRegistry(this).Join(ReadonlyGlobalRegistry).Join(additionalGlobalRegistry);
@@ -112,11 +112,7 @@ namespace Kabomu.Mediator.Handling
 
             using (await MutexApi.Synchronize())
             {
-                var applicableRegistry = CurrentRegistry;
-                if (registry != null)
-                {
-                    applicableRegistry = CurrentRegistry.Join(registry);
-                }
+                var applicableRegistry = CurrentRegistry.Join(registry);
                 var newHandlerGroup = new HandlerGroup(handlers, applicableRegistry);
                 _handlerStack.Push(newHandlerGroup);
                 RunNext();

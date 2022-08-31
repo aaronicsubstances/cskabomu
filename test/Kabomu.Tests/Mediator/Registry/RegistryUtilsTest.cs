@@ -52,9 +52,9 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestTryGetFirst3()
         {
-            var instance = new ConstantValueBasedRegistry(null);
-            object key = "any";
-            Func<object, (bool, object)> transformFunction = x => ValueTuple.Create(x != null, x);
+            var instance = new IndexedArrayBasedRegistry(new object[] { "r", "s" });
+            object key = null;
+            Func<object, (bool, object)> transformFunction = x => ValueTuple.Create(x == null, x);
             ValueTuple<bool, object> expected = (false, null);
             var actual = RegistryUtils.TryGetFirst(instance, key, transformFunction);
             Assert.Equal(expected, actual);
@@ -63,8 +63,8 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestTryGetFirst4()
         {
-            var instance = new ConstantValueBasedRegistry("s");
-            object key = "any";
+            var instance = new IndexedArrayBasedRegistry(new object[] { null,  "s" });
+            object key = null;
             Func<object, (bool, object)> transformFunction = x => ValueTuple.Create(x != null, x);
             ValueTuple<bool, object> expected = (true, "s");
             var actual = RegistryUtils.TryGetFirst(instance, key, transformFunction);

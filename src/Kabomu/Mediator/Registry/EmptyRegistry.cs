@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace Kabomu.Mediator.Registry
@@ -8,6 +7,8 @@ namespace Kabomu.Mediator.Registry
     public class EmptyRegistry : IRegistry
     {
         public static readonly IRegistry Instance = new EmptyRegistry();
+
+        private readonly IEnumerable<object> _getAllRetVal = new object[0];
 
         private EmptyRegistry()
         {
@@ -30,7 +31,7 @@ namespace Kabomu.Mediator.Registry
 
         public IEnumerable<object> GetAll(object key)
         {
-            return Enumerable.Empty<object>();
+            return _getAllRetVal;
         }
     }
 }
