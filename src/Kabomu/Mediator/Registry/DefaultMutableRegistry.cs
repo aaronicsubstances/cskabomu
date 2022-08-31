@@ -93,14 +93,47 @@ namespace Kabomu.Mediator.Registry
             return selected;
         }
 
+        public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)
+        {
+            if (transformFunction == null)
+            {
+                throw new ArgumentNullException(nameof(transformFunction));
+            }
+            if (key is IRegistryKeyPattern keyPattern)
+            {
+                foreach (var k in _entries.Keys)
+                {
+                    if (keyPattern.IsMatch(k))
+                    {
+                        var valueGenerator = _entries[k].Peek();
+                        var value = valueGenerator.Invoke();
+                        var result = transformFunction.Invoke(value);
+                        if (result.Item1)
+                        {
+                            return result;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (_entries.ContainsKey(key))
+                {
+                    var valueGenerator = _entries[key].Peek();
+                    var value = valueGenerator.Invoke();
+                    var result = transformFunction.Invoke(value);
+                    if (result.Item1)
+                    {
+                        return result;
+                    }
+                }
+            }
+            return (false, null);
+        }
+
         public object Get(object key)
         {
             return RegistryUtils.Get(this, key);
-        }
-
-        public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)
-        {
-            return RegistryUtils.TryGetFirst(this, key, transformFunction);
         }
     }
 }

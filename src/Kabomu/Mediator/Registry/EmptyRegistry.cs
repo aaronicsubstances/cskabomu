@@ -25,7 +25,7 @@ namespace Kabomu.Mediator.Registry
 
         public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)
         {
-            return RegistryUtils.TryGetFirst(this, key, transformFunction);
+            return (false, null);
         }
 
         public object Get(object key)
