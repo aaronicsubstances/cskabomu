@@ -35,11 +35,5 @@ namespace Kabomu.Mediator.Registry
                 .Select(x => transformFunction.Invoke(x))
                 .FirstOrDefault(x => x.Item1);
         }
-
-        public static Func<T> MakeLazyGenerator<T>(Func<T> valueGenerator)
-        {
-            Func<T> lazyValueGenerator = new LazyValueGeneratorInternal<T>(valueGenerator).Get;
-            return lazyValueGenerator;
-        }
     }
 }

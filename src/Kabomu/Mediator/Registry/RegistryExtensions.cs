@@ -81,12 +81,8 @@ namespace Kabomu.Mediator.Registry
             {
                 throw new ArgumentNullException(nameof(instance));
             }
-            if (valueGenerator == null)
-            {
-                throw new ArgumentNullException(nameof(valueGenerator));
-            }
-            Func<object> lazyGenerator = RegistryUtils.MakeLazyGenerator(() => valueGenerator.Invoke());
-            return instance.AddGenerator(key, lazyGenerator);
+            Func<object> lazyValueGenerator = new LazyValueGeneratorInternal<object>(valueGenerator).Get;
+            return instance.AddGenerator(key, lazyValueGenerator);
         }
     }
 }
