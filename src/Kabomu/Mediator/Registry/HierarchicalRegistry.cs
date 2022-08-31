@@ -18,19 +18,12 @@ namespace Kabomu.Mediator.Registry
 
         public (bool, object) TryGet(object key)
         {
-            var (present, value) = _child.TryGet(key);
-            if (present)
+            var result = _child.TryGet(key);
+            if (result.Item1)
             {
-                return (present, value);
+                return result;
             }
             return _parent.TryGet(key);
-        }
-
-        public IEnumerable<object> GetAll(object key)
-        {
-            var collectionFromChild = _child.GetAll(key);
-            var collectionFromParent = _parent.GetAll(key);
-            return collectionFromChild.Concat(collectionFromParent);
         }
 
         public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)
@@ -45,7 +38,19 @@ namespace Kabomu.Mediator.Registry
 
         public object Get(object key)
         {
-            return RegistryUtils.Get(this, key);
+            var result = _child.TryGet(key);
+            if (result.Item1)
+            {
+                return result.Item2;
+            }
+            return _parent.Get(key);
+        }
+
+        public IEnumerable<object> GetAll(object key)
+        {
+            var collectionFromChild = _child.GetAll(key);
+            var collectionFromParent = _parent.GetAll(key);
+            return collectionFromChild.Concat(collectionFromParent);
         }
     }
 }
