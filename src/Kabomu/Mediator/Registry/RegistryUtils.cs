@@ -16,7 +16,7 @@ namespace Kabomu.Mediator.Registry
             var (present, value) = instance.TryGet(key);
             if (!present)
             {
-                throw new RegistryException($"No object found in registry for key: {key}");
+                throw new NotInRegistryException(key);
             }
             return value;
         }

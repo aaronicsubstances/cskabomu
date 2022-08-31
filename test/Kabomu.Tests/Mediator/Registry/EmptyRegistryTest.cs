@@ -35,7 +35,7 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestGet()
         {
-            Assert.Throws<RegistryException>(() => EmptyRegistry.Instance.Get("key"));
+            Assert.Throws<NotInRegistryException>(() => EmptyRegistry.Instance.Get("key"));
         }
     }
 }

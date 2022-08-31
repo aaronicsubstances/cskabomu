@@ -18,9 +18,9 @@ namespace Kabomu.Mediator.Registry
             return (false, null);
         }
 
-        public IEnumerable<object> GetAll(object key)
+        public object Get(object key)
         {
-            return Enumerable.Empty<object>();
+            throw new NotInRegistryException(key);
         }
 
         public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)
@@ -28,9 +28,9 @@ namespace Kabomu.Mediator.Registry
             return (false, null);
         }
 
-        public object Get(object key)
+        public IEnumerable<object> GetAll(object key)
         {
-            return RegistryUtils.Get(this, key);
+            return Enumerable.Empty<object>();
         }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using Kabomu.Mediator.Registry;
+using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Xunit;
 
@@ -13,16 +13,16 @@ namespace Kabomu.Tests.Mediator.Registry
         public void TestErrorsInConstruction()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                new HierarchicalRegistry(null, new RegistryImpl2()));
+                new HierarchicalRegistry(null, new DecrementingCounterBasedRegistry()));
             Assert.Throws<ArgumentNullException>(() =>
-                new HierarchicalRegistry(new RegistryImpl2(), null));
+                new HierarchicalRegistry(new DecrementingCounterBasedRegistry(), null));
         }
 
         [Fact]
         public void TestTryGet1()
         {
-            IRegistry parent = new RegistryImpl1(new object[] { "tree", "of", "life" });
-            IRegistry child = new RegistryImpl2();
+            IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
             object key = -1;
             ValueTuple<bool, object> expected = (false, null);
@@ -33,8 +33,8 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestTryGet2()
         {
-            IRegistry parent = new RegistryImpl2();
-            IRegistry child = new RegistryImpl1(new object[] { "tree", "of", "life" });
+            IRegistry parent = new DecrementingCounterBasedRegistry();
+            IRegistry child = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             var instance = new HierarchicalRegistry(parent, child);
             object key = "t";
             ValueTuple<bool, object> expected = (false, null);
@@ -45,28 +45,71 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestGet1()
         {
-            IRegistry parent = new RegistryImpl1(new object[] { "tree", "of", "life" });
-            IRegistry child = new RegistryImpl2();
+            IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
             object key = -1;
-            Assert.Throws<RegistryException>(() => instance.Get(key));
+            Assert.Throws<NotInRegistryException>(() => instance.Get(key));
         }
 
         [Fact]
         public void TestGet2()
         {
-            IRegistry parent = new RegistryImpl2();
-            IRegistry child = new RegistryImpl1(new object[] { "tree", "of", "life" });
+            IRegistry parent = new DecrementingCounterBasedRegistry();
+            IRegistry child = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             var instance = new HierarchicalRegistry(parent, child);
             object key = "t";
-            Assert.Throws<RegistryException>(() => instance.Get(key));
+            Assert.Throws<NotInRegistryException>(() => instance.Get(key));
+        }
+
+        [Fact]
+        public void TestGet3()
+        {
+            IRegistry descendant1 = new IndexedArrayBasedRegistry(null);
+            IRegistry descendant2 = new IndexedArrayBasedRegistry(null);
+            IRegistry descendant3 = new IndexedArrayBasedRegistry(null);
+            IRegistry descendant4 = new IndexedArrayBasedRegistry(null);
+            var instance = new HierarchicalRegistry(new HierarchicalRegistry(descendant1, descendant2),
+                new HierarchicalRegistry(descendant3, descendant4));
+            object key = "t";
+            Assert.Throws<NotInRegistryException>(() => instance.Get(key));
+        }
+
+        [Fact]
+        public void TestGet4()
+        {
+            IRegistry descendant1 = new DecrementingCounterBasedRegistry();
+            IRegistry descendant2 = new IndexedArrayBasedRegistry(null);
+            IRegistry descendant3 = new IndexedArrayBasedRegistry(null);
+            IRegistry descendant4 = new IndexedArrayBasedRegistry(new object[] { "t" });
+            var instance = new HierarchicalRegistry(new HierarchicalRegistry(descendant1, descendant2),
+                new HierarchicalRegistry(descendant3, descendant4));
+            object key = 0;
+            object expected = "t";
+            var actual = instance.Get(key);
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void TestGet5()
+        {
+            IRegistry descendant1 = new IndexedArrayBasedRegistry(new object[] { "t" });
+            IRegistry descendant2 = new IndexedArrayBasedRegistry(null);
+            IRegistry descendant3 = new IndexedArrayBasedRegistry(null);
+            IRegistry descendant4 = new IndexedArrayBasedRegistry(null);
+            var instance = new HierarchicalRegistry(new HierarchicalRegistry(descendant1, descendant2),
+                new HierarchicalRegistry(descendant3, descendant4));
+            object key = 0;
+            object expected = "t";
+            var actual = instance.Get(key);
+            Assert.Equal(expected, actual);
         }
 
         [Fact]
         public void TestGetAndTryGet1()
         {
-            IRegistry parent = new RegistryImpl1(new object[] { "tree", "of", "life" });
-            IRegistry child = new RegistryImpl2();
+            IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
             object key = 0;
             ValueTuple<bool, object> expected = (true, 0);
@@ -78,8 +121,8 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestGetAndTryGet2()
         {
-            IRegistry parent = new RegistryImpl2();
-            IRegistry child = new RegistryImpl1(new object[] { "tree", "of", "life" });
+            IRegistry parent = new DecrementingCounterBasedRegistry();
+            IRegistry child = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             var instance = new HierarchicalRegistry(parent, child);
             object key = 0;
             ValueTuple<bool, object> expected = (true, "tree");
@@ -89,10 +132,56 @@ namespace Kabomu.Tests.Mediator.Registry
         }
 
         [Fact]
+        public void TestGetAndTryGet3()
+        {
+            IRegistry descendant1 = new DecrementingCounterBasedRegistry();
+            IRegistry descendant2 = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry descendant3 = new DecrementingCounterBasedRegistry();
+            var instance = new HierarchicalRegistry(new HierarchicalRegistry(descendant1, descendant2),
+                descendant3);
+            object key = 2;
+            ValueTuple<bool, object> expected = (true, 2);
+            var actual = instance.TryGet(key);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected.Item2, instance.Get(key));
+        }
+
+        [Fact]
+        public void TestGetAndTryGet4()
+        {
+            IRegistry descendant1 = new IndexedArrayBasedRegistry(new object[] { "zero", "one", "two" });
+            IRegistry descendant2 = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry descendant3 = new DecrementingCounterBasedRegistry();
+            var instance = new HierarchicalRegistry(descendant1, new HierarchicalRegistry(descendant2,
+                descendant3));
+            object key = 2;
+            ValueTuple<bool, object> expected = (true, 2);
+            var actual = instance.TryGet(key);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected.Item2, instance.Get(key));
+        }
+
+        [Fact]
+        public void TestGetAndTryGet5()
+        {
+            IRegistry descendant1 = new IndexedArrayBasedRegistry(new object[] { "zero", "one", "two" });
+            IRegistry descendant2 = new DecrementingCounterBasedRegistry();
+            IRegistry descendant3 = new DecrementingCounterBasedRegistry();
+            IRegistry descendant4 = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            var instance = new HierarchicalRegistry(new HierarchicalRegistry(descendant1, descendant2),
+                new HierarchicalRegistry(descendant3, descendant4));
+            object key = 1;
+            ValueTuple<bool, object> expected = (true, "of");
+            var actual = instance.TryGet(key);
+            Assert.Equal(expected, actual);
+            Assert.Equal(expected.Item2, instance.Get(key));
+        }
+
+        [Fact]
         public void TestGetAll1()
         {
-            IRegistry parent = new RegistryImpl2();
-            IRegistry child = new RegistryImpl1(new object[] { "tree", "of", "life" });
+            IRegistry parent = new DecrementingCounterBasedRegistry();
+            IRegistry child = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             var instance = new HierarchicalRegistry(parent, child);
             object key = "t";
             var expected = new List<object>();
@@ -103,8 +192,8 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestGetAll2()
         {
-            IRegistry parent = new RegistryImpl1(new object[] { "tree", "of", "life" });
-            IRegistry child = new RegistryImpl2();
+            IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
             object key = 0;
             var expected = new List<object> { 0, "tree" };
@@ -115,8 +204,8 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestGetAll3()
         {
-            IRegistry parent = new RegistryImpl1(new object[] { "tree", "of", "life" });
-            IRegistry child = new RegistryImpl2();
+            IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
             object key = 1;
             var expected = new List<object> { 1, 0, "of" };
@@ -127,8 +216,8 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestGetAll4()
         {
-            IRegistry parent = new RegistryImpl2();
-            IRegistry child = new RegistryImpl1(new object[] { "tree", "of", "life" });
+            IRegistry parent = new DecrementingCounterBasedRegistry();
+            IRegistry child = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             var instance = new HierarchicalRegistry(parent, child);
             object key = 1;
             var expected = new List<object> { "of", 1, 0 };
@@ -139,8 +228,8 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestGetAll5()
         {
-            IRegistry parent = new RegistryImpl2();
-            IRegistry child = new RegistryImpl1(new object[] { "tree", "of", "life" });
+            IRegistry parent = new DecrementingCounterBasedRegistry();
+            IRegistry child = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             var instance = new HierarchicalRegistry(parent, child);
             object key = 3;
             var expected = new List<object> { 3, 2, 1, 0 };
@@ -149,10 +238,53 @@ namespace Kabomu.Tests.Mediator.Registry
         }
 
         [Fact]
+        public void TestGetAll6()
+        {
+            IRegistry descendant1 = new DecrementingCounterBasedRegistry();
+            IRegistry descendant2 = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry descendant3 = new DecrementingCounterBasedRegistry();
+            var instance = new HierarchicalRegistry(new HierarchicalRegistry(descendant1, descendant2),
+                descendant3);
+            object key = 2;
+            var expected = new List<object> { 2, 1, 0, "life", 2, 1, 0 };
+            var actual = instance.GetAll(key);
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void TestGetAll7()
+        {
+            IRegistry descendant1 = new IndexedArrayBasedRegistry(new object[] { "zero", "one", "two" });
+            IRegistry descendant2 = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry descendant3 = new DecrementingCounterBasedRegistry();
+            var instance = new HierarchicalRegistry(descendant1, new HierarchicalRegistry(descendant2,
+                descendant3));
+            object key = 2;
+            var expected = new List<object> { 2, 1, 0, "life", "two" };
+            var actual = instance.GetAll(key);
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void TestGetAll8()
+        {
+            IRegistry descendant1 = new IndexedArrayBasedRegistry(new object[] { "zero", "one", "two" });
+            IRegistry descendant2 = new DecrementingCounterBasedRegistry();
+            IRegistry descendant3 = new DecrementingCounterBasedRegistry();
+            IRegistry descendant4 = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            var instance = new HierarchicalRegistry(new HierarchicalRegistry(descendant1, descendant2), 
+                new HierarchicalRegistry(descendant3, descendant4));
+            object key = 1;
+            var expected = new List<object> { "of", 1, 0, 1, 0, "one" };
+            var actual = instance.GetAll(key);
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
         public void TestTryGetFirst1()
         {
-            IRegistry parent = new RegistryImpl1(new object[] { "tree", "of", "life" });
-            IRegistry child = new RegistryImpl2();
+            IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
             object key = "key";
             ValueTuple<bool, object> expected = (false, null);
@@ -163,8 +295,8 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestTryGetFirst2()
         {
-            IRegistry parent = new RegistryImpl1(new object[] { "tree", "of", "life" });
-            IRegistry child = new RegistryImpl2();
+            IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
             object key = 0;
             ValueTuple<bool, object> expected = (false, null);
@@ -175,8 +307,8 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestTryGetFirst3()
         {
-            IRegistry parent = new RegistryImpl1(new object[] { "tree", "of", "life" });
-            IRegistry child = new RegistryImpl2();
+            IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
             object key = 0;
             ValueTuple<bool, object> expected = (true, 0);
@@ -187,8 +319,8 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestTryGetFirst4()
         {
-            IRegistry parent = new RegistryImpl1(new object[] { "tree", "of", "life" });
-            IRegistry child = new RegistryImpl2();
+            IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
             object key = 2;
             ValueTuple<bool, object> expected = (true, 4);
@@ -199,8 +331,8 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestTryGetFirst5()
         {
-            IRegistry parent = new RegistryImpl2();
-            IRegistry child = new RegistryImpl1(new object[] { "tree", "of", "life" });
+            IRegistry parent = new DecrementingCounterBasedRegistry();
+            IRegistry child = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             var instance = new HierarchicalRegistry(parent, child);
             object key = 2;
             ValueTuple<bool, object> expected = (true, "LIFE");
@@ -208,86 +340,16 @@ namespace Kabomu.Tests.Mediator.Registry
             Assert.Equal(expected, actual);
         }
 
-        class RegistryImpl1 : IRegistry
+        [Fact]
+        public void TestTryGetFirst6()
         {
-            private readonly object[] _array;
-
-            public RegistryImpl1(object[] array)
-            {
-                _array = array;
-            }
-
-            public (bool, object) TryGet(object key)
-            {
-                if (key is int index)
-                {
-                    if (_array != null && index >= 0 && index < _array.Length)
-                    {
-                        return (true, _array[index]);
-                    }
-                }
-                return (false, null);
-            }
-
-            public IEnumerable<object> GetAll(object key)
-            {
-                var result = TryGet(key);
-                if (result.Item1)
-                {
-                    return new List<object> { result.Item2 };
-                }
-                return Enumerable.Empty<object>();
-            }
-
-            public object Get(object key)
-            {
-                return RegistryUtils.Get(this, key);
-            }
-
-            public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)
-            {
-                return RegistryUtils.TryGetFirst(this, key, transformFunction);
-            }
-        }
-
-        class RegistryImpl2 : IRegistry
-        {
-            public (bool, object) TryGet(object key)
-            {
-                var result = GetAll(key);
-                if (result.Any())
-                {
-                    return (true, result.First());
-                }
-                return (false, null);
-            }
-
-            public IEnumerable<object> GetAll(object key)
-            {
-                if (key is int count)
-                {
-                    if (count >= 0)
-                    {
-                        var values = new List<object>();
-                        for (int i = count; i >= 0; i--)
-                        {
-                            values.Add(i);
-                        }
-                        return values;
-                    }
-                }
-                return Enumerable.Empty<object>();
-            }
-
-            public object Get(object key)
-            {
-                return RegistryUtils.Get(this, key);
-            }
-
-            public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)
-            {
-                return RegistryUtils.TryGetFirst(this, key, transformFunction);
-            }
+            IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
+            IRegistry child = new DecrementingCounterBasedRegistry();
+            var instance = new HierarchicalRegistry(parent, child);
+            object key = 2;
+            ValueTuple<bool, object> expected = (true, 3);
+            var actual = instance.TryGetFirst(key, x => ((int)x < 2, ((int)x) * 3));
+            Assert.Equal(expected, actual);
         }
     }
 }

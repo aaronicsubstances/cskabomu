@@ -1,16 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Kabomu.Mediator.Registry
 {
     public class DefaultMutableRegistry : IMutableRegistry
     {
-        private readonly Dictionary<object, Stack<Func<object>>> _entries;
+        // use data structure which maintains order of insertion of keys.
+        private readonly Dictionary<object, LinkedList<Func<object>>> _entries;
 
         public DefaultMutableRegistry()
         {
-            _entries = new Dictionary<object, Stack<Func<object>>>();
+            _entries = new Dictionary<object, LinkedList<Func<object>>>();
         }
 
         public IMutableRegistry Add(object key, object value)
@@ -20,17 +22,18 @@ namespace Kabomu.Mediator.Registry
 
         public IMutableRegistry AddGenerator(object key, Func<object> valueGenerator)
         {
-            Stack<Func<object>> selectedEntries;
+            LinkedList<Func<object>> selectedEntries;
             if (_entries.ContainsKey(key))
             {
                 selectedEntries = _entries[key];
             }
             else
             {
-                selectedEntries = new Stack<Func<object>>();
+                selectedEntries = new LinkedList<Func<object>>();
                 _entries.Add(key, selectedEntries);
             }
-            selectedEntries.Push(valueGenerator);
+            // insert in FIFO order.
+            selectedEntries.AddFirst(valueGenerator);
             return this;
         }
 
@@ -44,11 +47,11 @@ namespace Kabomu.Mediator.Registry
         {
             if (key is IRegistryKeyPattern keyPattern)
             {
-                foreach (var k in _entries.Keys)
+                foreach (var e in _entries.Reverse())
                 {
-                    if (keyPattern.IsMatch(k))
+                    if (keyPattern.IsMatch(e.Key))
                     {
-                        var valueGenerator = _entries[k].Peek();
+                        var valueGenerator = e.Value.First.Value;
                         var value = valueGenerator.Invoke();
                         return (true, value);
                     }
@@ -58,7 +61,7 @@ namespace Kabomu.Mediator.Registry
             {
                 if (_entries.ContainsKey(key))
                 {
-                    var valueGenerator = _entries[key].Peek();
+                    var valueGenerator = _entries[key].First.Value;
                     var value = valueGenerator.Invoke();
                     return (true, value);
                 }
@@ -71,13 +74,15 @@ namespace Kabomu.Mediator.Registry
             var selected = new List<object>();
             if (key is IRegistryKeyPattern keyPattern)
             {
-                foreach (var k in _entries.Keys)
+                foreach (var e in _entries.Reverse())
                 {
-                    if (keyPattern.IsMatch(k))
+                    if (keyPattern.IsMatch(e.Key))
                     {
-                        var valueGenerator = _entries[k].Peek();
-                        var value = valueGenerator.Invoke();
-                        selected.Add(value);
+                        foreach (var valueGenerator in e.Value)
+                        {
+                            var value = valueGenerator.Invoke();
+                            selected.Add(value);
+                        }
                     }
                 }
             }
@@ -85,9 +90,11 @@ namespace Kabomu.Mediator.Registry
             {
                 if (_entries.ContainsKey(key))
                 {
-                    var valueGenerator = _entries[key].Peek();
-                    var value = valueGenerator.Invoke();
-                    selected.Add(value);
+                    foreach (var valueGenerator in _entries[key])
+                    {
+                        var value = valueGenerator.Invoke();
+                        selected.Add(value);
+                    }
                 }
             }
             return selected;
@@ -101,11 +108,11 @@ namespace Kabomu.Mediator.Registry
             }
             if (key is IRegistryKeyPattern keyPattern)
             {
-                foreach (var k in _entries.Keys)
+                foreach (var e in _entries.Reverse())
                 {
-                    if (keyPattern.IsMatch(k))
+                    if (keyPattern.IsMatch(e.Key))
                     {
-                        var valueGenerator = _entries[k].Peek();
+                        var valueGenerator = e.Value.First.Value;
                         var value = valueGenerator.Invoke();
                         var result = transformFunction.Invoke(value);
                         if (result.Item1)
@@ -119,7 +126,7 @@ namespace Kabomu.Mediator.Registry
             {
                 if (_entries.ContainsKey(key))
                 {
-                    var valueGenerator = _entries[key].Peek();
+                    var valueGenerator = _entries[key].First.Value;
                     var value = valueGenerator.Invoke();
                     var result = transformFunction.Invoke(value);
                     if (result.Item1)
