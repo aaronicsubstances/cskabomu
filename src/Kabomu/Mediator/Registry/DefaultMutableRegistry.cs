@@ -31,44 +31,29 @@ namespace Kabomu.Mediator.Registry
             {
                 selectedEntries = new LinkedList<Func<object>>();
                 _entries.Add(key, selectedEntries);
+                // insert in FIFO order and disallow duplicates.
+                _entryKeys.AddFirst(key);
             }
             // insert in FIFO order.
             selectedEntries.AddFirst(valueGenerator);
-            // disallow duplicate entry keys.
-            var keyPresent = false;
-            foreach (var k in _entryKeys)
-            {
-                // use the same equality comparison mechanism as the one
-                // used to compare keys in dictionary.
-                if (EqualityComparer<object>.Default.Equals(k, key))
-                {
-                    keyPresent = true;
-                    break;
-                }
-            }
-            if (!keyPresent)
-            {
-                // insert in FIFO order.
-                _entryKeys.AddFirst(key);
-            }
             return this;
         }
 
         public IMutableRegistry Remove(object key)
         {
-            _entries.Remove(key);
-            // remove all entry keys and re-add them in LIFO order, except for
-            // keys which match the supplied argument.
-            var keyCount = _entryKeys.Count;
-            for (int i = 0; i < keyCount; i++)
+            if (_entries.Remove(key))
             {
-                var curr = _entryKeys.First;
-                _entryKeys.RemoveFirst();
-                // use the same equality comparison mechanism as the one
-                // used to compare keys in dictionary.
-                if (!EqualityComparer<object>.Default.Equals(curr.Value, key))
+                LinkedListNode<object> curr = _entryKeys.First;
+                while (curr != null)
                 {
-                    _entryKeys.AddLast(curr);
+                    // use the same equality comparison mechanism as the one
+                    // used to compare keys in dictionary.
+                    if (EqualityComparer<object>.Default.Equals(curr.Value, key))
+                    {
+                        _entryKeys.Remove(curr);
+                        break;
+                    }
+                    curr = curr.Next;
                 }
             }
             return this;
