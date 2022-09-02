@@ -12,7 +12,7 @@ namespace Kabomu.Mediator.Handling
             Action<IDictionary<string, IList<string>>> setter)
         {
             _getter = getter ?? throw new ArgumentNullException(nameof(getter));
-            _setter = setter; // null acceptable for readonly headerwrappers.
+            _setter = setter; // null acceptable for readonly header wrappers.
         }
 
         public string Get(string name)
@@ -55,6 +55,8 @@ namespace Kabomu.Mediator.Handling
                 values = new List<string>();
                 rawHeaders.Add(name, values);
             }
+            // NB: may fail if values is an ungrowable list supplied from
+            // outside this class, such as an array.
             values.Add(value);
             return this;
         }
