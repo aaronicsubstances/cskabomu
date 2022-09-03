@@ -16,7 +16,7 @@ namespace Kabomu.Mediator.Handling
         {
             RawResponse = rawResponse ?? throw new ArgumentNullException(nameof(rawResponse));
             _responseTransmitter = responseTransmitter ?? throw new ArgumentNullException(nameof(responseTransmitter));
-            Headers = new QuasiHttpHeadersWrapper(() => rawResponse.Headers, value => rawResponse.Headers = value);
+            Headers = new DefaultMutableHeadersWrapper(() => rawResponse.Headers, value => rawResponse.Headers = value);
         }
 
         public IQuasiHttpMutableResponse RawResponse { get; }
@@ -71,7 +71,7 @@ namespace Kabomu.Mediator.Handling
             return TrySend();
         }
 
-        public IMutableHeaders Headers { get; }
+        public IMutableHeadersWrapper Headers { get; }
 
         public async Task Send()
         {

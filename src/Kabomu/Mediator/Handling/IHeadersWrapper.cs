@@ -2,8 +2,9 @@
 
 namespace Kabomu.Mediator.Handling
 {
-    public interface IHeaders
+    public interface IHeadersWrapper
     {
         string Get(string name);
+        IEnumerable<string> GetAll(string name);
     }
 }
