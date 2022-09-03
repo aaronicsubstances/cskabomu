@@ -1,5 +1,4 @@
 ﻿using Kabomu.Concurrency;
-using Kabomu.Mediator.Path;
 using Kabomu.Mediator.Registry;
 using System;
 using System.Collections.Generic;
@@ -9,20 +8,14 @@ namespace Kabomu.Mediator.Handling
 {
     public interface IContext : IRegistry
     {
+        IMutexApi MutexApi { get; set; }
         IContextRequest Request { get; }
         IContextResponse Response { get; }
-        IMutexApi MutexApi { get; set; }
-        IPathTemplateGenerator PathTemplateGenerator { get; }
-        IPathMatchResult PathMatchResult { get; }
 
         Task Insert​(IList<Handler> handlers);
         Task Insert​(IList<Handler> handlers, IRegistry registry);
         Task SkipInsert();
         Task Next();
         Task Next​(IRegistry registry);
-        Task<T> ParseRequest<T>(object parseOpts);
-        Task RenderResponse(object body);
-        Task HandleError​(Exception error);
-        Task HandleUnexpectedEnd();
     }
 }

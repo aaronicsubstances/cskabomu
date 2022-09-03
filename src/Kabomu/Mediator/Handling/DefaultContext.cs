@@ -2,9 +2,6 @@
 using Kabomu.Concurrency;
 using Kabomu.Mediator.Path;
 using Kabomu.Mediator.Registry;
-using Kabomu.Mediator.RequestParsing;
-using Kabomu.Mediator.ResponseRendering;
-using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,12 +15,13 @@ namespace Kabomu.Mediator.Handling
         private Stack<HandlerGroup> _handlerStack;
         private IRegistry _joinedRegistry;
 
-        public IContextRequest Request { get; set; }
-        public IContextResponse Response { get; set; }
+        public IMutexApi MutexApi { get; set; }
+        public IContextRequest Request { get; set; } // getter is equivalent to fetching from joined registry
+        public IContextResponse Response { get; set; } // getter is equivalent to fetching from joined registry
+
         public IList<Handler> InitialHandlers { get; set; }
         public IRegistry InitialReadonlyLocalRegistry { get; set; }
         public IRegistry ReadonlyGlobalRegistry { get; set; }
-        public IMutexApi MutexApi { get; set; }
 
         public async Task Start()
         {
@@ -41,25 +39,25 @@ namespace Kabomu.Mediator.Handling
             }
 
             var additionalGlobalRegistry = new DefaultMutableRegistry();
-            additionalGlobalRegistry.Add(ContextUtils.TypePatternContext,
+            additionalGlobalRegistry.Add(ContextUtils.RegistryKeyContext,
                 this);
-            additionalGlobalRegistry.Add(ContextUtils.TypePatternRequest,
+            additionalGlobalRegistry.Add(ContextUtils.RegistryKeyRequest,
                 Request);
-            additionalGlobalRegistry.Add(ContextUtils.TypePatternResponse,
+            additionalGlobalRegistry.Add(ContextUtils.RegistryKeyResponse,
                 Response);
 
             // only add these if they have not being added already
             var additionalLocalRegistry = new DefaultMutableRegistry();
             if (InitialReadonlyLocalRegistry == null ||
-                !InitialReadonlyLocalRegistry.TryGet(ContextUtils.TypePatternPathTemplateGenerator).Item1)
+                !InitialReadonlyLocalRegistry.TryGet(ContextUtils.RegistryKeyPathTemplateGenerator).Item1)
             {
-                additionalLocalRegistry.Add(ContextUtils.TypePatternPathTemplateGenerator,
+                additionalLocalRegistry.Add(ContextUtils.RegistryKeyPathTemplateGenerator,
                     new DefaultPathTemplateGenerator());
             }
             if (InitialReadonlyLocalRegistry == null ||
-                !InitialReadonlyLocalRegistry.TryGet(ContextUtils.TypePatternPathMatchResult).Item1)
+                !InitialReadonlyLocalRegistry.TryGet(ContextUtils.RegistryKeyPathMatchResult).Item1)
             {
-                additionalLocalRegistry.Add(ContextUtils.TypePatternPathMatchResult,
+                additionalLocalRegistry.Add(ContextUtils.RegistryKeyPathMatchResult,
                     CreateRootPathMatch());
             }
 
@@ -174,7 +172,7 @@ namespace Kabomu.Mediator.Handling
 
             if (handler == null)
             {
-                _ = HandleUnexpectedEnd();
+                _ = ContextExtensions.HandleUnexpectedEnd(this);
                 return;
             }
 
@@ -193,238 +191,13 @@ namespace Kabomu.Mediator.Handling
             {
                 if (!(e is HandlerException))
                 {
-                    await HandleError(new HandlerException(null, e));
+                    await ContextExtensions.HandleError(this, new HandlerException(null, e));
                 }
                 else
                 {
-                    await HandleError(e);
+                    await ContextExtensions.HandleError(this, e);
                 }
             }
-        }
-
-        public IPathTemplateGenerator PathTemplateGenerator
-        {
-            get
-            {
-                return _joinedRegistry.Get<IPathTemplateGenerator>(ContextUtils.TypePatternPathTemplateGenerator);
-            }
-        }
-
-        public IPathMatchResult PathMatchResult
-        {
-            get
-            {
-                return _joinedRegistry.Get<IPathMatchResult>(ContextUtils.TypePatternPathMatchResult);
-            }
-        }
-
-        public async Task<T> ParseRequest<T>(object parseOpts)
-        {
-            try
-            {
-                // tolerate prescence of nulls.
-                Func<object, (bool, Task<T>)> parserCode = (obj) =>
-                {
-                    var parser = obj as IRequestParser;
-                    if (parser != null && parser.CanParse<T>(this, parseOpts))
-                    {
-                        var result = parser.Parse<T>(this, parseOpts);
-                        return (true, result);
-                    }
-                    return (false, null);
-                };
-                Task<T> parserTask;
-                using (await MutexApi.Synchronize())
-                {
-                    bool found;
-                    (found, parserTask) = _joinedRegistry.TryGetFirst(
-                        ContextUtils.TypePatternRequestParser, parserCode);
-                    if (!found)
-                    {
-                        throw new ParseException("no parser found");
-                    }
-                }
-                return await parserTask;
-            }
-            catch (Exception e)
-            {
-                if (e is ParseException)
-                {
-                    throw;
-                }
-                else
-                {
-                    throw new ParseException(null, e);
-                }
-            }
-        }
-
-        public async Task RenderResponse(object body)
-        {
-            try
-            {
-                if (body is IRenderable renderable)
-                {
-                    await renderable.Render(this);
-                    return;
-                }
-                // tolerate prescence of nulls.
-                Func<object, (bool, Task)> renderingCode = (obj) =>
-                {
-                    var renderer = obj as IResponseRenderer;
-                    if (renderer != null && renderer.CanRender(this, body))
-                    {
-                        var result = renderer.Render(this, body);
-                        return (true, result);
-                    }
-                    return (false, null);
-                };
-                Task renderTask;
-                using (await MutexApi.Synchronize())
-                {
-                    bool found;
-                    (found, renderTask) = _joinedRegistry.TryGetFirst(
-                        ContextUtils.TypePatternResponseRenderer, renderingCode);
-                    if (!found)
-                    {
-                        throw new RenderException("no renderer found");
-                    }
-                }
-                await renderTask;
-            }
-            catch (Exception e)
-            {
-                if (e is RenderException)
-                {
-                    throw;
-                }
-                else
-                {
-                    throw new RenderException(null, e);
-                }
-            }
-        }
-
-        public async Task HandleUnexpectedEnd()
-        {
-            try
-            {
-                // tolerate prescence of nulls.
-                Func<object, (bool, Task)> unexpectedEndCode = (obj) =>
-                {
-                    var handler = obj as IUnexpectedEndHandler;
-                    if (handler != null)
-                    {
-                        var result = handler.HandleUnexpectedEnd(this);
-                        return (true, result);
-                    }
-                    return (false, null);
-                };
-                Task unexpectedEndTask;
-                using (await MutexApi.Synchronize())
-                {
-                    bool found;
-                    (found, unexpectedEndTask) = _joinedRegistry.TryGetFirst(
-                        ContextUtils.TypePatternUnexpectedEndHandler, unexpectedEndCode);
-                    if (!found)
-                    {
-                        unexpectedEndTask = HandleUnexpectedEndLastResort();
-                    }
-                }
-                await unexpectedEndTask;
-            }
-            catch (Exception e)
-            {
-                if (!(e is HandlerException))
-                {
-                    await HandleError(new HandlerException(null, e));
-                }
-                else
-                {
-                    await HandleError(e);
-                }
-            }
-        }
-
-        private Task HandleUnexpectedEndLastResort()
-        {
-            return Response.SetStatusCode(404).TrySend();
-        }
-
-        public async Task HandleError(Exception error)
-        {
-            try
-            {
-                // tolerate prescence of nulls.
-                Func<object, (bool, Task)> errorHandlingCode = (obj) =>
-                {
-                    var handler = obj as IServerErrorHandler;
-                    if (handler != null)
-                    {
-                        var result = handler.HandleError(this, error);
-                        return (true, result);
-                    }
-                    return (false, null);
-                };
-                Task resultTask;
-                using (await MutexApi.Synchronize())
-                {
-                    bool found;
-                    (found, resultTask) = _joinedRegistry.TryGetFirst(
-                        ContextUtils.TypePatternServerErrorHandler, errorHandlingCode);
-                    if (!found)
-                    {
-                        resultTask = HandleErrorLastResort(error, null);
-                    }
-                }
-                await resultTask;
-            }
-            catch (Exception e)
-            {
-                try
-                {
-                    await HandleErrorLastResort(error, e);
-                }
-                catch (Exception) { }
-            }
-        }
-
-        private async Task HandleErrorLastResort(Exception original, Exception errorHandlerException)
-        {
-            Task sendTask;
-            using (await MutexApi.Synchronize())
-            {
-                string msg;
-                if (errorHandlerException != null)
-                {
-                    msg = "Exception thrown by error handler while handling exception\n" +
-                        "Original exception: " + FlattenException(original) + "\n" +
-                        "Error handler exception: " + FlattenException(errorHandlerException);
-                }
-                else
-                {
-                    msg = FlattenException(original);
-                }
-
-                sendTask = Response.SetStatusCode(500)
-                    .TrySendWithBody(new StringBody(msg) { ContentType = "text/plain" });
-            }
-            await sendTask;
-        }
-
-        internal static string FlattenException(Exception exception)
-        {
-            var stringBuilder = new StringBuilder();
-
-            while (exception != null)
-            {
-                stringBuilder.AppendLine(exception.Message);
-                stringBuilder.AppendLine(exception.StackTrace);
-
-                exception = exception.InnerException;
-            }
-
-            return stringBuilder.ToString();
         }
 
         public (bool, object) TryGet(object key)

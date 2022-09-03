@@ -61,13 +61,13 @@ namespace Kabomu.Mediator.Handling
                 IPathMatchResult parentPathMatchResult;
                 using (await context.MutexApi.Synchronize())
                 {
-                    parentPathMatchResult = context.PathMatchResult;
+                    parentPathMatchResult = ContextExtensions.GetPathMatchResult(context);
                 }
                 var pathMatchResult = pathTemplate.Match(context, parentPathMatchResult.UnboundRequestTarget);
                 if (pathMatchResult != null)
                 {
                     var additionalRegistry = new DefaultMutableRegistry()
-                        .Add(ContextUtils.TypePatternPathMatchResult, pathMatchResult);
+                        .Add(ContextUtils.RegistryKeyPathMatchResult, pathMatchResult);
                     await context.Insert(new List<Handler> { handler }, additionalRegistry);
                 }
                 else
