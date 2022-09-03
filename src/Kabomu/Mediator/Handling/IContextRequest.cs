@@ -12,7 +12,7 @@ namespace Kabomu.Mediator.Handling
         IQuasiHttpRequest RawRequest { get; }
         IDictionary<string, object> Environment { get; }
         string Target { get; }
-        IHeaders Headers { get; }
+        IHeadersWrapper Headers { get; }
         IQuasiHttpBody Body { get; }
     }
 }
