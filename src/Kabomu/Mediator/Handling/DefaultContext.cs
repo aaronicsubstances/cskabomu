@@ -160,8 +160,8 @@ namespace Kabomu.Mediator.Handling
                 else
                 {
                     // Always ensure first handler group is never popped off the stack, so that
-                    // calls to CurrentRegistry always succeed.
-                    if (_handlerStack.Count == 0)
+                    // calls to Peek and CurrentRegistry always succeed.
+                    if (_handlerStack.Count == 1)
                     {
                         break;
                     }

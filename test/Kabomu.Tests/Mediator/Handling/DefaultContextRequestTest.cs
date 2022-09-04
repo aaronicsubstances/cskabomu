@@ -19,7 +19,7 @@ namespace Kabomu.Tests.Mediator.Handling
             var instance = new DefaultContextRequest(rawRequest, requestEnvironment);
             Assert.Same(rawRequest, instance.RawRequest);
             Assert.Same(requestEnvironment, instance.Environment);
-            Assert.Same(rawRequest.Target, instance.Target);
+            Assert.Equal(rawRequest.Target, instance.Target);
             Assert.Same(rawRequest.Body, instance.Body);
             Assert.NotNull(instance.Headers);
             Assert.Empty(instance.Headers.GetNames());
@@ -42,7 +42,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Same(rawRequest, instance.RawRequest);
             Assert.NotNull(instance.Environment);
             Assert.Equal(new Dictionary<string, object>(), instance.Environment);
-            Assert.Same(rawRequest.Target, instance.Target);
+            Assert.Equal(rawRequest.Target, instance.Target);
             Assert.Same(rawRequest.Body, instance.Body);
             Assert.NotNull(instance.Headers);
             ComparisonUtils.AssertSetEqual(new List<string> { "lead", "Flow" }, instance.Headers.GetNames());
