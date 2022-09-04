@@ -50,6 +50,14 @@ namespace Kabomu.Tests.Shared
             CompareHeaders(expected.Headers, actual.Headers);
         }
 
+        public static void AssertSetEqual(ICollection<string> expected, ICollection<string> actual)
+        {
+            var expectedWrapper = new HashSet<string>(expected);
+            var actualWrapper = new HashSet<string>(actual);
+            Assert.Subset(expectedWrapper, actualWrapper);
+            Assert.Superset(expectedWrapper, actualWrapper);
+        }
+
         public static void CompareSubsequentChunks(SubsequentChunk expected, SubsequentChunk actual)
         {
             Assert.Equal(expected.Version, actual.Version);

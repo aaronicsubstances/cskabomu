@@ -6,5 +6,6 @@ namespace Kabomu.Mediator.Handling
     {
         string Get(string name);
         IEnumerable<string> GetAll(string name);
+        ICollection<string> GetNames();
     }
 }
