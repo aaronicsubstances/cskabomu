@@ -47,6 +47,16 @@ namespace Kabomu.Mediator.Handling
             return Enumerable.Empty<string>();
         }
 
+        public ICollection<string> GetNames()
+        {
+            var rawHeaders = _getter.Invoke();
+            if (rawHeaders != null)
+            {
+                return rawHeaders.Keys;
+            }
+            return Enumerable.Empty<string>().ToList();
+        }
+
         public IMutableHeadersWrapper Clear()
         {
             _getter.Invoke()?.Clear();

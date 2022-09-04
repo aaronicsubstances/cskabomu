@@ -24,7 +24,7 @@ namespace Kabomu.Tests.Mediator.Registry
             IRegistry parent = new DecrementingCounterBasedRegistry();
             IRegistry child = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             var instance = new HierarchicalRegistry(parent, child);
-            CommonRegistryTestRunner.TestOps(instance, "t", new List<object>());
+            CommonRegistryTestRunner.TestReadonlyOps(instance, "t", new List<object>());
         }
 
         [Fact]
@@ -33,7 +33,7 @@ namespace Kabomu.Tests.Mediator.Registry
             IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
-            CommonRegistryTestRunner.TestOps(instance, 0, new List<object> { 0, "tree" });
+            CommonRegistryTestRunner.TestReadonlyOps(instance, 0, new List<object> { 0, "tree" });
         }
 
         [Fact]
@@ -42,7 +42,7 @@ namespace Kabomu.Tests.Mediator.Registry
             IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
-            CommonRegistryTestRunner.TestOps(instance, 1, new List<object> { 1, 0, "of" });
+            CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { 1, 0, "of" });
         }
 
         [Fact]
@@ -51,7 +51,7 @@ namespace Kabomu.Tests.Mediator.Registry
             IRegistry parent = new DecrementingCounterBasedRegistry();
             IRegistry child = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             var instance = new HierarchicalRegistry(parent, child);
-            CommonRegistryTestRunner.TestOps(instance, 1, new List<object> { "of", 1, 0 });
+            CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "of", 1, 0 });
         }
 
         [Fact]
@@ -60,7 +60,7 @@ namespace Kabomu.Tests.Mediator.Registry
             IRegistry parent = new DecrementingCounterBasedRegistry();
             IRegistry child = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             var instance = new HierarchicalRegistry(parent, child);
-            CommonRegistryTestRunner.TestOps(instance, 3, new List<object> { 3, 2, 1, 0 });
+            CommonRegistryTestRunner.TestReadonlyOps(instance, 3, new List<object> { 3, 2, 1, 0 });
         }
 
         [Fact]
@@ -71,7 +71,7 @@ namespace Kabomu.Tests.Mediator.Registry
             IRegistry descendant3 = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(new HierarchicalRegistry(descendant1, descendant2),
                 descendant3);
-            CommonRegistryTestRunner.TestOps(instance, 2,
+            CommonRegistryTestRunner.TestReadonlyOps(instance, 2,
                 new List<object> { 2, 1, 0, "life", 2, 1, 0 });
         }
 
@@ -83,7 +83,7 @@ namespace Kabomu.Tests.Mediator.Registry
             IRegistry descendant3 = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(descendant1, new HierarchicalRegistry(descendant2,
                 descendant3));
-            CommonRegistryTestRunner.TestOps(instance, 2,
+            CommonRegistryTestRunner.TestReadonlyOps(instance, 2,
                 new List<object> { 2, 1, 0, "life", "two" });
         }
 
@@ -96,7 +96,7 @@ namespace Kabomu.Tests.Mediator.Registry
             IRegistry descendant4 = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             var instance = new HierarchicalRegistry(new HierarchicalRegistry(descendant1, descendant2), 
                 new HierarchicalRegistry(descendant3, descendant4));
-            CommonRegistryTestRunner.TestOps(instance, 1,
+            CommonRegistryTestRunner.TestReadonlyOps(instance, 1,
                 new List<object> { "of", 1, 0, 1, 0, "one" });
         }
 
@@ -106,7 +106,7 @@ namespace Kabomu.Tests.Mediator.Registry
             IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
-            CommonRegistryTestRunner.TestOps(instance, "non-existent key", new List<object>());
+            CommonRegistryTestRunner.TestReadonlyOps(instance, "non-existent key", new List<object>());
         }
 
         [Fact]
@@ -115,7 +115,7 @@ namespace Kabomu.Tests.Mediator.Registry
             IRegistry parent = new IndexedArrayBasedRegistry(new object[] { "tree", "of", "life" });
             IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
-            CommonRegistryTestRunner.TestOps(instance, 0, new List<object> { 0, "tree" });
+            CommonRegistryTestRunner.TestReadonlyOps(instance, 0, new List<object> { 0, "tree" });
         }
 
         [Fact]

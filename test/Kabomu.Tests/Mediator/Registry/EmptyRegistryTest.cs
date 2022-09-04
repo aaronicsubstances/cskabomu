@@ -12,7 +12,7 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void Test1()
         {
-            CommonRegistryTestRunner.TestOps(EmptyRegistry.Instance, "any", new List<object>());
+            CommonRegistryTestRunner.TestReadonlyOps(EmptyRegistry.Instance, "any", new List<object>());
         }
     }
 }
