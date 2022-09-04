@@ -28,7 +28,9 @@ namespace Kabomu.Mediator.Handling
         public bool IsClientErrorStatusCode => RawResponse.StatusCode >= 400 && RawResponse.StatusCode <= 499;
 
         public bool IsServerErrorStatusCode => RawResponse.StatusCode >= 500 && RawResponse.StatusCode <= 599;
-        
+
+        public IQuasiHttpBody Body => RawResponse.Body;
+
         public IContextResponse SetSuccessStatusCode()
         {
             RawResponse.StatusCode = 200;

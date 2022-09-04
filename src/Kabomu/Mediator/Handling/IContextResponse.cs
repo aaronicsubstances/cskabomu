@@ -14,6 +14,7 @@ namespace Kabomu.Mediator.Handling
         bool IsSuccessStatusCode { get; }
         bool IsClientErrorStatusCode { get; }
         bool IsServerErrorStatusCode { get; }
+        IQuasiHttpBody Body { get; }
         IMutableHeadersWrapper Headers { get; }
         IContextResponse SetSuccessStatusCode();
         IContextResponse SetClientErrorStatusCode();
