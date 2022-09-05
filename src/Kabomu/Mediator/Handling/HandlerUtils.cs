@@ -12,45 +12,36 @@ namespace Kabomu.Mediator.Handling
     {
         public static Handler Chain(IList<Handler> handlers)
         {
-            if (handlers == null || handlers.Count == 0)
+            if (handlers == null)
             {
-                return context =>
-                {
-                    context.Next();
-                    return Task.CompletedTask;
-                };
+                throw new ArgumentNullException(nameof(handlers));
             }
             if (handlers.Count == 1)
             {
                 return handlers[0];
             }
-            Handler chainHandler = context =>
+            else
             {
-                context.Insert(handlers);
-                return Task.CompletedTask;
-            };
-            return chainHandler;
+                return context => context.Insert(handlers);
+            }
         }
 
-        public static Handler Register(IRegistry registry, Handler handler)
+        public static Handler Chain(params Handler[] handlers)
         {
-            return context =>
-            {
-                context.Insert(new List<Handler> { handler }, registry);
-                return Task.CompletedTask;
-            };
+            return Chain((IList<Handler>)handlers);
+        }
+
+        public static Handler Register(IRegistry registry, params Handler[] handlers)
+        {
+            return context => context.Insert(handlers, registry);
         }
 
         public static Handler Register(IRegistry registry)
         {
-            return context =>
-            {
-                context.Next(registry);
-                return Task.CompletedTask;
-            };
+            return context => context.Next(registry);
         }
 
-        public static Handler MountPath(IPathTemplate pathTemplate, Handler handler)
+        public static Handler MountPath(IPathTemplate pathTemplate, params Handler[] handlers)
         {
             if (pathTemplate == null)
             {
@@ -68,7 +59,7 @@ namespace Kabomu.Mediator.Handling
                 {
                     var additionalRegistry = new DefaultMutableRegistry()
                         .Add(ContextUtils.RegistryKeyPathMatchResult, pathMatchResult);
-                    await context.Insert(new List<Handler> { handler }, additionalRegistry);
+                    await context.Insert(handlers, additionalRegistry);
                 }
                 else
                 {

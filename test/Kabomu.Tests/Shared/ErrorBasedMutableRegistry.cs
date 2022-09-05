@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Kabomu.Tests.Shared
 {
-    public class TempMutableRegistry : IMutableRegistry
+    public class ErrorBasedMutableRegistry : IMutableRegistry
     {
         public object ActualKeyAdded { get; set; }
         public Func<object> ActualValueGeneratorAdded { get; set; }
