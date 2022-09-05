@@ -51,7 +51,7 @@ namespace Kabomu.QuasiHttp.Client
                 RequestTarget = request.Target,
                 Headers = request.Headers,
                 HttpVersion = request.HttpVersion,
-                HttpMethod = request.HttpMethod
+                Method = request.Method
             };
             if (request.Body != null)
             {

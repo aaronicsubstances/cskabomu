@@ -40,5 +40,24 @@ namespace Kabomu.Mediator.Handling
         public static readonly int PathConstraintMatchDirectionMatch = 1;
 
         public static readonly int PathConstraintMatchDirectionFormat = 2;
+
+        public static IPathMatchResult GetPathMatchResult(IRegistry registry)
+        {
+            return RegistryExtensions.Get<IPathMatchResult>(registry,
+                ContextUtils.RegistryKeyPathMatchResult);
+        }
+
+        public static IPathTemplateGenerator GetPathTemplateGenerator(IRegistry registry)
+        {
+            return RegistryExtensions.Get<IPathTemplateGenerator>(registry,
+                   ContextUtils.RegistryKeyPathTemplateGenerator);
+        }
+
+        public static IPathTemplate ParseUnboundRequestTarget(IRegistry registry, string part1, object part2)
+        {
+            var pathTemplateGenerator = GetPathTemplateGenerator(registry);
+            IPathTemplate pathTemplate = pathTemplateGenerator.Parse(part1, part2);
+            return pathTemplate;
+        }
     }
 }

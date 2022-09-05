@@ -1,6 +1,7 @@
 ﻿using Kabomu.Concurrency;
 using Kabomu.Mediator.Path;
 using Kabomu.Mediator.Registry;
+using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -41,7 +42,13 @@ namespace Kabomu.Mediator.Handling
             return context => context.Next(registry);
         }
 
-        public static Handler MountPath(IPathTemplate pathTemplate, params Handler[] handlers)
+        public static Handler Path(IRegistry registry, string part1, object part2, params Handler[] handlers)
+        {
+            var pathTemplate = ContextUtils.ParseUnboundRequestTarget(registry, part1, part2);
+            return Path(pathTemplate, handlers);
+        }
+
+        public static Handler Path(IPathTemplate pathTemplate, params Handler[] handlers)
         {
             if (pathTemplate == null)
             {
@@ -52,7 +59,7 @@ namespace Kabomu.Mediator.Handling
                 IPathMatchResult parentPathMatchResult;
                 using (await context.MutexApi.Synchronize())
                 {
-                    parentPathMatchResult = ContextExtensions.GetPathMatchResult(context);
+                    parentPathMatchResult = ContextUtils.GetPathMatchResult(context);
                 }
                 var pathMatchResult = pathTemplate.Match(context, parentPathMatchResult.UnboundRequestTarget);
                 if (pathMatchResult != null)
@@ -60,6 +67,45 @@ namespace Kabomu.Mediator.Handling
                     var additionalRegistry = new DefaultMutableRegistry()
                         .Add(ContextUtils.RegistryKeyPathMatchResult, pathMatchResult);
                     await context.Insert(handlers, additionalRegistry);
+                }
+                else
+                {
+                    await context.Next();
+                }
+            };
+        }
+
+        public static Handler ByGet(params Handler[] handlers)
+        {
+            return ByMethod(DefaultQuasiHttpRequest.MethodGet, handlers);
+        }
+
+        public static Handler ByPost(params Handler[] handlers)
+        {
+            return ByMethod(DefaultQuasiHttpRequest.MethodPost, handlers);
+        }
+
+        public static Handler ByPut(params Handler[] handlers)
+        {
+            return ByMethod(DefaultQuasiHttpRequest.MethodPut, handlers);
+        }
+
+        public static Handler ByDelete(params Handler[] handlers)
+        {
+            return ByMethod(DefaultQuasiHttpRequest.MethodDelete, handlers);
+        }
+
+        public static Handler ByMethod(string method, params Handler[] handlers)
+        {
+            if (method == null)
+            {
+                throw new ArgumentNullException(nameof(method));
+            }
+            return async (context) =>
+            {
+                if (context.Request.Method == method)
+                {
+                    await context.Insert(handlers);
                 }
                 else
                 {

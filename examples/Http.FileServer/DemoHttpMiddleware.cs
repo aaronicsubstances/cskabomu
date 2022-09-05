@@ -39,7 +39,7 @@ namespace Http.FileServer
             HttpContext httpContext = new DefaultHttpContext(contextFeatures);
             var quasiRequest = new DefaultQuasiHttpRequest
             {
-                HttpMethod = httpContext.Request.Method,
+                Method = httpContext.Request.Method,
                 HttpVersion = httpContext.Request.Protocol
             };
             quasiRequest.Target = ReconstructRequestPath(httpContext.Request);

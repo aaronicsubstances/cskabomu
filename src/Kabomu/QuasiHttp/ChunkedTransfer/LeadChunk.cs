@@ -68,9 +68,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         public string ContentType { get; set; }
 
         /// <summary>
-        /// Gets or sets an HTTP method value, ie the verb component of HTTP request line.
+        /// Gets or sets the equivalent of method component of HTTP request line.
         /// </summary>
-        public string HttpMethod { get; set; }
+        public string Method { get; set; }
 
         /// <summary>
         /// Gets or sets an HTTP request or response version value.
@@ -116,8 +116,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             specialHeaderRow.Add(ContentLength.ToString());
             specialHeaderRow.Add((ContentType != null ? 1 : 0).ToString());
             specialHeaderRow.Add(ContentType ?? "");
-            specialHeaderRow.Add((HttpMethod != null ? 1 : 0).ToString());
-            specialHeaderRow.Add(HttpMethod ?? "");
+            specialHeaderRow.Add((Method != null ? 1 : 0).ToString());
+            specialHeaderRow.Add(Method ?? "");
             specialHeaderRow.Add((HttpVersion != null ? 1 : 0).ToString());
             specialHeaderRow.Add(HttpVersion ?? "");
             specialHeaderRow.Add((HttpStatusMessage != null ? 1 : 0).ToString());
@@ -206,7 +206,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
             if (specialHeader[6] != "0")
             {
-                instance.HttpMethod = specialHeader[7];
+                instance.Method = specialHeader[7];
             }
             if (specialHeader[8] != "0")
             {

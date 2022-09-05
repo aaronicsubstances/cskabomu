@@ -42,7 +42,7 @@ namespace Kabomu.QuasiHttp.Server
                 Target = chunk.RequestTarget,
                 Headers = chunk.Headers,
                 HttpVersion = chunk.HttpVersion,
-                HttpMethod = chunk.HttpMethod
+                Method = chunk.Method
             };
             if (chunk.ContentLength != 0)
             {
