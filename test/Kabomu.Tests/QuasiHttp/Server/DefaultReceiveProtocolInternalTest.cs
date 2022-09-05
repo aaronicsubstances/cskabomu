@@ -255,7 +255,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             int maxChunkSize = 100;
             var request = new DefaultQuasiHttpRequest
             {
-                HttpMethod = "POST",
+                Method = "POST",
                 Target = "/koobi",
                 Headers = new Dictionary<string, IList<string>>
                 {

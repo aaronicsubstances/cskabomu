@@ -44,9 +44,9 @@ namespace Kabomu.Examples.Shared
             {
                 Method = HttpMethod.Post,
             };
-            if (request.HttpMethod != null)
+            if (request.Method != null)
             {
-                requestWrapper.Method = new HttpMethod(request.HttpMethod);
+                requestWrapper.Method = new HttpMethod(request.Method);
             }
             if (request.HttpVersion != null)
             {

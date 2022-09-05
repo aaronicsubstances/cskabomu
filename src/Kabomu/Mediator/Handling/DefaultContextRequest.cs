@@ -23,6 +23,8 @@ namespace Kabomu.Mediator.Handling
 
         public IDictionary<string, object> Environment { get; }
 
+        public string Method => RawRequest.Method;
+
         public string Target => RawRequest.Target;
 
         public IHeadersWrapper Headers { get; }

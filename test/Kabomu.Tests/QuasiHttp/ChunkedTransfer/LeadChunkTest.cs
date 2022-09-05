@@ -40,7 +40,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             expected.ContentType = "text/plain";
             expected.StatusCode = 200;
             expected.HttpVersion = "1.1";
-            expected.HttpMethod = "POST";
+            expected.Method = "POST";
             expected.Headers = new Dictionary<string, IList<string>>();
             expected.Headers.Add("accept", new List<string> { "text/plain", "text/xml" });
             expected.Headers.Add("a", new List<string>());

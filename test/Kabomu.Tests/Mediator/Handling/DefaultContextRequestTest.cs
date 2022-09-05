@@ -19,6 +19,7 @@ namespace Kabomu.Tests.Mediator.Handling
             var instance = new DefaultContextRequest(rawRequest, requestEnvironment);
             Assert.Same(rawRequest, instance.RawRequest);
             Assert.Same(requestEnvironment, instance.Environment);
+            Assert.Equal(rawRequest.Method, instance.Method);
             Assert.Equal(rawRequest.Target, instance.Target);
             Assert.Same(rawRequest.Body, instance.Body);
             Assert.NotNull(instance.Headers);
@@ -30,6 +31,7 @@ namespace Kabomu.Tests.Mediator.Handling
         {
             var rawRequest = new DefaultQuasiHttpRequest
             {
+                Method = DefaultQuasiHttpRequest.MethodPost,
                 Target = "/",
                 Body = new StringBody("yes"),
                 Headers = new Dictionary<string, IList<string>>
@@ -42,6 +44,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Same(rawRequest, instance.RawRequest);
             Assert.NotNull(instance.Environment);
             Assert.Equal(new Dictionary<string, object>(), instance.Environment);
+            Assert.Equal(rawRequest.Method, instance.Method);
             Assert.Equal(rawRequest.Target, instance.Target);
             Assert.Same(rawRequest.Body, instance.Body);
             Assert.NotNull(instance.Headers);
@@ -56,6 +59,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Same(rawRequest, instance.RawRequest);
             Assert.NotNull(instance.Environment);
             Assert.Equal(new Dictionary<string, object>(), instance.Environment);
+            Assert.Null(instance.Method);
             Assert.Null(instance.Target);
             Assert.Null(instance.Body);
             Assert.NotNull(instance.Headers);

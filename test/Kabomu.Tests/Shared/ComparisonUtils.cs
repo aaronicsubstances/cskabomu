@@ -44,7 +44,7 @@ namespace Kabomu.Tests.Shared
             Assert.Equal(expected.StatusCode, actual.StatusCode);
             Assert.Equal(expected.ContentLength, actual.ContentLength);
             Assert.Equal(expected.ContentType, actual.ContentType);
-            Assert.Equal(expected.HttpMethod, actual.HttpMethod);
+            Assert.Equal(expected.Method, actual.Method);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
             Assert.Equal(expected.HttpStatusMessage, actual.HttpStatusMessage);
             CompareHeaders(expected.Headers, actual.Headers);
@@ -70,7 +70,7 @@ namespace Kabomu.Tests.Shared
             IQuasiHttpRequest expected, IQuasiHttpRequest actual,
             byte[] expectedReqBodyBytes)
         {
-            Assert.Equal(expected.HttpMethod, actual.HttpMethod);
+            Assert.Equal(expected.Method, actual.Method);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
             Assert.Equal(expected.Target, actual.Target);
             CompareHeaders(expected.Headers, actual.Headers);
