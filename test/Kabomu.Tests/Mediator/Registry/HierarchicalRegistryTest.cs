@@ -160,7 +160,7 @@ namespace Kabomu.Tests.Mediator.Registry
         [Fact]
         public void TestTryGetFirst4()
         {
-            IRegistry parent = new TempMutableRegistry();
+            IRegistry parent = new ErrorBasedMutableRegistry();
             IRegistry child = new DecrementingCounterBasedRegistry();
             var instance = new HierarchicalRegistry(parent, child);
             object key = 2;

@@ -12,23 +12,23 @@ namespace Kabomu.Mediator
     public class MediatorQuasiWebApplication : IQuasiHttpApplication
     {
         public IList<Handler> InitialHandlers { get; set; }
-        public IRegistry InitialReadonlyLocalRegistry { get; set; }
-        public IRegistry ReadonlyGlobalRegistry { get; set; }
+        public IRegistry InitialHandlerVariables { get; set; }
+        public IRegistry HandlerConstants { get; set; }
         public IMutexApiFactory MutexApiFactory { get; set; }
 
         public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
         {
             var contextRequest = new DefaultContextRequest(request, requestEnvironment);
-            var tcs = new TaskCompletionSource<IQuasiHttpResponse>(
+            var responseTransmmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var contextResponse = new DefaultContextResponse(new DefaultQuasiHttpResponse(), tcs);
+            var contextResponse = new DefaultContextResponse(new DefaultQuasiHttpResponse(), responseTransmmitter);
             var context = new DefaultContext
             {
                 Request = contextRequest,
                 Response = contextResponse,
                 InitialHandlers = InitialHandlers,
-                InitialReadonlyLocalRegistry = InitialReadonlyLocalRegistry,
-                ReadonlyGlobalRegistry = ReadonlyGlobalRegistry,
+                InitialHandlerVariables = InitialHandlerVariables,
+                HandlerConstants = HandlerConstants,
             };
 
             var mutexApiTask = MutexApiFactory?.Create();
@@ -39,7 +39,7 @@ namespace Kabomu.Mediator
 
             await context.Start();
 
-            return await tcs.Task;
+            return await responseTransmmitter.Task;
         }
     }
 }

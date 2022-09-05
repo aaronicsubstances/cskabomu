@@ -20,8 +20,8 @@ namespace Kabomu.Mediator.Handling
         public IContextResponse Response { get; set; } // getter is equivalent to fetching from joined registry
 
         public IList<Handler> InitialHandlers { get; set; }
-        public IRegistry InitialReadonlyLocalRegistry { get; set; }
-        public IRegistry ReadonlyGlobalRegistry { get; set; }
+        public IRegistry InitialHandlerVariables { get; set; }
+        public IRegistry HandlerConstants { get; set; }
 
         public async Task Start()
         {
@@ -33,31 +33,31 @@ namespace Kabomu.Mediator.Handling
             {
                 throw new MissingDependencyException("response");
             }
-            if (InitialHandlers == null || InitialHandlers.Count == 0)
+            if (InitialHandlers == null)
             {
-                throw new MissingDependencyException("no initial handlers provided");
+                throw new MissingDependencyException("null initial handlers");
             }
 
-            var additionalGlobalRegistry = new DefaultMutableRegistry();
-            additionalGlobalRegistry.Add(ContextUtils.RegistryKeyContext,
+            var additionalHandlerConstants = new DefaultMutableRegistry();
+            additionalHandlerConstants.Add(ContextUtils.RegistryKeyContext,
                 this);
-            additionalGlobalRegistry.Add(ContextUtils.RegistryKeyRequest,
+            additionalHandlerConstants.Add(ContextUtils.RegistryKeyRequest,
                 Request);
-            additionalGlobalRegistry.Add(ContextUtils.RegistryKeyResponse,
+            additionalHandlerConstants.Add(ContextUtils.RegistryKeyResponse,
                 Response);
 
             // only add these if they have not being added already
-            var additionalLocalRegistry = new DefaultMutableRegistry();
-            if (InitialReadonlyLocalRegistry == null ||
-                !InitialReadonlyLocalRegistry.TryGet(ContextUtils.RegistryKeyPathTemplateGenerator).Item1)
+            var fallbackHandlerVariables = new DefaultMutableRegistry();
+            if (InitialHandlerVariables == null ||
+                !InitialHandlerVariables.TryGet(ContextUtils.RegistryKeyPathTemplateGenerator).Item1)
             {
-                additionalLocalRegistry.Add(ContextUtils.RegistryKeyPathTemplateGenerator,
+                fallbackHandlerVariables.Add(ContextUtils.RegistryKeyPathTemplateGenerator,
                     new DefaultPathTemplateGenerator());
             }
-            if (InitialReadonlyLocalRegistry == null ||
-                !InitialReadonlyLocalRegistry.TryGet(ContextUtils.RegistryKeyPathMatchResult).Item1)
+            if (InitialHandlerVariables == null ||
+                !InitialHandlerVariables.TryGet(ContextUtils.RegistryKeyPathMatchResult).Item1)
             {
-                additionalLocalRegistry.Add(ContextUtils.RegistryKeyPathMatchResult,
+                fallbackHandlerVariables.Add(ContextUtils.RegistryKeyPathMatchResult,
                     CreateRootPathMatch());
             }
 
@@ -65,10 +65,10 @@ namespace Kabomu.Mediator.Handling
             {
                 _handlerStack = new Stack<HandlerGroup>();
                 var firstHandlerGroup = new HandlerGroup(InitialHandlers,
-                    additionalLocalRegistry.Join(InitialReadonlyLocalRegistry));
+                    fallbackHandlerVariables.Join(InitialHandlerVariables));
                 _handlerStack.Push(firstHandlerGroup);
 
-                _joinedRegistry = new DynamicRegistry(this).Join(ReadonlyGlobalRegistry).Join(additionalGlobalRegistry);
+                _joinedRegistry = new DynamicRegistry(this).Join(HandlerConstants).Join(additionalHandlerConstants);
 
                 RunNext();
             }
@@ -76,12 +76,13 @@ namespace Kabomu.Mediator.Handling
 
         private IPathMatchResult CreateRootPathMatch()
         {
-            var pathMatchResult = new DefaultPathMatchResultInternal
+            var pathMatchResult = new DefaultPathMatchResultInternal();
+            if (Request.Target != null)
             {
-                PathValues = new Dictionary<string, string>(),
-                BoundPath = "",
-                UnboundRequestTarget = Request.Target
-            };
+                pathMatchResult.UnboundRequestTarget = Request.Target;
+                pathMatchResult.BoundPath = "";
+                pathMatchResult.PathValues = new Dictionary<string, string>();
+            }
             return pathMatchResult;
         }
 
@@ -103,9 +104,9 @@ namespace Kabomu.Mediator.Handling
 
         public async Task Insert(IList<Handler> handlers, IRegistry registry)
         {
-            if (handlers == null || handlers.Count == 0)
+            if (handlers == null)
             {
-                throw new ArgumentException("no handlers provided", nameof(handlers));
+                throw new ArgumentNullException(nameof(handlers));
             }
 
             using (await MutexApi.Synchronize())

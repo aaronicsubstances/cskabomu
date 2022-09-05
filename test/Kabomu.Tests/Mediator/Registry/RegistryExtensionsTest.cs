@@ -182,7 +182,7 @@ namespace Kabomu.Tests.Mediator.Registry
         {
             var expectedKey = "animal";
             var expectedValue = "goat";
-            var instance = new TempMutableRegistry();
+            var instance = new ErrorBasedMutableRegistry();
             var cbCalled = false;
             Func<object> valueGenerator = () =>
             {

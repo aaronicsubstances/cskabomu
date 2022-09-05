@@ -57,7 +57,7 @@ namespace Kabomu.Tests.Mediator.Handling
 
             await instance.Send();
             // check that response transmitter was used.
-            await responseTransmitter.Task;
+            Assert.Equal(rawResponse, await responseTransmitter.Task);
         }
 
         [Fact]
@@ -96,7 +96,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Null(instance.Body);
             Assert.Null(rawResponse.Body);
             // check that response transmitter was used.
-            await responseTransmitter.Task;
+            Assert.Equal(rawResponse, await responseTransmitter.Task);
 
             // check that future sending attempts fail.
             await Assert.ThrowsAsync<ResponseCommittedException>(() => instance.SendWithBody(null));
@@ -133,7 +133,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Equal(bodyToUse, instance.Body);
             Assert.Equal(bodyToUse, rawResponse.Body);
             // check that response transmitter was used.
-            await responseTransmitter.Task;
+            Assert.Equal(rawResponse, await responseTransmitter.Task);
         }
 
         [Fact]
@@ -164,7 +164,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Same(bodyToUse, instance.Body);
             Assert.Same(bodyToUse, rawResponse.Body);
             // check that response transmitter was used.
-            await responseTransmitter.Task;
+            Assert.Equal(rawResponse, await responseTransmitter.Task);
 
             // check that future sending attempts fail.
             await Assert.ThrowsAsync<ResponseCommittedException>(() => instance.SendWithBody(null));
@@ -212,7 +212,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Null(instance.Body);
             Assert.Null(rawResponse.Body);
             // check that response transmitter was used.
-            await responseTransmitter.Task;
+            Assert.Equal(rawResponse, await responseTransmitter.Task);
 
             // check that future sending attempts fail.
             var bodyToUse = new ByteBufferBody(new byte[0]);

@@ -13,23 +13,23 @@ namespace Kabomu.Mediator.Handling
 {
     public static class ContextExtensions
     {
-        public static IPathMatchResult GetPathMatchResult(this IContext context)
+        public static IPathMatchResult GetPathMatchResult(this IRegistry registry)
         {
-            return RegistryExtensions.Get<IPathMatchResult>(context,
+            return RegistryExtensions.Get<IPathMatchResult>(registry,
                 ContextUtils.RegistryKeyPathMatchResult);
         }
 
-        public static IPathTemplateGenerator GetPathTemplateGenerator(this IContext context)
+        public static IPathTemplateGenerator GetPathTemplateGenerator(this IRegistry registry)
         {
-            return RegistryExtensions.Get<IPathTemplateGenerator>(context,
+            return RegistryExtensions.Get<IPathTemplateGenerator>(registry,
                    ContextUtils.RegistryKeyPathTemplateGenerator);
         }
 
-        public static Handler MountPath(this IContext context, string part1, object part2, Handler handler)
+        public static IPathTemplate ParseUnboundRequestTarget(this IRegistry registry, string part1, object part2)
         {
-            var pathTemplateGenerator = GetPathTemplateGenerator(context);
+            var pathTemplateGenerator = GetPathTemplateGenerator(registry);
             IPathTemplate pathTemplate = pathTemplateGenerator.Parse(part1, part2);
-            return HandlerUtils.MountPath(pathTemplate, handler);
+            return pathTemplate;
         }
 
         public static async Task<T> ParseRequest<T>(this IContext context, object parseOpts)
