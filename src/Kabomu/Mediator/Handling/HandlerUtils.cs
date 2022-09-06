@@ -37,11 +37,6 @@ namespace Kabomu.Mediator.Handling
             return context => context.Insert(handlers, registry);
         }
 
-        public static Handler Register(IRegistry registry)
-        {
-            return context => context.Next(registry);
-        }
-
         public static Handler Path(IRegistry registry, string part1, object part2, params Handler[] handlers)
         {
             var pathTemplate = ContextUtils.ParseUnboundRequestTarget(registry, part1, part2);
