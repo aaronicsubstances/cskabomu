@@ -7,11 +7,11 @@ using System.Text;
 
 namespace Kabomu.Mediator.Handling
 {
-    internal class DefaultContextRequest : IContextRequest
+    internal class DefaultContextRequestInternal : IContextRequest
     {
         private readonly DefaultMutableRegistry _registry;
 
-        public DefaultContextRequest(IQuasiHttpRequest rawRequest, IDictionary<string, object> requestEnvironment)
+        public DefaultContextRequestInternal(IQuasiHttpRequest rawRequest, IDictionary<string, object> requestEnvironment)
         {
             RawRequest = rawRequest ?? throw new ArgumentNullException(nameof(rawRequest));
             Environment = requestEnvironment ?? new Dictionary<string, object>();

@@ -1521,7 +1521,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 { "int", false }
             };
-            context = new DefaultContext();
+            context = new DefaultContextInternal();
             pathValues = new Dictionary<string, string>
             {
                 { "test", "t" }
@@ -1544,7 +1544,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 { "str", true }
             };
-            context = new DefaultContext();
+            context = new DefaultContextInternal();
             pathValues = new Dictionary<string, string>
             {
                 { "test", "t" }
@@ -1569,7 +1569,7 @@ namespace Kabomu.Tests.Mediator.Path
                 { "int", false },
                 { "float", false },
             };
-            context = new DefaultContext();
+            context = new DefaultContextInternal();
             pathValues = new Dictionary<string, string>
             {
                 { "test", "t" }
@@ -1594,7 +1594,7 @@ namespace Kabomu.Tests.Mediator.Path
                 { "int", true },
                 { "float", false },
             };
-            context = new DefaultContext();
+            context = new DefaultContextInternal();
             pathValues = new Dictionary<string, string>
             {
                 { "test", "t" }, { "src", "c.py" }

@@ -9,14 +9,14 @@ using Xunit;
 
 namespace Kabomu.Tests.Mediator.Handling
 {
-    public class DefaultContextRequestTest
+    public class DefaultContextRequestInternalTest
     {
         [Fact]
         public void Test1()
         {
             var rawRequest = new DefaultQuasiHttpRequest();
             var requestEnvironment = new Dictionary<string, object>();
-            var instance = new DefaultContextRequest(rawRequest, requestEnvironment);
+            var instance = new DefaultContextRequestInternal(rawRequest, requestEnvironment);
             Assert.Same(rawRequest, instance.RawRequest);
             Assert.Same(requestEnvironment, instance.Environment);
             Assert.Equal(rawRequest.Method, instance.Method);
@@ -40,7 +40,7 @@ namespace Kabomu.Tests.Mediator.Handling
                     { "Flow", new string[]{ "Maybe", "no" } },
                 }
             };
-            var instance = new DefaultContextRequest(rawRequest, null);
+            var instance = new DefaultContextRequestInternal(rawRequest, null);
             Assert.Same(rawRequest, instance.RawRequest);
             Assert.NotNull(instance.Environment);
             Assert.Equal(new Dictionary<string, object>(), instance.Environment);
@@ -55,7 +55,7 @@ namespace Kabomu.Tests.Mediator.Handling
         public void Test3()
         {
             var rawRequest = new DefaultQuasiHttpRequest();
-            var instance = new DefaultContextRequest(rawRequest, null);
+            var instance = new DefaultContextRequestInternal(rawRequest, null);
             Assert.Same(rawRequest, instance.RawRequest);
             Assert.NotNull(instance.Environment);
             Assert.Equal(new Dictionary<string, object>(), instance.Environment);
@@ -75,7 +75,7 @@ namespace Kabomu.Tests.Mediator.Handling
             {
                 { "name", "mediator" }, { "version", 1 }, { "ssl_present", false }
             };
-            var instance = new DefaultContextRequest(rawRequest, requestEnvironment);
+            var instance = new DefaultContextRequestInternal(rawRequest, requestEnvironment);
             Assert.Same(rawRequest, instance.RawRequest);
             Assert.Same(requestEnvironment, instance.Environment);
             CommonRegistryTestRunner.TestMutableOpsWithSearch(instance);

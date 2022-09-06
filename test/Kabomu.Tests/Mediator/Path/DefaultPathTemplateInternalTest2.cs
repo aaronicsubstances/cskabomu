@@ -23,7 +23,7 @@ namespace Kabomu.Tests.Mediator.Path
                     }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>();
             object formatOptions = "problematic";
             Assert.ThrowsAny<Exception>(() => instance.InterpolateAll(context, pathValues, formatOptions));
@@ -37,7 +37,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 ParsedExamples = new DefaultPathTemplateExampleInternal[0]
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>();
             DefaultPathTemplateFormatOptions formatOptions = null;
             Assert.Empty(instance.InterpolateAll(context, pathValues, formatOptions));
@@ -1304,7 +1304,7 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
             var expected = new List<string>();
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "id", "2" }
@@ -1385,7 +1385,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>();
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
@@ -1463,7 +1463,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/", "/Home"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "controller", "Home" }
@@ -1544,7 +1544,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/", "/home", "/home/index"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "controller", "home" }, { "action", "index" }
@@ -1626,7 +1626,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/", "/home/index"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "controller", "home" }, { "action", "index" }
@@ -1707,7 +1707,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/home/index/3"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "controller", "home" }, { "action", "index" }, { "id", "3" }
@@ -1790,7 +1790,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/home/index"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "controller", "home" }, { "action", "index" }
@@ -1876,7 +1876,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/", "/home", "/home/index"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "controller", "home" }, { "action", "index" }
@@ -1962,7 +1962,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/", "/Home", "/Home/Index"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "controller", "Home" }, { "action", "Index" }
@@ -2046,7 +2046,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/ceo%20account%2F", "/ceo%20account%2F/index"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "controller", "ceo account/" }, { "action", "index" }
@@ -2127,7 +2127,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/ceo account//upd|ate/"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "controller", "ceo account/" }, { "action", "upd|ate" }
@@ -2189,7 +2189,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/%2FCEO%20account%2F/UPD%7Cate%2F"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "controller", "/CEO account/" }, { "action", "UPD|ate/" }
@@ -2247,7 +2247,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/%2FCEO%20account%2F/UPD%7Cate%2F", "/CEO account/"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "controller", "/CEO account/" }, { "action", "UPD|ate/" }
@@ -2305,7 +2305,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/%2Fceo%20account%2F/upd%7Cate%2F", "/ceo account/"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "controller", "/ceo account/" }, { "action", "upd|ate/" }

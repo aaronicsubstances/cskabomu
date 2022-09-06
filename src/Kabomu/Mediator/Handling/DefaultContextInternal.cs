@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Mediator.Handling
 {
-    internal class DefaultContext : IContext
+    internal class DefaultContextInternal : IContext
     {
         private Stack<HandlerGroup> _handlerStack;
         private IRegistry _joinedRegistry;
@@ -223,9 +223,9 @@ namespace Kabomu.Mediator.Handling
 
         private class DynamicRegistry : IRegistry
         {
-            private readonly DefaultContext _context;
+            private readonly DefaultContextInternal _context;
 
-            public DynamicRegistry(DefaultContext context)
+            public DynamicRegistry(DefaultContextInternal context)
             {
                 _context = context;
             }
