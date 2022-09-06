@@ -339,7 +339,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "material" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/UI/material?check=0#k=v&k2=v2");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -379,7 +379,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "material" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/ui/material/?check=0#k=v&k2=v2");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -411,7 +411,7 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
             IPathMatchResult expected = null;
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/ui/material/?check=0#k=v&k2=v2");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -443,7 +443,7 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
             IPathMatchResult expected = null;
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/UI/material?check=0#k=v&k2=v2");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -475,7 +475,7 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
             IPathMatchResult expected = null;
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/ui/material?check=0#k=v&k2=v2");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -515,7 +515,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "material" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/U%49/mat%65rial/?");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -555,7 +555,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "mat%65rial" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "U%49/mat%65rial/");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -587,7 +587,7 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
             IPathMatchResult expected = null;
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/U%49/material");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -619,7 +619,7 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
             IPathMatchResult expected = null;
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/UI/");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -651,7 +651,7 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
             IPathMatchResult expected = null;
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/UI/x/y");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -687,7 +687,7 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
             IPathMatchResult expected = null;
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/UI//");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -732,7 +732,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "" }, { "fallback", "metro" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/UI//");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -740,7 +740,7 @@ namespace Kabomu.Tests.Mediator.Path
         [Fact]
         public void TestMatch6m()
         {
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actualConstraintLogs = new List<string>();
             IPathConstraint intCheck = new ConfigurablePathConstraint
             {
@@ -804,7 +804,7 @@ namespace Kabomu.Tests.Mediator.Path
         [Fact]
         public void TestMatch6n()
         {
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actualConstraintLogs = new List<string>();
             IPathConstraint intCheck = new ConfigurablePathConstraint
             {
@@ -900,7 +900,7 @@ namespace Kabomu.Tests.Mediator.Path
         [Fact]
         public void TestMatch7a()
         {
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actualConstraintLogs = new List<string>();
             IPathConstraint intCheck = new ConfigurablePathConstraint
             {
@@ -994,7 +994,7 @@ namespace Kabomu.Tests.Mediator.Path
         [Fact]
         public void TestMatch7b()
         {
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actualConstraintLogs = new List<string>();
             IPathConstraint intCheck = new ConfigurablePathConstraint
             {
@@ -1146,7 +1146,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "//m/nn/%51ooo" }, { "fallback", "metro" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/UI//m/nn/%51ooo/luda#disp?");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1194,7 +1194,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "//m/nn/%51ooo" }, { "fallback", "metro" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/UI/luda//m/nn/%51ooo?disp#");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1242,7 +1242,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "//m/nn/%51ooo" }, { "fallback", "metro" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "//m/nn/%51ooo/UI/luda?disp#");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1290,7 +1290,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", null }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/UI/luda");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1324,7 +1324,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1358,7 +1358,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "/" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1392,7 +1392,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "/bread" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/bread");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1426,7 +1426,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "/bread/" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/bread/?");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1460,7 +1460,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "bread/" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "bread/?");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1494,7 +1494,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "bread" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "bread");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1528,7 +1528,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "/bread//of//life/" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/bread//of//life/?");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1567,7 +1567,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "/bread//of//life/" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "//bread//of//life/?");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1598,7 +1598,7 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
             IPathMatchResult expected = null;
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/bread//of//life/?");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1637,7 +1637,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "bread//of//life/" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "tea/bread//of//life/?");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1676,7 +1676,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", "bread" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "tea/bread");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1715,7 +1715,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "ux", null }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "tea");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1754,7 +1754,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "type", "green" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "green/tea");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1793,7 +1793,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "type", null }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "tea");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1832,7 +1832,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "type", null }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/tea");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1871,7 +1871,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "type", "/" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "//tea");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1917,7 +1917,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "origin", "china/hills" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/green/precious/te%61/from/chin%61%2fhills");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }
@@ -1957,7 +1957,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "product", "/precious/te%61/from/chin%61%2fhills" },
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var actual = instance.Match(context, "/green/precious/te%61/from/chin%61%2fhills");
             ComparisonUtils.AssertPathMatchResult(expected, actual);
         }

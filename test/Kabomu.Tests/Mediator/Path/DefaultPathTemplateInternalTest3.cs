@@ -71,7 +71,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/a/b/c"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>();
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
@@ -139,7 +139,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 "/a/b/c"
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "d", "a" }, { "e", "b" }, { "f", "c" }
@@ -199,7 +199,7 @@ namespace Kabomu.Tests.Mediator.Path
                     }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "d", "a" }, { "e", "b" }, { "f", "c" }
@@ -311,7 +311,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "f", "c" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "d", "a" }, { "e", "b" }, { "f", "c" }
@@ -424,7 +424,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "f", "c" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "d", "/" }, { "e", "b" }, { "f", "c" }
@@ -533,7 +533,7 @@ namespace Kabomu.Tests.Mediator.Path
                     { "f", "c" }
                 }
             };
-            IContext context = new DefaultContext();
+            IContext context = new DefaultContextInternal();
             var pathValues = new Dictionary<string, string>
             {
                 { "d", "/" }, { "e", "b" }, { "f", "c" }

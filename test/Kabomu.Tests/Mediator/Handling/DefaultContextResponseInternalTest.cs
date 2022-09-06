@@ -11,7 +11,7 @@ using Xunit;
 
 namespace Kabomu.Tests.Mediator.Handling
 {
-    public class DefaultContextResponseTest
+    public class DefaultContextResponseInternalTest
     {
         [Fact]
         public async Task Test1()
@@ -19,7 +19,7 @@ namespace Kabomu.Tests.Mediator.Handling
             var rawResponse = new DefaultQuasiHttpResponse();
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var instance = new DefaultContextResponse(rawResponse, responseTransmitter);
+            var instance = new DefaultContextResponseInternal(rawResponse, responseTransmitter);
             Assert.Same(rawResponse, instance.RawResponse);
 
             // check for initial conditions.
@@ -66,7 +66,7 @@ namespace Kabomu.Tests.Mediator.Handling
             var rawResponse = new DefaultQuasiHttpResponse();
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var instance = new DefaultContextResponse(rawResponse, responseTransmitter);
+            var instance = new DefaultContextResponseInternal(rawResponse, responseTransmitter);
             Assert.Same(rawResponse, instance.RawResponse);
 
             // check for initial conditions.
@@ -113,7 +113,7 @@ namespace Kabomu.Tests.Mediator.Handling
             var rawResponse = new DefaultQuasiHttpResponse();
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var instance = new DefaultContextResponse(rawResponse, responseTransmitter);
+            var instance = new DefaultContextResponseInternal(rawResponse, responseTransmitter);
             Assert.Same(rawResponse, instance.RawResponse);
 
             // modify response.
@@ -142,7 +142,7 @@ namespace Kabomu.Tests.Mediator.Handling
             var rawResponse = new DefaultQuasiHttpResponse();
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var instance = new DefaultContextResponse(rawResponse, responseTransmitter);
+            var instance = new DefaultContextResponseInternal(rawResponse, responseTransmitter);
             Assert.Same(rawResponse, instance.RawResponse);
 
             // modify response.
@@ -189,7 +189,7 @@ namespace Kabomu.Tests.Mediator.Handling
             };
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var instance = new DefaultContextResponse(rawResponse, responseTransmitter);
+            var instance = new DefaultContextResponseInternal(rawResponse, responseTransmitter);
             Assert.Same(rawResponse, instance.RawResponse);
 
             ComparisonUtils.AssertSetEqual(new List<string> { "year", "hour" },
@@ -238,7 +238,7 @@ namespace Kabomu.Tests.Mediator.Handling
             };
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var instance = new DefaultContextResponse(rawResponse, responseTransmitter);
+            var instance = new DefaultContextResponseInternal(rawResponse, responseTransmitter);
             Assert.Same(rawResponse, instance.RawResponse);
 
             Assert.Same(instance, instance.SetSuccessStatusCode());
@@ -258,7 +258,7 @@ namespace Kabomu.Tests.Mediator.Handling
             var rawResponse = new DefaultQuasiHttpResponse();
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var instance = new DefaultContextResponse(rawResponse, responseTransmitter);
+            var instance = new DefaultContextResponseInternal(rawResponse, responseTransmitter);
             Assert.Same(rawResponse, instance.RawResponse);
 
             Assert.False(instance.IsSuccessStatusCode);

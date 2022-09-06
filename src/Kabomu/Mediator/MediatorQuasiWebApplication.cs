@@ -18,11 +18,11 @@ namespace Kabomu.Mediator
 
         public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
         {
-            var contextRequest = new DefaultContextRequest(request, requestEnvironment);
+            var contextRequest = new DefaultContextRequestInternal(request, requestEnvironment);
             var responseTransmmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var contextResponse = new DefaultContextResponse(new DefaultQuasiHttpResponse(), responseTransmmitter);
-            var context = new DefaultContext
+            var contextResponse = new DefaultContextResponseInternal(new DefaultQuasiHttpResponse(), responseTransmmitter);
+            var context = new DefaultContextInternal
             {
                 Request = contextRequest,
                 Response = contextResponse,

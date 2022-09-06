@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Mediator.Handling
 {
-    internal class DefaultContextResponse : IContextResponse
+    internal class DefaultContextResponseInternal : IContextResponse
     {
         private readonly TaskCompletionSource<IQuasiHttpResponse> _responseTransmitter;
 
-        public DefaultContextResponse(IQuasiHttpMutableResponse rawResponse,
+        public DefaultContextResponseInternal(IQuasiHttpMutableResponse rawResponse,
             TaskCompletionSource<IQuasiHttpResponse> responseTransmitter)
         {
             RawResponse = rawResponse ?? throw new ArgumentNullException(nameof(rawResponse));
