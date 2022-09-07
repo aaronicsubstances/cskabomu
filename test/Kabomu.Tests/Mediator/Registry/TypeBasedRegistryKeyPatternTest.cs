@@ -6,19 +6,19 @@ using Xunit;
 
 namespace Kabomu.Tests.Mediator.Registry
 {
-    public class TypeRegistryKeyPatternTest
+    public class TypeBasedRegistryKeyPatternTest
     {
         [Fact]
         public void TestErrorsInConstruction()
         {
-            Assert.Throws<ArgumentNullException>(() => new TypeRegistryKeyPattern(null));
+            Assert.Throws<ArgumentNullException>(() => new TypeBasedRegistryKeyPattern(null));
         }
 
         [Theory]
         [MemberData(nameof(CreateTestIsMatchData))]
         public void TestIsMatch(Type t, object input, bool expected)
         {
-            var instance = new TypeRegistryKeyPattern(t);
+            var instance = new TypeBasedRegistryKeyPattern(t);
             var actual = instance.IsMatch(input);
             Assert.Equal(expected, actual);
         }

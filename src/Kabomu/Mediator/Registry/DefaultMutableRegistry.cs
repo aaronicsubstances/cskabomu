@@ -128,12 +128,14 @@ namespace Kabomu.Mediator.Registry
                 {
                     if (keyPattern.IsMatch(k))
                     {
-                        var valueGenerator = _entries[k].First.Value;
-                        var value = valueGenerator.Invoke();
-                        var result = transformFunction.Invoke(value);
-                        if (result.Item1)
+                        foreach (var valueGenerator in _entries[k])
                         {
-                            return result;
+                            var value = valueGenerator.Invoke();
+                            var result = transformFunction.Invoke(value);
+                            if (result.Item1)
+                            {
+                                return result;
+                            }
                         }
                     }
                 }
@@ -142,12 +144,14 @@ namespace Kabomu.Mediator.Registry
             {
                 if (_entries.ContainsKey(key))
                 {
-                    var valueGenerator = _entries[key].First.Value;
-                    var value = valueGenerator.Invoke();
-                    var result = transformFunction.Invoke(value);
-                    if (result.Item1)
+                    foreach (var valueGenerator in _entries[key])
                     {
-                        return result;
+                        var value = valueGenerator.Invoke();
+                        var result = transformFunction.Invoke(value);
+                        if (result.Item1)
+                        {
+                            return result;
+                        }
                     }
                 }
             }

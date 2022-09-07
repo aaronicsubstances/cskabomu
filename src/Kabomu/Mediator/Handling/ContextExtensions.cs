@@ -19,7 +19,7 @@ namespace Kabomu.Mediator.Handling
                 // tolerate prescence of nulls.
                 Func<object, (bool, Task<T>)> parserCode = (obj) =>
                 {
-                    var parser = obj as IRequestParser;
+                    var parser = (IRequestParser)obj;
                     if (parser != null && parser.CanParse<T>(context, parseOpts))
                     {
                         var result = parser.Parse<T>(context, parseOpts);
@@ -35,20 +35,20 @@ namespace Kabomu.Mediator.Handling
                         ContextUtils.RegistryKeyRequestParser, parserCode);
                     if (!found)
                     {
-                        throw new ParseException("no parser found");
+                        throw new NoSuchParserException();
                     }
                 }
                 return await parserTask;
             }
             catch (Exception e)
             {
-                if (e is ParseException)
+                if (e is RequestParsingException)
                 {
                     throw;
                 }
                 else
                 {
-                    throw new ParseException(null, e);
+                    throw new RequestParsingException(null, e);
                 }
             }
         }
@@ -65,7 +65,7 @@ namespace Kabomu.Mediator.Handling
                 // tolerate prescence of nulls.
                 Func<object, (bool, Task)> renderingCode = (obj) =>
                 {
-                    var renderer = obj as IResponseRenderer;
+                    var renderer = (IResponseRenderer)obj;
                     if (renderer != null && renderer.CanRender(context, body))
                     {
                         var result = renderer.Render(context, body);
@@ -81,20 +81,20 @@ namespace Kabomu.Mediator.Handling
                         ContextUtils.RegistryKeyResponseRenderer, renderingCode);
                     if (!found)
                     {
-                        throw new RenderException("no renderer found");
+                        throw new NoSuchRendererException();
                     }
                 }
                 await renderTask;
             }
             catch (Exception e)
             {
-                if (e is RenderException)
+                if (e is ResponseRenderingException)
                 {
                     throw;
                 }
                 else
                 {
-                    throw new RenderException(null, e);
+                    throw new ResponseRenderingException(null, e);
                 }
             }
         }
@@ -106,7 +106,7 @@ namespace Kabomu.Mediator.Handling
                 // tolerate prescence of nulls.
                 Func<object, (bool, Task)> unexpectedEndCode = (obj) =>
                 {
-                    var handler = obj as IUnexpectedEndHandler;
+                    var handler = (IUnexpectedEndHandler)obj;
                     if (handler != null)
                     {
                         var result = handler.HandleUnexpectedEnd(context);
@@ -152,7 +152,7 @@ namespace Kabomu.Mediator.Handling
                 // tolerate prescence of nulls.
                 Func<object, (bool, Task)> errorHandlingCode = (obj) =>
                 {
-                    var handler = obj as IServerErrorHandler;
+                    var handler = (IServerErrorHandler)obj;
                     if (handler != null)
                     {
                         var result = handler.HandleError(context, error);

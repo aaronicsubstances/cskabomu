@@ -30,7 +30,13 @@ namespace Kabomu.Tests.Shared
                 Assert.Equal((false, null), instance.TryGet(key));
                 Assert.Throws<NotInRegistryException>(() => instance.Get(key));
             }
+
             Assert.Equal((false, null), instance.TryGetFirst(key, _ => (false, null)));
+
+            var firstNonNullItem = expected.FirstOrDefault(x => x != null);
+            var nonNullSearchResult = instance.TryGetFirst(key, x => (x != null, x));
+            Assert.Equal(nonNullSearchResult.Item1, expected.Any(x => x != null));
+            Assert.Equal(firstNonNullItem, nonNullSearchResult.Item2);
         }
 
         public static void TestMutableOpsWithoutSearch(IMutableRegistry instance)
@@ -54,9 +60,11 @@ namespace Kabomu.Tests.Shared
             TestReadonlyOps(instance, "two", new List<object>());
 
             instance.AddGenerator("two", () => "2");
+            instance.Add("two", null);
             instance.AddLazy("two", () => "mmienu");
             instance.Add("two", 2);
-            TestReadonlyOps(instance, "two", new List<object> { 2, "mmienu", "2" });
+            instance.Add("two", null);
+            TestReadonlyOps(instance, "two", new List<object> { null, 2, "mmienu", null, "2" });
         }
 
         public static void TestMutableOpsWithSearch(IMutableRegistry instance)
@@ -66,12 +74,13 @@ namespace Kabomu.Tests.Shared
 
             instance.Add("one", 1);
             instance.AddGenerator("one", () => "baako");
+            instance.Add("one", null);
             TestReadonlyOps(instance, new TestRegistryKeyPattern(3),
-                new List<object> { "baako", 1 });
+                new List<object> { null, "baako", 1 });
 
             instance.Remove("non-existent");
             TestReadonlyOps(instance, new TestRegistryKeyPattern(3),
-                new List<object> { "baako", 1 });
+                new List<object> { null, "baako", 1 });
 
             instance.Add(10, 100);
             TestReadonlyOps(instance, 10,
