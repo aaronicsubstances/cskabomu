@@ -4,11 +4,11 @@ using System.Text;
 
 namespace Kabomu.Mediator.Registry
 {
-    public class TypeRegistryKeyPattern : IRegistryKeyPattern
+    public class TypeBasedRegistryKeyPattern : IRegistryKeyPattern
     {
         private readonly Type _type;
 
-        public TypeRegistryKeyPattern(Type type)
+        public TypeBasedRegistryKeyPattern(Type type)
         {
             _type = type ?? throw new ArgumentNullException(nameof(type));
         }

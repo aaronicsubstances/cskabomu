@@ -262,34 +262,34 @@ namespace Kabomu.Tests.Mediator.Handling
                     inner2Handlers.Add(async (context) =>
                     {
                         logs.Add("inner2a");
-                        CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "z", "b", "v" });
+                        CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { null, "b", "v" });
 
                         await context.Next(new IndexedArrayBasedRegistry(new object[] { "-", "0" }));
                     });
                     inner2Handlers.Add(async (context) =>
                     {
                         logs.Add("inner2b");
-                        CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "0", "z", "b", "v" });
+                        CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "0", null, "b", "v" });
 
                         await context.Next(new IndexedArrayBasedRegistry(new object[] { "+", "1" }));
                     });
                     inner2Handlers.Add(async (context) =>
                     {
                         logs.Add("inner2c");
-                        CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "1", "0", "z", "b", "v" });
+                        CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "1", "0", null, "b", "v" });
 
                         await context.Next(new IndexedArrayBasedRegistry(new object[] { "+", "2" }));
                     });
                     inner2Handlers.Add(async (context) =>
                     {
                         logs.Add("inner2d");
-                        CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "2", "1", "0", "z", "b", "v" });
+                        CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "2", "1", "0", null, "b", "v" });
 
                         // test that this is equivalent to Next() at this point.
                         await context.SkipInsert();
                     });
 
-                    await context.Insert(inner2Handlers, new IndexedArrayBasedRegistry(new object[] { "y", "z" }));
+                    await context.Insert(inner2Handlers, new IndexedArrayBasedRegistry(new object[] { "y", null }));
                 });
 
                 innerHandlers.Add(async (context) =>
