@@ -1,6 +1,7 @@
 ﻿using Kabomu.Mediator.Handling;
 using Kabomu.Mediator.Registry;
 using Kabomu.Mediator.RequestParsing;
+using Kabomu.Mediator.ResponseRendering;
 using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
@@ -138,9 +139,133 @@ namespace Kabomu.Tests.Mediator.Handling
         }
 
         [Fact]
-        public async Task TestRenderResponse()
+        public async Task TestRenderResponse1()
         {
+            var initialRegistry = new DefaultMutableRegistry();
+            var context = await CreateAndStartContext(initialRegistry);
 
+            object obj = "html";
+            await Assert.ThrowsAsync<NoSuchRendererException>(() =>
+                ContextExtensions.RenderResponse(context, obj));
+        }
+
+        [Fact]
+        public async Task TestRenderResponse2()
+        {
+            var initialRegistry = new DefaultMutableRegistry();
+            var context = await CreateAndStartContext(initialRegistry);
+            initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, null);
+
+            object obj = new object();
+            await Assert.ThrowsAsync<NoSuchRendererException>(() =>
+                ContextExtensions.RenderResponse(context, obj));
+        }
+
+        [Fact]
+        public async Task TestRenderResponse3()
+        {
+            var initialRegistry = new DefaultMutableRegistry();
+            var context = await CreateAndStartContext(initialRegistry);
+            initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, "invalid");
+
+            object obj = new object();
+            await Assert.ThrowsAsync<ResponseRenderingException>(() =>
+                ContextExtensions.RenderResponse(context, obj));
+        }
+
+        [Fact]
+        public async Task TestRenderResponse4()
+        {
+            var initialRegistry = new DefaultMutableRegistry();
+            var context = await CreateAndStartContext(initialRegistry);
+            initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, null);
+            var responseRenderer1 = new TestResponseRenderer
+            {
+                CanRenderReturnValue = false
+            };
+            initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, responseRenderer1);
+            var responseRenderer2 = new TestResponseRenderer
+            {
+                CanRenderReturnValue = false
+            };
+            initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, responseRenderer2);
+            initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, null);
+
+            object obj = new object();
+            await Assert.ThrowsAsync<NoSuchRendererException>(() =>
+                ContextExtensions.RenderResponse(context, obj));
+
+            Assert.Equal(1, responseRenderer1.CanRenderCallCount);
+            Assert.Same(context, responseRenderer1.CanRenderContextSeen);
+            Assert.Same(obj, responseRenderer1.CanRenderObjSeen);
+            Assert.Equal(0, responseRenderer1.RenderCallCount);
+
+            Assert.Equal(1, responseRenderer2.CanRenderCallCount);
+            Assert.Same(context, responseRenderer2.CanRenderContextSeen);
+            Assert.Same(obj, responseRenderer2.CanRenderObjSeen);
+            Assert.Equal(0, responseRenderer1.RenderCallCount);
+        }
+
+        [Fact]
+        public async Task TestRenderResponse5()
+        {
+            var initialRegistry = new DefaultMutableRegistry();
+            var context = await CreateAndStartContext(initialRegistry);
+            initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, null);
+            var responseRendererPickedUp = new TestResponseRenderer
+            {
+                CanRenderReturnValue = true
+            };
+            initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, responseRendererPickedUp);
+            var responseRendererSkipped = new TestResponseRenderer
+            {
+                CanRenderReturnValue = false
+            };
+            initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, responseRendererSkipped);
+            initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, null);
+
+            object obj = new object();
+            await ContextExtensions.RenderResponse(context, obj);
+
+            Assert.Equal(1, responseRendererPickedUp.CanRenderCallCount);
+            Assert.Same(context, responseRendererPickedUp.CanRenderContextSeen);
+            Assert.Same(obj, responseRendererPickedUp.CanRenderObjSeen);
+            Assert.Equal(1, responseRendererPickedUp.RenderCallCount);
+            Assert.Same(context, responseRendererPickedUp.RenderContextSeen);
+            Assert.Same(obj, responseRendererPickedUp.RenderObjSeen);
+
+            Assert.Equal(1, responseRendererSkipped.CanRenderCallCount);
+            Assert.Same(context, responseRendererSkipped.CanRenderContextSeen);
+            Assert.Same(obj, responseRendererSkipped.CanRenderObjSeen);
+            Assert.Equal(0, responseRendererSkipped.RenderCallCount);
+        }
+
+        [Fact]
+        public async Task TestRenderResponse6()
+        {
+            var initialRegistry = new DefaultMutableRegistry();
+            var context = await CreateAndStartContext(initialRegistry);
+            var responseRenderer1 = new TestResponseRenderer
+            {
+                CanRenderReturnValue = true
+            };
+            initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, responseRenderer1);
+            var responseRenderer2 = new TestResponseRenderer
+            {
+                CanRenderReturnValue = true
+            };
+            initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, responseRenderer2);
+
+            var obj = new TestRenderable();
+            await ContextExtensions.RenderResponse(context, obj);
+            Assert.Equal(1, obj.RenderCallCount);
+            Assert.Same(context, obj.RenderContextSeen);
+
+            Assert.Equal(0, responseRenderer1.CanRenderCallCount);
+            Assert.Equal(0, responseRenderer1.RenderCallCount);
+
+            Assert.Equal(0, responseRenderer2.CanRenderCallCount);
+            Assert.Equal(0, responseRenderer2.RenderCallCount);
         }
 
         [Fact]
@@ -180,6 +305,46 @@ namespace Kabomu.Tests.Mediator.Handling
                 ParseContextSeen = context;
                 ParseParseOptsSeen = parseOpts;
                 return Task.FromResult((T)ParseReturnValue);
+            }
+        }
+
+        class TestResponseRenderer : IResponseRenderer
+        {
+            public IContext RenderContextSeen { get; private set; }
+            public object RenderObjSeen { get; private set; }
+            public IContext CanRenderContextSeen { get; private set; }
+            public object CanRenderObjSeen { get; private set; }
+            public int RenderCallCount { get; private set; }
+            public int CanRenderCallCount { get; private set; }
+            public bool CanRenderReturnValue { get; set; }
+
+            public bool CanRender(IContext context, object obj)
+            {
+                CanRenderCallCount++;
+                CanRenderContextSeen = context;
+                CanRenderObjSeen = obj;
+                return CanRenderReturnValue;
+            }
+
+            public Task Render(IContext context, object obj)
+            {
+                RenderCallCount++;
+                RenderContextSeen = context;
+                RenderObjSeen = obj;
+                return Task.CompletedTask;
+            }
+        }
+
+        private class TestRenderable : IRenderable
+        {
+            public int RenderCallCount { get; internal set; }
+            public IContext RenderContextSeen { get; internal set; }
+
+            public Task Render(IContext context)
+            {
+                RenderCallCount++;
+                RenderContextSeen = context;
+                return Task.CompletedTask;
             }
         }
     }
