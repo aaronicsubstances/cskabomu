@@ -3,8 +3,9 @@ remaining
 -introduce enough timeout gaps to remove flakiness of QuasiHttpIntegrationTestOne
 -DefaultQuasiHttpClient
 -DefaultQuasiHttpServer
--Mediator.*
 *can skip above if library works with all examples
+-add TransportUtils.read body or stream fully overloads which uses default buffer size
+-add bytes to string overload which takes only byte arrray
 
 Release
 -------
@@ -26,9 +27,6 @@ UnixSocketDomainTransport - availability and making it async may require use of 
 WindowsNamedPipeTransport - availability and making it async may require use of third party library
 HttpTransport
 UdpTransport
-
-default application pipeline - v1.1.0
-----------------------------
 
 create default middleware - create in examples after v1.1.0, later migrate to StandardAddons
 ------------------

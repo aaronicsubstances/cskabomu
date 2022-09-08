@@ -1,8 +1,10 @@
-﻿using Kabomu.Mediator.Handling;
+﻿using Kabomu.Common;
+using Kabomu.Mediator.Handling;
 using Kabomu.Mediator.Registry;
 using Kabomu.Mediator.RequestParsing;
 using Kabomu.Mediator.ResponseRendering;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -20,6 +22,27 @@ namespace Kabomu.Tests.Mediator.Handling
             var contextResponse = new DefaultContextResponseInternal(
                 new DefaultQuasiHttpResponse(), new TaskCompletionSource<IQuasiHttpResponse>(
                     TaskCreationOptions.RunContinuationsAsynchronously));
+            var context = new DefaultContextInternal
+            {
+                InitialHandlers = new Handler[]
+                {
+                    _ => Task.CompletedTask
+                },
+                InitialHandlerVariables = initialRegistry,
+                Request = contextRequest,
+                Response = contextResponse
+            };
+            await context.Start();
+            return context;
+        }
+
+        private static async Task<IContext> CreateAndStartContext(IRegistry initialRegistry,
+            TaskCompletionSource<IQuasiHttpResponse> responseTransmitter)
+        {
+            var contextRequest = new DefaultContextRequestInternal(
+                new DefaultQuasiHttpRequest(), null);
+            var contextResponse = new DefaultContextResponseInternal(
+                new DefaultQuasiHttpResponse(), responseTransmitter);
             var context = new DefaultContextInternal
             {
                 InitialHandlers = new Handler[]
@@ -269,15 +292,171 @@ namespace Kabomu.Tests.Mediator.Handling
         }
 
         [Fact]
-        public async Task TestHandleUnexpectedEnd()
+        public async Task TestHandleUnexpectedEnd1()
         {
-
+            var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialRegistry = new DefaultMutableRegistry();
+            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            await ContextExtensions.HandleUnexpectedEnd(context);
+            var response = await responseTransmitter.Task;
+            Assert.Equal(404, response.StatusCode);
         }
 
         [Fact]
-        public async Task TestHandleError()
+        public async Task TestHandleUnexpectedEnd2()
         {
+            var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialRegistry = new DefaultMutableRegistry();
+            initialRegistry.Add(ContextUtils.RegistryKeyUnexpectedEndHandler, null);
+            initialRegistry.Add(ContextUtils.RegistryKeyUnexpectedEndHandler, null);
+            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            await ContextExtensions.HandleUnexpectedEnd(context);
+            var response = await responseTransmitter.Task;
+            Assert.Equal(404, response.StatusCode);
+        }
 
+        [Fact]
+        public async Task TestHandleUnexpectedEnd3()
+        {
+            var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialRegistry = new DefaultMutableRegistry();
+            initialRegistry.Add(ContextUtils.RegistryKeyUnexpectedEndHandler, "invalid");
+            initialRegistry.Add(ContextUtils.RegistryKeyUnexpectedEndHandler, null);
+            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            await ContextExtensions.HandleUnexpectedEnd(context);
+            var response = await responseTransmitter.Task;
+            Assert.Equal(500, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task TestHandleUnexpectedEnd4()
+        {
+            var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialRegistry = new DefaultMutableRegistry();
+            initialRegistry.Add(ContextUtils.RegistryKeyUnexpectedEndHandler, "invalid");
+            initialRegistry.Add(ContextUtils.RegistryKeyUnexpectedEndHandler,
+                new TestUnexpectedErrorHandler { ReturnStatusCode = 299 });
+            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            await ContextExtensions.HandleUnexpectedEnd(context);
+            var response = await responseTransmitter.Task;
+            Assert.Equal(299, response.StatusCode);
+        }
+
+        [Fact]
+        public async Task TestHandleError1()
+        {
+            var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialRegistry = new DefaultMutableRegistry();
+            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var error = new Exception("test sth cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4");
+            await ContextExtensions.HandleError(context, error);
+            var response = await responseTransmitter.Task;
+            Assert.Equal(500, response.StatusCode);
+            Assert.NotNull(response.Body);
+            var actualErrorResponseBodyBytes = await TransportUtils.ReadBodyToEnd(response.Body,
+                TransportUtils.DefaultDataBufferLimit);
+            var actualErrorResponseStr = ByteUtils.BytesToString(actualErrorResponseBodyBytes, 0,
+                actualErrorResponseBodyBytes.Length);
+            Assert.Contains("test sth cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4", actualErrorResponseStr);
+        }
+
+        [Fact]
+        public async Task TestHandleError2()
+        {
+            var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialRegistry = new DefaultMutableRegistry();
+            initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, null);
+            initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, null);
+            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var error = new Exception("test sth cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4");
+            await ContextExtensions.HandleError(context, error);
+            var response = await responseTransmitter.Task;
+            Assert.Equal(500, response.StatusCode);
+            Assert.NotNull(response.Body);
+            var actualErrorResponseBodyBytes = await TransportUtils.ReadBodyToEnd(response.Body,
+                TransportUtils.DefaultDataBufferLimit);
+            var actualErrorResponseStr = ByteUtils.BytesToString(actualErrorResponseBodyBytes, 0,
+                actualErrorResponseBodyBytes.Length);
+            Assert.Contains("test sth cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4", actualErrorResponseStr);
+        }
+
+        [Fact]
+        public async Task TestHandleError3()
+        {
+            var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialRegistry = new DefaultMutableRegistry();
+            initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, "invalid");
+            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var error = new Exception("test sth");
+            await ContextExtensions.HandleError(context, error);
+            var response = await responseTransmitter.Task;
+            Assert.Equal(500, response.StatusCode);
+            Assert.NotNull(response.Body);
+            var actualErrorResponseBodyBytes = await TransportUtils.ReadBodyToEnd(response.Body,
+                TransportUtils.DefaultDataBufferLimit);
+            var actualErrorResponseStr = ByteUtils.BytesToString(actualErrorResponseBodyBytes, 0,
+                actualErrorResponseBodyBytes.Length);
+            Assert.Contains("test sth", actualErrorResponseStr);
+        }
+
+        [Fact]
+        public async Task TestHandleError4()
+        {
+            var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialRegistry = new DefaultMutableRegistry();
+            initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, "invalid");
+            var testErrorHandler = new TestServerErrorHandler
+            {
+                ReturnStatusCode = 299,
+                ErrorMessage = "cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4"
+            };
+            initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, testErrorHandler);
+            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var error = new Exception("test sth");
+            await ContextExtensions.HandleError(context, error);
+            var response = await responseTransmitter.Task;
+            Assert.Equal(299, response.StatusCode);
+            Assert.NotNull(response.Body);
+            var actualErrorResponseBodyBytes = await TransportUtils.ReadBodyToEnd(response.Body,
+                TransportUtils.DefaultDataBufferLimit);
+            var actualErrorResponseStr = ByteUtils.BytesToString(actualErrorResponseBodyBytes, 0,
+                actualErrorResponseBodyBytes.Length);
+            Assert.Contains("cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4", actualErrorResponseStr);
+            Assert.DoesNotContain("test sth", actualErrorResponseStr);
+        }
+
+        [Fact]
+        public async Task TestHandleError5()
+        {
+            var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialRegistry = new DefaultMutableRegistry();
+            initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, "invalid");
+            var testErrorHandler1 = new TestServerErrorHandler
+            {
+                ReturnStatusCode = 299,
+                ErrorMessage = "cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4"
+            };
+            initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, testErrorHandler1);
+            var testErrorHandler2 = new TestServerErrorHandler
+            {
+                ReturnStatusCode = 501
+            };
+            initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, testErrorHandler2);
+            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var error = new Exception("test sth");
+            await ContextExtensions.HandleError(context, error);
+            var response = await responseTransmitter.Task;
+            Assert.Equal(501, response.StatusCode);
+            Assert.Null(response.Body);
         }
 
         private class TestRequestParser : IRequestParser
@@ -345,6 +524,32 @@ namespace Kabomu.Tests.Mediator.Handling
                 RenderCallCount++;
                 RenderContextSeen = context;
                 return Task.CompletedTask;
+            }
+        }
+
+        private class TestUnexpectedErrorHandler : IUnexpectedEndHandler
+        {
+            public int ReturnStatusCode { get; set; }
+
+            public Task HandleUnexpectedEnd(IContext context)
+            {
+                return context.Response.SetStatusCode(ReturnStatusCode).Send();
+            }
+        }
+
+        private class TestServerErrorHandler : IServerErrorHandler
+        {
+            public int ReturnStatusCode { get; set; }
+            public string ErrorMessage { get; set; }
+
+            public Task HandleError(IContext context, Exception error)
+            {
+                context.Response.SetStatusCode(ReturnStatusCode);
+                if (ErrorMessage != null)
+                {
+                    context.Response.SetBody(new StringBody(ErrorMessage));
+                }
+                return context.Response.Send();
             }
         }
     }
