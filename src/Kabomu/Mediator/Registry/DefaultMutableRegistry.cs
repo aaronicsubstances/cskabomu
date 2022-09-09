@@ -87,7 +87,6 @@ namespace Kabomu.Mediator.Registry
 
         public IEnumerable<object> GetAll(object key)
         {
-            var selected = new List<object>();
             if (key is IRegistryKeyPattern keyPattern)
             {
                 foreach (var k in _entryKeys)
@@ -97,7 +96,7 @@ namespace Kabomu.Mediator.Registry
                         foreach (var valueGenerator in _entries[k])
                         {
                             var value = valueGenerator.Invoke();
-                            selected.Add(value);
+                            yield return value;
                         }
                     }
                 }
@@ -109,11 +108,10 @@ namespace Kabomu.Mediator.Registry
                     foreach (var valueGenerator in _entries[key])
                     {
                         var value = valueGenerator.Invoke();
-                        selected.Add(value);
+                        yield return value;
                     }
                 }
             }
-            return selected;
         }
 
         public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)

@@ -71,29 +71,37 @@ namespace Kabomu.Mediator.Handling
 
         public IMutableHeadersWrapper Add(string name, string value)
         {
+            return Add(name, Enumerable.Repeat(value, 1));
+        }
+
+        public IMutableHeadersWrapper Add(string name, IEnumerable<string> values)
+        {
             var rawHeaders = GetOrCreateRawHeaders();
             // Ensure we don't run into a situation where
             // we have to add to an ungrowable list supplied from
             // outside this class, such as a fixed-length native array.
             UpdateExtensibleListReferences(rawHeaders);
-            IList<string> values;
+            IList<string> existingValues;
             if (rawHeaders.ContainsKey(name))
             {
-                values = rawHeaders[name];
+                existingValues = rawHeaders[name];
                 if (!_extensibleListReferences.ContainsKey(name))
                 {
-                    values = new List<string>(values);
-                    rawHeaders[name] = values;
-                    _extensibleListReferences.Add(name, values);
+                    existingValues = new List<string>(existingValues);
+                    rawHeaders[name] = existingValues;
+                    _extensibleListReferences.Add(name, existingValues);
                 }
             }
             else
             {
-                values = new List<string>();
-                rawHeaders.Add(name, values);
-                _extensibleListReferences.Add(name, values);
+                existingValues = new List<string>();
+                rawHeaders.Add(name, existingValues);
+                _extensibleListReferences.Add(name, existingValues);
             }
-            values.Add(value);
+            foreach (var v in values)
+            {
+                existingValues.Add(v);
+            }
             return this;
         }
 
