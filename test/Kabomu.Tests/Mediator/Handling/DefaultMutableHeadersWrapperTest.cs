@@ -87,12 +87,18 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Null(instance.Get("drink2"));
             Assert.Empty(instance.GetNames());
 
+            instance.Add("m", new List<string>());
+            Assert.Equal(new List<string>(), instance.GetAll("m"));
+            ComparisonUtils.AssertSetEqual(new List<string> { "m" }, instance.GetNames());
+
             Assert.Null(instance.Get("m"));
             instance.Add("m", "v");
             Assert.Equal("v", instance.Get("m"));
-            instance.Add("m", "u");
+            instance.Add("m", new List<string> { "u" });
             Assert.Equal("v", instance.Get("m"));
             Assert.Equal(new List<string> { "v", "u" }, instance.GetAll("m"));
+            instance.Add("m", new List<string> { "w", "x", "y", "z" });
+            Assert.Equal(new List<string> { "v", "u", "w", "x", "y", "z", }, instance.GetAll("m"));
             ComparisonUtils.AssertSetEqual(new List<string> { "m" }, instance.GetNames());
 
             instance.Set("m", "v");
@@ -101,6 +107,9 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Equal("u", instance.Get("m"));
             instance.Set("m", new List<string> { "v", "u" });
             Assert.Equal("v", instance.Get("m"));
+            ComparisonUtils.AssertSetEqual(new List<string> { "m" }, instance.GetNames());
+            instance.Set("m", new List<string>());
+            Assert.Null(instance.Get("m"));
             ComparisonUtils.AssertSetEqual(new List<string> { "m" }, instance.GetNames());
 
             // check that change of getter result work.
