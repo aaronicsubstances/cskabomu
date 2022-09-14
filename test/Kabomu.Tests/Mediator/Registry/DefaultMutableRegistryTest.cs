@@ -13,14 +13,7 @@ namespace Kabomu.Tests.Mediator.Registry
         public void Test1()
         {
             var instance = new DefaultMutableRegistry();
-            CommonRegistryTestRunner.TestMutableOpsWithoutSearch(instance);
-        }
-
-        [Fact]
-        public void Test2()
-        {
-            var instance = new DefaultMutableRegistry();
-            CommonRegistryTestRunner.TestMutableOpsWithSearch(instance);
+            CommonRegistryTestRunner.TestMutableOps(instance);
         }
     }
 }

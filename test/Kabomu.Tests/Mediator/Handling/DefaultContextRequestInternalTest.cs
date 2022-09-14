@@ -55,22 +55,6 @@ namespace Kabomu.Tests.Mediator.Handling
         public void Test3()
         {
             var rawRequest = new DefaultQuasiHttpRequest();
-            var instance = new DefaultContextRequestInternal(rawRequest, null);
-            Assert.Same(rawRequest, instance.RawRequest);
-            Assert.NotNull(instance.Environment);
-            Assert.Equal(new Dictionary<string, object>(), instance.Environment);
-            Assert.Null(instance.Method);
-            Assert.Null(instance.Target);
-            Assert.Null(instance.Body);
-            Assert.NotNull(instance.Headers);
-            Assert.Equal(new HashSet<string>(), instance.Headers.GetNames());
-            CommonRegistryTestRunner.TestMutableOpsWithoutSearch(instance);
-        }
-
-        [Fact]
-        public void Test4()
-        {
-            var rawRequest = new DefaultQuasiHttpRequest();
             var requestEnvironment = new Dictionary<string, object>
             {
                 { "name", "mediator" }, { "version", 1 }, { "ssl_present", false }
@@ -78,7 +62,12 @@ namespace Kabomu.Tests.Mediator.Handling
             var instance = new DefaultContextRequestInternal(rawRequest, requestEnvironment);
             Assert.Same(rawRequest, instance.RawRequest);
             Assert.Same(requestEnvironment, instance.Environment);
-            CommonRegistryTestRunner.TestMutableOpsWithSearch(instance);
+            Assert.Null(instance.Method);
+            Assert.Null(instance.Target);
+            Assert.Null(instance.Body);
+            Assert.NotNull(instance.Headers);
+            Assert.Equal(new HashSet<string>(), instance.Headers.GetNames());
+            CommonRegistryTestRunner.TestMutableOps(instance);
         }
     }
 }
