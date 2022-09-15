@@ -26,7 +26,7 @@ namespace Kabomu.Mediator.Registry
         /// Gets one of the objects which exist under a given key. For <see cref="IMutableRegistry"/> implementations,
         /// it is the last added object which should be returned.
         /// </summary>
-        /// <param name="key">the key to search with</param>
+        /// <param name="key">the key to find</param>
         /// <returns>if objects exist for the given key, one of those objects is
         /// returned as the second item in a pair in which the first item will be true.
         /// Else (false, null) pair will be returned.</returns>
@@ -39,7 +39,7 @@ namespace Kabomu.Mediator.Registry
         /// <remarks>
         /// Implementations should try and use iterator protocols to generate the object list wherever possible.
         /// </remarks>
-        /// <param name="key">the key to search with</param>
+        /// <param name="key">the key to find</param>
         /// <returns>all objects which exist for the given key, or an empty list.</returns>
         IEnumerable<object> GetAll(object key);
 
@@ -47,7 +47,7 @@ namespace Kabomu.Mediator.Registry
         /// Gets one of the objects which exist under a given key, and fails if no objects exist under the key.
         /// For <see cref="IMutableRegistry"/> implementations, it is the last added object which should be returned.
         /// </summary>
-        /// <param name="key">the key to search with</param>
+        /// <param name="key">the key to find</param>
         /// <returns>one of the objects which exist under given key</returns>
         /// <exception cref="NotInRegistryException">If no objects exist under given key.</exception>
         object Get(object key);

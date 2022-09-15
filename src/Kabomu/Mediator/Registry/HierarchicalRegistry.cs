@@ -52,7 +52,7 @@ namespace Kabomu.Mediator.Registry
         }
 
         /// <summary>
-        /// Searches preferred and fallback registries supplied at construction time to get
+        /// Looks up preferred and fallback registries supplied at construction time to get
         /// the first value which satisfies a given predicate/transform function for a key.
         /// </summary>
         /// <param name="key">key to find.</param>
