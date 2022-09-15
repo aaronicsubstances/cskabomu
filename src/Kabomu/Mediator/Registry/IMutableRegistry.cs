@@ -14,8 +14,8 @@ namespace Kabomu.Mediator.Registry
         /// Adds a new key value pair. Multiple values should be allowed for a key, and stored 
         /// in LIFO order for retrievals.
         /// </summary>
-        /// <param name="key">key to use for storage</param>
-        /// <param name="value">value to store under given key</param>
+        /// <param name="key">key to add with</param>
+        /// <param name="value">value to add with given key</param>
         /// <returns>the instance on which this method was called, for chaining more mutable operations.</returns>
         IMutableRegistry Add(object key, object value);
 
@@ -28,8 +28,8 @@ namespace Kabomu.Mediator.Registry
         /// a procedure when called can just return the same value every time, or create a new value every time,
         /// return previously generated values, etc. It is completely up to a procedure's implementation.
         /// </remarks>
-        /// <param name="key">key to use for storage</param>
-        /// <param name="valueGenerator">procedure to store under given key</param>
+        /// <param name="key">key to add with</param>
+        /// <param name="valueGenerator">procedure to add with given key</param>
         /// <returns>the instance on which this method was called, for chaining more mutable operations.</returns>
         IMutableRegistry AddGenerator(object key, Func<object> valueGenerator);
 
