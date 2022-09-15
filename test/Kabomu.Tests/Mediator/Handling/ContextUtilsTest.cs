@@ -39,23 +39,23 @@ namespace Kabomu.Tests.Mediator.Handling
             var generator = new TempPathTemplateGenerator();
             registry.Add(ContextUtils.RegistryKeyPathTemplateGenerator, generator);
 
-            string part1 = "/1";
-            object part2 = null;
-            var actual = (TempPathTemplate)ContextUtils.ParseUnboundRequestTarget(registry, part1, part2);
-            Assert.Equal(part1, actual.Part1);
-            Assert.Same(part2, actual.Part2);
+            string spec = "/1";
+            object options = null;
+            var actual = (TempPathTemplate)ContextUtils.ParseUnboundRequestTarget(registry, spec, options);
+            Assert.Equal(spec, actual.Spec);
+            Assert.Same(options, actual.Options);
 
-            part1 = "dkk";
-            part2 = new object();
-            actual = (TempPathTemplate)ContextUtils.ParseUnboundRequestTarget(registry, part1, part2);
-            Assert.Equal(part1, actual.Part1);
-            Assert.Same(part2, actual.Part2);
+            spec = "dkk";
+            options = new object();
+            actual = (TempPathTemplate)ContextUtils.ParseUnboundRequestTarget(registry, spec, options);
+            Assert.Equal(spec, actual.Spec);
+            Assert.Same(options, actual.Options);
 
-            part1 = null;
-            part2 = new object();
-            actual = (TempPathTemplate)ContextUtils.ParseUnboundRequestTarget(registry, part1, part2);
-            Assert.Equal(part1, actual.Part1);
-            Assert.Same(part2, actual.Part2);
+            spec = null;
+            options = new object();
+            actual = (TempPathTemplate)ContextUtils.ParseUnboundRequestTarget(registry, spec, options);
+            Assert.Equal(spec, actual.Spec);
+            Assert.Same(options, actual.Options);
         }
 
         [Fact]
@@ -68,20 +68,20 @@ namespace Kabomu.Tests.Mediator.Handling
 
         class TempPathTemplateGenerator : IPathTemplateGenerator
         {
-            public IPathTemplate Parse(string part1, object part2)
+            public IPathTemplate Parse(string spec, object options)
             {
                 return new TempPathTemplate
                 {
-                    Part1 = part1,
-                    Part2 = part2
+                    Spec = spec,
+                    Options = options
                 };
             }
         }
 
         class TempPathTemplate : IPathTemplate
         {
-            public string Part1 { get; set; }
-            public object Part2 { get; set; }
+            public string Spec { get; set; }
+            public object Options { get; set; }
 
             public string Interpolate(IContext context, IDictionary<string, string> pathValues, object opaqueOptionObj)
             {

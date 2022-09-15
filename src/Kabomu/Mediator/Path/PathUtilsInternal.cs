@@ -85,7 +85,7 @@ namespace Kabomu.Mediator.Path
             {
                 var (constraintFunctionId, constraintFunctionArgs) = constraint;
                 var constraintFxn = pathTemplate.ConstraintFunctions[constraintFunctionId];
-                bool ok = constraintFxn.Match(context, pathTemplate, pathValues, valueKey,
+                bool ok = constraintFxn.ApplyCheck(context, pathTemplate, pathValues, valueKey,
                     constraintFunctionArgs, direction);
                 if (!ok)
                 {

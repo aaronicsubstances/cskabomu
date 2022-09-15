@@ -24,28 +24,28 @@ namespace Kabomu.Mediator.Path
 
         public IDictionary<string, IPathConstraint> ConstraintFunctions { get; set; }
 
-        public IPathTemplate Parse(string part1, object part2)
+        public IPathTemplate Parse(string spec, object options)
         {
-            if (part1 == null)
+            if (spec == null)
             {
-                throw new ArgumentNullException(nameof(part1));
+                throw new ArgumentNullException(nameof(spec));
             }
 
             DefaultPathTemplateMatchOptions optionsForAll = null;
             IDictionary<string, DefaultPathTemplateMatchOptions> individualOptions = null;
-            if (part2 != null)
+            if (options != null)
             {
-                if (part2 is IDictionary<string, DefaultPathTemplateMatchOptions>)
+                if (options is IDictionary<string, DefaultPathTemplateMatchOptions>)
                 {
-                    individualOptions = (IDictionary<string, DefaultPathTemplateMatchOptions>)part2;
+                    individualOptions = (IDictionary<string, DefaultPathTemplateMatchOptions>)options;
                 }
                 else
                 {
-                    optionsForAll = (DefaultPathTemplateMatchOptions)part2;
+                    optionsForAll = (DefaultPathTemplateMatchOptions)options;
                 }
             }
 
-            var parsedCsv = CsvUtils.Deserialize(part1);
+            var parsedCsv = CsvUtils.Deserialize(spec);
 
             var parsedExamples = new List<DefaultPathTemplateExampleInternal>();
             var defaultValues = new Dictionary<string, string>();

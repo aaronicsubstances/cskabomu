@@ -21,7 +21,7 @@ namespace Kabomu.Tests.Mediator.Path
 
         [Theory]
         [MemberData(nameof(CreateTestParseForErrorData))]
-        public void TestParseForError(string part1, object part2,
+        public void TestParseForError(string spec, object options,
             IDictionary<string, IPathConstraint> constraintFunctions,
             string expectedError, int errorRowNum, int errorColNum)
         {
@@ -30,7 +30,7 @@ namespace Kabomu.Tests.Mediator.Path
                 ConstraintFunctions = constraintFunctions
             };
 
-            var actualError = Assert.Throws<ArgumentException>(() => instance.Parse(part1, part2));
+            var actualError = Assert.Throws<ArgumentException>(() => instance.Parse(spec, options));
 
             Assert.Contains($"row {errorRowNum}", actualError.Message);
             Assert.Contains($"column {errorColNum}", actualError.Message);
@@ -41,30 +41,30 @@ namespace Kabomu.Tests.Mediator.Path
         {
             var testData = new List<object[]>();
 
-            string part1 = "";
-            object part2 = null;
+            string spec = "";
+            object options = null;
             IDictionary<string, IPathConstraint> constraintFunctions = null;
             string expectedError = "no examples";
             int errorRowNum = 0;
             int errorColNum = 0;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
-            part1 = "/\n" +
+            spec = "/\n" +
                 " check :k,e";
-            part2 = null;
+            options = null;
             constraintFunctions = null;
             expectedError = "not found";
             errorRowNum = 2;
             errorColNum = 2;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
-            part1 = "/\n" +
+            spec = "/\n" +
                 " check :k,e";
-            part2 = null;
+            options = null;
             constraintFunctions = new Dictionary<string, IPathConstraint>
             {
                 { "e", null }
@@ -73,14 +73,14 @@ namespace Kabomu.Tests.Mediator.Path
             errorRowNum = 2;
             errorColNum = 2;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
-            part1 = "/\n" +
+            spec = "/\n" +
                 " check :k\n" +
                 "\n" +
                 ",,e";
-            part2 = null;
+            options = null;
             constraintFunctions = new Dictionary<string, IPathConstraint>
             {
                 { "e", new ConfigurablePathConstraint() }
@@ -89,110 +89,110 @@ namespace Kabomu.Tests.Mediator.Path
             errorRowNum = 4;
             errorColNum = 1;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
-            part1 = "save/";
-            part2 = null;
+            spec = "save/";
+            options = null;
             constraintFunctions = null;
             expectedError = "missing leading slash";
             errorRowNum = 1;
             errorColNum = 1;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
-            part1 = "save";
-            part2 = null;
+            spec = "save";
+            options = null;
             constraintFunctions = null;
             expectedError = "unknown key";
             errorRowNum = 1;
             errorColNum = 1;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
-            part1 = "//";
-            part2 = null;
+            spec = "//";
+            options = null;
             constraintFunctions = null;
             expectedError = "invalid";
             errorRowNum = 1;
             errorColNum = 1;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
-            part1 = "////";
-            part2 = null;
+            spec = "////";
+            options = null;
             constraintFunctions = null;
             expectedError = "invalid";
             errorRowNum = 1;
             errorColNum = 1;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
-            part1 = "//two// two ";
-            part2 = null;
+            spec = "//two// two ";
+            options = null;
             constraintFunctions = null;
             expectedError = "duplicate";
             errorRowNum = 1;
             errorColNum = 1;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
-            part1 = "///one/// two ";
-            part2 = null;
+            spec = "///one/// two ";
+            options = null;
             constraintFunctions = null;
             expectedError = "duplicate";
             errorRowNum = 1;
             errorColNum = 1;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
-            part1 = "///one// one ";
-            part2 = null;
+            spec = "///one// one ";
+            options = null;
             constraintFunctions = null;
             expectedError = "duplicate";
             errorRowNum = 1;
             errorColNum = 1;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
             // test correct reporting of character positions during errors with path spec parsing.
-            part1 = "name:e.g.,  ///";
-            part2 = null;
+            spec = "name:e.g.,  ///";
+            options = null;
             constraintFunctions = null;
             expectedError = "3";
             errorRowNum = 1;
             errorColNum = 2;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
             // blank input spec
-            part1 = "name:e.g.,";
-            part2 = null;
+            spec = "name:e.g.,";
+            options = null;
             constraintFunctions = null;
             expectedError = "blank string spec";
             errorRowNum = 1;
             errorColNum = 2;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
             // blank input spec
-            part1 = "/,\"\"";
-            part2 = null;
+            spec = "/,\"\"";
+            options = null;
             constraintFunctions = null;
             expectedError = "blank string spec";
             errorRowNum = 1;
             errorColNum = 2;
 
-            testData.Add(new object[] { part1, part2, constraintFunctions,
+            testData.Add(new object[] { spec, options, constraintFunctions,
                 expectedError, errorRowNum, errorColNum });
 
             return testData;
@@ -212,7 +212,7 @@ namespace Kabomu.Tests.Mediator.Path
 
         [Theory]
         [MemberData(nameof(CreateTestParseData))]
-        public void TestParse(string part1, object part2,
+        public void TestParse(string spec, object options,
             IDictionary<string, IPathConstraint> constraintFunctions,
             IPathTemplate expected)
         {
@@ -221,7 +221,7 @@ namespace Kabomu.Tests.Mediator.Path
                 ConstraintFunctions = constraintFunctions
             };
 
-            var actual = instance.Parse(part1, part2);
+            var actual = instance.Parse(spec, options);
             ComparisonUtils.AssertTemplatesEqual(expected, actual, _outputHelper);
         }
 
@@ -229,8 +229,8 @@ namespace Kabomu.Tests.Mediator.Path
         {
             var testData = new List<object[]>();
 
-            string part1 = "/";
-            object part2 = null;
+            string spec = "/";
+            object options = null;
             IDictionary<string, IPathConstraint> constraintFunctions = null;
             DefaultPathTemplateInternal expected = new DefaultPathTemplateInternal
             {
@@ -243,10 +243,10 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
 
-            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            testData.Add(new object[] { spec, options, constraintFunctions, expected });
 
-            part1 = "/  ";
-            part2 = new DefaultPathTemplateMatchOptions
+            spec = "/  ";
+            options = new DefaultPathTemplateMatchOptions
             {
                 MatchTrailingSlash = true,
                 UnescapeNonWildCardSegments = true
@@ -273,10 +273,10 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
 
-            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            testData.Add(new object[] { spec, options, constraintFunctions, expected });
 
-            part1 = "/car";
-            part2 = null;
+            spec = "/car";
+            options = null;
             constraintFunctions = null;
             expected = new DefaultPathTemplateInternal
             {
@@ -296,12 +296,12 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
 
-            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            testData.Add(new object[] { spec, options, constraintFunctions, expected });
 
             // test correct path spec parsing with surrounding whitespace,
             // and null match options.
-            part1 = "name:default, /car ";
-            part2 = new Dictionary<string, DefaultPathTemplateMatchOptions>
+            spec = "name:default, /car ";
+            options = new Dictionary<string, DefaultPathTemplateMatchOptions>
             {
                 { "default", null }
             };
@@ -325,10 +325,10 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
 
-            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            testData.Add(new object[] { spec, options, constraintFunctions, expected });
 
-            part1 = "/c%61r //vehicle";
-            part2 = null;
+            spec = "/c%61r //vehicle";
+            options = null;
             constraintFunctions = null;
             expected = new DefaultPathTemplateInternal
             {
@@ -355,12 +355,12 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
 
-            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            testData.Add(new object[] { spec, options, constraintFunctions, expected });
 
-            part1 = "/car //vehicle /// ,  ///yr//second// first/sei/du\n" +
+            spec = "/car //vehicle /// ,  ///yr//second// first/sei/du\n" +
                 "defaults:,country,gh,capital,accra\n" +
                 ",yr";
-            part2 = null;
+            options = null;
             constraintFunctions = null;
             expected = new DefaultPathTemplateInternal
             {
@@ -429,9 +429,9 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
 
-            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            testData.Add(new object[] { spec, options, constraintFunctions, expected });
 
-            part1 = " defaults :,controller,Home\n" +
+            spec = " defaults :,controller,Home\n" +
                 ",action,Index\n" +
                 "\n" +
                 "name:general,/\n" +
@@ -440,7 +440,7 @@ namespace Kabomu.Tests.Mediator.Path
                 " name :specific,//controller//action//id\n" +
                 "\n" +
                 " check :id,int";
-            part2 = new Dictionary<string, DefaultPathTemplateMatchOptions>
+            options = new Dictionary<string, DefaultPathTemplateMatchOptions>
             {
                 {
                     "general",
@@ -541,10 +541,10 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
 
-            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            testData.Add(new object[] { spec, options, constraintFunctions, expected });
 
             // test defaults and constraints with more additions.
-            part1 = "/car\n" +
+            spec = "/car\n" +
                 "\n" +
                 " check :action,f3,c\n" +
                 " check :controller,f3,a,b\r\n" +
@@ -553,7 +553,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "defaults:,a,v,b,v,c\n" +
                 "defaults:,a,3,b,4,c,5,d\n" +
                 ",e";
-            part2 = null;
+            options = null;
             var f3Tpc = new ConfigurablePathConstraint();
             var f4Tpc = new ConfigurablePathConstraint();
             constraintFunctions = new Dictionary<string, IPathConstraint>
@@ -607,11 +607,11 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
 
-            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            testData.Add(new object[] { spec, options, constraintFunctions, expected });
             
             // test reversal of percent encoding.
-            part1 = "//%41/%20%41%42%43%58%59%5a%61%62%63%78%79%7a%30%31%38%39-._~%21%24%26%27%28%29%2A%2B%2C%3B%3D%3A%40%20";
-            part2 = new DefaultPathTemplateMatchOptions
+            spec = "//%41/%20%41%42%43%58%59%5a%61%62%63%78%79%7a%30%31%38%39-._~%21%24%26%27%28%29%2A%2B%2C%3B%3D%3A%40%20";
+            options = new DefaultPathTemplateMatchOptions
             {
                 CaseSensitiveMatchEnabled = false,
                 MatchLeadingSlash = false,
@@ -646,11 +646,11 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
 
-            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            testData.Add(new object[] { spec, options, constraintFunctions, expected });
 
             // test correct detection of duplication.
-            part1 = "//two/two/two";
-            part2 = null;
+            spec = "//two/two/two";
+            options = null;
             constraintFunctions = null;
             expected = new DefaultPathTemplateInternal
             {
@@ -680,11 +680,11 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
 
-            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            testData.Add(new object[] { spec, options, constraintFunctions, expected });
 
             // test correct skipping of escapes.
-            part1 = "///%41/%41/%41";
-            part2 = new DefaultPathTemplateMatchOptions
+            spec = "///%41/%41/%41";
+            options = new DefaultPathTemplateMatchOptions
             {
                 UnescapeNonWildCardSegments = false
             };
@@ -718,17 +718,17 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
 
-            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            testData.Add(new object[] { spec, options, constraintFunctions, expected });
 
             // test case insensitive matching of keys, and non-alpha characters in keys.
-            part1 = $"{CsvUtils.EscapeValue(" \n NAME \r\n :\"\n,rty")}, ///w//L\n" +
+            spec = $"{CsvUtils.EscapeValue(" \n NAME \r\n :\"\n,rty")}, ///w//L\n" +
                 "/\n" +
                 $"{CsvUtils.EscapeValue(" \n CHECK \r\n:\"\n,lty")},test\n" +
                 $"{CsvUtils.EscapeValue(" \n DEFAULTS \r\n:\"\n")}," +
                     $"{CsvUtils.EscapeValue(" \n key \r\n:\"\n")}," +
                     $"{CsvUtils.EscapeValue(" \n value \r\n:\"\n")}\n" +
                 "\n";
-            part2 = new Dictionary<string, DefaultPathTemplateMatchOptions>
+            options = new Dictionary<string, DefaultPathTemplateMatchOptions>
             {
                 {
                     "\"\n,rty",
@@ -783,7 +783,7 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
 
-            testData.Add(new object[] { part1, part2, constraintFunctions, expected });
+            testData.Add(new object[] { spec, options, constraintFunctions, expected });
 
             return testData;
         }

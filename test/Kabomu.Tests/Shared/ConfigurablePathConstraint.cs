@@ -16,7 +16,7 @@ namespace Kabomu.Tests.Shared
         public bool? ReturnValue { get; set; }
         public List<string> ConstraintLogs { get; set; }
 
-        public bool Match(IContext context, IPathTemplate pathTemplate,
+        public bool ApplyCheck(IContext context, IPathTemplate pathTemplate,
             IDictionary<string, string> values, string valueKey,
             string[] constraintArgs, int direction)
         {
