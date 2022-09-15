@@ -53,10 +53,10 @@ namespace Kabomu.Mediator.Handling
                    ContextUtils.RegistryKeyPathTemplateGenerator);
         }
 
-        public static IPathTemplate ParseUnboundRequestTarget(IRegistry registry, string part1, object part2)
+        public static IPathTemplate ParseUnboundRequestTarget(IRegistry registry, string spec, object options)
         {
             var pathTemplateGenerator = GetPathTemplateGenerator(registry);
-            IPathTemplate pathTemplate = pathTemplateGenerator.Parse(part1, part2);
+            IPathTemplate pathTemplate = pathTemplateGenerator.Parse(spec, options);
             return pathTemplate;
         }
     }

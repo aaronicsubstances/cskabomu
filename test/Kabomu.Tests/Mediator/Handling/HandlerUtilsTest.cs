@@ -188,13 +188,13 @@ namespace Kabomu.Tests.Mediator.Handling
             {
                 DelegateRegistry = delegateRegistry
             };
-            string part1 = "d";
-            object part2 = "k";
-            var handler = HandlerUtils.Path(delegateRegistry, part1, part2, handlers);
+            string spec = "d";
+            object options = "k";
+            var handler = HandlerUtils.Path(delegateRegistry, spec, options, handlers);
             await handler.Invoke(context);
             Assert.Equal(1, pathTemplateGenerator.ParseCallCount);
-            Assert.Equal(part1, pathTemplateGenerator.Part1Seen);
-            Assert.Same(part2, pathTemplateGenerator.Part2Seen);
+            Assert.Equal(spec, pathTemplateGenerator.SpecSeen);
+            Assert.Same(options, pathTemplateGenerator.OptionsSeen);
             Assert.Equal(0, context.NextCallCount);
             Assert.Equal(0, context.SkipInsertCallCount);
             Assert.Equal(1, context.InsertCallCount);
@@ -227,17 +227,17 @@ namespace Kabomu.Tests.Mediator.Handling
             var delegateRegistry = new DefaultMutableRegistry()
                 .Add(ContextUtils.RegistryKeyPathTemplateGenerator, pathTemplateGenerator)
                 .Add(ContextUtils.RegistryKeyPathMatchResult, prevPathTemplateResult);
-            string part1 = "de";
-            object part2 = null;
-            var handler = HandlerUtils.Path(delegateRegistry, part1, part2, handlers);
+            string spec = "de";
+            object options = null;
+            var handler = HandlerUtils.Path(delegateRegistry, spec, options, handlers);
             var context = new TempContext
             {
                 DelegateRegistry = delegateRegistry
             };
             await handler.Invoke(context);
             Assert.Equal(1, pathTemplateGenerator.ParseCallCount);
-            Assert.Equal(part1, pathTemplateGenerator.Part1Seen);
-            Assert.Same(part2, pathTemplateGenerator.Part2Seen);
+            Assert.Equal(spec, pathTemplateGenerator.SpecSeen);
+            Assert.Same(options, pathTemplateGenerator.OptionsSeen);
             Assert.Equal(1, context.NextCallCount);
             Assert.Equal(0, context.SkipInsertCallCount);
             Assert.Equal(0, context.InsertCallCount);
@@ -529,17 +529,17 @@ namespace Kabomu.Tests.Mediator.Handling
 
         class TempPathTemplateGenerator : IPathTemplateGenerator
         {
-            public string Part1Seen { get; set; }
-            public object Part2Seen { get; set; }
+            public string SpecSeen { get; set; }
+            public object OptionsSeen { get; set; }
             public int ParseCallCount { get; set; }
 
             public IPathTemplate PathTemplateToReturn;
 
-            public IPathTemplate Parse(string part1, object part2)
+            public IPathTemplate Parse(string spec, object options)
             {
                 ParseCallCount++;
-                Part1Seen = part1;
-                Part2Seen = part2;
+                SpecSeen = spec;
+                OptionsSeen = options;
                 return PathTemplateToReturn;
             }
         }
