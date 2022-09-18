@@ -18,12 +18,11 @@ namespace Kabomu.Mediator.Handling
         public IMutexApi MutexApi { get; set; }
         public IContextRequest Request { get; set; } // getter is equivalent to fetching from joined registry
         public IContextResponse Response { get; set; } // getter is equivalent to fetching from joined registry
-
         public IList<Handler> InitialHandlers { get; set; }
         public IRegistry InitialHandlerVariables { get; set; }
         public IRegistry HandlerConstants { get; set; }
 
-        public async Task Start()
+        public void Start()
         {
             if (Request == null)
             {
@@ -38,40 +37,45 @@ namespace Kabomu.Mediator.Handling
                 throw new MissingDependencyException("null initial handlers");
             }
 
-            var additionalHandlerConstants = new DefaultMutableRegistry();
-            additionalHandlerConstants.Add(ContextUtils.RegistryKeyContext,
-                this);
-            additionalHandlerConstants.Add(ContextUtils.RegistryKeyRequest,
-                Request);
-            additionalHandlerConstants.Add(ContextUtils.RegistryKeyResponse,
-                Response);
-
-            // only add these if they have not being added already
-            var fallbackHandlerVariables = new DefaultMutableRegistry();
-            if (InitialHandlerVariables == null ||
-                !InitialHandlerVariables.TryGet(ContextUtils.RegistryKeyPathTemplateGenerator).Item1)
+            async Task StartInternal()
             {
-                fallbackHandlerVariables.Add(ContextUtils.RegistryKeyPathTemplateGenerator,
-                    new DefaultPathTemplateGenerator());
-            }
-            if (InitialHandlerVariables == null ||
-                !InitialHandlerVariables.TryGet(ContextUtils.RegistryKeyPathMatchResult).Item1)
-            {
-                fallbackHandlerVariables.Add(ContextUtils.RegistryKeyPathMatchResult,
-                    CreateRootPathMatch());
-            }
+                var additionalHandlerConstants = new DefaultMutableRegistry();
+                additionalHandlerConstants.Add(ContextUtils.RegistryKeyContext,
+                    this);
+                additionalHandlerConstants.Add(ContextUtils.RegistryKeyRequest,
+                    Request);
+                additionalHandlerConstants.Add(ContextUtils.RegistryKeyResponse,
+                    Response);
 
-            using (await MutexApi.Synchronize())
-            {
-                _handlerStack = new Stack<HandlerGroup>();
-                var firstHandlerGroup = new HandlerGroup(InitialHandlers,
-                    fallbackHandlerVariables.Join(InitialHandlerVariables));
-                _handlerStack.Push(firstHandlerGroup);
+                // only add these if they have not being added already
+                var fallbackHandlerVariables = new DefaultMutableRegistry();
+                if (InitialHandlerVariables == null ||
+                    !InitialHandlerVariables.TryGet(ContextUtils.RegistryKeyPathTemplateGenerator).Item1)
+                {
+                    fallbackHandlerVariables.Add(ContextUtils.RegistryKeyPathTemplateGenerator,
+                        new DefaultPathTemplateGenerator());
+                }
+                if (InitialHandlerVariables == null ||
+                    !InitialHandlerVariables.TryGet(ContextUtils.RegistryKeyPathMatchResult).Item1)
+                {
+                    fallbackHandlerVariables.Add(ContextUtils.RegistryKeyPathMatchResult,
+                        CreateRootPathMatch());
+                }
 
-                _joinedRegistry = new DynamicRegistry(this).Join(HandlerConstants).Join(additionalHandlerConstants);
+                Handler nextHandler;
+                using (await MutexApi.Synchronize())
+                {
+                    _handlerStack = new Stack<HandlerGroup>();
+                    var firstHandlerGroup = new HandlerGroup(InitialHandlers,
+                        fallbackHandlerVariables.Join(InitialHandlerVariables));
+                    _handlerStack.Push(firstHandlerGroup);
 
-                RunNext();
+                    _joinedRegistry = new DynamicRegistry(this).Join(HandlerConstants).Join(additionalHandlerConstants);
+                    nextHandler = AdvanceHandlerStackPointer();
+                }
+                await RunNext(nextHandler);
             }
+            _ = StartInternal();
         }
 
         private IPathMatchResult CreateRootPathMatch()
@@ -97,57 +101,71 @@ namespace Kabomu.Mediator.Handling
             }
         }
 
-        public Task Insert(IList<Handler> handlers)
+        public void Insert(IList<Handler> handlers)
         {
-            return Insert(handlers, null);
+            Insert(handlers, null);
         }
 
-        public async Task Insert(IList<Handler> handlers, IRegistry registry)
+        public void Insert(IList<Handler> handlers, IRegistry registry)
         {
             if (handlers == null)
             {
                 throw new ArgumentNullException(nameof(handlers));
             }
-
-            using (await MutexApi.Synchronize())
+            async Task InsertInternal()
             {
-                var applicableRegistry = CurrentRegistry.Join(registry);
-                var newHandlerGroup = new HandlerGroup(handlers, applicableRegistry);
-                _handlerStack.Push(newHandlerGroup);
-                RunNext();
+                Handler nextHandler;
+                using (await MutexApi.Synchronize())
+                {
+                    var applicableRegistry = CurrentRegistry.Join(registry);
+                    var newHandlerGroup = new HandlerGroup(handlers, applicableRegistry);
+                    _handlerStack.Push(newHandlerGroup);
+                    nextHandler = AdvanceHandlerStackPointer();
+                }
+                await RunNext(nextHandler);
             }
+            _ = InsertInternal();
         }
 
-        public async Task SkipInsert()
+        public void SkipInsert()
         {
-            using (await MutexApi.Synchronize())
+            async Task SkipInsertInternal()
             {
-                _handlerStack.Peek().EndIteration();
-                RunNext();
+                Handler nextHandler;
+                using (await MutexApi.Synchronize())
+                {
+                    _handlerStack.Peek().EndIteration();
+                    nextHandler = AdvanceHandlerStackPointer();
+                }
+                await RunNext(nextHandler);
             }
+            _ = SkipInsertInternal();
         }
 
-        public Task Next()
+        public void Next()
         {
-            return Next(null);
+            Next(null);
         }
 
-        public async Task Next(IRegistry registry)
+        public void Next(IRegistry registry)
         {
-            if (registry != null)
+            async Task NextInternal()
             {
-                _handlerStack.Peek().registry = CurrentRegistry.Join(registry);
+                Handler nextHandler;
+                using (await MutexApi.Synchronize())
+                {
+                    if (registry != null)
+                    {
+                        _handlerStack.Peek().registry = CurrentRegistry.Join(registry);
+                    }
+                    nextHandler = AdvanceHandlerStackPointer();
+                }
+                await RunNext(nextHandler);
             }
-            using (await MutexApi.Synchronize())
-            {
-                RunNext();
-            }
+            _ = NextInternal();
         }
 
-        /// <summary>
-        /// NB: must be called from mutual exclusion
-        /// </summary>
-        private void RunNext()
+        private Handler AdvanceHandlerStackPointer()
         {
             // tolerate prescence of nulls.
             Handler handler = null;
@@ -169,17 +187,22 @@ namespace Kabomu.Mediator.Handling
                     _handlerStack.Pop();
                 }
             }
+            return handler;
+        }
 
-
+        /// <summary>
+        /// NB: must be called from mutual exclusion
+        /// </summary>
+        private Task RunNext(Handler handler)
+        {
             if (handler == null)
             {
-                _ = ContextExtensions.HandleUnexpectedEnd(this);
-                return;
+                return ContextExtensions.HandleUnexpectedEnd(this);
             }
 
-            // call without waiting and without mutual exclusion...it is for client to decide
+            // call without mutual exclusion...it is for client to decide
             // whether to employ mutual exclusion.
-            _ = ExecuteHandler(handler);
+            return ExecuteHandler(handler);
         }
 
         private async Task ExecuteHandler(Handler handler)

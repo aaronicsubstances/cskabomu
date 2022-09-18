@@ -23,7 +23,11 @@ namespace Kabomu.Mediator.Handling
             }
             else
             {
-                return context => context.Insert(handlers);
+                return context =>
+                {
+                    context.Insert(handlers);
+                    return Task.CompletedTask;
+                };
             }
         }
 
@@ -34,7 +38,11 @@ namespace Kabomu.Mediator.Handling
 
         public static Handler Register(IRegistry registry, params Handler[] handlers)
         {
-            return context => context.Insert(handlers, registry);
+            return context =>
+            {
+                context.Insert(handlers, registry);
+                return Task.CompletedTask;
+            };
         }
 
         public static Handler Path(IRegistry registry, string spec, object options, params Handler[] handlers)
@@ -61,11 +69,11 @@ namespace Kabomu.Mediator.Handling
                 {
                     var additionalRegistry = new DefaultMutableRegistry()
                         .Add(ContextUtils.RegistryKeyPathMatchResult, pathMatchResult);
-                    await context.Insert(handlers, additionalRegistry);
+                    context.Insert(handlers, additionalRegistry);
                 }
                 else
                 {
-                    await context.Next();
+                    context.Next();
                 }
             };
         }
@@ -96,16 +104,17 @@ namespace Kabomu.Mediator.Handling
             {
                 throw new ArgumentNullException(nameof(method));
             }
-            return async (context) =>
+            return (context) =>
             {
                 if (context.Request.Method == method)
                 {
-                    await context.Insert(handlers);
+                    context.Insert(handlers);
                 }
                 else
                 {
-                    await context.Next();
+                    context.Next();
                 }
+                return Task.CompletedTask;
             };
         }
     }

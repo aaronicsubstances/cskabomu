@@ -24,7 +24,7 @@ namespace Kabomu.Tests.Mediator.Handling
         }
 
         [Fact]
-        public async Task TestForErrors()
+        public void TestForErrors()
         {
             var requestEnvironment = new Dictionary<string, object>();
             var contextRequest = new DefaultContextRequestInternal(
@@ -39,43 +39,43 @@ namespace Kabomu.Tests.Mediator.Handling
 
             var instance = new DefaultContextInternal();
 
-            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+            Assert.Throws<MissingDependencyException>(() =>
             {
                 instance.Request = null;
                 instance.Response = contextResponse;
                 instance.InitialHandlers = handlers;
-                return instance.Start();
+                instance.Start();
             });
 
-            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+            Assert.Throws<MissingDependencyException>(() =>
             {
                 instance.Request = contextRequest;
                 instance.Response = null;
                 instance.InitialHandlers = handlers;
-                return instance.Start();
+                instance.Start();
             });
 
-            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+            Assert.Throws<MissingDependencyException>(() =>
             {
                 instance.Request = contextRequest;
                 instance.Response = contextResponse;
                 instance.InitialHandlers = null;
-                return instance.Start();
+                instance.Start();
             });
 
             instance.Request = contextRequest;
             instance.Response = contextResponse;
             instance.InitialHandlers = handlers;
-            await instance.Start();
+            instance.Start();
 
-            await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
             {
-                return instance.Insert(null);
+                instance.Insert(null);
             });
         }
 
         [Fact]
-        public async Task TestDefaultRegistryValues()
+        public void TestDefaultRegistryValues()
         {
             var logs = new List<string>();
             var handlers = new List<Handler>();
@@ -96,7 +96,7 @@ namespace Kabomu.Tests.Mediator.Handling
             {
                 logs.Add("wer34");
             });
-            await instance.Start();
+            instance.Start();
 
             Assert.Same(instance, instance.Get(ContextUtils.RegistryKeyContext));
             Assert.Same(contextRequest, instance.Get(ContextUtils.RegistryKeyRequest));
@@ -142,24 +142,24 @@ namespace Kabomu.Tests.Mediator.Handling
             };
             handlers.Add(async (context) =>
             {
-                await context.Next();
+                context.Next();
                 logs.Add("1");
             });
             handlers.Add(async (context) =>
             {
-                await context.Next();
+                context.Next();
                 logs.Add("2");
             });
             handlers.Add(async (context) =>
             {
-                await context.Next();
+                context.Next();
                 logs.Add("3");
             });
             handlers.Add(async (context) =>
             {
                 logs.Add("4");
             });
-            await instance.Start();
+            instance.Start();
 
             Assert.Same(instance, instance.Get(ContextUtils.RegistryKeyContext));
             Assert.Same(contextRequest, instance.Get(ContextUtils.RegistryKeyRequest));
@@ -191,10 +191,10 @@ namespace Kabomu.Tests.Mediator.Handling
             };
             handlers.Add(async (context) =>
             {
-                await context.Next();
+                context.Next();
                 logs.Add("s");
             });
-            await instance.Start();
+            instance.Start();
 
             var expectedLogs = new List<string> { "s" };
             Assert.Equal(expectedLogs, logs);
@@ -239,7 +239,7 @@ namespace Kabomu.Tests.Mediator.Handling
                         logs.Add("inner1a");
                         CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "d", "b", "v" });
 
-                        await context.Next(new IndexedArrayBasedRegistry(new object[] { "e", "f" }));
+                        context.Next(new IndexedArrayBasedRegistry(new object[] { "e", "f" }));
                     });
                     inner2Handlers.Add(async (context) =>
                     {
@@ -247,10 +247,10 @@ namespace Kabomu.Tests.Mediator.Handling
                         CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "f", "d", "b", "v" });
 
                         // test that this is equivalent to SkipInsert(), and hence additional registry will be ignored.
-                        await context.Next(new ErrorBasedMutableRegistry());
+                        context.Next(new ErrorBasedMutableRegistry());
                     });
 
-                    await context.Insert(inner2Handlers, new IndexedArrayBasedRegistry(new object[] { "c", "d" }));
+                    context.Insert(inner2Handlers, new IndexedArrayBasedRegistry(new object[] { "c", "d" }));
                 });
 
                 innerHandlers.Add(async (context) =>
@@ -264,21 +264,21 @@ namespace Kabomu.Tests.Mediator.Handling
                         logs.Add("inner2a");
                         CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { null, "b", "v" });
 
-                        await context.Next(new IndexedArrayBasedRegistry(new object[] { "-", "0" }));
+                        context.Next(new IndexedArrayBasedRegistry(new object[] { "-", "0" }));
                     });
                     inner2Handlers.Add(async (context) =>
                     {
                         logs.Add("inner2b");
                         CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "0", null, "b", "v" });
 
-                        await context.Next(new IndexedArrayBasedRegistry(new object[] { "+", "1" }));
+                        context.Next(new IndexedArrayBasedRegistry(new object[] { "+", "1" }));
                     });
                     inner2Handlers.Add(async (context) =>
                     {
                         logs.Add("inner2c");
                         CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "1", "0", null, "b", "v" });
 
-                        await context.Next(new IndexedArrayBasedRegistry(new object[] { "+", "2" }));
+                        context.Next(new IndexedArrayBasedRegistry(new object[] { "+", "2" }));
                     });
                     inner2Handlers.Add(async (context) =>
                     {
@@ -286,30 +286,30 @@ namespace Kabomu.Tests.Mediator.Handling
                         CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "2", "1", "0", null, "b", "v" });
 
                         // test that this is equivalent to Next() at this point.
-                        await context.SkipInsert();
+                        context.SkipInsert();
                     });
 
-                    await context.Insert(inner2Handlers, new IndexedArrayBasedRegistry(new object[] { "y", null }));
+                    context.Insert(inner2Handlers, new IndexedArrayBasedRegistry(new object[] { "y", null }));
                 });
 
                 innerHandlers.Add(async (context) =>
                 {
                     logs.Add("inner3");
                     CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "b", "v" });
-                    await context.Response.SetSuccessStatusCode().Send();
+                    context.Response.SetSuccessStatusCode().Send();
 
                     // test that this is equivalent to Next().
-                    await context.Insert(new List<Handler>());
+                    context.Insert(new List<Handler>());
                 });
 
-                await context.Insert(innerHandlers, new IndexedArrayBasedRegistry(new object[] { "a", "b" }));
+                context.Insert(innerHandlers, new IndexedArrayBasedRegistry(new object[] { "a", "b" }));
             });
             handlers.Add(async (context) =>
             {
                 logs.Add("t");
                 CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "v" });
             });
-            await instance.Start();
+            instance.Start();
 
             Assert.NotNull(instance.Get<DefaultPathTemplateGenerator>(
                 ContextUtils.RegistryKeyPathTemplateGenerator));
@@ -368,53 +368,53 @@ namespace Kabomu.Tests.Mediator.Handling
                     {
                         logs.Add("inner1a");
                         CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "v" });
-                        await context.Next(null);
+                        context.Next(null);
                     });
                     inner2Handlers.Add(async (context) =>
                     {
                         logs.Add("inner1b");
                         CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "v" });
-                        await context.Next(null);
+                        context.Next(null);
                     });
                     inner2Handlers.Add(async (context) =>
                     {
                         logs.Add("inner1c");
                         CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "v" });
-                        await context.SkipInsert();
+                        context.SkipInsert();
                     });
                     inner2Handlers.Add(async (context) =>
                     {
                         logs.Add("inner1d");
                         CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "v" });
-                        await context.Next(null);
+                        context.Next(null);
                     });
 
-                    await context.Insert(inner2Handlers, null);
+                    context.Insert(inner2Handlers, null);
                 });
 
                 innerHandlers.Add(async (context) =>
                 {
                     logs.Add("inner2");
                     CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "v" });
-                    await context.SkipInsert();
+                    context.SkipInsert();
                 });
 
                 innerHandlers.Add(async (context) =>
                 {
                     logs.Add("inner3");
                     CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "v" });
-                    await context.Next(null);
+                    context.Next(null);
                 });
 
-                await context.Insert(innerHandlers, null);
+                context.Insert(innerHandlers, null);
             });
             handlers.Add(async (context) =>
             {
                 logs.Add("t");
                 CommonRegistryTestRunner.TestReadonlyOps(instance, 1, new List<object> { "v" });
-                Assert.True(await context.Response.SetServerErrorStatusCode().TrySend());
+                Assert.True(context.Response.SetServerErrorStatusCode().TrySend());
             });
-            await instance.Start();
+            instance.Start();
 
             var expectedLogs = new List<string> { "mutex", "s", "mutex", "inner1", "mutex", "inner1a",
                 "mutex", "inner1b", "mutex", "inner1c", "mutex", "inner2", "mutex", "t" };
@@ -444,10 +444,10 @@ namespace Kabomu.Tests.Mediator.Handling
             };
             handlers.Add(async (context) =>
             {
-                await context.SkipInsert();
+                context.SkipInsert();
                 logs.Add("s");
             });
-            await instance.Start();
+            instance.Start();
 
             var expectedLogs = new List<string> { "s" };
             Assert.Equal(expectedLogs, logs);
@@ -474,7 +474,7 @@ namespace Kabomu.Tests.Mediator.Handling
                 Request = contextRequest,
                 Response = contextResponse
             };
-            await instance.Start();
+            instance.Start();
 
             var expectedLogs = new List<string>();
             Assert.Equal(expectedLogs, logs);

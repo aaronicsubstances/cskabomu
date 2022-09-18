@@ -15,7 +15,7 @@ namespace Kabomu.Tests.Mediator.Handling
 {
     public class ContextExtensionsTest
     {
-        private static async Task<IContext> CreateAndStartContext(IRegistry initialRegistry)
+        private static IContext CreateAndStartContext(IRegistry initialRegistry)
         {
             var contextRequest = new DefaultContextRequestInternal(
                 new DefaultQuasiHttpRequest(), null);
@@ -32,11 +32,11 @@ namespace Kabomu.Tests.Mediator.Handling
                 Request = contextRequest,
                 Response = contextResponse
             };
-            await context.Start();
+            context.Start();
             return context;
         }
 
-        private static async Task<IContext> CreateAndStartContext(IRegistry initialRegistry,
+        private static IContext CreateAndStartContext(IRegistry initialRegistry,
             TaskCompletionSource<IQuasiHttpResponse> responseTransmitter)
         {
             var contextRequest = new DefaultContextRequestInternal(
@@ -53,7 +53,7 @@ namespace Kabomu.Tests.Mediator.Handling
                 Request = contextRequest,
                 Response = contextResponse
             };
-            await context.Start();
+            context.Start();
             return context;
         }
 
@@ -61,7 +61,7 @@ namespace Kabomu.Tests.Mediator.Handling
         public async Task TestParseRequest1()
         {
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry);
+            var context = CreateAndStartContext(initialRegistry);
 
             object parseOpts = null;
             await Assert.ThrowsAsync<NoSuchParserException>(() => 
@@ -72,7 +72,7 @@ namespace Kabomu.Tests.Mediator.Handling
         public async Task TestParseRequest2()
         {
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry);
+            var context = CreateAndStartContext(initialRegistry);
             initialRegistry.Add(ContextUtils.RegistryKeyRequestParser, null);
 
             object parseOpts = new object();
@@ -84,7 +84,7 @@ namespace Kabomu.Tests.Mediator.Handling
         public async Task TestParseRequest3()
         {
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry);
+            var context = CreateAndStartContext(initialRegistry);
             initialRegistry.Add(ContextUtils.RegistryKeyRequestParser, "invalid");
 
             object parseOpts = new object();
@@ -96,7 +96,7 @@ namespace Kabomu.Tests.Mediator.Handling
         public async Task TestParseRequest4()
         {
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry);
+            var context = CreateAndStartContext(initialRegistry);
             initialRegistry.Add(ContextUtils.RegistryKeyRequestParser, null);
             var requestParser1 = new TestRequestParser
             {
@@ -129,7 +129,7 @@ namespace Kabomu.Tests.Mediator.Handling
         public async Task TestParseRequest5()
         {
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry);
+            var context = CreateAndStartContext(initialRegistry);
             initialRegistry.Add(ContextUtils.RegistryKeyRequestParser, null);
             var requestParserPickedUp = new TestRequestParser
             {
@@ -165,7 +165,7 @@ namespace Kabomu.Tests.Mediator.Handling
         public async Task TestRenderResponse1()
         {
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry);
+            var context = CreateAndStartContext(initialRegistry);
 
             object obj = "html";
             await Assert.ThrowsAsync<NoSuchRendererException>(() =>
@@ -176,7 +176,7 @@ namespace Kabomu.Tests.Mediator.Handling
         public async Task TestRenderResponse2()
         {
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry);
+            var context = CreateAndStartContext(initialRegistry);
             initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, null);
 
             object obj = new object();
@@ -188,7 +188,7 @@ namespace Kabomu.Tests.Mediator.Handling
         public async Task TestRenderResponse3()
         {
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry);
+            var context = CreateAndStartContext(initialRegistry);
             initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, "invalid");
 
             object obj = new object();
@@ -200,7 +200,7 @@ namespace Kabomu.Tests.Mediator.Handling
         public async Task TestRenderResponse4()
         {
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry);
+            var context = CreateAndStartContext(initialRegistry);
             initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, null);
             var responseRenderer1 = new TestResponseRenderer
             {
@@ -233,7 +233,7 @@ namespace Kabomu.Tests.Mediator.Handling
         public async Task TestRenderResponse5()
         {
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry);
+            var context = CreateAndStartContext(initialRegistry);
             initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, null);
             var responseRendererPickedUp = new TestResponseRenderer
             {
@@ -267,7 +267,7 @@ namespace Kabomu.Tests.Mediator.Handling
         public async Task TestRenderResponse6()
         {
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry);
+            var context = CreateAndStartContext(initialRegistry);
             var responseRenderer1 = new TestResponseRenderer
             {
                 CanRenderReturnValue = true
@@ -297,7 +297,7 @@ namespace Kabomu.Tests.Mediator.Handling
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var context = CreateAndStartContext(initialRegistry, responseTransmitter);
             await ContextExtensions.HandleUnexpectedEnd(context);
             var response = await responseTransmitter.Task;
             Assert.Equal(404, response.StatusCode);
@@ -311,7 +311,7 @@ namespace Kabomu.Tests.Mediator.Handling
             var initialRegistry = new DefaultMutableRegistry();
             initialRegistry.Add(ContextUtils.RegistryKeyUnexpectedEndHandler, null);
             initialRegistry.Add(ContextUtils.RegistryKeyUnexpectedEndHandler, null);
-            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var context = CreateAndStartContext(initialRegistry, responseTransmitter);
             await ContextExtensions.HandleUnexpectedEnd(context);
             var response = await responseTransmitter.Task;
             Assert.Equal(404, response.StatusCode);
@@ -325,7 +325,7 @@ namespace Kabomu.Tests.Mediator.Handling
             var initialRegistry = new DefaultMutableRegistry();
             initialRegistry.Add(ContextUtils.RegistryKeyUnexpectedEndHandler, "invalid");
             initialRegistry.Add(ContextUtils.RegistryKeyUnexpectedEndHandler, null);
-            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var context = CreateAndStartContext(initialRegistry, responseTransmitter);
             await ContextExtensions.HandleUnexpectedEnd(context);
             var response = await responseTransmitter.Task;
             Assert.Equal(500, response.StatusCode);
@@ -340,7 +340,7 @@ namespace Kabomu.Tests.Mediator.Handling
             initialRegistry.Add(ContextUtils.RegistryKeyUnexpectedEndHandler, "invalid");
             initialRegistry.Add(ContextUtils.RegistryKeyUnexpectedEndHandler,
                 new TestUnexpectedErrorHandler { ReturnStatusCode = 299 });
-            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var context = CreateAndStartContext(initialRegistry, responseTransmitter);
             await ContextExtensions.HandleUnexpectedEnd(context);
             var response = await responseTransmitter.Task;
             Assert.Equal(299, response.StatusCode);
@@ -352,7 +352,7 @@ namespace Kabomu.Tests.Mediator.Handling
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var initialRegistry = new DefaultMutableRegistry();
-            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var context = CreateAndStartContext(initialRegistry, responseTransmitter);
             var error = new Exception("test sth cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4");
             await ContextExtensions.HandleError(context, error);
             var response = await responseTransmitter.Task;
@@ -373,7 +373,7 @@ namespace Kabomu.Tests.Mediator.Handling
             var initialRegistry = new DefaultMutableRegistry();
             initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, null);
             initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, null);
-            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var context = CreateAndStartContext(initialRegistry, responseTransmitter);
             var error = new Exception("test sth cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4");
             await ContextExtensions.HandleError(context, error);
             var response = await responseTransmitter.Task;
@@ -393,7 +393,7 @@ namespace Kabomu.Tests.Mediator.Handling
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var initialRegistry = new DefaultMutableRegistry();
             initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, "invalid");
-            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var context = CreateAndStartContext(initialRegistry, responseTransmitter);
             var error = new Exception("test sth");
             await ContextExtensions.HandleError(context, error);
             var response = await responseTransmitter.Task;
@@ -419,7 +419,7 @@ namespace Kabomu.Tests.Mediator.Handling
                 ErrorMessage = "cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4"
             };
             initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, testErrorHandler);
-            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var context = CreateAndStartContext(initialRegistry, responseTransmitter);
             var error = new Exception("test sth");
             await ContextExtensions.HandleError(context, error);
             var response = await responseTransmitter.Task;
@@ -451,7 +451,7 @@ namespace Kabomu.Tests.Mediator.Handling
                 ReturnStatusCode = 501
             };
             initialRegistry.Add(ContextUtils.RegistryKeyServerErrorHandler, testErrorHandler2);
-            var context = await CreateAndStartContext(initialRegistry, responseTransmitter);
+            var context = CreateAndStartContext(initialRegistry, responseTransmitter);
             var error = new Exception("test sth");
             await ContextExtensions.HandleError(context, error);
             var response = await responseTransmitter.Task;
@@ -533,7 +533,8 @@ namespace Kabomu.Tests.Mediator.Handling
 
             public Task HandleUnexpectedEnd(IContext context)
             {
-                return context.Response.SetStatusCode(ReturnStatusCode).Send();
+                context.Response.SetStatusCode(ReturnStatusCode).Send();
+                return Task.CompletedTask;
             }
         }
 
@@ -549,7 +550,8 @@ namespace Kabomu.Tests.Mediator.Handling
                 {
                     context.Response.SetBody(new StringBody(ErrorMessage));
                 }
-                return context.Response.Send();
+                context.Response.Send();
+                return Task.CompletedTask;
             }
         }
     }

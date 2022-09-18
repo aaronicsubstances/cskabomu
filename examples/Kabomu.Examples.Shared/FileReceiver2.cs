@@ -79,7 +79,7 @@ namespace Kabomu.Examples.Shared
                 context.Response.RawResponse.HttpStatusMessage = transferError.Message;
             }
 
-            await context.Response.Send();
+            context.Response.Send();
         }
     }
 }

@@ -55,7 +55,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Equal(new List<string> { "GET", "POST" },
                 rawResponse.Headers["Allow"]);
 
-            await instance.Send();
+            instance.Send();
             // check that response transmitter was used.
             Assert.Equal(rawResponse, await responseTransmitter.Task);
         }
@@ -92,19 +92,19 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Same(bodyToUse, instance.Body);
             Assert.Same(bodyToUse, rawResponse.Body);
 
-            await instance.SendWithBody(null);
+            instance.SendWithBody(null);
             Assert.Null(instance.Body);
             Assert.Null(rawResponse.Body);
             // check that response transmitter was used.
             Assert.Equal(rawResponse, await responseTransmitter.Task);
 
             // check that future sending attempts fail.
-            await Assert.ThrowsAsync<ResponseCommittedException>(() => instance.SendWithBody(null));
-            await Assert.ThrowsAsync<ResponseCommittedException>(() => instance.SendWithBody(bodyToUse));
-            await Assert.ThrowsAsync<ResponseCommittedException>(() => instance.Send());
-            Assert.False(await instance.TrySend());
-            Assert.False(await instance.TrySendWithBody(null));
-            Assert.False(await instance.TrySendWithBody(bodyToUse));
+            Assert.Throws<ResponseCommittedException>(() => instance.SendWithBody(null));
+            Assert.Throws<ResponseCommittedException>(() => instance.SendWithBody(bodyToUse));
+            Assert.Throws<ResponseCommittedException>(() => instance.Send());
+            Assert.False(instance.TrySend());
+            Assert.False(instance.TrySendWithBody(null));
+            Assert.False(instance.TrySendWithBody(bodyToUse));
         }
 
         [Fact]
@@ -129,7 +129,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Same(bodyToUse, instance.Body);
             Assert.Same(bodyToUse, rawResponse.Body);
 
-            await instance.SendWithBody(bodyToUse);
+            instance.SendWithBody(bodyToUse);
             Assert.Equal(bodyToUse, instance.Body);
             Assert.Equal(bodyToUse, rawResponse.Body);
             // check that response transmitter was used.
@@ -159,7 +159,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Same(bodyToUse, rawResponse.Body);
 
             bodyToUse = new StringBody("n");
-            bool sent = await instance.TrySendWithBody(bodyToUse);
+            bool sent = instance.TrySendWithBody(bodyToUse);
             Assert.True(sent);
             Assert.Same(bodyToUse, instance.Body);
             Assert.Same(bodyToUse, rawResponse.Body);
@@ -167,12 +167,12 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Equal(rawResponse, await responseTransmitter.Task);
 
             // check that future sending attempts fail.
-            await Assert.ThrowsAsync<ResponseCommittedException>(() => instance.SendWithBody(null));
-            await Assert.ThrowsAsync<ResponseCommittedException>(() => instance.SendWithBody(bodyToUse));
-            await Assert.ThrowsAsync<ResponseCommittedException>(() => instance.Send());
-            Assert.False(await instance.TrySend());
-            Assert.False(await instance.TrySendWithBody(null));
-            Assert.False(await instance.TrySendWithBody(bodyToUse));
+            Assert.Throws<ResponseCommittedException>(() => instance.SendWithBody(null));
+            Assert.Throws<ResponseCommittedException>(() => instance.SendWithBody(bodyToUse));
+            Assert.Throws<ResponseCommittedException>(() => instance.Send());
+            Assert.False(instance.TrySend());
+            Assert.False(instance.TrySendWithBody(null));
+            Assert.False(instance.TrySendWithBody(bodyToUse));
         }
 
         [Fact]
@@ -207,7 +207,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.True(instance.IsClientErrorStatusCode);
             Assert.False(instance.IsServerErrorStatusCode);
 
-            bool sent = await instance.TrySend();
+            bool sent = instance.TrySend();
             Assert.True(sent);
             Assert.Null(instance.Body);
             Assert.Null(rawResponse.Body);
@@ -216,12 +216,12 @@ namespace Kabomu.Tests.Mediator.Handling
 
             // check that future sending attempts fail.
             var bodyToUse = new ByteBufferBody(new byte[0]);
-            await Assert.ThrowsAsync<ResponseCommittedException>(() => instance.SendWithBody(null));
-            await Assert.ThrowsAsync<ResponseCommittedException>(() => instance.SendWithBody(bodyToUse));
-            await Assert.ThrowsAsync<ResponseCommittedException>(() => instance.Send());
-            Assert.False(await instance.TrySend());
-            Assert.False(await instance.TrySendWithBody(null));
-            Assert.False(await instance.TrySendWithBody(bodyToUse));
+            Assert.Throws<ResponseCommittedException>(() => instance.SendWithBody(null));
+            Assert.Throws<ResponseCommittedException>(() => instance.SendWithBody(bodyToUse));
+            Assert.Throws<ResponseCommittedException>(() => instance.Send());
+            Assert.False(instance.TrySend());
+            Assert.False(instance.TrySendWithBody(null));
+            Assert.False(instance.TrySendWithBody(bodyToUse));
         }
 
         [Fact]

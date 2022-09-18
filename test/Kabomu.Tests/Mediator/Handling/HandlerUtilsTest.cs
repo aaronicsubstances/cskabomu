@@ -475,35 +475,32 @@ namespace Kabomu.Tests.Mediator.Handling
             public int NextCallCount { get; set; }
             public IRegistry DelegateRegistry { get; set; }
 
-            public Task Insert(IList<Handler> handlers)
+            public void Insert(IList<Handler> handlers)
             {
-                return Insert(handlers, null);
+                Insert(handlers, null);
             }
 
-            public Task Insert(IList<Handler> handlers, IRegistry registry)
+            public void Insert(IList<Handler> handlers, IRegistry registry)
             {
                 InsertCallCount++;
                 HandlersSeen = handlers;
                 RegistrySeen = registry;
-                return Task.CompletedTask;
             }
 
-            public Task SkipInsert()
+            public void SkipInsert()
             {
                 SkipInsertCallCount++;
-                return Task.CompletedTask;
             }
 
-            public Task Next()
+            public void Next()
             {
-                return Next(null);
+                Next(null);
             }
 
-            public Task Next(IRegistry registry)
+            public void Next(IRegistry registry)
             {
                 NextCallCount++;
                 RegistrySeen = registry;
-                return Task.CompletedTask;
             }
 
             public object Get(object key)

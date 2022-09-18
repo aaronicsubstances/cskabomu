@@ -37,7 +37,7 @@ namespace Kabomu.Mediator
                 context.MutexApi = await mutexApiTask;
             }
 
-            await context.Start();
+            context.Start();
 
             return await responseTransmmitter.Task;
         }

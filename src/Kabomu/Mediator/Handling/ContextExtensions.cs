@@ -142,7 +142,8 @@ namespace Kabomu.Mediator.Handling
 
         private static Task HandleUnexpectedEndLastResort(IContext context)
         {
-            return context.Response.SetStatusCode(404).TrySend();
+            context.Response.SetStatusCode(404).TrySend();
+            return Task.CompletedTask;
         }
 
         public static async Task HandleError(this IContext context, Exception error)
@@ -186,7 +187,6 @@ namespace Kabomu.Mediator.Handling
         private static async Task HandleErrorLastResort(IContext context, Exception original,
             Exception errorHandlerException)
         {
-            Task sendTask;
             using (await context.MutexApi.Synchronize())
             {
                 string msg;
@@ -201,10 +201,9 @@ namespace Kabomu.Mediator.Handling
                     msg = FlattenException(original);
                 }
 
-                sendTask = context.Response.SetStatusCode(500)
+                context.Response.SetStatusCode(500)
                     .TrySendWithBody(new StringBody(msg) { ContentType = "text/plain" });
             }
-            await sendTask;
         }
 
         internal static string FlattenException(Exception exception)

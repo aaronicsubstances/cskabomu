@@ -31,6 +31,8 @@ namespace Kabomu.Mediator.Handling
 
         public IQuasiHttpBody Body => RawResponse.Body;
 
+        public IMutableHeadersWrapper Headers { get; }
+
         public IContextResponse SetSuccessStatusCode()
         {
             RawResponse.StatusCode = 200;
@@ -61,32 +63,29 @@ namespace Kabomu.Mediator.Handling
             return this;
         }
 
-        public Task<bool> TrySend()
+        public bool TrySend()
         {
-            var replySucceeded = _responseTransmitter.TrySetResult(RawResponse);
-            return Task.FromResult(replySucceeded);
+            return _responseTransmitter.TrySetResult(RawResponse);
         }
 
-        public Task<bool> TrySendWithBody(IQuasiHttpBody value)
+        public bool TrySendWithBody(IQuasiHttpBody value)
         {
             RawResponse.Body = value;
             return TrySend();
         }
 
-        public IMutableHeadersWrapper Headers { get; }
-
-        public async Task Send()
+        public void Send()
         {
-            if (await TrySend())
+            if (TrySend())
             {
                 return;
             }
             throw new ResponseCommittedException();
         }
 
-        public async Task SendWithBody(IQuasiHttpBody value)
+        public void SendWithBody(IQuasiHttpBody value)
         {
-            if (await TrySendWithBody(value))
+            if (TrySendWithBody(value))
             {
                 return;
             }
