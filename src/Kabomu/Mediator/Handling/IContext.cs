@@ -12,10 +12,10 @@ namespace Kabomu.Mediator.Handling
         IContextRequest Request { get; }
         IContextResponse Response { get; }
 
-        Task Insert​(IList<Handler> handlers);
-        Task Insert​(IList<Handler> handlers, IRegistry registry);
-        Task SkipInsert();
-        Task Next();
-        Task Next​(IRegistry registry);
+        void Insert​(IList<Handler> handlers);
+        void Insert​(IList<Handler> handlers, IRegistry registry);
+        void SkipInsert();
+        void Next();
+        void Next​(IRegistry registry);
     }
 }
