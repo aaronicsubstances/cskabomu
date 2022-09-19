@@ -20,6 +20,8 @@ namespace Kabomu.Mediator.Path
         ///     <item>A value of null means it does
         /// not matter whether or not a path to be matched has a leading slash.</item>
         /// </list>
+        /// Non-null values of this property also serves as the fallback value for null values of
+        /// <see cref="DefaultPathTemplateFormatOptions.ApplyLeadingSlash"/> during path interpolation.
         /// </remarks>
         public bool? MatchLeadingSlash { get; set; }
 
@@ -34,6 +36,8 @@ namespace Kabomu.Mediator.Path
         ///     <item>A value of null means it does
         /// not matter whether or not a path to be matched has a trailing slash.</item>
         /// </list>
+        /// Non-null values of this property also serves as the fallback value for null values of
+        /// <see cref="DefaultPathTemplateFormatOptions.ApplyTrailingSlash"/> during path interpolation.
         /// </remarks>
         public bool? MatchTrailingSlash { get; set; }
 
@@ -45,6 +49,8 @@ namespace Kabomu.Mediator.Path
         ///   <item>A value of true means that a path to be matched should match case of literal segments in templates.</item>
         ///   <item>A value of false or null means a path to be matched should ignore case of literal segments in templates.</item>
         /// </list>
+        /// Non-null values of this property also serves as the fallback value for null values of
+        /// <see cref="DefaultPathTemplateFormatOptions.CaseSensitiveMatchEnabled"/> during path interpolation.
         /// </remarks>
         public bool? CaseSensitiveMatchEnabled { get; set; }
 
@@ -59,6 +65,8 @@ namespace Kabomu.Mediator.Path
         ///   <item>A value of true or null means that captured non literal (but non wilcard) path segments should
         ///   be unescaped.</item>
         /// </list>
+        /// Non-null values of this property also serves as the fallback value for null values of
+        /// <see cref="DefaultPathTemplateFormatOptions.EscapeNonWildCardSegments"/> during path interpolation.
         /// </remarks>
         public bool? UnescapeNonWildCardSegments { get; set; }
     }

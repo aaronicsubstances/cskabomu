@@ -41,7 +41,7 @@ namespace Kabomu.Tests.Mediator.Path
             var pathValues = new Dictionary<string, string>();
             DefaultPathTemplateFormatOptions formatOptions = null;
             Assert.Empty(instance.InterpolateAll(context, pathValues, formatOptions));
-            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateException>(() => instance.Interpolate(context, pathValues, formatOptions));
         }
 
         [Fact]
@@ -1030,7 +1030,7 @@ namespace Kabomu.Tests.Mediator.Path
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
-            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateException>(() => instance.Interpolate(context, pathValues, formatOptions));
         }
 
         [Fact]
@@ -1066,7 +1066,7 @@ namespace Kabomu.Tests.Mediator.Path
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
-            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateException>(() => instance.Interpolate(context, pathValues, formatOptions));
         }
 
         [Fact]
@@ -1105,7 +1105,7 @@ namespace Kabomu.Tests.Mediator.Path
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
-            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateException>(() => instance.Interpolate(context, pathValues, formatOptions));
         }
 
         [Fact]
@@ -1144,7 +1144,7 @@ namespace Kabomu.Tests.Mediator.Path
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
-            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateException>(() => instance.Interpolate(context, pathValues, formatOptions));
         }
 
         [Fact]
@@ -1312,7 +1312,7 @@ namespace Kabomu.Tests.Mediator.Path
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
-            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateException>(() => instance.Interpolate(context, pathValues, formatOptions));
         }
 
         [Fact]

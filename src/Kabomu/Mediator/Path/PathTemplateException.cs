@@ -1,18 +1,19 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Text;
 
-namespace Kabomu.Mediator.Handling
+namespace Kabomu.Mediator.Path
 {
     /// <summary>
-    /// Indicates that an instance of <see cref="Handler"/> threw an exception during handle delegation by 
-    /// an instance of <see cref="IContext"/> class.
+    /// Thrown to indicate errors which occur during path template generation or usage in matching or interpolation.
     /// </summary>
-    public class HandlerException : MediatorQuasiWebException
+    public class PathTemplateException : MediatorQuasiWebException
     {
         /// <summary>
         /// Creates a new instance with given error message.
         /// </summary>
         /// <param name="message">the error message</param>
-        public HandlerException(string message) : base(message)
+        public PathTemplateException(string message) : base(message)
         {
         }
 
@@ -21,7 +22,7 @@ namespace Kabomu.Mediator.Handling
         /// </summary>
         /// <param name="message">the error message</param>
         /// <param name="innerException">any underlying cause of this exception</param>
-        public HandlerException(string message, Exception innerException) : base(message, innerException)
+        public PathTemplateException(string message, Exception innerException) : base(message, innerException)
         {
         }
     }
