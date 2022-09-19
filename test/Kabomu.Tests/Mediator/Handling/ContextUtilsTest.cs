@@ -33,7 +33,7 @@ namespace Kabomu.Tests.Mediator.Handling
         }
 
         [Fact]
-        public void TestParseUnboundRequestTarget()
+        public void TestGeneratePathTemplate()
         {
             var registry = new DefaultMutableRegistry();
             var generator = new TempPathTemplateGenerator();
@@ -41,29 +41,29 @@ namespace Kabomu.Tests.Mediator.Handling
 
             string spec = "/1";
             object options = null;
-            var actual = (TempPathTemplate)ContextUtils.ParseUnboundRequestTarget(registry, spec, options);
+            var actual = (TempPathTemplate)ContextUtils.GeneratePathTemplate(registry, spec, options);
             Assert.Equal(spec, actual.Spec);
             Assert.Same(options, actual.Options);
 
             spec = "dkk";
             options = new object();
-            actual = (TempPathTemplate)ContextUtils.ParseUnboundRequestTarget(registry, spec, options);
+            actual = (TempPathTemplate)ContextUtils.GeneratePathTemplate(registry, spec, options);
             Assert.Equal(spec, actual.Spec);
             Assert.Same(options, actual.Options);
 
             spec = null;
             options = new object();
-            actual = (TempPathTemplate)ContextUtils.ParseUnboundRequestTarget(registry, spec, options);
+            actual = (TempPathTemplate)ContextUtils.GeneratePathTemplate(registry, spec, options);
             Assert.Equal(spec, actual.Spec);
             Assert.Same(options, actual.Options);
         }
 
         [Fact]
-        public void TestParseUnboundRequestTargetForErrors()
+        public void TestGeneratePathTemplateForErrors()
         {
             var registry = new DefaultMutableRegistry();
             Assert.Throws<NotInRegistryException>(() =>
-                ContextUtils.ParseUnboundRequestTarget(registry, "/", null));
+                ContextUtils.GeneratePathTemplate(registry, "/", null));
         }
 
         class TempPathTemplateGenerator : IPathTemplateGenerator

@@ -88,7 +88,7 @@ namespace Kabomu.Tests.Mediator.Handling
             initialRegistry.Add(ContextUtils.RegistryKeyRequestParser, "invalid");
 
             object parseOpts = new object();
-            await Assert.ThrowsAsync<RequestParsingException>(() =>
+            await Assert.ThrowsAnyAsync<Exception>(() =>
                 ContextExtensions.ParseRequest<string>(context, parseOpts));
         }
 
@@ -192,7 +192,7 @@ namespace Kabomu.Tests.Mediator.Handling
             initialRegistry.Add(ContextUtils.RegistryKeyResponseRenderer, "invalid");
 
             object obj = new object();
-            await Assert.ThrowsAsync<ResponseRenderingException>(() =>
+            await Assert.ThrowsAnyAsync<Exception>(() =>
                 ContextExtensions.RenderResponse(context, obj));
         }
 

@@ -111,7 +111,7 @@ namespace Kabomu.Mediator.Handling
         /// contain the key equal to <see cref="ContextUtils.RegistryKeyPathTemplateGenerator"/>.</exception>
         public static Handler Path(IRegistry registry, string spec, object options, params Handler[] handlers)
         {
-            var pathTemplate = ContextUtils.ParseUnboundRequestTarget(registry, spec, options);
+            var pathTemplate = ContextUtils.GeneratePathTemplate(registry, spec, options);
             return Path(pathTemplate, handlers);
         }
 
