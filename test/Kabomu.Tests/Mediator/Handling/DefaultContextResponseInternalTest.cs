@@ -171,8 +171,10 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Throws<ResponseCommittedException>(() => instance.SendWithBody(bodyToUse));
             Assert.Throws<ResponseCommittedException>(() => instance.Send());
             Assert.False(instance.TrySend());
-            Assert.False(instance.TrySendWithBody(null));
             Assert.False(instance.TrySendWithBody(bodyToUse));
+            Assert.False(instance.TrySendWithBody(null));
+            // test that body remains unchanged.
+            Assert.Same(bodyToUse, instance.Body);
         }
 
         [Fact]
@@ -222,6 +224,8 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.False(instance.TrySend());
             Assert.False(instance.TrySendWithBody(null));
             Assert.False(instance.TrySendWithBody(bodyToUse));
+            // test that body remains unchanged.
+            Assert.Null(instance.Body);
         }
 
         [Fact]

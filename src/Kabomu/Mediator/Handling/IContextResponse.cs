@@ -85,7 +85,7 @@ namespace Kabomu.Mediator.Handling
         /// <summary>
         /// Commits this instance by sending the underlying quasi http response as the asynchronous result of
         /// a call to the <see cref="MediatorQuasiWebApplication.ProcessRequest"/> method. An error
-        /// is thrown if response has already been committed.
+        /// is thrown if instance has already been committed.
         /// </summary>
         /// <exception cref="ResponseCommittedException">The instance has already been committed.</exception>
         void Send();
@@ -93,7 +93,8 @@ namespace Kabomu.Mediator.Handling
         /// <summary>
         /// Commits this instance by sending the underlying quasi http response as the asynchronous result of
         /// a call to the <see cref="MediatorQuasiWebApplication.ProcessRequest"/> method, after changing its
-        /// body to a given value. An error is thrown if response has already been committed.
+        /// body to a given value. If instance has already been committed, its body remains unchanged, and
+        /// an exception is thrown.
         /// </summary>
         /// <param name="value">the new quasi http response body</param>
         /// <exception cref="ResponseCommittedException">The instance has already been committed.</exception>
@@ -101,8 +102,8 @@ namespace Kabomu.Mediator.Handling
 
         /// <summary>
         /// Commits this instance by sending the underlying quasi http response as the asynchronous result of
-        /// a call to the <see cref="MediatorQuasiWebApplication.ProcessRequest"/> method, unless
-        /// this instance has already been committed.
+        /// a call to the <see cref="MediatorQuasiWebApplication.ProcessRequest"/> method, but only if
+        /// this instance has not already been committed.
         /// </summary>
         /// <returns>true if this is the first time an attempt to commit is being made;
         /// false if this instance has already been committed.</returns>
@@ -110,8 +111,9 @@ namespace Kabomu.Mediator.Handling
 
         /// <summary>
         /// Commits this instance by sending the underlying quasi http response as the asynchronous result of
-        /// a call to the <see cref="MediatorQuasiWebApplication.ProcessRequest"/> method, after changing its
-        /// body to a given value, unless this instance has already been committed.
+        /// a call to the <see cref="MediatorQuasiWebApplication.ProcessRequest"/> method, but only if this instance
+        /// has not already been committed. And if instance has not been committed, its body is changed to a given
+        /// value before it is committed.
         /// </summary>
         /// <param name="value">the new quasi http response body</param>
         /// <returns>true if this is the first time an attempt to commit is being made;
