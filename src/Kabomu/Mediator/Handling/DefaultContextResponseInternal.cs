@@ -74,36 +74,31 @@ namespace Kabomu.Mediator.Handling
 
         public bool TrySend()
         {
-            if (!_commitAllowanceHandle.Cancel())
-            {
-                return false;
-            }
-            _responseTransmitter.SetResult(RawResponse);
-            return true;
+            return TrySend(null);
         }
 
-        public bool TrySendWithBody(IQuasiHttpBody value)
+        public bool TrySend(Action changesCb)
         {
             if (!_commitAllowanceHandle.Cancel())
             {
                 return false;
             }
-            RawResponse.Body = value;
+            changesCb?.Invoke();
             _responseTransmitter.SetResult(RawResponse);
             return true;
         }
 
         public void Send()
         {
-            if (!TrySend())
+            if (!TrySend(null))
             {
                 throw new ResponseCommittedException();
             }
         }
 
-        public void SendWithBody(IQuasiHttpBody value)
+        public void Send(Action changesCb)
         {
-            if (!TrySendWithBody(value))
+            if (!TrySend(changesCb))
             {
                 throw new ResponseCommittedException();
             }
