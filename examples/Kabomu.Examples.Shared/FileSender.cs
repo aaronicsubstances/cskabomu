@@ -78,8 +78,8 @@ namespace Kabomu.Examples.Shared
                         // ignore.
                     }
                 }
-                throw new Exception(string.Format("status code indicates error: {0} {1}\n{2}",
-                    res.StatusCode, res.HttpStatusMessage, responseMsg));
+                throw new Exception(string.Format("status code indicates error: {0}\n{1}",
+                    res.StatusCode, responseMsg));
             }
         }
     }
