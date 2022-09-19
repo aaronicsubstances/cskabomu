@@ -15,7 +15,7 @@ namespace Kabomu.Mediator.Handling
         {
             RawRequest = rawRequest ?? throw new ArgumentNullException(nameof(rawRequest));
             Environment = requestEnvironment ?? new Dictionary<string, object>();
-            Headers = new DefaultMutableHeadersWrapper(() => rawRequest.Headers, null);
+            Headers = new DefaultMutableHeadersWrapper(_ => rawRequest.Headers);
             _registry = new DefaultMutableRegistry();
         }
 

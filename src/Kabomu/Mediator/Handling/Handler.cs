@@ -19,8 +19,7 @@ namespace Kabomu.Mediator.Handling
     /// <item>skip the remaining handlers in the top chain by popping the stack, and call
     /// the first handler of the new top chain</item>
     /// <item>do not touch the stack at all, and instead commit quasi
-    /// http response with one of the TrySend*
-    /// and Send* calls,<para></para> and hence effectively end the entire request processing</item>
+    /// http response, effectively ending the entire request processing</item>
     /// </list>
     /// </remarks>
     /// <param name="context">quasi http context</param>

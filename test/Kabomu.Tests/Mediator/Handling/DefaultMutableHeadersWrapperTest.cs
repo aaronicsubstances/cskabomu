@@ -19,7 +19,7 @@ namespace Kabomu.Tests.Mediator.Handling
                 { "drink3", new string[]{ "tea" } },
                 { "drink4", new string[]{ "soup", "water" } }
             };
-            var instance = new DefaultMutableHeadersWrapper(() => store, null);
+            var instance = new DefaultMutableHeadersWrapper(_ => store);
             Assert.Null(instance.Get("none"));
             Assert.Null(instance.Get("drink"));
             Assert.Null(instance.Get("drink2"));
@@ -62,7 +62,7 @@ namespace Kabomu.Tests.Mediator.Handling
         [Fact]
         public void Test2()
         {
-            var instance = new DefaultMutableHeadersWrapper(() => null, null);
+            var instance = new DefaultMutableHeadersWrapper(_ => null);
             Assert.Empty(instance.GetNames());
             Assert.Null(instance.Get("none"));
             Assert.Null(instance.Get("drink"));
@@ -79,7 +79,14 @@ namespace Kabomu.Tests.Mediator.Handling
         public void Test3()
         {
             var stores = new IDictionary<string, IList<string>>[1];
-            var instance = new DefaultMutableHeadersWrapper(() => stores[0], d => stores[0] = d);
+            var instance = new DefaultMutableHeadersWrapper(createIfNecessary =>
+            {
+                if (createIfNecessary && stores[0] == null)
+                {
+                    stores[0] = new Dictionary<string, IList<string>>();
+                }
+                return stores[0];
+            });
             Assert.Null(instance.Get("none"));
             Assert.Null(instance.Get("drink"));
             instance.Remove("tea");
