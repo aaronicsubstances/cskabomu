@@ -1,26 +1,37 @@
-﻿using System;
+﻿using Kabomu.Common;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Kabomu.Mediator.Handling
 {
+    /// <summary>
+    /// Provides a default implementation of a manager of quasi http request or response headers.
+    /// </summary>
     public class DefaultMutableHeadersWrapper : IMutableHeadersWrapper
     {
-        private readonly Func<IDictionary<string, IList<string>>> _getter;
-        private readonly Action<IDictionary<string, IList<string>>> _setter;
+        private readonly Func<bool, IDictionary<string, IList<string>>> _dictCb;
         private readonly IDictionary<string, IList<string>> _extensibleListReferences;
 
-        public DefaultMutableHeadersWrapper(Func<IDictionary<string, IList<string>>> getter,
-            Action<IDictionary<string, IList<string>>> setter)
+        /// <summary>
+        /// Creates new instance, using a procedure to get and create an underlying dictionary of raw headers.
+        /// </summary>
+        /// <param name="dictCb">procedure whose argument indicates "create if necesary"</param>
+        /// <exception cref="ArgumentNullException">The <paramref name="dictCb"/> argument is null.</exception>
+        public DefaultMutableHeadersWrapper(Func<bool, IDictionary<string, IList<string>>> dictCb)
         {
-            _getter = getter ?? throw new ArgumentNullException(nameof(getter));
-            _setter = setter; // null acceptable for readonly header wrappers.
+            _dictCb = dictCb ?? throw new ArgumentNullException(nameof(dictCb));
             _extensibleListReferences = new Dictionary<string, IList<string>>();
         }
 
+        /// <summary>
+        /// Gets the first of header values for a given name. 
+        /// </summary>
+        /// <param name="name">header name</param>
+        /// <returns>first header value or null if no values exist for name</returns>
         public string Get(string name)
         {
-            var rawHeaders = _getter.Invoke();
+            var rawHeaders = GetOrCreateRawHeaders(false);
             IList<string> values = null;
             if (rawHeaders != null && rawHeaders.ContainsKey(name))
             {
@@ -33,9 +44,14 @@ namespace Kabomu.Mediator.Handling
             return null;
         }
 
+        /// <summary>
+        /// Gets all header values for given name.
+        /// </summary>
+        /// <param name="name">header name</param>
+        /// <returns>all header values or empty list if header name is not found.</returns>
         public IEnumerable<string> GetAll(string name)
         {
-            var rawHeaders = _getter.Invoke();
+            var rawHeaders = GetOrCreateRawHeaders(false);
             if (rawHeaders != null && rawHeaders.ContainsKey(name))
             {
                 var values = rawHeaders[name];
@@ -47,9 +63,12 @@ namespace Kabomu.Mediator.Handling
             return Enumerable.Empty<string>();
         }
 
+        /// <summary>
+        /// Gets all header names or an empty list if no underlying dictionary exists.
+        /// </summary>
         public ICollection<string> GetNames()
         {
-            var rawHeaders = _getter.Invoke();
+            var rawHeaders = GetOrCreateRawHeaders(false);
             if (rawHeaders != null)
             {
                 return rawHeaders.Keys;
@@ -57,26 +76,51 @@ namespace Kabomu.Mediator.Handling
             return Enumerable.Empty<string>().ToList();
         }
 
+        /// <summary>
+        /// Removes all header names and values.
+        /// </summary>
+        /// <returns>instance on which this method was invoked, for chaining more operations</returns>
         public IMutableHeadersWrapper Clear()
         {
-            _getter.Invoke()?.Clear();
+            var rawHeaders = GetOrCreateRawHeaders(false);
+            rawHeaders?.Clear();
             return this;
         }
 
+        /// <summary>
+        /// Removes all header values for a given name.
+        /// </summary>
+        /// <param name="name">header name</param>
+        /// <returns>instance on which this method was invoked, for chaining more operations</returns>
         public IMutableHeadersWrapper Remove(string name)
         {
-            _getter.Invoke()?.Remove(name);
+            var rawHeaders = GetOrCreateRawHeaders(false);
+            rawHeaders?.Remove(name);
             return this;
         }
 
+        /// <summary>
+        /// Adds a new header name and value. If the header name exists already, its existing values are
+        /// appended with the new value argument.
+        /// </summary>
+        /// <param name="name">header name</param>
+        /// <param name="value">header value</param>
+        /// <returns>instance on which this method was invoked, for chaining more operations</returns>
         public IMutableHeadersWrapper Add(string name, string value)
         {
             return Add(name, Enumerable.Repeat(value, 1));
         }
 
+        /// <summary>
+        /// Adds a new header name and values. If the header name exists already, its existing values are
+        /// appended with the new values argument.
+        /// </summary>
+        /// <param name="name">header name</param>
+        /// <param name="values">header value</param>
+        /// <returns>instance on which this method was invoked, for chaining more operations</returns>
         public IMutableHeadersWrapper Add(string name, IEnumerable<string> values)
         {
-            var rawHeaders = GetOrCreateRawHeaders();
+            var rawHeaders = GetOrCreateRawHeaders(true);
             // Ensure we don't run into a situation where
             // we have to add to an ungrowable list supplied from
             // outside this class, such as a fixed-length native array.
@@ -124,9 +168,16 @@ namespace Kabomu.Mediator.Handling
             }
         }
 
+        /// <summary>
+        /// Sets a new header name and value. If the header name exists already, its existing values are
+        /// replaced.
+        /// </summary>
+        /// <param name="name">header name</param>
+        /// <param name="value">header value</param>
+        /// <returns>instance on which this method was invoked, for chaining more operations</returns>
         public IMutableHeadersWrapper Set(string name, string value)
         {
-            var rawHeaders = GetOrCreateRawHeaders();
+            var rawHeaders = GetOrCreateRawHeaders(true);
             rawHeaders.Remove(name);
             // intentionally not creating a list directly so as to
             // test logic of Add() method when faced with unmodifiable list.
@@ -134,26 +185,28 @@ namespace Kabomu.Mediator.Handling
             return this;
         }
 
+        /// <summary>
+        /// Sets a new header name and values. If the header name exists already, its existing values are
+        /// replaced.
+        /// </summary>
+        /// <param name="name">header name</param>
+        /// <param name="values">header values</param>
+        /// <returns>instance on which this method was invoked, for chaining more operations</returns>
         public IMutableHeadersWrapper Set(string name, IEnumerable<string> values)
         {
-            var rawHeaders = GetOrCreateRawHeaders();
+            var rawHeaders = GetOrCreateRawHeaders(true);
             rawHeaders.Remove(name);
             rawHeaders.Add(name, values.ToList());
             return this;
         }
 
-        private IDictionary<string, IList<string>> GetOrCreateRawHeaders()
+        private IDictionary<string, IList<string>> GetOrCreateRawHeaders(bool createIfNecessary)
         {
-            var rawHeaders = _getter.Invoke();
-            if (rawHeaders == null)
+            var rawHeaders = _dictCb.Invoke(createIfNecessary);
+            if (createIfNecessary && rawHeaders == null)
             {
-                if (_setter == null)
-                {
-                    throw new InvalidOperationException("mutation operation requires non-null setter " +
-                        "arg to be supplied during construction");
-                }
-                rawHeaders = new Dictionary<string, IList<string>>();
-                _setter.Invoke(rawHeaders);
+                throw new InvalidOperationException("mutable operation not supported due to null " +
+                    "received from dictionary callback");
             }
             return rawHeaders;
         }

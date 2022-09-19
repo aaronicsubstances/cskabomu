@@ -246,22 +246,33 @@ namespace Kabomu.Tests.Mediator.Handling
         }
 
         [Fact]
-        public async Task TestRegisterWithEmptyValues()
+        public async Task TestRegister()
         {
-            var handlers = new Handler[0];
-            IRegistry registry = null;
-            var handler = HandlerUtils.Register(registry, handlers);
+            IRegistry registry = new DefaultMutableRegistry();
+            var handler = HandlerUtils.Register(registry);
             var context = new TempContext();
             await handler.Invoke(context);
-            Assert.Equal(0, context.NextCallCount);
+            Assert.Equal(1, context.NextCallCount);
             Assert.Equal(0, context.SkipInsertCallCount);
-            Assert.Equal(1, context.InsertCallCount);
+            Assert.Equal(0, context.InsertCallCount);
             Assert.Same(registry, context.RegistrySeen);
-            AssertSameHandlers(handlers, context.HandlersSeen);
         }
 
         [Fact]
-        public async Task TestRegisterWithNonEmptyValues()
+        public async Task TestRegisterWithNull()
+        {
+            var handler = HandlerUtils.Register(null);
+            var context = new TempContext();
+            await handler.Invoke(context);
+            Assert.Equal(1, context.NextCallCount);
+            Assert.Equal(0, context.SkipInsertCallCount);
+            Assert.Equal(0, context.InsertCallCount);
+            Assert.Null(context.RegistrySeen);
+            Assert.Null(context.HandlersSeen);
+        }
+
+        [Fact]
+        public async Task TestRegisterWithHandlers()
         {
             var handlers = new Handler[]
             {

@@ -18,7 +18,14 @@ namespace Kabomu.Mediator.Handling
         {
             RawResponse = rawResponse ?? throw new ArgumentNullException(nameof(rawResponse));
             _responseTransmitter = responseTransmitter ?? throw new ArgumentNullException(nameof(responseTransmitter));
-            Headers = new DefaultMutableHeadersWrapper(() => rawResponse.Headers, value => rawResponse.Headers = value);
+            Headers = new DefaultMutableHeadersWrapper(createIfNecessary => 
+            {
+                if (createIfNecessary && rawResponse.Headers == null)
+                {
+                    rawResponse.Headers = new Dictionary<string, IList<string>>();
+                }
+                return rawResponse.Headers;
+            });
         }
 
         public IQuasiHttpMutableResponse RawResponse { get; }

@@ -43,14 +43,12 @@ namespace Kabomu.Mediator.Handling
 
         public static IPathMatchResult GetPathMatchResult(IRegistry registry)
         {
-            return RegistryExtensions.Get<IPathMatchResult>(registry,
-                ContextUtils.RegistryKeyPathMatchResult);
+            return RegistryExtensions.Get<IPathMatchResult>(registry, RegistryKeyPathMatchResult);
         }
 
         public static IPathTemplateGenerator GetPathTemplateGenerator(IRegistry registry)
         {
-            return RegistryExtensions.Get<IPathTemplateGenerator>(registry,
-                   ContextUtils.RegistryKeyPathTemplateGenerator);
+            return RegistryExtensions.Get<IPathTemplateGenerator>(registry, RegistryKeyPathTemplateGenerator);
         }
 
         public static IPathTemplate ParseUnboundRequestTarget(IRegistry registry, string spec, object options)
