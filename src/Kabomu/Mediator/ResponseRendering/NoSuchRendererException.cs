@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kabomu.Mediator.ResponseRendering
 {
-    public class NoSuchRendererException : ResponseRenderingException
+    public class NoSuchRendererException : MediatorQuasiWebException
     {
     }
 }

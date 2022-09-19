@@ -215,7 +215,8 @@ namespace Kabomu.Mediator.Handling
             {
                 if (!(e is HandlerException))
                 {
-                    await ContextExtensions.HandleError(this, new HandlerException(null, e));
+                    await ContextExtensions.HandleError(this, new HandlerException(
+                        "A handler exception occured", e));
                 }
                 else
                 {
