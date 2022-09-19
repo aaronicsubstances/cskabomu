@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Concurrency;
+using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
@@ -10,6 +11,7 @@ namespace Kabomu.Mediator.Handling
     internal class DefaultContextResponseInternal : IContextResponse
     {
         private readonly TaskCompletionSource<IQuasiHttpResponse> _responseTransmitter;
+        private readonly ICancellationHandle _commitAllowanceHandle = new DefaultCancellationHandle();
 
         public DefaultContextResponseInternal(IQuasiHttpMutableResponse rawResponse,
             TaskCompletionSource<IQuasiHttpResponse> responseTransmitter)
@@ -65,31 +67,39 @@ namespace Kabomu.Mediator.Handling
 
         public bool TrySend()
         {
-            return _responseTransmitter.TrySetResult(RawResponse);
+            if (!_commitAllowanceHandle.Cancel())
+            {
+                return false;
+            }
+            _responseTransmitter.SetResult(RawResponse);
+            return true;
         }
 
         public bool TrySendWithBody(IQuasiHttpBody value)
         {
+            if (!_commitAllowanceHandle.Cancel())
+            {
+                return false;
+            }
             RawResponse.Body = value;
-            return TrySend();
+            _responseTransmitter.SetResult(RawResponse);
+            return true;
         }
 
         public void Send()
         {
-            if (TrySend())
+            if (!TrySend())
             {
-                return;
+                throw new ResponseCommittedException();
             }
-            throw new ResponseCommittedException();
         }
 
         public void SendWithBody(IQuasiHttpBody value)
         {
-            if (TrySendWithBody(value))
+            if (!TrySendWithBody(value))
             {
-                return;
+                throw new ResponseCommittedException();
             }
-            throw new ResponseCommittedException();
         }
     }
 }
