@@ -461,7 +461,7 @@ namespace Kabomu.Tests.Mediator.Path
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expectedConstraintLogs, actualConstraintLogs);
             Assert.Equal(expected, actual);
-            Assert.Throws<PathTemplateInterpolationException>(() => instance.Interpolate(context, pathValues, formatOptions));
+            Assert.Throws<PathTemplateException>(() => instance.Interpolate(context, pathValues, formatOptions));
         }
 
         [Fact]

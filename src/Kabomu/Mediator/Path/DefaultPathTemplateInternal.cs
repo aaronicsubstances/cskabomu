@@ -28,7 +28,7 @@ namespace Kabomu.Mediator.Path
             var shortest = candidates.OrderBy(x => x.Length).FirstOrDefault();
             if (shortest == null)
             {
-                throw new PathTemplateInterpolationException("could not interpolate template with the provided arguments");
+                throw new PathTemplateException("could not interpolate template with the provided arguments");
             }
             return shortest;
         }

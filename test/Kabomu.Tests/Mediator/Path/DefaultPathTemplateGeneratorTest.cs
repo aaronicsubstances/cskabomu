@@ -30,7 +30,7 @@ namespace Kabomu.Tests.Mediator.Path
                 ConstraintFunctions = constraintFunctions
             };
 
-            var actualError = Assert.Throws<ArgumentException>(() => instance.Parse(spec, options));
+            var actualError = Assert.Throws<PathTemplateException>(() => instance.Parse(spec, options));
 
             Assert.Contains($"row {errorRowNum}", actualError.Message);
             Assert.Contains($"column {errorColNum}", actualError.Message);
@@ -203,10 +203,10 @@ namespace Kabomu.Tests.Mediator.Path
         {
             var instance = new DefaultPathTemplateGenerator();
 
-            Assert.Throws<ArgumentNullException>(() =>
+            Assert.Throws<PathTemplateException>(() =>
                 instance.Parse(null, null));
 
-            Assert.ThrowsAny<Exception>(() =>
+            Assert.Throws<PathTemplateException>(() =>
                 instance.Parse("/", "wrong option type"));
         }
 
