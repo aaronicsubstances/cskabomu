@@ -172,7 +172,10 @@ namespace Kabomu.Mediator.Handling
 
         private static Task HandleUnexpectedEndLastResort(IContext context)
         {
-            context.Response.SetStatusCode(404).TrySend();
+            context.Response.TrySend(() =>
+            {
+                context.Response.SetStatusCode(404);
+            });
             return Task.CompletedTask;
         }
 
@@ -247,9 +250,11 @@ namespace Kabomu.Mediator.Handling
                 {
                     msg = FlattenException(original);
                 }
-
-                context.Response.SetStatusCode(500)
-                    .TrySendWithBody(new StringBody(msg) { ContentType = "text/plain" });
+                context.Response.TrySend(() =>
+                {
+                    context.Response.SetServerErrorStatusCode()
+                        .SetBody(new StringBody(msg) { ContentType = "text/plain" });
+                });
             }
         }
 

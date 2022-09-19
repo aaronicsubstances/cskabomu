@@ -91,14 +91,14 @@ namespace Kabomu.Mediator.Handling
         void Send();
 
         /// <summary>
-        /// Commits this instance by sending the underlying quasi http response as the asynchronous result of
-        /// a call to the <see cref="MediatorQuasiWebApplication.ProcessRequest"/> method, after changing its
-        /// body to a given value. If instance has already been committed, its body remains unchanged, and
-        /// an exception is thrown.
+        /// Makes some changes to this instance before committing it by sending the underlying quasi http response
+        /// as the asynchronous result of a call to the <see cref="MediatorQuasiWebApplication.ProcessRequest"/> method.
+        /// If instance has already been committed, the changes are skipped and an exception is thrown.
         /// </summary>
-        /// <param name="value">the new quasi http response body</param>
+        /// <param name="changesCb">callback which will be invoked to make changes before committing. will not
+        /// be invoked if instance has already being committed. can be null</param>
         /// <exception cref="ResponseCommittedException">The instance has already been committed.</exception>
-        void SendWithBody(IQuasiHttpBody value);
+        void Send(Action changesCb);
 
         /// <summary>
         /// Commits this instance by sending the underlying quasi http response as the asynchronous result of
@@ -110,14 +110,15 @@ namespace Kabomu.Mediator.Handling
         bool TrySend();
 
         /// <summary>
-        /// Commits this instance by sending the underlying quasi http response as the asynchronous result of
-        /// a call to the <see cref="MediatorQuasiWebApplication.ProcessRequest"/> method, but only if this instance
-        /// has not already been committed. And if instance has not been committed, its body is changed to a given
-        /// value before it is committed.
+        /// Makes some changes to this instance before committing it by sending the underlying quasi http response
+        /// as the asynchronous result of a call to the <see cref="MediatorQuasiWebApplication.ProcessRequest"/> method,
+        /// If instance has already been committed, the changes are skipped and false is returned. Else
+        /// the changes are applied, the commit is made and true is returned.
         /// </summary>
-        /// <param name="value">the new quasi http response body</param>
+        /// <param name="changesCb">callback which will be invoked to make changes before committing. will not
+        /// be invoked if instance has already being committed. can be null</param>
         /// <returns>true if this is the first time an attempt to commit is being made;
         /// false if this instance has already been committed.</returns>
-        bool TrySendWithBody(IQuasiHttpBody value);
+        bool TrySend(Action changesCb);
     }
 }
