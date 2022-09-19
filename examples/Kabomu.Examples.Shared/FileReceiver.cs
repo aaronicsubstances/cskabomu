@@ -1,4 +1,6 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Mediator;
+using Kabomu.Mediator.Handling;
+using Kabomu.QuasiHttp;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -22,9 +24,22 @@ namespace Kabomu.Examples.Shared
             _uploadDirPath = uploadDirPath;
         }
 
-        public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
+        public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
         {
-            var fileName = request.Headers["f"][0];
+            var initialHandlers = new Handler[]
+            {
+                context => ReceiveFileTransfer(context)
+            };
+            var delegateApp = new MediatorQuasiWebApplication
+            {
+                InitialHandlers = initialHandlers
+            };
+            return delegateApp.ProcessRequest(request, requestEnvironment);
+        }
+
+        private async Task ReceiveFileTransfer(IContext context)
+        {
+            var fileName = context.Request.Headers.Get("f");
             LOG.Debug("Starting receipt of file {0} from {1}...", fileName, _remoteEndpoint);
 
             Exception transferError = null;
@@ -41,7 +56,7 @@ namespace Kabomu.Examples.Shared
                     var buffer = new byte[4096];
                     while (true)
                     {
-                        var length = await request.Body.ReadBytes(buffer, 0, buffer.Length);
+                        var length = await context.Request.Body.ReadBytes(buffer, 0, buffer.Length);
                         if (length == 0)
                         {
                             break;
@@ -57,13 +72,17 @@ namespace Kabomu.Examples.Shared
 
             LOG.Info(transferError, "File {0} received {1}", fileName, transferError == null ? "successfully" : "with error");
 
-            var response = new DefaultQuasiHttpResponse
+            if (transferError == null)
             {
-                StatusCode = transferError == null ? DefaultQuasiHttpResponse.StatusCodeOk : 
-                    DefaultQuasiHttpResponse.StatusCodeServerError,
-                HttpStatusMessage = transferError?.Message ?? "OK"
-            };
-            return response;
+                context.Response.SetSuccessStatusCode();
+            }
+            else
+            {
+                context.Response.SetServerErrorStatusCode();
+                context.Response.RawResponse.HttpStatusMessage = transferError.Message;
+            }
+
+            context.Response.Send();
         }
     }
 }
