@@ -19,6 +19,9 @@ namespace Kabomu.Tests.QuasiHttp
 {
     public class QuasiHttpIntegrationTestOne
     {
+        /// <summary>
+        /// Currently a flaky test.
+        /// </summary>
         [Theory]
         [MemberData(nameof(CreateTestDirectSendData))]
         public async Task TestDirectSend(object remoteEndpoint, IQuasiHttpRequest request, IQuasiHttpSendOptions options,
@@ -240,6 +243,9 @@ namespace Kabomu.Tests.QuasiHttp
             }
         }
 
+        /// <summary>
+        /// Currently a flaky test.
+        /// </summary>
         [Fact]
         public async Task TestResetOfTransfersWithConnections()
         {
@@ -509,7 +515,7 @@ namespace Kabomu.Tests.QuasiHttp
             var localEndpoint = accraEndpoint;
             var request = new DefaultQuasiHttpRequest
             {
-                HttpMethod = "PUT",
+                Method = "PUT",
                 HttpVersion = "1.0"
             };
             DefaultQuasiHttpSendOptions options = null;
@@ -638,7 +644,7 @@ namespace Kabomu.Tests.QuasiHttp
                     { "second", new List<string>{ "14000" } }
                 },
                 HttpVersion = "1.1",
-                HttpMethod = "GET"
+                Method = "GET"
             };
             request.Body = new ByteBufferBody(new byte[] { 0, 0x26, 0 }, 1, 0);
             options = null;
@@ -761,10 +767,10 @@ namespace Kabomu.Tests.QuasiHttp
                         // test that version was received correctly.
                         res.Headers.Add("version", new List<string> { req.HttpVersion });
                     }
-                    if (req.HttpMethod != null)
+                    if (req.Method != null)
                     {
                         // test that method was received correctly.
-                        res.Headers.Add("method", new List<string> { req.HttpMethod });
+                        res.Headers.Add("method", new List<string> { req.Method });
                     }
                     if (selectedOp == null)
                     {

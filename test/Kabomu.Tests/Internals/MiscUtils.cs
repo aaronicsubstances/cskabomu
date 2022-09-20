@@ -46,7 +46,7 @@ namespace Kabomu.Tests.Internals
                 ContentLength = request.Body?.ContentLength ?? 0,
                 ContentType = request.Body?.ContentType,
                 HttpVersion = request.HttpVersion,
-                HttpMethod = request.HttpMethod
+                Method = request.Method
             };
 
             var stream = new MemoryStream();

@@ -10,7 +10,7 @@ using Xunit;
 
 namespace Kabomu.Tests.Shared
 {
-    public class CommonBodyTestRunner
+    public static class CommonBodyTestRunner
     {
         public static async Task RunCommonBodyTest(int maxByteRead, IQuasiHttpBody instance,
             long expectedContentLength, string expectedContentType, 

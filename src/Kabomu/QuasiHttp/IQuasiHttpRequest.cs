@@ -34,7 +34,7 @@ namespace Kabomu.QuasiHttp
         /// <summary>
         /// Gets an HTTP method value.
         /// </summary>
-        string HttpMethod { get; }
+        string Method { get; }
 
         /// <summary>
         /// Gets an HTTP request version value.

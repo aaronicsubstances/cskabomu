@@ -51,6 +51,16 @@ namespace Kabomu.Common
         }
 
         /// <summary>
+        /// Creates a string from its UTF-8 encoding in a byte array.
+        /// </summary>
+        /// <param name="data">byte array of UTF-8 encoded data</param>
+        /// <returns>string equivalent of byte buffer</returns>
+        public static string BytesToString(byte[] data)
+        {
+            return Encoding.UTF8.GetString(data);
+        }
+
+        /// <summary>
         /// Creates a string from its UTF-8 encoding in a byte buffer slice.
         /// </summary>
         /// <param name="data">backing byte array of slice containing UTF-8 encoding</param>

@@ -28,11 +28,11 @@ Overall mission starts with enforcing the architecture of monolithic application
    1. Also leverages atomic compare-and-swap CPU instructions to skip mutual exclusion entirely where possible.
 
 3. Quasi web request processing strategies: one of the following
-   1. use upcoming Kabomu.WebFramework: it resembles [ExpressJS](https://expressjs.com/), [Ratpack](https://ratpack.io/)
-   1. use an existing web server gateway interface (e.g. Python WSGI, C#.NET OWIN, Java Servlet, Ruby Rack) and hook it to a quasi web transport.
-   2. separation of concerns between services and access points:
+   1. use Kabomu.Mediator: it is a quasi web framework that was inspired by [Ratpack](https://ratpack.io/), [ExpressJS](https://expressjs.com/) and to a lesser extent [ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/).
+   2. use an existing web server gateway interface (e.g. Python WSGI, C#.NET OWIN, Java Servlet, Ruby Rack) and hook it to a quasi web transport. Existing web frameworks can then be used as usual.
+   3. use data transfer objects to separate concerns between services and access points:
        1. Assume that the services to be developed over favourite web framework can be accesssed by different web framework or networking protocol aside HTTP, with different security policies and serialization mechanisms.    
-       2. Then design the services independently of favourite web framework (e.g. services should not employ any classes of favourite web framework).
+       2. Then design the services independently of favourite web framework by using data transfer objects based on types provided by the Kabomu.Mediator framework, and custom types as needed.
        3. It should then be easier to switch networks without impacting services implementing business logic.
 
 

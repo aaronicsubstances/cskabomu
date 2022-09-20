@@ -23,15 +23,15 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         /// <param name="content">CSV data.</param>
         /// <exception cref="ArgumentNullException">if CSV data argument is null</exception>
-        public CsvBody(Dictionary<string, List<string>> content):
+        public CsvBody(IDictionary<string, IList<string>> content):
             base(content, SerializeContent)
         {
         }
 
         private static byte[] SerializeContent(object obj)
         {
-            var content = (Dictionary<string, List<string>>)obj;
-            var rows = new List<List<string>>();
+            var content = (IDictionary<string, IList<string>>)obj;
+            var rows = new List<IList<string>>();
             foreach (var entry in content)
             {
                 var row = new List<string>();

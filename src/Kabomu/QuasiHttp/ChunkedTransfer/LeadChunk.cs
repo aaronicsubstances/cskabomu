@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Kabomu.QuasiHttp.ChunkedTransfer
@@ -67,9 +68,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         public string ContentType { get; set; }
 
         /// <summary>
-        /// Gets or sets an HTTP method value, ie the verb component of HTTP request line.
+        /// Gets or sets the equivalent of method component of HTTP request line.
         /// </summary>
-        public string HttpMethod { get; set; }
+        public string Method { get; set; }
 
         /// <summary>
         /// Gets or sets an HTTP request or response version value.
@@ -107,7 +108,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 Length = csvDataPrefix.Length
             };
 
-            var csvData = new List<List<string>>();
+            var csvData = new List<IList<string>>();
             var specialHeaderRow = new List<string>();
             specialHeaderRow.Add((RequestTarget != null ? 1 : 0).ToString());
             specialHeaderRow.Add(RequestTarget ?? "");
@@ -115,8 +116,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             specialHeaderRow.Add(ContentLength.ToString());
             specialHeaderRow.Add((ContentType != null ? 1 : 0).ToString());
             specialHeaderRow.Add(ContentType ?? "");
-            specialHeaderRow.Add((HttpMethod != null ? 1 : 0).ToString());
-            specialHeaderRow.Add(HttpMethod ?? "");
+            specialHeaderRow.Add((Method != null ? 1 : 0).ToString());
+            specialHeaderRow.Add(Method ?? "");
             specialHeaderRow.Add((HttpVersion != null ? 1 : 0).ToString());
             specialHeaderRow.Add(HttpVersion ?? "");
             specialHeaderRow.Add((HttpStatusMessage != null ? 1 : 0).ToString());
@@ -205,7 +206,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
             if (specialHeader[6] != "0")
             {
-                instance.HttpMethod = specialHeader[7];
+                instance.Method = specialHeader[7];
             }
             if (specialHeader[8] != "0")
             {
@@ -222,7 +223,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 {
                     continue;
                 }
-                var headerValue = new List<string>(headerRow.GetRange(1, headerRow.Count - 1));
+                var headerValue = headerRow.Skip(1).ToList();
                 if (instance.Headers == null)
                 {
                     instance.Headers = new Dictionary<string, IList<string>>();

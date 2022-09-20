@@ -41,7 +41,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ContentLength = expectedRequest.Body?.ContentLength ?? 0,
                 ContentType = expectedRequest.Body?.ContentType,
                 HttpVersion = expectedRequest.HttpVersion,
-                HttpMethod = expectedRequest.HttpMethod
+                Method = expectedRequest.Method
             };
 
             var inputStream = MiscUtils.CreateResponseInputStream(response, responseBodyBytes);
@@ -164,7 +164,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             bool responseStreamingEnabled = false;
             var request = new DefaultQuasiHttpRequest
             {
-                HttpMethod = "POST",
+                Method = "POST",
                 Target = "/koobi",
                 Headers = new Dictionary<string, IList<string>>
                 {
@@ -334,7 +334,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ContentLength = expectedRequest.Body?.ContentLength ?? 0,
                 ContentType = expectedRequest.Body?.ContentType,
                 HttpVersion = expectedRequest.HttpVersion,
-                HttpMethod = expectedRequest.HttpMethod
+                Method = expectedRequest.Method
             };
             
             var inputStream = MiscUtils.CreateResponseInputStream(response, null);
