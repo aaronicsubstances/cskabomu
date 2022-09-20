@@ -106,7 +106,7 @@ namespace Kabomu.Mediator.Registry
                 var value = valueGenerator.Invoke();
                 return value;
             }
-            throw new NotInRegistryException(key);
+            throw RegistryUtils.CreateNotInRegistryExceptionForKey(key);
         }
 
         /// <summary>

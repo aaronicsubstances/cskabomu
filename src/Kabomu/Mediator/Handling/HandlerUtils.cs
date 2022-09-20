@@ -90,7 +90,8 @@ namespace Kabomu.Mediator.Handling
         /// Creates a handler which will insert a variable number of handlers conditional on whether a path match is found between
         /// the path template generated from the most current instance of <see cref="IPathTemplateGenerator"/> in a given
         /// registry, and the unbound request path of the most current instance of the <see cref="IPathMatchResult"/> class
-        /// in the <see cref="IContext"/> present at the time of execution of the created handler.
+        /// in the <see cref="IContext"/> present at the time of execution of the created handler. By default the
+        /// path template will be generated from CSV specs as expected by the <see cref="DefaultPathTemplateGenerator"/> class.
         /// </summary>
         /// <remarks>
         /// If a match is found, the inserted handlers will see a new instance of <see cref="IPathMatchResult"/>
@@ -100,7 +101,7 @@ namespace Kabomu.Mediator.Handling
         /// <param name="registry">the registry containing the instance of the <see cref="IPathTemplateGenerator"/> to
         /// be used. Must be non null and contain the path template generator or else an error will be thrown.</param>
         /// <param name="spec">the string specification of the path template acceptable to the path template generator
-        /// in the given registry.</param>
+        /// in the given registry. defaults to CSV specs as expected by the <see cref="DefaultPathTemplateGenerator"/> class.</param>
         /// <param name="options">the options accompanying the path template to be generated</param>
         /// <param name="handlers">the handlers which will be inserted if the generated path template matches
         /// the most current unbound request path at the time the created handler is invoked</param>

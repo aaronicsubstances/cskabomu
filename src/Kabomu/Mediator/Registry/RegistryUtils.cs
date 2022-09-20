@@ -30,7 +30,7 @@ namespace Kabomu.Mediator.Registry
             var (present, value) = instance.TryGet(key);
             if (!present)
             {
-                throw new NotInRegistryException(key);
+                throw CreateNotInRegistryExceptionForKey(key);
             }
             return value;
         }
@@ -59,6 +59,17 @@ namespace Kabomu.Mediator.Registry
             return instance.GetAll(key)
                 .Select(x => transformFunction.Invoke(x))
                 .FirstOrDefault(x => x.Item1);
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="NotInRegistryException"/> class with
+        /// error message describing a missing registry key.
+        /// </summary>
+        /// <param name="key">the key which was not found in a registry</param>
+        /// <returns>new instance of <see cref="NotInRegistryException"/> class</returns>
+        public static NotInRegistryException CreateNotInRegistryExceptionForKey(object key)
+        {
+            return new NotInRegistryException($"No object found in registry for key: {key}");
         }
     }
 }

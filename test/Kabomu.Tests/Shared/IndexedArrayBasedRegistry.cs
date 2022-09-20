@@ -49,7 +49,7 @@ namespace Kabomu.Tests.Shared
                     return _array[index];
                 }
             }
-            throw new NotInRegistryException(key);
+            throw new NotInRegistryException($"{key}");
         }
 
         public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)

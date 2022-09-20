@@ -4,19 +4,10 @@ namespace Kabomu.Mediator
 {
     /// <summary>
     /// Thrown to indicate that an instance of the <see cref="Handling.IContextResponse"/> class has been
-    /// committed, ie that its <see cref="Handling.IContextResponse.Send"/> or <see cref="Handling.IContextResponse.TrySend"/>
-    /// methods have been invoked.
+    /// committed, ie that one of its Send* methods have been invoked.
     /// </summary>
     public class ResponseCommittedException : MediatorQuasiWebException
     {
-        /// <summary>
-        /// Creates an instance with default error message.
-        /// </summary>
-        public ResponseCommittedException():
-            base("quasi http response has already been committed")
-        {
-        }
-
         /// <summary>
         /// Creates a new instance with given error message.
         /// </summary>

@@ -114,7 +114,7 @@ namespace Kabomu.Tests.Mediator.Handling
         }
 
         [Fact]
-        public async Task TestUseOfInitialLocalAndGlobalRegistries()
+        public void TestUseOfInitialHandlerVariables()
         {
             var logs = new List<string>();
             var handlers = new List<Handler>();
@@ -125,10 +125,9 @@ namespace Kabomu.Tests.Mediator.Handling
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponseInternal(
                 new DefaultQuasiHttpResponse(), responseTransmitter);
-            var initialReadonlyLocalRegistry = new DefaultMutableRegistry()
+            var initialHandlerVariables = new DefaultMutableRegistry()
                 .Add(ContextUtils.RegistryKeyPathTemplateGenerator, null)
-                .Add(ContextUtils.RegistryKeyPathMatchResult, null);
-            var readonlyGlobalRegistry = new DefaultMutableRegistry()
+                .Add(ContextUtils.RegistryKeyPathMatchResult, null)
                 .Add(ContextUtils.RegistryKeyContext, null)
                 .Add(ContextUtils.RegistryKeyRequest, null)
                 .Add(ContextUtils.RegistryKeyResponse, null);
@@ -137,8 +136,63 @@ namespace Kabomu.Tests.Mediator.Handling
                 InitialHandlers = handlers,
                 Request = contextRequest,
                 Response = contextResponse,
-                InitialHandlerVariables = initialReadonlyLocalRegistry,
-                HandlerConstants = readonlyGlobalRegistry
+                InitialHandlerVariables = initialHandlerVariables,
+            };
+            handlers.Add(async (context) =>
+            {
+                context.Next();
+                logs.Add("1");
+            });
+            handlers.Add(async (context) =>
+            {
+                context.Next();
+                logs.Add("2");
+            });
+            handlers.Add(async (context) =>
+            {
+                context.Next();
+                logs.Add("3");
+            });
+            handlers.Add(async (context) =>
+            {
+                logs.Add("4");
+            });
+            instance.Start();
+
+            Assert.Same(instance, instance.Get(ContextUtils.RegistryKeyContext));
+            Assert.Same(contextRequest, instance.Get(ContextUtils.RegistryKeyRequest));
+            Assert.Same(contextResponse, instance.Get(ContextUtils.RegistryKeyResponse));
+            Assert.Null(instance.Get(ContextUtils.RegistryKeyPathMatchResult));
+            Assert.Null(instance.Get(ContextUtils.RegistryKeyPathTemplateGenerator));
+
+            var expectedLogs = new List<string> { "4", "3", "2", "1" };
+            ComparisonUtils.AssertLogsEqual(expectedLogs, logs, _outputHelper);
+        }
+
+        [Fact]
+        public void TestUseOfHandlerConstants()
+        {
+            var logs = new List<string>();
+            var handlers = new List<Handler>();
+            var requestEnvironment = new Dictionary<string, object>();
+            var contextRequest = new DefaultContextRequestInternal(
+                new DefaultQuasiHttpRequest(), requestEnvironment);
+            var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var contextResponse = new DefaultContextResponseInternal(
+                new DefaultQuasiHttpResponse(), responseTransmitter);
+            var handlerConstants = new DefaultMutableRegistry()
+                .Add(ContextUtils.RegistryKeyContext, null)
+                .Add(ContextUtils.RegistryKeyRequest, null)
+                .Add(ContextUtils.RegistryKeyResponse, null)
+                .Add(ContextUtils.RegistryKeyPathTemplateGenerator, null)
+                .Add(ContextUtils.RegistryKeyPathMatchResult, null);
+            var instance = new DefaultContextInternal
+            {
+                InitialHandlers = handlers,
+                Request = contextRequest,
+                Response = contextResponse,
+                HandlerConstants = handlerConstants
             };
             handlers.Add(async (context) =>
             {

@@ -40,7 +40,7 @@ namespace Kabomu.Mediator.Registry
         /// <exception cref="NotInRegistryException"></exception>
         public object Get(object key)
         {
-            throw new NotInRegistryException(key);
+            throw RegistryUtils.CreateNotInRegistryExceptionForKey(key);
         }
 
         /// <summary>

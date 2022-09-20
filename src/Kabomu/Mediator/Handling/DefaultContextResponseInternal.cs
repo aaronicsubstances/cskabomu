@@ -90,17 +90,23 @@ namespace Kabomu.Mediator.Handling
 
         public void Send()
         {
-            if (!TrySend(null))
-            {
-                throw new ResponseCommittedException();
-            }
+            Send(null);
         }
 
         public void Send(Action changesCb)
         {
-            if (!TrySend(changesCb))
+            bool alreadySent;
+            try
             {
-                throw new ResponseCommittedException();
+                alreadySent = !TrySend(changesCb);
+            }
+            catch (Exception e)
+            {
+                throw new ResponseCommittedException("quasi http response has already been sent", e);
+            }
+            if (alreadySent)
+            {
+                throw new ResponseCommittedException("quasi http response has already been sent");
             }
         }
     }

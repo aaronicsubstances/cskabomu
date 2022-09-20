@@ -15,7 +15,7 @@ namespace Kabomu.Mediator.Handling
     /// <list type="bullet">
     /// <item>access to instances of <see cref="QuasiHttp.IQuasiHttpRequest"/> and <see cref="QuasiHttp.IQuasiHttpResponse"/>
     /// classes</item>
-    /// <item>delegation to other handlers via <see cref="Next"/> and <see cref="Insert"/> methods.</item>
+    /// <item>delegation to other handlers via the Next* and Insert* methods.</item>
     /// <item>access to contextual objects by acting as a registry onto which arbitrary objects can be "pushed"
     /// during delegation, for downstream handlers to consume.</item>
     /// </list>
@@ -70,7 +70,7 @@ namespace Kabomu.Mediator.Handling
         /// The request and response of this object should not be accessed after this method is called.
         /// </remarks>
         /// <param name="handlers">The handlers to insert. null items will be ignored. if empty, then the entire call will
-        /// be equivalent to a call to <see cref="Next"/></param>
+        /// be equivalent to a call to Next*</param>
         void Insert​(IList<Handler> handlers);
 
         /// <summary>
@@ -81,7 +81,7 @@ namespace Kabomu.Mediator.Handling
         /// will be pushed on top of the newly created chain.
         /// </remarks>
         /// <param name="handlers">The handlers to insert. null items will be ignored. Also if empty, then the entire call will
-        /// be equivalent to a call to <see cref="Next"/></param>
+        /// be equivalent to a call to Next*</param>
         /// <param name="registry">The registry for the inserted handlers</param>
         void Insert​(IList<Handler> handlers, IRegistry registry);
 
@@ -91,7 +91,7 @@ namespace Kabomu.Mediator.Handling
         /// </summary>
         /// <remarks>
         /// If all handlers in the current chain have been invoked, then the entire method call will
-        /// be equivalent to a call to <see cref="Next"/>
+        /// be equivalent to a call to Next*
         /// </remarks>
         void SkipInsert();
 
