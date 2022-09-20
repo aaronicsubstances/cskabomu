@@ -9,65 +9,85 @@ using static Kabomu.Mediator.Path.DefaultPathTemplateExampleInternal;
 namespace Kabomu.Mediator.Path
 {
     /// <summary>
-    /// Provides the default path template generation scheme used in the Kabomu.Mediator framework based on CSV.
+    /// Provides the default path template generation algorithm used in the Kabomu.Mediator framework. Inspired by
+    /// <a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/routing?view=aspnetcore-6.0">Routing in ASP.NET Core</a>,
+    /// it contains concepts similar to ASP.NET Core routing concepts of templates, catch-all parameters,
+    /// default values, and constraints.
     /// </summary>
     /// <remarks>
-    /// This class generates path templates out of CSV specifications. Each CSV row is of one of these types:
+    /// This class generates path templates out of CSV specifications.
+    /// <br/>
+    /// One notable difference between those specs and ASP.NET Core routing templates is that
+    /// path segments with default values are treated almost like optional path segments.
+    /// They can be only be specified indirectly by
+    /// generating all possible routing templates with and without segments which can be optional or have a default values,
+    /// from shortest to longest.
+    /// Default values are then specified separately for storage in a dictionary.
+    /// <para>
+    /// <example>
+    /// As an example, an ASP.NET Core routing template of "{controller=Home}/{action=Index}/{id?}" corresponds to the CSV below:
+    /// <code>
+    /// "/,//controller,//controller//action,//controller//action//id\n
+    /// defaults:,controller,Home,action,Index"
+    /// </code>
+    /// </example>
+    /// </para>
+    /// <example>
+    /// Another ASP.NET Core routing template of "blog/{article:minlength(10)}/**path" corresponds to:
+    /// <code>
+    /// "/blog//article///path\n
+    /// check:article,minlength,10"
+    /// </code>
+    /// </example>
+    /// <para>
+    /// Another difference is that the CSV specs do not allow for separators between path segment expressions other
+    /// than forward slashes. So the ASP.NET Core routing template of "{country}-{region}" does not have a direct translation.
+    /// </para>
+    /// <para>
+    /// Each CSV row is of one of these formats:
+    /// <br/>
+    /// - an empty row. Useful for visually sectioning parts of a CSV spec.
+    /// <br/>
+    /// - first column starts with forward slash ("/") or slash for short. each column including the first
+    /// must be a path matching expression containing zero or more path variables.
+    /// <br/>
+    /// - first column starts with "name:". the suffix after "name:" becomes the non-unique label for the remaining columns as a group.
+    /// such a group can be targetted if the label is present as a key in any dictionary of match options available.
+    /// the second and remaining columns must be path matching expressions.
+    /// <br/>
+    /// - first column starts with "defaults:". the second and remaining columns are interpreted as a list of alternating 
+    /// key value pairs, which will be used to populate a map of default values. the keys correspond to path variables
+    /// which may be present in path matching expressions.
+    /// <br/>
+    /// - first column starts with "check:". then the suffix after "check:" will be taken as a path variable which may
+    /// be present in path matching expressions. the second column must be a key mapped to a constraint function in a dictionary of
+    /// such functions. the third and remaining columns are interpreted as a list of arguments which should be stored and passed to 
+    /// the constraint function every time path matching or interpolation is requested later on.
+    /// <br/>
+    /// - first column is empty. then current row must not be the first row, and the
+    /// previous row must not be an empty row. in this case the first column will be treated as if its value equals that of the
+    /// nearest non-empty first column above current row. the rest of the columns will be processed accordingly.
+    /// </para>
+    /// A path matching expression is either a single slash, or a concatenation of at least one of the following
+    /// segment expressions:
     /// <list type="bullet">
-    /// <item>first column starts with "/"; indicating that each column including the first
-    /// is a request path matching expression containing zero or more path variables</item>
-    /// <item>first column starts with "name:"; and the suffix is a name for the remaining columns as a group, 
-    /// and the remaining colunms are request path matching expressions</item>
-    /// <item>first column starts with "defaults:"; and indicates that the rest is a list of alternating key value pairs,
-    /// which will be used to populate a map of default values. the keys corresponding to path variables
-    /// which may be present in path matching expressions.</item>
-    /// <item>first column starts with "check:" then the suffix will be a key corresponding to path variables which may
-    /// be present path matching expressions;
-    /// the second column must be another key present in the map of constraint functions to get a function, and
-    /// the rest starting from the third column will be a list of arguments which should be stored and passed to 
-    /// the constraint function during path matching and interpolation</item>
-    /// </list>
-    /// A request path matching expression is either a single forward slash (simply referred to as slash),
-    /// or a concatenation of 1 or more of the
-    /// following segments:
-    /// <list type="bullet">
-    /// <item>single slash followed by one or more non-slash characters, and indicates a literal path segment</item>
-    /// <item>double slash followed by one or more non-slash characters, and captures a single path segment.
+    /// <item>single slash followed by one or more non-slash characters. indicates a literal path segment expression</item>
+    /// <item>double slash followed by one or more non-slash characters. indicates a single path segment expression.
     /// The non-slash characters become a path variable key</item>
-    /// <item>triple slash followed by one or more non-slash characters, and is a wild card for matching zero
+    /// <item>triple slash followed by one or more non-slash characters, and is a wild card segment expression for matching zero
     /// or more path segments. The non-slash characters become a path variable key</item>
     /// </list>
-    /// Within a path matching expression, path variables must be unique and at most only 1 wild card path variable is allowed.
-    /// Examples of such expressions and what they can match (with null options) are
-    /// <list type="number">
-    /// <item>"/" will match a request target of "/" or "", and nothing else.</item>
-    /// <item>"/contact" will match a request target of "/CONTACT", "/contact", "/contact/", "contact/", "contact"
-    /// similar strings which differ only in case, and nothing else.</item>
-    /// <item>"//controller" will match a request target of "/b", "de", "/d/", "cd/", but not
-    /// "/", "/d/e" and any request target whose number of segments is not exactly 1.</item>
-    /// <item>"//controller/login" will match a request target of "/b/LOGIN", "de/login", "/d/LOGIN/", "cd/login", but not
-    /// "/login", "/d/e/login" and any request target whose number of segments is not exactly 2, or whose
-    /// number of segments is 2 but 2nd segment doesn't equal "login" (ignoring case)</item>
-    /// <item>"///capture" will match a request target of "/", "/index", "home/login", "d/e/d/", and
-    /// any other non-null request target</item>
+    /// Within a path matching expression,
+    /// <list type="bullet">
+    /// <item>all non-slash characters for a literal, single or wild card segment expressions will be trimmed of
+    /// surrounding whitespace.</item>
+    /// <item>path variables must be unique</item>
+    /// <item>at most only 1 wild card segment expression may be present</item>
+    /// <item>empty path segments are not matched by single path segment expressions by default.
+    /// </item>
     /// </list>
-    /// The corresponding path variables for each of the above request path matching examples are:
-    /// <list type="number">
-    /// <item>{}</item>
-    /// <item>{}</item>
-    /// <item>{ "controller": "b" }, { "controller": "de" }, { "controller": "d" }, { "controller": "cd" }</item>
-    /// <item>{ "controller": "b" }, { "controller": "de" }, { "controller": "d" }, { "controller": "cd" }</item>
-    /// <item>{ "capture": "/" }, { "capture": "/index" }, { "capture": "/home/login" }, { "capture": "d/e/d/" }</item>
-    /// </list>
-    /// During request target matching, all request path expressions are applied in order for a match. The first one to
-    /// match aborts the search, and its map of path variables are used to construct the instance of
-    /// <see cref="IPathMatchResult"/>.
-    /// <br/>
-    /// For each path variable in which a constraint was specified, the corresponding constraint functions is
-    /// applied using constraint arguments fetched from the CSV spec and stored in generated path template instances.
-    /// <br/>
-    /// Finally the default values are appended to the path variables, omitting default keys
-    /// already present in the path variables generated by the matching path expression.
+    /// Check online references (e.g. project github repo) for examples of using this class to generate path templates,
+    /// for further documentation on the CSV specification, and how the generated path templates match and interpolate request paths.
     /// </remarks>
     public class DefaultPathTemplateGenerator : IPathTemplateGenerator
     {
@@ -100,7 +120,7 @@ namespace Kabomu.Mediator.Path
         /// <item>an instance of <see cref="DefaultPathTemplateMatchOptions"/></item>
         /// <item>an instance of <see cref="IDictionary{TKey, TValue}"/> class
         /// with string keys and values of type <see cref="DefaultPathTemplateMatchOptions"/>. 
-        /// Each key should be the name of a group of request path
+        /// Each key should be the label of a group of request path
         /// mathing expressions in the CSV specification</item>
         /// </list>
         /// </remarks>

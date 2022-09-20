@@ -55,7 +55,8 @@ namespace Kabomu.Mediator.Handling
                     ContextUtils.RegistryKeyRequestParser, parserCode);
                 if (!found)
                 {
-                    throw new NoSuchParserException();
+                    throw ContextUtils.CreateNoSuchParserExceptionForKey(
+                        ContextUtils.RegistryKeyRequestParser);
                 }
             }
             return await parserTask;
@@ -73,8 +74,8 @@ namespace Kabomu.Mediator.Handling
         /// is called and the whole search for response renderers is skipped.
         /// <para></para>
         /// Else a response renderer will be involved, which is expected to
-        /// convert the given object into an instances of <see cref="IQuasiHttpBody"/>, and call the
-        /// <see cref="IContextResponse.Send"/> method on the response of the context.
+        /// convert the given object into an instances of <see cref="IQuasiHttpBody"/>, and call one of the
+        /// IContextResponse.Send* method on the response of the context.
         /// </remarks>
         /// <param name="context">the context with the response and response renderers</param>
         /// <param name="body">the object to serialize</param>
@@ -113,7 +114,8 @@ namespace Kabomu.Mediator.Handling
                         ContextUtils.RegistryKeyResponseRenderer, renderingCode);
                     if (!found)
                     {
-                        throw new NoSuchRendererException();
+                        throw ContextUtils.CreateNoSuchRendererExceptionForKey(
+                            ContextUtils.RegistryKeyResponseRenderer);
                     }
                 }
                 await renderTask;

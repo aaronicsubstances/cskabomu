@@ -9,9 +9,8 @@ namespace Kabomu.Mediator.Registry
     /// <see cref="IRegistry"/> interface.
     /// </summary>
     /// <remarks>
-    /// The purpose of this class is to not use type objects directly as registry keys
-    /// throughout the Kabomu library, and leave the decision to use type objects directly
-    /// as registry keys to clients.
+    /// The purpose of this class is so as not use type objects directly as registry keys
+    /// throughout the Kabomu.Mediator quasi web framework, and instead leave that decision to clients.
     /// </remarks>
     public class TypeBasedRegistryKey
     {
@@ -29,5 +28,13 @@ namespace Kabomu.Mediator.Registry
         /// Gets the type object supplied at construction time.
         /// </summary>
         public Type TypeValue { get; }
+
+        /// <summary>
+        /// Returns a string representing the name of the <see cref="TypeValue"/> property.
+        /// </summary>
+        public override string ToString()
+        {
+            return TypeValue.ToString();
+        }
     }
 }

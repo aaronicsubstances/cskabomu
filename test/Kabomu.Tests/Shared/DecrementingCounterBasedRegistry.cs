@@ -28,7 +28,7 @@ namespace Kabomu.Tests.Shared
                     return count;
                 }
             }
-            throw new NotInRegistryException(key);
+            throw new NotInRegistryException($"{key}");
         }
 
         public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)

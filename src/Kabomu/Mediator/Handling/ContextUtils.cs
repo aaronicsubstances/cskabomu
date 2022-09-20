@@ -34,7 +34,7 @@ namespace Kabomu.Mediator.Handling
         /// <summary>
         /// Key usable for storing and retrieving path template generators, ie instances of
         /// <see cref="IPathTemplateGenerator"/> class. Used by
-        /// <see cref="GetPathTemplateGenerator"/> and <see cref="HandlerUtils.Path"/> methods.
+        /// <see cref="GetPathTemplateGenerator"/> and HandlerUtils.Path* methods.
         /// </summary>
         public static readonly TypeBasedRegistryKey RegistryKeyPathTemplateGenerator =
             new TypeBasedRegistryKey(typeof(IPathTemplateGenerator));
@@ -42,7 +42,7 @@ namespace Kabomu.Mediator.Handling
         /// <summary>
         /// Key usable for storing and retrieving path template math results, ie instances
         /// of <see cref="IPathMatchResult"/> class. Used by
-        /// <see cref="GetPathMatchResult"/> and <see cref="HandlerUtils.Path"/> methods.
+        /// <see cref="GetPathMatchResult"/> and HandlerUtils.Path* methods.
         /// </summary>
         public static readonly TypeBasedRegistryKey RegistryKeyPathMatchResult =
             new TypeBasedRegistryKey(typeof(IPathMatchResult));
@@ -129,6 +129,28 @@ namespace Kabomu.Mediator.Handling
             var pathTemplateGenerator = GetPathTemplateGenerator(registry);
             IPathTemplate pathTemplate = pathTemplateGenerator.Parse(spec, options);
             return pathTemplate;
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="NoSuchParserException"/> class with
+        /// error message describing a missing registry key.
+        /// </summary>
+        /// <param name="key">the key which was not found in a registry</param>
+        /// <returns>new instance of <see cref="NoSuchParserException"/> class</returns>
+        public static NoSuchParserException CreateNoSuchParserExceptionForKey(object key)
+        {
+            return new NoSuchParserException($"No appropriate request parser found under registry key: {key}");
+        }
+
+        /// <summary>
+        /// Creates an instance of <see cref="NoSuchRendererException"/> class with
+        /// error message describing a missing registry key.
+        /// </summary>
+        /// <param name="key">the key which was not found in a registry</param>
+        /// <returns>new instance of <see cref="NotInRegistryException"/> class</returns>
+        public static NoSuchRendererException CreateNoSuchRendererExceptionForKey(object key)
+        {
+            return new NoSuchRendererException($"No appropriate response renderer found under registry key: {key}");
         }
     }
 }

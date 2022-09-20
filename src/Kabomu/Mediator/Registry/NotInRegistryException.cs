@@ -11,15 +11,6 @@ namespace Kabomu.Mediator.Registry
     public class NotInRegistryException : MediatorQuasiWebException
     {
         /// <summary>
-        /// Creates a new instance with a default error message.
-        /// </summary>
-        /// <param name="key">the key which was not found in a registry</param>
-        public NotInRegistryException(object key):
-            base($"No object found in registry for key: {key}")
-        {
-        }
-
-        /// <summary>
         /// Creates a new instance with given error message.
         /// </summary>
         /// <param name="message">the error message</param>

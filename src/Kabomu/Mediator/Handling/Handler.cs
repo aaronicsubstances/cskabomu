@@ -5,11 +5,11 @@ namespace Kabomu.Mediator.Handling
 {
     /// <summary>
     /// Represents a procedure that can process quasi http requests. All handlers are arranged in a stack of chains, and
-    /// processed left to right within a chain, and top to bottom across the stack.
+    /// processed first to last within a chain, and top to bottom across the stack.
     /// </summary>
     /// <remarks>
-    /// In Kabomu.Mediator, stack of chains of handlers are built incrementally at request time, rather than at a goal
-    /// before all requests.
+    /// In Kabomu.Mediator, stack of chains of handlers are expected to be built incrementally at request time, rather than all at once
+    /// before any request.
     /// <para></para>
     /// A handler is expected to do exactly one of following to build the stack:
     /// <list type="bullet">
@@ -27,7 +27,7 @@ namespace Kabomu.Mediator.Handling
     public delegate Task Handler(IContext context);
 
     /// <summary>
-    /// Counterpart to  <see cref="Handler"/> delegate for use with dependency injection.
+    /// Counterpart to <see cref="Handler"/> delegate.
     /// </summary>
     public interface IHandler
     {

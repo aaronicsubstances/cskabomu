@@ -49,14 +49,12 @@ namespace Kabomu.Mediator.Handling
 
                 // only add these if they have not being added already
                 var fallbackHandlerVariables = new DefaultMutableRegistry();
-                if (InitialHandlerVariables == null ||
-                    !InitialHandlerVariables.TryGet(ContextUtils.RegistryKeyPathTemplateGenerator).Item1)
+                if (!IsContextualObjectAlreadyPresent(ContextUtils.RegistryKeyPathTemplateGenerator))
                 {
                     fallbackHandlerVariables.Add(ContextUtils.RegistryKeyPathTemplateGenerator,
                         new DefaultPathTemplateGenerator());
                 }
-                if (InitialHandlerVariables == null ||
-                    !InitialHandlerVariables.TryGet(ContextUtils.RegistryKeyPathMatchResult).Item1)
+                if (!IsContextualObjectAlreadyPresent(ContextUtils.RegistryKeyPathMatchResult))
                 {
                     fallbackHandlerVariables.Add(ContextUtils.RegistryKeyPathMatchResult,
                         CreateRootPathMatch());
@@ -76,6 +74,19 @@ namespace Kabomu.Mediator.Handling
                 await RunNext(nextHandler);
             }
             _ = StartInternal();
+        }
+
+        private bool IsContextualObjectAlreadyPresent(object key)
+        {
+            if (InitialHandlerVariables != null && InitialHandlerVariables.TryGet(key).Item1)
+            {
+                return true;
+            }
+            if (HandlerConstants != null && HandlerConstants.TryGet(key).Item1)
+            {
+                return true;
+            }
+            return false;
         }
 
         private IPathMatchResult CreateRootPathMatch()

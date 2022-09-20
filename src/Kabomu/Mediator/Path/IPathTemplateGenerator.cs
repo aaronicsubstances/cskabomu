@@ -7,7 +7,7 @@
     /// <remarks>
     /// This interface works with the builder design pattern to remove the cumbersome work of creating path templates directly.
     /// <para>
-    /// How created path templates are built to operate are completely determined by implementations.
+    /// How created path templates are built and operate are completely determined by implementations.
     /// </para>
     /// </remarks>
     public interface IPathTemplateGenerator
