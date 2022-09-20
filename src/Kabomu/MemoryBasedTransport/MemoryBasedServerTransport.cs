@@ -109,15 +109,6 @@ namespace Kabomu.MemoryBasedTransport
             }
         }
 
-        /// <summary>
-        /// Fulfils pending receive server connections, ie calls to the <see cref="ReceiveConnection"/> method,
-        /// by matching them with client connection requests.
-        /// </summary>
-        /// <param name="serverEndpoint">cthe endpoint used to identify this instance</param>
-        /// <param name="clientEndpoint">the endpoint the remote client identifies itself with</param>
-        /// <returns>task whose result will contain connection allocated for a client</returns>
-        /// <exception cref="TransportNotStartedException">if this instance is not running, ie has not been started.</exception>
-        /// <exception cref="TransportResetException">If this instance is stopped while waiting for server connection</exception>
         internal async Task<IConnectionAllocationResponse> CreateConnectionForClient(object serverEndpoint, object clientEndpoint,
             int clientMaxWriteBufferLimit)
         {
@@ -155,13 +146,17 @@ namespace Kabomu.MemoryBasedTransport
             object serverEndpoint, object clientEndpoint)
         {
             // can later pass in server and client endpoint information.
-            var environment = new Dictionary<string, object>();
+            var environment = new Dictionary<string, object>
+            {
+                { TransportUtils.ReqEnvKeyLocalPeerEndpoint, serverEndpoint },
+                { TransportUtils.ReqEnvKeyRemotePeerEndpoint, clientEndpoint },
+            };
             return environment;
         }
 
         /// <summary>
         /// Returns the next connection received from clients, or waits for a client connection
-        /// to arrive, ie via the <see cref="CreateConnectionForClient(object, object)"/> method.
+        /// to arrive.
         /// </summary>
         /// <returns>task whose result will contain connection received from or allocated to a client</returns>
         /// <exception cref="TransportNotStartedException">if this instance is not running, ie has not been started.</exception>

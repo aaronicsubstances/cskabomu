@@ -119,7 +119,12 @@ namespace Kabomu.Tests.MemoryBasedTransport
                 ProcessRequestCallback = (req, env) =>
                 {
                     Assert.Equal(expectedReq, req);
-                    Assert.Equal(new Dictionary<string, object>(), env);
+                    var expectedEnv = new Dictionary<string, object>
+                    {
+                        { TransportUtils.ReqEnvKeyLocalPeerEndpoint, "dea" },
+                        { TransportUtils.ReqEnvKeyRemotePeerEndpoint, null },
+                    };
+                    Assert.Equal(expectedEnv, env);
                     return Task.FromResult<IQuasiHttpResponse>(expectedRes);
                 }
             };

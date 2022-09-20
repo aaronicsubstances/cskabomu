@@ -12,14 +12,49 @@ namespace Kabomu.QuasiHttp
     /// </summary>
     public class DefaultQuasiHttpRequest : IQuasiHttpRequest
     {
+        /// <summary>
+        /// Equals HTTP method "GET".
+        /// </summary>
         public static readonly string MethodGet = "GET";
+
+        /// <summary>
+        /// Equals HTTP method "POST".
+        /// </summary>
         public static readonly string MethodPost = "POST";
+
+        /// <summary>
+        /// Equals HTTP method "PUT".
+        /// </summary>
         public static readonly string MethodPut = "PUT";
+
+        /// <summary>
+        /// Equals HTTP method "DELETE".
+        /// </summary>
         public static readonly string MethodDelete = "DELETE";
+
+        /// <summary>
+        /// Equals HTTP method "HEAD".
+        /// </summary>
         public static readonly string MethodHead = "HEAD";
+
+        /// <summary>
+        /// Equals HTTP method "OPTIONS".
+        /// </summary>
         public static readonly string MethodOptions = "OPTIONS";
+
+        /// <summary>
+        /// Equals HTTP method "PATCH".
+        /// </summary>
         public static readonly string MethodPatch = "PATCH";
+
+        /// <summary>
+        /// Equals HTTP method "TRACE".
+        /// </summary>
         public static readonly string MethodTrace = "TRACE";
+
+        /// <summary>
+        /// Equals HTTP method "CONNECT".
+        /// </summary>
         public static readonly string MethodConnect = "CONNECT";
 
         /// <summary>

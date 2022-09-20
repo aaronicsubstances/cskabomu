@@ -4,8 +4,6 @@ remaining
 -DefaultQuasiHttpClient
 -DefaultQuasiHttpServer
 *can skip above if library works with all examples
--add TransportUtils.read body or stream fully overloads which uses default buffer size
--add bytes to string overload which takes only byte arrray
 
 Release
 -------
@@ -27,15 +25,6 @@ UnixSocketDomainTransport - availability and making it async may require use of 
 WindowsNamedPipeTransport - availability and making it async may require use of third party library
 HttpTransport
 UdpTransport
-
-create default middleware - create in examples after v1.1.0, later migrate to StandardAddons
-------------------
--path
--method+path
--json (parsing and formatting)
--csv (parsing and formatting)
--string (parsing and formatting)
--byte buffer
 
 -URL Path validation middleware (based on https://datatracker.ietf.org/doc/html/rfc1630). 
     1. Valid path characters aside forward slash and percent encoding %xx (ISO-8859-1): A–Z a–z 0–9 . - _ ~ ! $ & ' ( ) * + , ; = : @

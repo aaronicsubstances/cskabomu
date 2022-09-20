@@ -243,6 +243,9 @@ namespace Kabomu.Tests.QuasiHttp
             }
         }
 
+        /// <summary>
+        /// Currently a flaky test.
+        /// </summary>
         [Fact]
         public async Task TestResetOfTransfersWithConnections()
         {
