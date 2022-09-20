@@ -15,13 +15,13 @@ namespace Kabomu.Common
     public static class TransportUtils
     {
         /// <summary>
-        /// The default value of max chunk size used by quasi http servers and clients. Currently equal to 8,192.
+        /// The default value of max chunk size used by quasi http servers and clients. Currently equal to 8,192 bytes.
         /// </summary>
         public static readonly int DefaultMaxChunkSize = 8_192;
 
         /// <summary>
         /// The maximum value of a max chunk size that can be tolerated during chunk decoding even if it
-        /// exceeds the value used for sending. Currently equal to 65,536.
+        /// exceeds the value used for sending. Currently equal to 65,536 bytes.
         /// </summary>
         /// <remarks>
         /// Practically this means that communicating parties can safely send chunks not exceeding 64KB without
@@ -38,9 +38,24 @@ namespace Kabomu.Common
         public static readonly int DefaultResponseBodyBufferingSizeLimit = 65_536 * 2 * 1024; // 128 MB.
 
         /// <summary>
-        /// The limit of data buffering to use when a default value is needed. Currently equal to 65,536.
+        /// The limit of data buffering to use when a default value is needed. Currently equal to 65,536 bytes.
         /// </summary>
         public static readonly int DefaultDataBufferLimit = 65_536;
+
+        /// <summary>
+        /// The default read buffer size. Currently equal to 8,192 bytes.
+        /// </summary>
+        public static readonly int DefaultReadBufferSize = 8_192;
+
+        /// <summary>
+        /// Request environment variable name of "kabomu.local_peer_endpoint" for local server endpoint.
+        /// </summary>
+        public static readonly string ReqEnvKeyLocalPeerEndpoint = "kabomu.local_peer_endpoint";
+
+        /// <summary>
+        /// Request environment variable name of "kabomu.remote_peer_endpoint" for remote client endpoint.
+        /// </summary>
+        public static readonly string ReqEnvKeyRemotePeerEndpoint = "kabomu.remote_peer_endpoint";
 
         /// <summary>
         /// Reads in data from a quasi http body in order to completely fill in a byte buffer slice.
@@ -75,12 +90,23 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Reads all of a quasi http body's data into memory and ends it.
+        /// Reads all of a quasi http body's data into memory and ends it, using read buffer size of 8KB.
         /// </summary>
         /// <param name="body">quasi http body whose data is to be read.</param>
-        /// <param name="bufferSize">the size in bytes of the read buffer.</param>
         /// <returns>A promise whose result is a byte array containing all
         /// the data in the quasi http body.</returns>
+        public static Task<byte[]> ReadBodyToEnd(IQuasiHttpBody body)
+        {
+            return ReadBodyToEnd(body, DefaultReadBufferSize);
+        }
+        
+        /// <summary>
+         /// Reads all of a quasi http body's data into memory and ends it.
+         /// </summary>
+         /// <param name="body">quasi http body whose data is to be read.</param>
+         /// <param name="bufferSize">the size in bytes of the read buffer.</param>
+         /// <returns>A promise whose result is a byte array containing all
+         /// the data in the quasi http body.</returns>
         public static async Task<byte[]> ReadBodyToEnd(IQuasiHttpBody body, int bufferSize)
         {
             var byteStream = await ReadBodyToMemoryStreamInternal(body, bufferSize, -1);
@@ -185,6 +211,18 @@ namespace Kabomu.Common
                     break;
                 }
             }
+        }
+
+        /// <summary>
+        /// Reads all of a quasi http transport connection's data into memory and releases it, using read buffer size of 8KB.
+        /// </summary>
+        /// <param name="transport">quasi http transport of connection to read from</param>
+        /// <param name="connection">connection to read from</param>
+        /// <returns>A promise whose result is a byte array containing all
+        /// the data in the quasi http transport connection.</returns>
+        public static Task<byte[]> ReadTransportToEnd(IQuasiHttpTransport transport, object connection)
+        {
+            return ReadTransportToEnd(transport, connection, DefaultReadBufferSize);
         }
 
         /// <summary>
