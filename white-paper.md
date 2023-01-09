@@ -14,7 +14,7 @@
 5. Concerns about the complexity of dealing with TCP connection resets due to idleness and possible need for connection pooling led me to give up on researching persistent TCP further.
 6. All of a sudden, it dawned on me that it is no accident that HTTP has turned out to be so successful, *given its support for upload and download of byte streams of unbounded length over transient TCP connections*.
 7. I began realising then that what I wanted in Kabomu is a request-response protocol like HTTP which can run over connections other than TCP.
-8. I delved into RINA research as it made promises of interest to my goal of having a networking library which can run over any network for both connection-oriented and connectionless modes using long lived connections.
+8. I delved into RINA research as it made promises of interest to my goal, i.e. of having a networking library which can run over any network for both connection-oriented and connectionless modes using long lived connections.
 9. After investigating the RINA research and considering how it might fare in a load balancing environment, it is my opinion that it is not useful to have long lived connections or flows which have to tolerate idleness or even restarts of peers. Rather I propose that it is enough to have unbounded message exchanges which neither tolerate idleness nor restarts of peers, and which scale better horizontally. Thus I had to drop RINA's concepts, and instead continue to emulate success of HTTP's stateless request-response model.
 
 # Kabomu as a Quasi-HTTP Library
@@ -24,10 +24,11 @@
 3. Protocols which employ immediate processing are "semantically compatible" with HTTP/1.1, so that terminology of request methods, response status codes, headers, and chunked request and response bodies apply. They differ only in their underlying transports, which are not limited to TCP.
    1. As such such protocols are said to belong to "Quasi-HTTP" protocol family.
 6.  Since webmail (e.g. gmail, outlook) makes it possible to send email via HTTP, protocols which employ deferred processing can be seen as "semantically compatible" with HTTP, although via multiple HTTP requests.
-8. For deferred processing which are able to complete quickly enough, they can be simulated as immediate processing by the use of a memory cache of callbacks with sliding expiration policy, which can given a reason upon eviction of a cache item. Simulation then proceeds by creating a callback and dumping it in the cache, sending its key along with the request deferred for processing, and then looking for one of these possibilities:
+8. For deferred processing which are able to complete quickly enough, they can be simulated as immediate processing by the use of timeouts and a memory cache of callbacks. Simulation then proceeds by creating a callback and dumping it in the cache, sending its key along with the request deferred for processing, setting a timeout on the callback response, and then looking for one of these possibilities:
 
    1. deferred processing completes before callback timeout. It uses callback key to fetch, and if it is still there, executes callback. End user get a response in time.
-   2. deferred processing takes too long, and time of callback entry in memory cache is up for eviction. it notifies eviction listener supplied at the time of addition to the cache of the reason of the eviction. If the reason suggests that deferred processing hasn't ended, application can ask end user to come and check on the task later, and at that time it becomes obvious that deferred processing is going on.
+   2. deferred processing takes too long, triggering timeout. Application evicts the callback from its cache, and ask end user to come and check on the task later. At that time it becomes obvious that deferred processing is going on.
+   3. memory cache evicts the callback before timeout for the reason of controlling its size. if the cache can notify the application of this event, then application can cancel timeout, and notify user of ongoing deferred processing.
 
 9. Thus it can be seen that the request-response exchange pattern is quite versatile, and it will be nice to be able to run HTTP everywhere.
 
@@ -41,9 +42,9 @@ Also it is my observation that for communications not involving Web browsers, HT
 
 Quasi-HTTP's design seeks to retain HTTP's resemblance to making local procedure calls, since both are all request-response protocols. However when communication goes beyond a single host (computer), clients must be aware of certain challenges which are absent when making local procedure calls.
 
-1. A message may experience significant delays during its transmission, so that the usual style of blocking for responses during local procedure call may be too inefficient. This suggests that clients use non-blocking style (e.g. through callbacks, promises, futures), and have timeouts for efficient utilization of computing resources.
+1. A message may experience significant delays during its transmission, so that the usual style of blocking for responses during local procedure call may be inefficient. This suggests that clients use non-blocking style (e.g. through callbacks, promises, futures), and have timeouts for efficient utilization of computing resources.
 2. A request or its response may be lost or destroyed in the network (e.g. due to a network disconnection), and hence will never reach its intended destination. Hence clients must be prepared to deal with the situation where during a timeout, one cannot know (at least immediately) whether the request was processed or not.
 3. A message may be modified accidentally or maliciously by the network before reaching its intended destination, so that destination gets a corrupted or wrong message. Hence clients must be prepared to deal with matters of network security.
 3. A message may be larger than what a network is capable of transmitting at once, or larger than what the receiving end is capable of processing at once. Hence clients must be prepared to fragment some of their messages for transmission, and reassemble the fragments on delivery.
 
-*Kabomu currently relies on underlying transports to deal with all of these networking challenges. Even on localhost, Kabomu currently requires IPC mechanisms which provide ordered delivery of messages with duplicate protection, similar to TCP.*
+*Kabomu currently relies on underlying transports to deal with all of these networking challenges, even on localhost. Hence the easiest way to connect Kabomu to a transport implementation, is to use IPC mechanisms which provide ordered delivery of messages with duplicate protection, similar to TCP.*
