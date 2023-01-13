@@ -23,7 +23,7 @@
 2. But this dose not imply they all produce responses immediately. Some protocols work with immediate processing while others work with deferred processing.
 3. Protocols which employ immediate processing are "semantically compatible" with HTTP/1.1, so that terminology of request methods, response status codes, headers, and chunked request and response bodies apply. They differ only in their underlying transports, which are not limited to TCP.
    1. As such such protocols are said to belong to "Quasi-HTTP" protocol family.
-6.  Since webmail (e.g. gmail, outlook) makes it possible to send email via HTTP, protocols which employ deferred processing can be seen as "semantically compatible" with HTTP, although via multiple HTTP requests.
+6.  Since webmail (e.g. gmail, outlook) makes it possible to send email via HTTP, protocols which employ deferred processing can be seen as "semantically compatible" with HTTP, although via multiple HTTP requests (an example is [JMAP](https://jmap.io) as described at [Wikipedia](https://en.wikipedia.org/wiki/JSON_Meta_Application_Protocol)).
 8. For deferred processing which are able to complete quickly enough, they can be simulated as immediate processing by the use of timeouts and a memory cache of callbacks. Simulation then proceeds by creating a callback and dumping it in the cache, sending its key along with the request deferred for processing, setting a timeout on the callback response, and then looking for one of these possibilities:
 
    1. deferred processing completes before callback timeout. It uses callback key to fetch, and if it is still there, executes callback. End user get a response in time.
