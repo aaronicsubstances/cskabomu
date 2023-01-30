@@ -3,8 +3,18 @@ remaining
 -introduce enough timeout gaps to remove flakiness of QuasiHttpIntegrationTestOne
 -DefaultQuasiHttpClient
 -DefaultQuasiHttpServer
--delete VirtualEventLoopApi (move to cs_and_math_lib)
-*can skip above if library works with all examples
+-delete VirtualEventLoopApi and find alternative for its usage during testing.
+-move entire MemoryBasedTransport namespace to testing project.
+-remove TransportBypassProbability and ResponseStreamingProbability of IQuasiHttpClient.
+--instead always use TransportBypass if not null.
+--always disable response streaming if not set by send options.
+-let return value of TransportBypass be a dedicated class instead of current tuple,
+--consisting of cancellation handle, response, and whether response streaming should be enabled.
+-create memorybasedtransport in examples, with a probability similar to ResponseStreamingProbability
+--apply probability twice to wrap request bodies in ContentTypeOverrideBody
+  or SynchronizedBody just to force server to read bytes; 
+  and to return response streaming boolean to client
+-fix SynchronizedBody lack of application of mutex api.
 
 Release
 -------
@@ -25,7 +35,8 @@ LocalhostTcpTransport - making it async may require use of third party library.
 UnixSocketDomainTransport - availability and making it async may require use of third party library
 WindowsNamedPipeTransport - availability and making it async may require use of third party library
 HttpTransport
-UdpTransport
+MemoryTransport
+ZeroMQTransport?
 
 -URL Path validation middleware (based on https://datatracker.ietf.org/doc/html/rfc1630). 
     1. Valid path characters aside forward slash and percent encoding %xx (ISO-8859-1): A–Z a–z 0–9 . - _ ~ ! $ & ' ( ) * + , ; = : @
