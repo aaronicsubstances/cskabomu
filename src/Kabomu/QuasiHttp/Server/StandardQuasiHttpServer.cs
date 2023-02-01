@@ -25,9 +25,6 @@ namespace Kabomu.QuasiHttp.Server
     /// </remarks>
     public class StandardQuasiHttpServer : IQuasiHttpServer
     {
-        private readonly ISet<ReceiveTransferInternal> _transfers;
-        private readonly Func<object, Task> AbortTransferCallback;
-        private readonly Func<object, IQuasiHttpResponse, Task> AbortTransferCallback2;
         private bool _running;
 
         /// <summary>
@@ -36,9 +33,6 @@ namespace Kabomu.QuasiHttp.Server
         /// </summary>
         public StandardQuasiHttpServer()
         {
-            AbortTransferCallback = CancelReceive;
-            AbortTransferCallback2 = CancelReceive;
-            _transfers = new HashSet<ReceiveTransferInternal>();
             MutexApi = new LockBasedMutexApi();
             TimerApi = new DefaultTimerApi();
         }
@@ -85,18 +79,6 @@ namespace Kabomu.QuasiHttp.Server
         /// </remarks>
         public ITimerApi TimerApi { get; set; }
 
-        private Task CancelReceive(object transferObj)
-        {
-            var transfer = (ReceiveTransferInternal)transferObj;
-            return AbortTransfer(transfer, null, null);
-        }
-
-        private Task CancelReceive(object transferObj, IQuasiHttpResponse res)
-        {
-            var transfer = (ReceiveTransferInternal)transferObj;
-            return AbortTransfer(transfer, null, res);
-        }
-
         /// <summary>
         /// Starts the instance set in the <see cref="Transport"/> property and begins
         /// receiving connections from it.
@@ -132,20 +114,18 @@ namespace Kabomu.QuasiHttp.Server
         }
 
         /// <summary>
-        /// Stops the instance set in the <see cref="Transport"/> property, stops receiving connections from it,
-        /// and optionally calls the <see cref="Reset(Exception)"/> method.
+        /// Stops the instance set in the <see cref="Transport"/> property and stops receiving connections from it.
         /// </summary>
         /// <remarks>
         /// A call to this method will be ignored if its instance is already started and running.
         /// </remarks>
-        /// <param name="resetTimeMillis">if nonnegative, then it indicates the delay in milliseconds
-        /// from the current time after which all ongoing connections and request processing will be forcefully reset.
-        /// NB: a zero value will lead to immediate resetting of connections and requests without any delay.</param>
+        /// <param name="waitTimeMillis">if nonnegative, then it indicates the delay in milliseconds
+        /// from the current time in which to wait for any ongoing processing to complete.</param>
         /// <returns>a task representing the asynchronous operation</returns>
         /// <exception cref="MissingDependencyException">The <see cref="Transport"/> property is null.</exception>
-        /// <exception cref="MissingDependencyException">The <paramref name="resetTimeMillis"/> argument is positive but
-        /// the <see cref="TimerApi"/> property needed to schedule the call to <see cref="Reset(Exception)"/> is null.</exception>
-        public async Task Stop(int resetTimeMillis)
+        /// <exception cref="MissingDependencyException">The <paramref name="waitTimeMillis"/> argument is positive but
+        /// the <see cref="TimerApi"/> property needed is null.</exception>
+        public async Task Stop(int waitTimeMillis)
         {
             ITimerApi timerApi;
             Task stopTask;
@@ -164,21 +144,17 @@ namespace Kabomu.QuasiHttp.Server
                 throw new MissingDependencyException("transport");
             }
             await stopTask;
-            if (resetTimeMillis < 0)
+            if (waitTimeMillis < 0)
             {
                 return;
             }
-            if (resetTimeMillis > 0)
+            if (waitTimeMillis > 0)
             {
                 if (timerApi == null)
                 {
                     throw new MissingDependencyException("timer api");
                 }
-                await timerApi.WhenSetTimeout(() => Reset(null), resetTimeMillis).Item1;
-            }
-            else
-            {
-                await Reset(null);
+                await timerApi.WhenSetTimeout(() => Task.CompletedTask, waitTimeMillis).Item1;
             }
         }
 
@@ -261,11 +237,12 @@ namespace Kabomu.QuasiHttp.Server
             Task workTask;
             using (await MutexApi.Synchronize())
             {
+                transfer.TimerApi = TimerApi;
+                transfer.MutexApi = MutexApi;
+
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     null, DefaultProcessingOptions?.TimeoutMillis, 0);
-                SetReceiveTimeout(transfer);
-
-                _transfers.Add(transfer);
+                transfer.SetReceiveTimeout();
 
                 transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     null, DefaultProcessingOptions?.MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
@@ -273,44 +250,25 @@ namespace Kabomu.QuasiHttp.Server
                 transfer.RequestEnvironment = ProtocolUtilsInternal.DetermineEffectiveOptions(
                     connectionResponse.Environment, DefaultProcessingOptions?.RequestEnvironment);
 
-                var protocol = new DefaultReceiveProtocolInternal
-                {
-                    Parent = transfer,
-                    AbortCallback = AbortTransferCallback,
-                    MaxChunkSize = transfer.MaxChunkSize,
-                    Application = Application,
-                    Transport = transfer.Transport,
-                    Connection = transfer.Connection,
-                    RequestEnvironment = transfer.RequestEnvironment
-                };
-                workTask = protocol.Receive();
+                workTask = ProcessDefaultTransfer(transfer);
             }
 
-            var firstCompletedTask = await Task.WhenAny(transfer.CancellationTcs.Task, workTask);
-            try
-            {
-                await firstCompletedTask;
-            }
-            catch (Exception e)
-            {
-                // let call to abort transfer determine whether exception is significant.
-                QuasiHttpRequestProcessingException abortError;
-                if (e is QuasiHttpRequestProcessingException quasiHttpError)
-                {
-                    abortError = quasiHttpError;
-                }
-                else
-                {
-                    abortError = new QuasiHttpRequestProcessingException(
-                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
-                        "encountered error during receive connection processing", e);
-                }
-                await AbortTransfer(transfer, abortError, null);
-            }
+            await CompleteReceiveProcessing(transfer, workTask,
+                "encountered error during receive connection processing");
+        }
 
-            // by awaiting again for transfer cancellation, any significant error will bubble up, and
-            // any insignificant error will be swallowed.
-            await transfer.CancellationTcs.Task;
+        private async Task ProcessDefaultTransfer(ReceiveTransferInternal transfer)
+        {
+            var protocol = new DefaultReceiveProtocolInternal
+            {
+                MaxChunkSize = transfer.MaxChunkSize,
+                Application = Application,
+                Transport = transfer.Transport,
+                Connection = transfer.Connection,
+                RequestEnvironment = transfer.RequestEnvironment
+            };
+            await protocol.Receive();
+            await transfer.Abort(null, null);
         }
 
         /// <summary>
@@ -328,7 +286,7 @@ namespace Kabomu.QuasiHttp.Server
         /// <returns>a task whose result will be the response generated by the quasi http application</returns>
         /// <exception cref="ArgumentNullException">The <paramref name="request"/> argument is null.</exception>
         /// <exception cref="MissingDependencyException">The <see cref="Application"/> property is null.</exception>
-        public Task<IQuasiHttpResponse> ProcessReceiveRequest(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options)
+        public async Task<IQuasiHttpResponse> ProcessReceiveRequest(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options)
         {
             if (request == null)
             {
@@ -341,33 +299,41 @@ namespace Kabomu.QuasiHttp.Server
                 CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
                     TaskCreationOptions.RunContinuationsAsynchronously)
             };
-            return ProcessSendToApplication(transfer);
+            Task workTask = ProcessSendToApplication(transfer);
+            return await CompleteReceiveProcessing(transfer, workTask,
+                "encountered error during receive request processing");
         }
 
-        private async Task<IQuasiHttpResponse> ProcessSendToApplication(ReceiveTransferInternal transfer)
+        private async Task ProcessSendToApplication(ReceiveTransferInternal transfer)
         {
-            Task workTask;
+            Task<IQuasiHttpResponse> workTask;
             using (await MutexApi.Synchronize())
             {
+                transfer.TimerApi = TimerApi;
+                transfer.MutexApi = MutexApi;
+
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     transfer.ProcessingOptions?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
-                SetReceiveTimeout(transfer);
-
-                _transfers.Add(transfer);
+                transfer.SetReceiveTimeout();
 
                 transfer.RequestEnvironment = ProtocolUtilsInternal.DetermineEffectiveOptions(
                     transfer.ProcessingOptions?.RequestEnvironment, DefaultProcessingOptions?.RequestEnvironment);
 
                 var protocol = new AltReceiveProtocolInternal
                 {
-                    Parent = transfer,
-                    AbortCallback = AbortTransferCallback2,
                     Application = Application,
                     RequestEnvironment = transfer.RequestEnvironment
                 };
                 workTask = protocol.SendToApplication(transfer.Request);
             }
 
+            var res = await workTask;
+            await transfer.Abort(null, res);
+        }
+
+        private async Task<IQuasiHttpResponse> CompleteReceiveProcessing(ReceiveTransferInternal transfer,
+            Task workTask, string errorMessage)
+        {
             var firstCompletedTask = await Task.WhenAny(transfer.CancellationTcs.Task, workTask);
             try
             {
@@ -385,119 +351,12 @@ namespace Kabomu.QuasiHttp.Server
                 {
                     abortError = new QuasiHttpRequestProcessingException(
                         QuasiHttpRequestProcessingException.ReasonCodeGeneral,
-                        "encountered error during receive request processing", e);
+                        errorMessage, e);
                 }
-                await AbortTransfer(transfer, abortError, null);
+                await transfer.Abort(abortError, null);
             }
 
             return await transfer.CancellationTcs.Task;
-        }
-
-        /// <summary>
-        /// Releases all ongoing connections and terminates all ongoing request processing.
-        /// </summary>
-        /// <remarks>
-        /// This method can be called at any time regardless of whether an instace of this class has been started or stopped.
-        /// </remarks>
-        /// <param name="cause">the error message which will be used to terminate ongoing request processing. Can be
-        /// null in which case error with message of "server reset" will be used.</param>
-        /// <returns>A task representing the asynchronous operation.</returns>
-        public async Task Reset(Exception cause)
-        {
-            var cancellationException = cause ?? new QuasiHttpRequestProcessingException(
-                QuasiHttpRequestProcessingException.ReasonCodeReset, "server reset");
-
-            // since it is desired to clear all pending transfers under lock,
-            // and disabling of transfer is an async transfer, we choose
-            // not to await on each disabling, but rather to wait on them
-            // after clearing the transfers.
-            var tasks = new List<Task>();
-            using (await MutexApi.Synchronize())
-            {
-                try
-                {
-                    foreach (var transfer in _transfers)
-                    {
-                        tasks.Add(DisableTransfer(transfer, cancellationException, null));
-                    }
-                }
-                finally
-                {
-                    _transfers.Clear();
-                }
-            }
-
-            await Task.WhenAll(tasks);
-        }
-
-        private void SetReceiveTimeout(ReceiveTransferInternal transfer)
-        {
-            if (transfer.TimeoutMillis <= 0)
-            {
-                return;
-            }
-            var timer = TimerApi;
-            if (timer == null)
-            {
-                throw new MissingDependencyException("timer api");
-            }
-            transfer.TimeoutId = timer.WhenSetTimeout(async () =>
-            {
-                var timeoutError = new QuasiHttpRequestProcessingException(
-                    QuasiHttpRequestProcessingException.ReasonCodeTimeout, "receive timeout");
-                await AbortTransfer(transfer, timeoutError, null);
-            }, transfer.TimeoutMillis).Item2;
-        }
-
-        private async Task AbortTransfer(ReceiveTransferInternal transfer, Exception cancellationError,
-            IQuasiHttpResponse res)
-        {
-            Task disableTransferTask;
-            using (await MutexApi.Synchronize())
-            {
-                if (transfer.IsAborted)
-                {
-                    return;
-                }
-                _transfers.Remove(transfer);
-                disableTransferTask = DisableTransfer(transfer, cancellationError, res);
-            }
-            await disableTransferTask;
-        }
-
-        private async Task DisableTransfer(ReceiveTransferInternal transfer, Exception cancellationError,
-            IQuasiHttpResponse res)
-        {
-            if (cancellationError != null)
-            {
-                transfer.CancellationTcs.SetException(cancellationError);
-            }
-            else
-            {
-                transfer.CancellationTcs.SetResult(res);
-            }
-            transfer.IsAborted = true;
-            TimerApi?.ClearTimeout(transfer.TimeoutId);
-            if (transfer.Connection != null)
-            {
-                try
-                {
-                    await transfer.Transport.ReleaseConnection(transfer.Connection);
-                }
-                catch (Exception) { }
-            }
-            else
-            {
-                // close body of send to application request
-                if (transfer.Request?.Body != null)
-                {
-                    try
-                    {
-                        await transfer.Request.Body.EndRead();
-                    }
-                    catch (Exception) { }
-                }
-            }
         }
     }
 }

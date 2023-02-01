@@ -48,18 +48,13 @@ namespace Tcp.FileClient
 
             try
             {
-                LOG.Info("Started Tcp.FileClient to {0}", serverPort);
+                LOG.Info("Created Tcp.FileClient to {0}", serverPort);
 
                 await FileSender.StartTransferringFiles(instance, serverPort, uploadDirPath);
             }
             catch (Exception e)
             {
                 LOG.Error(e, "Fatal error encountered");
-            }
-            finally
-            {
-                LOG.Debug("Stopping Tcp.FileClient...");
-                await instance.Reset(null);
             }
         }
     }

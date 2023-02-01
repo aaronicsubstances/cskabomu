@@ -49,18 +49,13 @@ namespace UnixDomainSocket.FileClient
 
             try
             {
-                LOG.Info("Started UnixDomainSocket.FileClient to {0}", serverPath);
+                LOG.Info("Created UnixDomainSocket.FileClient to {0}", serverPath);
 
                 await FileSender.StartTransferringFiles(instance, serverPath, uploadDirPath);
             }
             catch (Exception e)
             {
                 LOG.Error(e, "Fatal error encountered");
-            }
-            finally
-            {
-                LOG.Debug("Stopping UnixDomainSocket.FileClient...");
-                await instance.Reset(null);
             }
         }
     }

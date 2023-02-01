@@ -45,10 +45,6 @@ namespace Memory.FileExchange
                        {
                            LOG.Error(e, "Fatal error encountered");
                        }
-                       finally
-                       {
-                           Task.WaitAll(FileServer.EndMain(), FileClient.EndMain());
-                       }
                    });
         }
     }

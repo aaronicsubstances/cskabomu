@@ -1,20 +1,31 @@
 remaining
 ==========
 -introduce enough timeout gaps to remove flakiness of QuasiHttpIntegrationTestOne
--DefaultQuasiHttpClient
--DefaultQuasiHttpServer
--delete VirtualEventLoopApi and find alternative for its usage during testing.
+-StandardQuasiHttpClient
+-StandardQuasiHttpServer
+
 -move entire MemoryBasedTransport namespace to testing project.
--remove TransportBypassProbability and ResponseStreamingProbability of IQuasiHttpClient.
---instead always use TransportBypass if not null.
---always disable response streaming if not set by send options.
--let return value of TransportBypass be a dedicated class instead of current tuple,
---consisting of cancellation handle, response, and whether response streaming should be enabled.
--create memorybasedtransport in examples, with a probability similar to ResponseStreamingProbability
---apply probability twice to wrap request bodies in ContentTypeOverrideBody
-  or SynchronizedBody just to force server to read bytes; 
-  and to return response streaming boolean to client
--fix SynchronizedBody lack of application of mutex api.
+
+-remove SynchronizedBody - done
+
+-delete VirtualEventLoopApi and find alternative for its usage during testing. - done
+
+-remove TransportBypassProbability and ResponseStreamingProbability of IQuasiHttpClient. - done
+-instead always use TransportBypass if not null. - done
+-and let response streaming be disabled by default. - done
+-rename ResponseStreamingEnabled to ResponseBuferringEnabled - done
+
+-repurpose TransportBypassProbability as TransportBypassWrappingProbability - done
+
+*let return value of TransportBypass be Pair<Task<IDirectSendResult>, object>
+-IDirectSendResult are the response and indication of whether response closing is necessary.
+
+*Remove resets - done
+--hence stop storing transfers - done
+
+-create memorybasedtransport in examples
+
+*reconsider use of callbacks for other languages lacking async/await syntax now that memorybasedtransport has been removed.
 
 Release
 -------
@@ -28,7 +39,7 @@ xml documentation
 release config
 https://docs.microsoft.com/en-us/nuget/create-packages/creating-a-package#the-role-and-structure-of-the-nuspec-file
 
-other default transports - keep in examples, later migrate to Kabomu.StandardAddons
+default transports - keep in examples, later migrate to Kabomu.StandardAddons
 ------------------
 LocalhostTcpTransport - making it async may require use of third party library. 
 -consider connect/read timeout usage - https://www.baeldung.com/java-socket-connection-read-timeout

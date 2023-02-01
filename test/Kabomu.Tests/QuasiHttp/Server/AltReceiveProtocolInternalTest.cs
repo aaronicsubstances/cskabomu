@@ -33,9 +33,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             var instance = new AltReceiveProtocolInternal
             {
-                Parent = new object(),
                 Application = app,
-                AbortCallback = (parent, res) => Task.CompletedTask
             };
             await Assert.ThrowsAsync<ExpectationViolationException>(() =>
             {
@@ -63,20 +61,10 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             var instance = new AltReceiveProtocolInternal
             {
-                Parent = new object(),
                 RequestEnvironment = reqEnv,
                 Application = app
             };
-            var cbCalled = false;
-            instance.AbortCallback = async (parent, res) =>
-            {
-                Assert.False(cbCalled);
-                Assert.Equal(instance.Parent, parent);
-                Assert.Equal(expectedResponse, res);
-                cbCalled = true;
-            };
             var actualResponse = await instance.SendToApplication(request);
-            Assert.True(cbCalled);
             Assert.Equal(expectedResponse, actualResponse);
         }
 

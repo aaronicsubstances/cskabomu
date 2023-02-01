@@ -1,4 +1,7 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.Common;
+using Kabomu.Concurrency;
+using Kabomu.QuasiHttp.Transport;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,6 +10,8 @@ namespace Kabomu.QuasiHttp.Server
 {
     internal class ReceiveTransferInternal
     {
+        public ITimerApi TimerApi { get; set; }
+        public IMutexApi MutexApi { get; set; }
         public object TimeoutId { get; set; }
         public bool IsAborted { get; set; }
         public TaskCompletionSource<IQuasiHttpResponse> CancellationTcs { get; set; }
@@ -17,5 +22,80 @@ namespace Kabomu.QuasiHttp.Server
         public int MaxChunkSize { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
+
+        public void SetReceiveTimeout()
+        {
+            if (TimeoutMillis <= 0)
+            {
+                return;
+            }
+            var timer = TimerApi;
+            if (timer == null)
+            {
+                throw new MissingDependencyException("timer api");
+            }
+            TimeoutId = timer.WhenSetTimeout(async () =>
+            {
+                var timeoutError = new QuasiHttpRequestProcessingException(
+                    QuasiHttpRequestProcessingException.ReasonCodeTimeout, "receive timeout");
+                await Abort(timeoutError, null);
+            }, TimeoutMillis).Item2;
+        }
+
+        public async Task Abort(Exception cancellationError, IQuasiHttpResponse res)
+        {
+            try
+            {
+                Task disableTransferTask;
+                using (await MutexApi.Synchronize())
+                {
+                    if (IsAborted)
+                    {
+                        return;
+                    }
+                    disableTransferTask = Disable(cancellationError, res);
+                }
+                await disableTransferTask;
+            }
+            catch { } // ignore
+        }
+
+        private async Task Disable(Exception cancellationError,
+            IQuasiHttpResponse res)
+        {
+            if (cancellationError != null)
+            {
+                CancellationTcs.SetException(cancellationError);
+            }
+            else
+            {
+                CancellationTcs.SetResult(res);
+            }
+            IsAborted = true;
+            if (TimeoutId != null)
+            {
+                TimerApi.ClearTimeout(TimeoutId);
+            }
+            if (Connection != null)
+            {
+                try
+                {
+                    await Transport.ReleaseConnection(Connection);
+                }
+                catch (Exception) { }
+            }
+            else
+            {
+                // close body of send to application request
+                if (Request?.Body != null)
+                {
+                    try
+                    {
+                        await Request.Body.EndRead();
+                    }
+                    catch (Exception) { }
+                }
+            }
+        }
     }
 }

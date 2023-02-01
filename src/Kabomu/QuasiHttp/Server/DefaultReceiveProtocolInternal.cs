@@ -11,8 +11,6 @@ namespace Kabomu.QuasiHttp.Server
 {
     internal class DefaultReceiveProtocolInternal
     {
-        public object Parent { get; set; }
-        public Func<object, Task> AbortCallback { get; set; }
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
@@ -70,11 +68,7 @@ namespace Kabomu.QuasiHttp.Server
             }
             finally
             {
-                try
-                {
-                    await response.Close();
-                }
-                catch (Exception) { }
+                await response.Close();
             }
         }
 
@@ -107,8 +101,6 @@ namespace Kabomu.QuasiHttp.Server
                 await TransportUtils.TransferBodyToTransport(Transport,
                     Connection, responseBody, MaxChunkSize);
             }
-
-            await AbortCallback.Invoke(Parent);
         }
     }
 }

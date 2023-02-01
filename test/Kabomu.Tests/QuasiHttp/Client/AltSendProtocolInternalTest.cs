@@ -31,9 +31,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 };
                 var instance = new AltSendProtocolInternal
                 {
-                    Parent = new object(),
-                    TransportBypass = transport,
-                    AbortCallback = (parent, res) => Task.CompletedTask
+                    TransportBypass = transport
                 };
                 return instance.Send(new DefaultQuasiHttpRequest());
             });
@@ -69,28 +67,21 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var instance = new AltSendProtocolInternal
             {
                 ConnectivityParams = connectivityParams,
-                ResponseStreamingEnabled = false,
+                ResponseBufferingEnabled = true,
                 TransportBypass = transport
-            };
-            var cbCallCount = 0;
-            instance.AbortCallback = async (parent, res) =>
-            {
-                cbCallCount++;
             };
             await Assert.ThrowsAsync<NotImplementedException>(() =>
             {
                 return instance.Send(request);
             });
-
-            Assert.Equal(0, cbCallCount);
             Assert.True(response.CloseCalled);
 
-            await instance.Cancel();
+            instance.Cancel();
             Assert.True(cancelSendCalled);
         }
 
         [Fact]
-        public async Task TestSendResponseStreamingEnabledAndBodyPresent()
+        public async Task TestSendResponseBufferingDisabledAndBodyPresent()
         {
             var request = new DefaultQuasiHttpRequest();
             var connectivityParams = new DefaultConnectivityParams();
@@ -110,31 +101,21 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var instance = new AltSendProtocolInternal
             {
-                Parent = new object(),
                 ConnectivityParams = connectivityParams,
-                ResponseStreamingEnabled = true,
+                ResponseBufferingEnabled = false,
                 MaxChunkSize = 10,
                 TransportBypass = transport
             };
-            var cbCalled = false;
-            instance.AbortCallback = async (parent, res) =>
-            {
-                Assert.False(cbCalled);
-                Assert.Equal(instance.Parent, parent);
-                Assert.Equal(expectedResponse, res);
-                cbCalled = true;
-            };
             var response = await instance.Send(request);
-            Assert.True(cbCalled);
             Assert.False(expectedResponse.CloseCalled);
-            Assert.Equal(expectedResponse, response);
+            Assert.Equal(expectedResponse, response?.Response);
 
             // test successful cancellation due to null cancellation handle
-            await instance.Cancel();
+            instance.Cancel();
         }
 
         [Fact]
-        public async Task TestSendResponseStreamingEnabledAndBodyAbsent()
+        public async Task TestSendResponseBufferingDisabledAndBodyAbsent()
         {
             var request = new DefaultQuasiHttpRequest();
             IConnectivityParams connectivityParams = null;
@@ -158,30 +139,20 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var instance = new AltSendProtocolInternal
             {
-                Parent = new object(),
                 ConnectivityParams = connectivityParams,
-                ResponseStreamingEnabled = true,
+                ResponseBufferingEnabled = false,
                 TransportBypass = transport
             };
-            var cbCalled = false;
-            instance.AbortCallback = async (parent, res) =>
-            {
-                Assert.False(cbCalled);
-                Assert.Equal(instance.Parent, parent);
-                Assert.Equal(expectedResponse, res);
-                cbCalled = true;
-            };
             var response = await instance.Send(request);
-            Assert.True(cbCalled);
             Assert.True(expectedResponse.CloseCalled);
-            Assert.Equal(expectedResponse, response);
+            Assert.Equal(expectedResponse, response?.Response);
 
-            await instance.Cancel();
+            instance.Cancel();
             Assert.True(cancelSendCalled);
         }
 
         [Fact]
-        public async Task TestSendResponseStreamingDisabledAndBodyAbsent()
+        public async Task TestSendResponseBufferingEnabledAndBodyAbsent()
         {
             var request = new DefaultQuasiHttpRequest();
             var connectivityParams = new DefaultConnectivityParams
@@ -212,31 +183,21 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var instance = new AltSendProtocolInternal
             {
-                Parent = new object(),
                 ConnectivityParams = connectivityParams,
-                ResponseStreamingEnabled = false,
+                ResponseBufferingEnabled = true,
                 TransportBypass = transport
             };
-            var cbCalled = false;
-            instance.AbortCallback = async (parent, res) =>
-            {
-                Assert.False(cbCalled);
-                Assert.Equal(instance.Parent, parent);
-                Assert.Equal(expectedResponse, res);
-                cbCalled = true;
-            };
             var response = await instance.Send(request);
-            Assert.True(cbCalled);
             Assert.True(expectedResponse.CloseCalled);
-            Assert.Equal(expectedResponse, response);
+            Assert.Equal(expectedResponse, response?.Response);
 
-            await instance.Cancel();
+            instance.Cancel();
             Assert.True(cancelSendCalled);
         }
 
         [Theory]
-        [MemberData(nameof(CreateTestSendResponseStreamingDisabledAndBodyPresentData))]
-        public async Task TestSendResponseStreamingDisabledAndBodyPresent(int maxChunkSize,
+        [MemberData(nameof(CreateTestSendResponseBufferingEnabledAndBodyPresentData))]
+        public async Task TestSendResponseBufferingEnabledAndBodyPresent(int maxChunkSize,
             int responseBodyBufferingLimit, object sendCancellationHandle,
             byte[] expectedResBodyBytes, QuasiHttpResponseImpl2 expectedResponse)
         {
@@ -260,35 +221,22 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var instance = new AltSendProtocolInternal
             {
-                Parent = new object(),
                 TransportBypass = transport,
                 ConnectivityParams = connectivityParams,
                 MaxChunkSize = maxChunkSize,
-                ResponseStreamingEnabled = false,
+                ResponseBufferingEnabled = true,
                 ResponseBodyBufferingSizeLimit = responseBodyBufferingLimit,
             };
-            var cbCalled = false;
-            IQuasiHttpResponse cbRes = null;
-            instance.AbortCallback = async (parent, res) =>
-            {
-                Assert.False(cbCalled);
-                Assert.Equal(instance.Parent, parent);
-                cbRes = res;
-                cbCalled = true;
-            };
             var response = await instance.Send(request);
-            Assert.True(cbCalled);
             Assert.True(expectedResponse.CloseCalled);
-
-            Assert.Equal(response, cbRes);
             await ComparisonUtils.CompareResponses(instance.MaxChunkSize,
-                expectedResponse, response, expectedResBodyBytes);
+                expectedResponse, response?.Response, expectedResBodyBytes);
 
-            await instance.Cancel();
+            instance.Cancel();
             Assert.Equal(sendCancellationHandle != null, cancelSendCalled);
         }
 
-        public static List<object[]> CreateTestSendResponseStreamingDisabledAndBodyPresentData()
+        public static List<object[]> CreateTestSendResponseBufferingEnabledAndBodyPresentData()
         {
             var testData = new List<object[]>();
 

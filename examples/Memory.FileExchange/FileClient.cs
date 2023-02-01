@@ -31,24 +31,14 @@ namespace Memory.FileExchange
             _instance = new StandardQuasiHttpClient
             {
                 DefaultSendOptions = defaultSendOptions,
-                Transport = transport,
                 TransportBypass = transport,
-                TransportBypassProbabilty = directSendProbability
+                TransportBypassWrappingProbability = directSendProbability
             };
 
             LOG.Info("Started Memory.FileClient to {0}", serverEndpoint);
 
             await FileSender.StartTransferringFiles(_instance, serverEndpoint, uploadDirPath);
             LOG.Debug("Completed Memory.FileClient.");
-        }
-
-        public static async Task EndMain()
-        {
-            if (_instance != null)
-            {
-                LOG.Debug("Stopping Memory.FileClient...");
-                await _instance.Reset(null);
-            }
         }
     }
 }

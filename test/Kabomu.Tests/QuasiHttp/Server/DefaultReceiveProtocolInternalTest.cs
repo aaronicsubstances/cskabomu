@@ -68,17 +68,11 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Transport = transport,
                 Application = app,
             };
-            var cbCallCount = 0;
-            instance.AbortCallback = async (parent) =>
-            {
-                cbCallCount++;
-            };
             var ex = await Assert.ThrowsAsync<ExpectationViolationException>(() =>
             {
                 return instance.Receive();
             });
             Assert.Contains("no response", ex.Message);
-            Assert.Equal(0, cbCallCount);
         }
 
         [Fact]
@@ -113,17 +107,11 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Application = app,
                 Transport = transport
             };
-            var cbCallCount = 0;
-            instance.AbortCallback = async (parent) =>
-            {
-                cbCallCount++;
-            };
             await Assert.ThrowsAsync<NotImplementedException>(() =>
             {
                 return instance.Receive();
             });
 
-            Assert.Equal(0, cbCallCount);
             Assert.True(response.CloseCalled);
         }
 
@@ -168,7 +156,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             var instance = new DefaultReceiveProtocolInternal
             {
-                Parent = new object(),
                 Transport = transport,
                 Connection = connection,
                 RequestEnvironment = reqEnv,
@@ -186,21 +173,11 @@ namespace Kabomu.Tests.QuasiHttp.Server
                     return expectedResponse;
                 }
             };
-            int abortCallCount = 0;
-            object actualProtocolParentSeen = null;
-            instance.AbortCallback = (parent) =>
-            {
-                actualProtocolParentSeen = parent;
-                abortCallCount++;
-                return Task.CompletedTask;
-            };
 
             // act
             await instance.Receive();
 
             // assert
-            Assert.Equal(1, abortCallCount);
-            Assert.Equal(instance.Parent, actualProtocolParentSeen);
             await ComparisonUtils.CompareRequests(maxChunkSize, request, actualRequest,
                 requestBodyBytes);
             Assert.Equal(reqEnv, actualRequestEnvironment);

@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.QuasiHttp.Client;
+using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -6,15 +7,15 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp.EntityBody
+namespace Kabomu.Tests.QuasiHttp.Client
 {
-    public class SynchronizedBodyTest
+    public class ProxyBodyTest
     {
         [Fact]
         public Task TestEmptyRead()
         {
             // arrange.
-            var instance = new SynchronizedBody(new ByteBufferBody(new byte[0], 0, 0)
+            var instance = new ProxyBody(new ByteBufferBody(new byte[0], 0, 0)
             {
                 ContentType = "image/jpeg"
             });
@@ -29,7 +30,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var expectedData = new byte[] { (byte)'A', (byte)'b', (byte)'2' };
-            var instance = new SynchronizedBody(new ByteBufferBody(expectedData, 0, expectedData.Length));
+            var instance = new ProxyBody(new ByteBufferBody(expectedData, 0, expectedData.Length));
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, null,
@@ -41,13 +42,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var expectedData = new byte[] { (byte)'A', (byte)'b', (byte)'2' };
-            var instance = new SynchronizedBody(new ByteBufferBody(expectedData, 0, expectedData.Length)
+            var instance = new ProxyBody(new ByteBufferBody(expectedData, 0, expectedData.Length)
             {
                 ContentType = "form"
-            })
-            {
-                MutexApi = null
-            };
+            });
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "form",
@@ -59,9 +57,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             Assert.Throws<ArgumentNullException>(() =>
             {
-                new SynchronizedBody(null);
+                new ProxyBody(null);
             });
-            var instance = new SynchronizedBody(new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2));
+            var instance = new ProxyBody(new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2));
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }
