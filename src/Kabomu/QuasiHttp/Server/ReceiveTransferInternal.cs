@@ -57,21 +57,24 @@ namespace Kabomu.QuasiHttp.Server
 
         public async Task Abort(Exception cancellationError, IQuasiHttpResponse res)
         {
-            Task disableTransferTask;
             using (await MutexApi.Synchronize())
             {
                 if (IsAborted)
                 {
+                    // dispose off response
+                    try
+                    {
+                        // don't wait.
+                        res?.Close();
+                    }
+                    catch { } // ignore.
                     return;
                 }
-                disableTransferTask = Disable(cancellationError, res);
+                Disable(cancellationError, res);
             }
-            MutexApi = null;
-            await disableTransferTask;
         }
 
-        private async Task Disable(Exception cancellationError,
-            IQuasiHttpResponse res)
+        private void Disable(Exception cancellationError, IQuasiHttpResponse res)
         {
             IsAborted = true;
 
@@ -97,7 +100,8 @@ namespace Kabomu.QuasiHttp.Server
             {
                 try
                 {
-                    await Transport.ReleaseConnection(Connection);
+                    // don't wait.
+                    _ = Transport.ReleaseConnection(Connection);
                 }
                 catch (Exception) { }
             }
@@ -116,7 +120,8 @@ namespace Kabomu.QuasiHttp.Server
             {
                 try
                 {
-                    await Request.Body.EndRead();
+                    // don't wait.
+                    _ = Request.Body.EndRead();
                 }
                 catch (Exception) { }
             }

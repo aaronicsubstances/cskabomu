@@ -59,20 +59,24 @@ namespace Kabomu.QuasiHttp.Client
 
         public async Task Abort(Exception cancellationError, ProtocolSendResult res)
         {
-            Task disableTransferTask;
             using (await MutexApi.Synchronize())
             {
                 if (IsAborted)
                 {
+                    // dispose off response
+                    try
+                    {
+                        // don't wait.
+                        res?.Response?.Close();
+                    }
+                    catch { } // ignore.
                     return;
                 }
-                disableTransferTask = Disable(cancellationError, res);
+                Disable(cancellationError, res);
             }
-            MutexApi = null;
-            await disableTransferTask;
         }
 
-        private async Task Disable(Exception cancellationError, ProtocolSendResult res)
+        private void Disable(Exception cancellationError, ProtocolSendResult res)
         {
             IsAborted = true;
 
@@ -114,8 +118,8 @@ namespace Kabomu.QuasiHttp.Client
             {
                 try
                 {
-                    // no need to synchronize
-                    await Request.Body.EndRead();
+                    // don't wait.
+                    _ = Request.Body.EndRead();
                 }
                 catch { } // ignore
             }

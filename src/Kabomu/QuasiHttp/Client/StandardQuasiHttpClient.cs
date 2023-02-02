@@ -136,6 +136,7 @@ namespace Kabomu.QuasiHttp.Client
 
             var transfer = new SendTransferInternal
             {
+                MutexApi = MutexApi,
                 ConnectivityParams = new DefaultConnectivityParams
                 {
                     RemoteEndpoint = remoteEndpoint
@@ -170,6 +171,7 @@ namespace Kabomu.QuasiHttp.Client
 
             var transfer = new SendTransferInternal
             {
+                MutexApi = MutexApi,
                 ConnectivityParams = new DefaultConnectivityParams
                 {
                     RemoteEndpoint = remoteEndpoint
@@ -188,15 +190,12 @@ namespace Kabomu.QuasiHttp.Client
             Task<IQuasiHttpResponse> cancellationTask = null;
             using (await MutexApi.Synchronize())
             {
-                // set up transfer dependencies
-                transfer.MutexApi = MutexApi;
-                transfer.TimerApi = TimerApi;
-
                 // NB: negative value is allowed for timeout, which indicates infinite timeout.
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     transfer.SendOptions?.TimeoutMillis,
                     DefaultSendOptions?.TimeoutMillis,
                     0);
+                transfer.TimerApi = TimerApi;
                 transfer.SetSendTimeout();
 
                 if (transfer.TimeoutId != null || setUpCancellation)

@@ -72,13 +72,13 @@ namespace Kabomu.QuasiHttp.Client
             
             // save for closing later if needed.
             var originalResponse = response;
-            var originalResponseBufferingApplied = ProtocolUtilsInternal.GetEnvVarAsBoolean(
-                response.Environment, TransportUtils.ResEnvKeyResponseBufferingApplied);
-
-            var responseBody = response.Body;
-            bool responseBufferingApplied = false;
             try
             {
+                var originalResponseBufferingApplied = ProtocolUtilsInternal.GetEnvVarAsBoolean(
+                    response.Environment, TransportUtils.ResEnvKeyResponseBufferingApplied);
+
+                var responseBody = response.Body;
+                bool responseBufferingApplied = false;
                 if (responseBody != null && ResponseBufferingEnabled && originalResponseBufferingApplied != true)
                 {
                     // mark as applied here, so that if an error occurs,
@@ -99,6 +99,13 @@ namespace Kabomu.QuasiHttp.Client
                     response = new ProxyQuasiHttpResponse(response);
                 }
 
+                if (responseBody == null || originalResponseBufferingApplied == true ||
+                        responseBufferingApplied)
+                {
+                    // close original response.
+                    await originalResponse.Close();
+                }
+
                 return new ProtocolSendResult
                 {
                     Response = response,
@@ -106,14 +113,15 @@ namespace Kabomu.QuasiHttp.Client
                         responseBufferingApplied
                 };
             }
-            finally
+            catch
             {
-                if (responseBody == null || originalResponseBufferingApplied == true ||
-                        responseBufferingApplied)
+                try
                 {
-                    // close original response.
-                    await originalResponse.Close();
+                    // don't wait.
+                    _ = originalResponse.Close();
                 }
+                catch { } // ignore
+                throw;
             }
         }
     }

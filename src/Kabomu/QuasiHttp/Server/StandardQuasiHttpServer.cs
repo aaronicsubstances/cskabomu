@@ -229,6 +229,7 @@ namespace Kabomu.QuasiHttp.Server
         {
             var transfer = new ReceiveTransferInternal
             {
+                MutexApi = MutexApi,
                 Transport = transport,
                 Connection = connectionResponse.Connection
             };
@@ -237,11 +238,9 @@ namespace Kabomu.QuasiHttp.Server
             Task<IQuasiHttpResponse> cancellationTask = null;
             using (await MutexApi.Synchronize())
             {
-                transfer.TimerApi = TimerApi;
-                transfer.MutexApi = MutexApi;
-
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     null, DefaultProcessingOptions?.TimeoutMillis, 0);
+                transfer.TimerApi = TimerApi;
                 transfer.SetReceiveTimeout();
 
                 if (transfer.TimeoutId != null)
@@ -294,6 +293,7 @@ namespace Kabomu.QuasiHttp.Server
             }
             var transfer = new ReceiveTransferInternal
             {
+                MutexApi = MutexApi,
                 Request = request,
                 ProcessingOptions = options
             };
@@ -302,11 +302,9 @@ namespace Kabomu.QuasiHttp.Server
             Task<IQuasiHttpResponse> cancellationTask = null;
             using (await MutexApi.Synchronize())
             {
-                transfer.TimerApi = TimerApi;
-                transfer.MutexApi = MutexApi;
-
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     transfer.ProcessingOptions?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
+                transfer.TimerApi = TimerApi;
                 transfer.SetReceiveTimeout();
 
                 if (transfer.TimeoutId != null)

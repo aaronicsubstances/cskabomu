@@ -50,9 +50,14 @@ namespace Kabomu.QuasiHttp.Server
                 await TransferResponseToTransport(response);
                 return null;
             }
-            finally
+            catch
             {
-                await response.Close();
+                try
+                {
+                    _ = response.Close();
+                }
+                catch { } // ignore
+                throw;
             }
         }
 
@@ -112,6 +117,8 @@ namespace Kabomu.QuasiHttp.Server
                 await TransportUtils.TransferBodyToTransport(Transport,
                     Connection, responseBody, MaxChunkSize);
             }
+
+            await response.Close();
         }
     }
 }
