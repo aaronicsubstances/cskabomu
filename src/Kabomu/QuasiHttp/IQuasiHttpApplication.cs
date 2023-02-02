@@ -15,8 +15,7 @@ namespace Kabomu.QuasiHttp
         /// Processes a quasi htp request.
         /// </summary>
         /// <param name="request">the quasi http request</param>
-        /// <param name="requestEnvironment">any environment variables associated with request</param>
         /// <returns>a task whose result will be the response to the quasi http request</returns>
-        Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment);
+        Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request);
     }
 }

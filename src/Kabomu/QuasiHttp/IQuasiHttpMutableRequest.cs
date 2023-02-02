@@ -1,23 +1,19 @@
 ﻿using Kabomu.QuasiHttp.EntityBody;
-using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Kabomu.QuasiHttp
 {
-    /// <summary>
-    /// Provides convenient extension of <see cref="IQuasiHttpResponse"/> interface
+    /// Provides convenient extension of<see cref="IQuasiHttpRequest"/> interface
     /// in which properties of the interface are mutable.
-    /// </summary>
-    public interface IQuasiHttpMutableResponse : IQuasiHttpResponse
+    public interface IQuasiHttpMutableRequest : IQuasiHttpRequest
     {
-        new string HttpStatusMessage { get; set; }
+        new string Target { get; set; }
 
         new IDictionary<string, IList<string>> Headers { get; set; }
 
         new IQuasiHttpBody Body { get; set; }
 
-        new int StatusCode { get; set; }
+        new string Method { get; set; }
 
         new string HttpVersion { get; set; }
 

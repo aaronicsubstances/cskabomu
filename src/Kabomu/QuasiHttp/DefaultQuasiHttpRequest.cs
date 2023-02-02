@@ -7,10 +7,10 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp
 {
     /// <summary>
-    /// Provides convenient implementation of <see cref="IQuasiHttpRequest"/> interface
-    /// in which properties of the interface are mutable.
+    /// Provides convenient implementation of <see cref="IQuasiHttpRequest"/> and
+    /// <see cref="IQuasiHttpMutableRequest"/> interfaces.
     /// </summary>
-    public class DefaultQuasiHttpRequest : IQuasiHttpRequest
+    public class DefaultQuasiHttpRequest : IQuasiHttpMutableRequest
     {
         /// <summary>
         /// Equals HTTP method "GET".
@@ -85,5 +85,9 @@ namespace Kabomu.QuasiHttp
         /// Gets or sets an HTTP request version value.
         /// </summary>
         public string HttpVersion { get; set; }
+
+        /// Gets or sets any objects which may be of interest to code
+        /// which will process this request instance.
+        public IDictionary<string, object> Environment { get; set; }
     }
 }

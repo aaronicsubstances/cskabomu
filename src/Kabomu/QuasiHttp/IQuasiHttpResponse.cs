@@ -41,6 +41,9 @@ namespace Kabomu.QuasiHttp
         /// </summary>
         string HttpVersion { get; }
 
+        /// Gets any objects which may be of interest during response processing.
+        IDictionary<string, object> Environment { get; }
+
         /// <summary>
         /// Ends reading on the Body property, and releases any resources held by the quasi http response
         /// implementation.

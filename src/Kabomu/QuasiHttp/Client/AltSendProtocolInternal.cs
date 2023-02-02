@@ -52,14 +52,7 @@ namespace Kabomu.QuasiHttp.Client
                 {
                     requestBody = new ProxyBody(requestBody);
                 }
-                request = new DefaultQuasiHttpRequest
-                {
-                    HttpVersion = request.HttpVersion,
-                    Method = request.Method,
-                    Target = request.Target,
-                    Headers = request.Headers,
-                    Body = requestBody
-                };
+                request = ProtocolUtilsInternal.CloneQuasiHttpRequest(request, c => c.Body = requestBody);
             }
 
             var cancellableResTask = TransportBypass.ProcessSendRequest(request, ConnectivityParams);
@@ -70,19 +63,23 @@ namespace Kabomu.QuasiHttp.Client
             // it is not a problem if this call exceeds timeout before returning, since
             // cancellation handle has already been saved within same mutex as Cancel(),
             // and so Cancel() will definitely see the cancellation handle and make use of it.
-            IDirectSendResult sendResult = await cancellableResTask.Item1;
+            var response = await cancellableResTask.Item1;
 
-            if (sendResult?.Response == null)
+            if (response == null)
             {
                 throw new ExpectationViolationException("no response");
             }
+            
+            // save for closing later if needed.
+            var originalResponse = response;
+            var originalResponseBufferingApplied = ProtocolUtilsInternal.GetEnvVarAsBoolean(
+                response.Environment, TransportUtils.ResEnvKeyResponseBufferingApplied);
 
-            var response = sendResult.Response;
             var responseBody = response.Body;
             bool responseBufferingApplied = false;
             try
             {
-                if (responseBody != null && ResponseBufferingEnabled && sendResult.ResponseBufferingApplied != true)
+                if (responseBody != null && ResponseBufferingEnabled && originalResponseBufferingApplied != true)
                 {
                     // mark as applied here, so that if an error occurs,
                     // closing will still be done.
@@ -92,14 +89,7 @@ namespace Kabomu.QuasiHttp.Client
                     // which Close() operation is redundant.
                     responseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
                         MaxChunkSize, ResponseBodyBufferingSizeLimit);
-                    response = new DefaultQuasiHttpResponse
-                    {
-                        StatusCode = response.StatusCode,
-                        Headers = response.Headers,
-                        HttpVersion = response.HttpVersion,
-                        HttpStatusMessage = response.HttpStatusMessage,
-                        Body = responseBody
-                    };
+                    response = ProtocolUtilsInternal.CloneQuasiHttpResponse(response, c => c.Body = responseBody);
                 }
 
                 // apply response wrapping if needed.
@@ -112,17 +102,17 @@ namespace Kabomu.QuasiHttp.Client
                 return new ProtocolSendResult
                 {
                     Response = response,
-                    ResponseBufferingApplied = sendResult.ResponseBufferingApplied == true ||
+                    ResponseBufferingApplied = originalResponseBufferingApplied == true ||
                         responseBufferingApplied
                 };
             }
             finally
             {
-                if (responseBody == null || sendResult.ResponseBufferingApplied == true ||
+                if (responseBody == null || originalResponseBufferingApplied == true ||
                         responseBufferingApplied)
                 {
                     // close original response.
-                    await sendResult.Response.Close();
+                    await originalResponse.Close();
                 }
             }
         }

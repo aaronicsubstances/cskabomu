@@ -26,9 +26,8 @@ namespace Kabomu.Tests.Mediator.Handling
         [Fact]
         public void TestForErrors()
         {
-            var requestEnvironment = new Dictionary<string, object>();
             var contextRequest = new DefaultContextRequestInternal(
-                new DefaultQuasiHttpRequest(), requestEnvironment);
+                new DefaultQuasiHttpRequest());
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponseInternal(
@@ -79,9 +78,8 @@ namespace Kabomu.Tests.Mediator.Handling
         {
             var logs = new List<string>();
             var handlers = new List<Handler>();
-            var requestEnvironment = new Dictionary<string, object>();
             var contextRequest = new DefaultContextRequestInternal(
-                new DefaultQuasiHttpRequest(), requestEnvironment);
+                new DefaultQuasiHttpRequest());
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponseInternal(
@@ -118,9 +116,8 @@ namespace Kabomu.Tests.Mediator.Handling
         {
             var logs = new List<string>();
             var handlers = new List<Handler>();
-            var requestEnvironment = new Dictionary<string, object>();
             var contextRequest = new DefaultContextRequestInternal(
-                new DefaultQuasiHttpRequest(), requestEnvironment);
+                new DefaultQuasiHttpRequest());
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponseInternal(
@@ -174,9 +171,8 @@ namespace Kabomu.Tests.Mediator.Handling
         {
             var logs = new List<string>();
             var handlers = new List<Handler>();
-            var requestEnvironment = new Dictionary<string, object>();
             var contextRequest = new DefaultContextRequestInternal(
-                new DefaultQuasiHttpRequest(), requestEnvironment);
+                new DefaultQuasiHttpRequest());
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponseInternal(
@@ -230,9 +226,8 @@ namespace Kabomu.Tests.Mediator.Handling
         {
             var logs = new List<string>();
             var handlers = new List<Handler>();
-            var requestEnvironment = new Dictionary<string, object>();
             var contextRequest = new DefaultContextRequestInternal(
-                new DefaultQuasiHttpRequest(), requestEnvironment);
+                new DefaultQuasiHttpRequest());
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponseInternal(
@@ -262,9 +257,8 @@ namespace Kabomu.Tests.Mediator.Handling
         {
             var logs = new List<string>();
             var handlers = new List<Handler>();
-            var requestEnvironment = new Dictionary<string, object>();
             var contextRequest = new DefaultContextRequestInternal(
-                new DefaultQuasiHttpRequest { Target = "/home" }, requestEnvironment);
+                new DefaultQuasiHttpRequest { Target = "/home" });
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponseInternal(
@@ -386,9 +380,8 @@ namespace Kabomu.Tests.Mediator.Handling
         {
             var logs = new List<string>();
             var handlers = new List<Handler>();
-            var requestEnvironment = new Dictionary<string, object>();
             var contextRequest = new DefaultContextRequestInternal(
-                new DefaultQuasiHttpRequest { Target = "/home" }, requestEnvironment);
+                new DefaultQuasiHttpRequest { Target = "/home" });
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponseInternal(
@@ -483,9 +476,8 @@ namespace Kabomu.Tests.Mediator.Handling
         {
             var logs = new List<string>();
             var handlers = new List<Handler>();
-            var requestEnvironment = new Dictionary<string, object>();
             var contextRequest = new DefaultContextRequestInternal(
-                new DefaultQuasiHttpRequest(), requestEnvironment);
+                new DefaultQuasiHttpRequest());
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponseInternal(
@@ -515,9 +507,8 @@ namespace Kabomu.Tests.Mediator.Handling
         {
             var logs = new List<string>();
             var handlers = new List<Handler>();
-            var requestEnvironment = new Dictionary<string, object>();
             var contextRequest = new DefaultContextRequestInternal(
-                new DefaultQuasiHttpRequest(), requestEnvironment);
+                new DefaultQuasiHttpRequest());
             var responseTransmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponseInternal(

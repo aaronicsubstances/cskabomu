@@ -28,11 +28,5 @@ namespace Kabomu.QuasiHttp.Server
         /// a client-specific default value will be used.
         /// </remarks>
         int MaxChunkSize { get; set; }
-
-        /// <summary>
-        /// Gets request environment variables which should be supplied to 
-        /// an <see cref="IQuasiHttpApplication"/> instance for processing of a request.
-        /// </summary>
-        IDictionary<string, object> RequestEnvironment { get; set; }
     }
 }

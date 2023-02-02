@@ -111,6 +111,12 @@ namespace Kabomu.QuasiHttp
         public string HttpVersion { get; set; }
 
         /// <summary>
+        /// Gets or sets any objects which may be of interest to the code which
+        /// will process this response instance.
+        /// </summary>
+        public IDictionary<string, object> Environment { get; set; }
+
+        /// <summary>
         /// Gets or sets a native cancellation handle that will be cancelled when
         /// Close() is called.
         /// </summary>

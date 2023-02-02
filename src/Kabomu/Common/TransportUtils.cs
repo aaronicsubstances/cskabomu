@@ -58,6 +58,11 @@ namespace Kabomu.Common
         public static readonly string ReqEnvKeyRemotePeerEndpoint = "kabomu.remote_peer_endpoint";
 
         /// <summary>
+        /// Response environment variable of "kabomu.response_buffering_enabled" for indicating whether or not response has been bufferred already.
+        /// </summary>
+        public static readonly string ResEnvKeyResponseBufferingApplied = "kabomu.response_buffering_enabled";
+
+        /// <summary>
         /// Reads in data from a quasi http body in order to completely fill in a byte buffer slice.
         /// </summary>
         /// <param name="body">source of bytes to read</param>

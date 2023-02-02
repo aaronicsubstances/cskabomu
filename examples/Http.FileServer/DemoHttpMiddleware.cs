@@ -40,7 +40,8 @@ namespace Http.FileServer
             var quasiRequest = new DefaultQuasiHttpRequest
             {
                 Method = httpContext.Request.Method,
-                HttpVersion = httpContext.Request.Protocol
+                HttpVersion = httpContext.Request.Protocol,
+                Environment = null, // can later send in some information about remote and local endpoints
             };
             quasiRequest.Target = ReconstructRequestPath(httpContext.Request);
             quasiRequest.Headers = ReconstructRequestHeaders(httpContext.Request.Headers);
@@ -60,8 +61,7 @@ namespace Http.FileServer
             var processingOptions = new DefaultQuasiHttpProcessingOptions
             {
                 TimeoutMillis = 5_000,
-                MaxChunkSize = 2 * 8192,
-                RequestEnvironment = null, // can later send in some information about remote and local endpoints
+                MaxChunkSize = 2 * 8192
             };
             IQuasiHttpResponse quasiResponse;
             try

@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
@@ -166,6 +167,62 @@ namespace Kabomu.QuasiHttp
             // by awaiting again for transfer cancellation, any significant error will bubble up, and
             // any insignificant error will be swallowed.
             return await cancellationTask;
+        }
+
+        public static IQuasiHttpRequest CloneQuasiHttpRequest(IQuasiHttpRequest request,
+            Action<IQuasiHttpMutableRequest> modifier)
+        {
+            var reqClone = new DefaultQuasiHttpRequest
+            {
+                HttpVersion = request.HttpVersion,
+                Method = request.Method,
+                Target = request.Target,
+                Headers = request.Headers,
+                Body = request.Body,
+                Environment = request.Environment
+            };
+            if (modifier != null)
+            {
+                modifier.Invoke(reqClone);
+            }
+            return reqClone;
+        }
+
+        public static IQuasiHttpResponse CloneQuasiHttpResponse(IQuasiHttpResponse response,
+            Action<IQuasiHttpMutableResponse> modifier)
+        {
+            var resClone = new DefaultQuasiHttpResponse
+            {
+                StatusCode = response.StatusCode,
+                Headers = response.Headers,
+                HttpVersion = response.HttpVersion,
+                HttpStatusMessage = response.HttpStatusMessage,
+                Body = response.Body,
+                Environment = response.Environment
+            };
+            if (modifier != null)
+            {
+                modifier.Invoke(resClone);
+            }
+            return resClone;
+        }
+
+        public static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment, 
+            string key)
+        {
+            if (environment != null && environment.ContainsKey(key))
+            {
+                var value = environment[key];
+                if (value is bool b)
+                {
+                    return b;
+                }
+                else if (value != null)
+                {
+                    return bool.Parse((string)value);
+                }
+            }
+            return null;
         }
     }
 }

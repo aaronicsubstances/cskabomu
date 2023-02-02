@@ -18,7 +18,7 @@ namespace Kabomu.Tests.Mediator.Handling
         private static IContext CreateAndStartContext(IRegistry initialRegistry)
         {
             var contextRequest = new DefaultContextRequestInternal(
-                new DefaultQuasiHttpRequest(), null);
+                new DefaultQuasiHttpRequest());
             var contextResponse = new DefaultContextResponseInternal(
                 new DefaultQuasiHttpResponse(), new TaskCompletionSource<IQuasiHttpResponse>(
                     TaskCreationOptions.RunContinuationsAsynchronously));
@@ -40,7 +40,7 @@ namespace Kabomu.Tests.Mediator.Handling
             TaskCompletionSource<IQuasiHttpResponse> responseTransmitter)
         {
             var contextRequest = new DefaultContextRequestInternal(
-                new DefaultQuasiHttpRequest(), null);
+                new DefaultQuasiHttpRequest());
             var contextResponse = new DefaultContextResponseInternal(
                 new DefaultQuasiHttpResponse(), responseTransmitter);
             var context = new DefaultContextInternal

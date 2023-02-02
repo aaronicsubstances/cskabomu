@@ -207,7 +207,8 @@ namespace Kabomu.QuasiHttp.Server
             }
         }
 
-        private async Task AcceptConnection(IQuasiHttpTransport transport, IConnectionAllocationResponse connectionAllocationResponse)
+        private async Task AcceptConnection(IQuasiHttpTransport transport,
+            IConnectionAllocationResponse connectionAllocationResponse)
         {
             try
             {
@@ -253,9 +254,7 @@ namespace Kabomu.QuasiHttp.Server
                 transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     null, DefaultProcessingOptions?.MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
 
-                transfer.RequestEnvironment = ProtocolUtilsInternal.DetermineEffectiveOptions(
-                    connectionResponse.Environment, DefaultProcessingOptions?.RequestEnvironment);
-
+                transfer.RequestEnvironment = connectionResponse.Environment;
 
                 transfer.Protocol = new DefaultReceiveProtocolInternal
                 {
@@ -317,14 +316,10 @@ namespace Kabomu.QuasiHttp.Server
                     cancellationTask = transfer.CancellationTcs.Task;
                 }
 
-                transfer.RequestEnvironment = ProtocolUtilsInternal.DetermineEffectiveOptions(
-                    transfer.ProcessingOptions?.RequestEnvironment, DefaultProcessingOptions?.RequestEnvironment);
-
                 transfer.Protocol = new AltReceiveProtocolInternal
                 {
                     Application = Application,
-                    Request = transfer.Request,
-                    RequestEnvironment = transfer.RequestEnvironment
+                    Request = transfer.Request
                 };
                 workTask = transfer.StartProtocol();
             }

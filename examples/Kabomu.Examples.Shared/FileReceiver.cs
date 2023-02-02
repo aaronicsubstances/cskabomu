@@ -24,7 +24,7 @@ namespace Kabomu.Examples.Shared
             _downloadDirPath = downloadDirPath;
         }
 
-        public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
+        public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request)
         {
             var initialHandlers = new Handler[]
             {
@@ -34,7 +34,7 @@ namespace Kabomu.Examples.Shared
             {
                 InitialHandlers = initialHandlers
             };
-            return delegateApp.ProcessRequest(request, requestEnvironment);
+            return delegateApp.ProcessRequest(request);
         }
 
         private async Task ReceiveFileTransfer(IContext context)

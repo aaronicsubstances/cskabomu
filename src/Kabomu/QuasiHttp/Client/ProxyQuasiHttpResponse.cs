@@ -27,6 +27,8 @@ namespace Kabomu.QuasiHttp.Client
 
         public string HttpVersion => _delegate.HttpVersion;
 
+        public IDictionary<string, object> Environment => _delegate.Environment;
+
         public Task Close()
         {
             return _delegate.Close();

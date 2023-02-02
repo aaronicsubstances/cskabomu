@@ -70,22 +70,17 @@ namespace Kabomu.Tests.Shared
             IQuasiHttpRequest expected, IQuasiHttpRequest actual,
             byte[] expectedReqBodyBytes)
         {
+            if (expected == null)
+            {
+                Assert.Null(actual);
+                return;
+            }
             Assert.Equal(expected.Method, actual.Method);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
             Assert.Equal(expected.Target, actual.Target);
             CompareHeaders(expected.Headers, actual.Headers);
-            if (expectedReqBodyBytes == null)
-            {
-                Assert.Null(actual.Body);
-            }
-            else
-            {
-                Assert.NotNull(actual.Body);
-                Assert.Equal(expected.Body.ContentLength, actual.Body.ContentLength);
-                Assert.Equal(expected.Body.ContentType, actual.Body.ContentType);
-                var actualReqBodyBytes = await TransportUtils.ReadBodyToEnd(actual.Body, maxChunkSize);
-                Assert.Equal(expectedReqBodyBytes, actualReqBodyBytes);
-            }
+            Assert.Same(expected.Environment, actual.Environment);
+            await CompareBodies(maxChunkSize, expected.Body, actual.Body, expectedReqBodyBytes);
         }
 
         public static async Task CompareResponses(int maxChunkSize,
@@ -110,16 +105,14 @@ namespace Kabomu.Tests.Shared
         {
             if (expectedBodyBytes == null)
             {
-                Assert.Null(actual);
+                Assert.Same(expected, actual);
+                return;
             }
-            else
-            {
-                Assert.NotNull(actual);
-                Assert.Equal(expected.ContentLength, actual.ContentLength);
-                Assert.Equal(expected.ContentType, actual.ContentType);
-                var actualResBodyBytes = await TransportUtils.ReadBodyToEnd(actual, maxChunkSize);
-                Assert.Equal(expectedBodyBytes, actualResBodyBytes);
-            }
+            Assert.NotNull(actual);
+            Assert.Equal(expected.ContentLength, actual.ContentLength);
+            Assert.Equal(expected.ContentType, actual.ContentType);
+            var actualResBodyBytes = await TransportUtils.ReadBodyToEnd(actual, maxChunkSize);
+            Assert.Equal(expectedBodyBytes, actualResBodyBytes);
         }
 
         public static void CompareHeaders(IDictionary<string, IList<string>> expected,

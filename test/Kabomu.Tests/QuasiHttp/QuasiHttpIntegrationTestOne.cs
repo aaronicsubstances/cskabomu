@@ -32,15 +32,12 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 ProcessSendRequestCallback = (req, connectivityParams) =>
                 {
-                    Func<Task<IDirectSendResult>> helperFunc = async () =>
+                    Func<Task<IQuasiHttpResponse>> helperFunc = async () =>
                     {
                         Assert.Equal(remoteEndpoint, connectivityParams?.RemoteEndpoint);
                         Assert.Equal(request, req);
                         await Task.Delay(responseTimeMillis);
-                        return new DefaultDirectSendResult
-                        {
-                            Response = expectedResponse
-                        };
+                        return expectedResponse;
                     };
                     var resTask = helperFunc.Invoke();
                     return (resTask, (object)null);
@@ -566,7 +563,7 @@ namespace Kabomu.Tests.QuasiHttp
         {
             var app = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = async (req, options) =>
+                ProcessRequestCallback = async (req) =>
                 {
                     Func<byte, byte> selectedOp = null;
                     if (req.Headers != null && req.Headers.ContainsKey("second") &&

@@ -31,7 +31,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
         {
             var app = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = async (req, reqEnv) =>
+                ProcessRequestCallback = async (req) =>
                 {
                     return null;
                 }
@@ -58,17 +58,15 @@ namespace Kabomu.Tests.QuasiHttp.Server
             var expectedResponse = new DefaultQuasiHttpResponse();
             var app = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = async (actualRequest, actualReqEnv) =>
+                ProcessRequestCallback = async (actualRequest) =>
                 {
-                    Assert.Equal(request, actualRequest);
-                    Assert.Equal(reqEnv, actualReqEnv);
+                    Assert.Same(request, actualRequest);
                     return expectedResponse;
                 }
             };
             var instance = new AltReceiveProtocolInternal
             {
                 Request = request,
-                RequestEnvironment = reqEnv,
                 Application = app
             };
             var actualResponse = await instance.Receive();

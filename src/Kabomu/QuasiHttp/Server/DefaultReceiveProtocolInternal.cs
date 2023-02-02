@@ -39,7 +39,7 @@ namespace Kabomu.QuasiHttp.Server
 
             var request = await ReadRequestLeadChunk();
 
-            var response = await Application.ProcessRequest(request, RequestEnvironment);
+            var response = await Application.ProcessRequest(request);
             if (response == null)
             {
                 throw new ExpectationViolationException("no response");
@@ -65,7 +65,8 @@ namespace Kabomu.QuasiHttp.Server
                 Target = chunk.RequestTarget,
                 Headers = chunk.Headers,
                 HttpVersion = chunk.HttpVersion,
-                Method = chunk.Method
+                Method = chunk.Method,
+                Environment = RequestEnvironment
             };
             if (chunk.ContentLength != 0)
             {

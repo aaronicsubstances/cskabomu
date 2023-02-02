@@ -22,20 +22,11 @@ namespace Memory.FileExchange
             // do nothing.
         }
 
-        public (Task<IDirectSendResult>, object) ProcessSendRequest(
+        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
             IQuasiHttpRequest request, IConnectivityParams connectivityParams)
         {
-            var task = ProcessSendRequestInternal(request);
+            var task = _application.ProcessRequest(request);
             return (task, null);
-        }
-
-        private async Task<IDirectSendResult> ProcessSendRequestInternal(IQuasiHttpRequest request)
-        {
-            var res = await _application.ProcessRequest(request, null);
-            return new DefaultDirectSendResult
-            {
-                Response = res
-            };
         }
     }
 }

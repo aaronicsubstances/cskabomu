@@ -423,7 +423,7 @@ namespace Kabomu.Tests.Mediator.Handling
             {
                 Method = methodToMatch
             };
-            var contextRequest = new DefaultContextRequestInternal(rawRequest, null);
+            var contextRequest = new DefaultContextRequestInternal(rawRequest);
             var context = new TempContext
             {
                 Request = contextRequest
@@ -448,7 +448,7 @@ namespace Kabomu.Tests.Mediator.Handling
             {
                 Method = methodToMismatch
             };
-            var contextRequest = new DefaultContextRequestInternal(rawRequest, null);
+            var contextRequest = new DefaultContextRequestInternal(rawRequest);
             var context = new TempContext
             {
                 Request = contextRequest

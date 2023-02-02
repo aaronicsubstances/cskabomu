@@ -4,7 +4,7 @@ remaining
 -StandardQuasiHttpClient
 -StandardQuasiHttpServer
 
--move entire MemoryBasedTransport namespace to testing project.
+-move entire MemoryBasedTransport namespace to testing project. - done
 
 -remove SynchronizedBody - done
 
@@ -17,15 +17,15 @@ remaining
 
 -repurpose TransportBypassProbability as TransportBypassWrappingProbability - done
 
-*let return value of TransportBypass be Pair<Task<IDirectSendResult>, object>
--IDirectSendResult are the response and indication of whether response closing is necessary.
+-merge request environment into request - done
+-add an environment property to response - done
+-deleted environment from processing options of StandardQuasiHttpServer - done 
+--so now environment is supplied solely by transport or whatever external caller attaches to request - done
 
 *Remove resets - done
 --hence stop storing transfers - done
 
 -create memorybasedtransport in examples - done.
-
--refactor Kabomu.Mediator to let application return directsendresult
 
 *reconsider use of callbacks for other languages lacking async/await syntax now that memorybasedtransport has been removed.
 
