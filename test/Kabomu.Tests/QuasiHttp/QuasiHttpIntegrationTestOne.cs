@@ -1,11 +1,11 @@
 ﻿using Kabomu.Common;
-using Kabomu.MemoryBasedTransport;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Internals;
+using Kabomu.Tests.MemoryBasedTransport;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -32,12 +32,15 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 ProcessSendRequestCallback = (req, connectivityParams) =>
                 {
-                    Func<Task<IQuasiHttpResponse>> helperFunc = async () =>
+                    Func<Task<IDirectSendResult>> helperFunc = async () =>
                     {
                         Assert.Equal(remoteEndpoint, connectivityParams?.RemoteEndpoint);
                         Assert.Equal(request, req);
                         await Task.Delay(responseTimeMillis);
-                        return expectedResponse;
+                        return new DefaultDirectSendResult
+                        {
+                            Response = expectedResponse
+                        };
                     };
                     var resTask = helperFunc.Invoke();
                     return (resTask, (object)null);
@@ -195,7 +198,7 @@ namespace Kabomu.Tests.QuasiHttp
             accraQuasiHttpServer.Transport = accraServerTransport;
             accraQuasiHttpServer.Application = CreateEndpointApplication(accraEndpoint,
                 accraServerMaxChunkSize, 27);
-            await hub.AddServer(accraEndpoint, accraQuasiHttpServer);
+            await hub.AddServer(accraEndpoint, accraServerTransport);
             await accraQuasiHttpServer.Start();
 
             var accraClientTransport = new MemoryBasedClientTransport
@@ -227,7 +230,7 @@ namespace Kabomu.Tests.QuasiHttp
             kumasiQuasiHttpServer.Transport = kumasiServerTransport;
             kumasiQuasiHttpServer.Application = CreateEndpointApplication(kumasiEndpoint,
                 kumasiServerMaxChunkSize, 25);
-            await hub.AddServer(kumasiEndpoint, kumasiQuasiHttpServer);
+            await hub.AddServer(kumasiEndpoint, kumasiServerTransport);
             await kumasiQuasiHttpServer.Start();
 
             var kumasiClientTransport = new MemoryBasedClientTransport

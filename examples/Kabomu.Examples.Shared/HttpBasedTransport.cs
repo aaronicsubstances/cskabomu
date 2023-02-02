@@ -20,7 +20,7 @@ namespace Kabomu.Examples.Shared
             _httpClient = httpClient;
         }
 
-        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(IQuasiHttpRequest request,
+        public (Task<IDirectSendResult>, object) ProcessSendRequest(IQuasiHttpRequest request,
             IConnectivityParams connectivityParams)
         {
             var cts = new CancellationTokenSource();
@@ -37,7 +37,7 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(IQuasiHttpRequest request,
+        private async Task<IDirectSendResult> ProcessSendRequestInternal(IQuasiHttpRequest request,
             IConnectivityParams connectivityParams, CancellationTokenSource cancellationTokenSource)
         {
             var requestWrapper = new HttpRequestMessage
@@ -103,7 +103,10 @@ namespace Kabomu.Examples.Shared
             }
             response.Headers = new Dictionary<string, IList<string>>();
             AdddResponseHeaders(response.Headers, responseWrapper);
-            return response;
+            return new DefaultDirectSendResult
+            {
+                Response = response
+            };
         }
 
         private void AddRequestHeaders(HttpRequestMessage request, IDictionary<string, IList<string>> src)

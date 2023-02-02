@@ -1,12 +1,11 @@
-﻿using Kabomu.Common;
-using Kabomu.Concurrency;
+﻿using Kabomu.Concurrency;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.MemoryBasedTransport
+namespace Kabomu.Tests.MemoryBasedTransport
 {
     internal class MemoryBasedTransportConnectionInternal
     {
@@ -14,44 +13,10 @@ namespace Kabomu.MemoryBasedTransport
         private readonly MemoryPipeBackedBody _serverPipe;
         private readonly MemoryPipeBackedBody _clientPipe;
 
-        public MemoryBasedTransportConnectionInternal(IMutexApi serverMutex, IMutexApi clientMutex,
-            int serverMaxWriteBufferLimit, int clientMaxWriteBufferLimit)
+        public MemoryBasedTransportConnectionInternal()
         {
-            _serverPipe = new MemoryPipeBackedBody
-            {
-                MaxWriteBufferLimit = TransportUtils.DefaultDataBufferLimit
-            };
-            if (serverMutex != null)
-            {
-                _serverPipe.MutexApi = serverMutex;
-            }
-            _clientPipe = new MemoryPipeBackedBody
-            {
-                MaxWriteBufferLimit = TransportUtils.DefaultDataBufferLimit
-            };
-            if (clientMutex != null)
-            {
-                _clientPipe.MutexApi = clientMutex;
-            }
-            SetMaxWriteBufferLimit(true, serverMaxWriteBufferLimit);
-            SetMaxWriteBufferLimit(false, clientMaxWriteBufferLimit);
-        }
-
-        private void SetMaxWriteBufferLimit(bool fromServer, int maxWriteBufferLimit)
-        {
-            if (maxWriteBufferLimit <= 0)
-            {
-                return;
-            }
-            // set write buffer limit of the pipe for other participant.
-            if (fromServer)
-            {
-                _clientPipe.MaxWriteBufferLimit = maxWriteBufferLimit;
-            }
-            else
-            {
-                _serverPipe.MaxWriteBufferLimit = maxWriteBufferLimit;
-            }
+            _serverPipe = new MemoryPipeBackedBody();
+            _clientPipe = new MemoryPipeBackedBody();
         }
 
         public async Task<int> ProcessReadRequest(bool fromServer, byte[] data, int offset, int length)

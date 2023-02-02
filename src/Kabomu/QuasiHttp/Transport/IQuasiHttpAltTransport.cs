@@ -36,7 +36,7 @@ namespace Kabomu.QuasiHttp.Transport
         /// <returns>a pair whose first item is a task whose result will be the quasi http response
         /// processed by this tranport instance; and whose second task is handle that can be used
         /// to attempt cancelling the send request.</returns>
-        (Task<IQuasiHttpResponse>, object) ProcessSendRequest(IQuasiHttpRequest request,
+        (Task<IDirectSendResult>, object) ProcessSendRequest(IQuasiHttpRequest request,
                IConnectivityParams connectivityParams);
 
         /// <summary>

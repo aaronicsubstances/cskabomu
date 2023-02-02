@@ -1,18 +1,16 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.MemoryBasedTransport
+namespace Kabomu.Tests.MemoryBasedTransport
 {
     /// <summary>
-    /// Implements the standard in-memory client-side quasi http transport provided by the
-    /// Kabomu library, which can act both connection-oriented mode and alternative transport mode.
+    /// Simulates the client-side of connection-oriented transports.
     /// </summary>
-    public class MemoryBasedClientTransport : IQuasiHttpClientTransport, IQuasiHttpAltTransport
+    public class MemoryBasedClientTransport : IQuasiHttpClientTransport
     {
         /// <summary>
         /// Creates a new instance of the <see cref="MemoryBasedClientTransport"/> class.
@@ -27,54 +25,10 @@ namespace Kabomu.MemoryBasedTransport
         public object LocalEndpoint { get; set; }
 
         /// <summary>
-        /// Gets or sets the virtual hub of servers connected to an instance of this class. Direct request processing
-        /// and indirect request proessing via connection allocation are both done through this dependency.
+        /// Gets or sets the virtual hub of servers connected to an instance of this class.
+        /// Connection allocation is done through this dependency.
         /// </summary>
         public IMemoryBasedTransportHub Hub { get; set; }
-
-        /// <summary>
-        /// Gets or sets the maximum write buffer limit for connections which will be allocated by
-        /// this class. A positive value means that
-        /// any attempt to write (excluding last writes) such that the total number of
-        /// bytse outstanding tries to exceed that positive value, will result in an instance of the
-        /// <see cref="DataBufferLimitExceededException"/> class to be thrown.
-        /// <para></para>
-        /// By default this property is zero, and so indicates that the default value of 65,6536 bytes
-        /// will be used as the maximum write buffer limit.
-        /// </summary>
-        public int MaxWriteBufferLimit { get; set; }
-
-        /// <summary>
-        /// Processes send requests directly by forwarding to the <see cref="Hub"/> dependency.
-        /// </summary>
-        /// <param name="request">the quasi http request to send.</param>
-        /// <param name="connectivityParams">server endpoint information as required by <see cref="Hub"/> dependency</param>
-        /// <returns>a pair whose first item is a task whose result will be the quasi http response
-        /// processed by this tranport instance; and whose second task is always null to indicate that
-        /// this class does not support cancellation requests.</returns>
-        /// <exception cref="MissingDependencyException">The <see cref="Hub"/> property is null.</exception>
-        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(IQuasiHttpRequest request,
-            IConnectivityParams connectivityParams)
-        {
-            var hub = Hub;
-            if (hub == null)
-            {
-                throw new MissingDependencyException("transport hub");
-            }
-            var resTask = hub.ProcessSendRequest(this, connectivityParams, request);
-            object sendCancellationHandle = null;
-            return (resTask, sendCancellationHandle);
-        }
-
-        /// <summary>
-        /// This implementation of the <see cref="IQuasiHttpAltTransport"/> type does nothing
-        /// about cancellation of direct send requests.
-        /// </summary>
-        /// <param name="sendCancellationHandle">will be ignored.</param>
-        public void CancelSendRequest(object sendCancellationHandle)
-        {
-            // do nothing.
-        }
 
         /// <summary>
         /// Allocates connections by forwarding to the <see cref="Hub"/> dependency.

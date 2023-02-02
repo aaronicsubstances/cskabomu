@@ -10,7 +10,7 @@ namespace Kabomu.Tests.Shared
 {
     public class ConfigurableQuasiHttpTransport : IQuasiHttpServerTransport, IQuasiHttpClientTransport, IQuasiHttpAltTransport
     {
-        public Func<IQuasiHttpRequest, IConnectivityParams, (Task<IQuasiHttpResponse>, object)> ProcessSendRequestCallback { get; set; }
+        public Func<IQuasiHttpRequest, IConnectivityParams, (Task<IDirectSendResult>, object)> ProcessSendRequestCallback { get; set; }
         public Action<object> CancelSendRequestCallback { get; set; }
         public Func<IConnectivityParams, Task<IConnectionAllocationResponse>> AllocateConnectionCallback { get; set; }
         public Func<object, Task> ReleaseConnectionCallback { get; set; }
@@ -22,7 +22,7 @@ namespace Kabomu.Tests.Shared
         public Func<Task<IConnectionAllocationResponse>> ReceiveConnectionCallback { get; set; }
         public IMutexApi MutexApi { get; set; }
 
-        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(IQuasiHttpRequest request,
+        public (Task<IDirectSendResult>, object) ProcessSendRequest(IQuasiHttpRequest request,
             IConnectivityParams connectivityParams)
         {
             return ProcessSendRequestCallback.Invoke(request, connectivityParams);

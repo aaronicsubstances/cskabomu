@@ -26,7 +26,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     ProcessSendRequestCallback = (req, connectivityParams) =>
                     {
-                        return (Task.FromResult((IQuasiHttpResponse)null), (object)null);
+                        return (Task.FromResult(new DefaultDirectSendResult() as IDirectSendResult),
+                            (object)null);
                     }
                 };
                 var instance = new AltSendProtocolInternal
@@ -55,7 +56,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     Assert.Same(request, actualRequest);
                     Assert.Same(connectivityParams, actualConnectivityParams);
-                    return (Task.FromResult((IQuasiHttpResponse)response), sendCancellationHandle);
+                    IDirectSendResult result = new DefaultDirectSendResult
+                    {
+                        Response = response
+                    };
+                    return (Task.FromResult(result), sendCancellationHandle);
                 },
                 CancelSendRequestCallback = (actualSendCancellationHandle) =>
                 {
@@ -93,9 +98,13 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ProcessSendRequestCallback = (actualRequest, actualConnectivityParams) =>
                 {
-                    Assert.Same(request, actualRequest);
+                    Assert.NotSame(request, actualRequest);
                     Assert.Same(connectivityParams, actualConnectivityParams);
-                    return (Task.FromResult((IQuasiHttpResponse)expectedResponse), (object)null);
+                    IDirectSendResult result = new DefaultDirectSendResult
+                    {
+                        Response = expectedResponse
+                    };
+                    return (Task.FromResult(result), (object)null);
                 },
                 CancelSendRequestCallback = _ => Task.FromException(new NotImplementedException())
             };
@@ -104,7 +113,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ConnectivityParams = connectivityParams,
                 ResponseBufferingEnabled = false,
                 MaxChunkSize = 10,
-                TransportBypass = transport
+                TransportBypass = transport,
+                RequestWrappingEnabled = true
             };
             var response = await instance.Send(request);
             Assert.False(expectedResponse.CloseCalled);
@@ -120,7 +130,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         {
             var request = new DefaultQuasiHttpRequest();
             IConnectivityParams connectivityParams = null;
-            var expectedResponse = new ErrorQuasiHttpResponse();
+            var expectedResponse = new QuasiHttpResponseImpl2();
             var sendCancellationHandle = new object();
             var cancelSendCalled = false;
             var transport = new ConfigurableQuasiHttpTransport
@@ -129,7 +139,12 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     Assert.Same(request, actualRequest);
                     Assert.Same(connectivityParams, actualConnectivityParams);
-                    return (Task.FromResult((IQuasiHttpResponse)expectedResponse), sendCancellationHandle);
+                    IDirectSendResult result = new DefaultDirectSendResult
+                    {
+                        Response = expectedResponse,
+                        ResponseBufferingApplied = true
+                    };
+                    return (Task.FromResult(result), sendCancellationHandle);
                 },
                 CancelSendRequestCallback = (actualSendCancellationHandle) =>
                 {
@@ -142,15 +157,19 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ConnectivityParams = connectivityParams,
                 ResponseBufferingEnabled = false,
-                TransportBypass = transport
+                TransportBypass = transport,
+                ResponseWrappingEnabled  = true
             };
             var response = await instance.Send(request);
             Assert.True(expectedResponse.CloseCalled);
-            Assert.Same(expectedResponse, response?.Response);
-            Assert.Equal(false, response?.ResponseBufferingApplied);
+            Assert.NotSame(expectedResponse, response?.Response);
+            Assert.Equal(true, response?.ResponseBufferingApplied);
 
             instance.Cancel();
             Assert.True(cancelSendCalled);
+
+            await ComparisonUtils.CompareResponses(instance.MaxChunkSize,
+                expectedResponse, response?.Response, null);
         }
 
         [Fact]
@@ -174,7 +193,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     Assert.Same(request, actualRequest);
                     Assert.Same(connectivityParams, actualConnectivityParams);
-                    return (Task.FromResult((IQuasiHttpResponse)expectedResponse), sendCancellationHandle);
+                    IDirectSendResult result = new DefaultDirectSendResult
+                    {
+                        Response = expectedResponse
+                    };
+                    return (Task.FromResult(result), sendCancellationHandle);
                 },
                 CancelSendRequestCallback = (actualSendCancellationHandle) =>
                 {
@@ -213,7 +236,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     Assert.Same(request, actualRequest);
                     Assert.Same(connectivityParams, actualConnectivityParams);
-                    return (Task.FromResult((IQuasiHttpResponse)expectedResponse), sendCancellationHandle);
+                    IDirectSendResult result = new DefaultDirectSendResult
+                    {
+                        Response = expectedResponse
+                    };
+                    return (Task.FromResult(result), sendCancellationHandle);
                 },
                 CancelSendRequestCallback = (actualSendCancellationHandle) =>
                 {

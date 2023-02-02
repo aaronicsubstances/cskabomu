@@ -23,7 +23,9 @@ remaining
 *Remove resets - done
 --hence stop storing transfers - done
 
--create memorybasedtransport in examples
+-create memorybasedtransport in examples - done.
+
+-refactor Kabomu.Mediator to let application return directsendresult
 
 *reconsider use of callbacks for other languages lacking async/await syntax now that memorybasedtransport has been removed.
 

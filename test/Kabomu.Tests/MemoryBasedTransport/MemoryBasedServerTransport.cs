@@ -5,11 +5,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Kabomu.MemoryBasedTransport
+namespace Kabomu.Tests.MemoryBasedTransport
 {
     /// <summary>
-    /// Implements the standard in-memory connection-oriented server-side quasi http transport provided by the
-    /// Kabomu library.
+    /// Simulates the server-side of connection-oriented transports.
     /// </summary>
     public class MemoryBasedServerTransport : IQuasiHttpServerTransport
     {
@@ -28,18 +27,6 @@ namespace Kabomu.MemoryBasedTransport
         }
 
         /// <summary>
-        /// Gets or sets the maximum write buffer limit for connections which will be created by
-        /// this class. A positive value means that
-        /// any attempt to write (excluding last writes) such that the total number of
-        /// bytse outstanding tries to exceed that positive value, will result in an instance of the
-        /// <see cref="DataBufferLimitExceededException"/> class to be thrown.
-        /// <para></para>
-        /// By default this property is zero, and so indicates that the default value of 65,6536 bytes
-        /// will be used as the maximum write buffer limit.
-        /// </summary>
-        public int MaxWriteBufferLimit { get; set; }
-
-        /// <summary>
         /// Gets or sets mutex api used to guard multithreaded 
         /// access to connection creation operations of this class.
         /// </summary>
@@ -48,16 +35,6 @@ namespace Kabomu.MemoryBasedTransport
         /// this property except for advanced scenarios.
         /// </remarks>
         public IMutexApi MutexApi { get; set; }
-
-        /// <summary>
-        /// Gets or sets factory for supplying alternative to ordinary lock objects used to guard multithreaded access
-        /// to connection usage opertions of this class
-        /// </summary>
-        /// <remarks> 
-        /// A factory supplying ordinary lock objects is the initial value for this property, and so there is no need to modify
-        /// this property except for advanced scenarios.
-        /// </remarks>
-        public IMutexApiFactory MutexApiFactory { get; set; }
 
         /// <summary>
         /// Determines whether an instance of this class has been started.
@@ -109,11 +86,10 @@ namespace Kabomu.MemoryBasedTransport
             }
         }
 
-        internal async Task<IConnectionAllocationResponse> CreateConnectionForClient(object serverEndpoint, object clientEndpoint,
-            int clientMaxWriteBufferLimit)
+        internal async Task<IConnectionAllocationResponse> CreateConnectionForClient(
+            object serverEndpoint, object clientEndpoint)
         {
             Task<IConnectionAllocationResponse> connectTask;
-            Task resolveTask = null;
             using (await MutexApi.Synchronize())
             {
                 if (!_running)
@@ -124,7 +100,6 @@ namespace Kabomu.MemoryBasedTransport
                 {
                     ServerEndpoint = serverEndpoint,
                     ClientEndpoint = clientEndpoint,
-                    MaxWriteBufferLimit = clientMaxWriteBufferLimit,
                     Callback = new TaskCompletionSource<IConnectionAllocationResponse>(
                         TaskCreationOptions.RunContinuationsAsynchronously)
                 };
@@ -132,26 +107,10 @@ namespace Kabomu.MemoryBasedTransport
                 connectTask = connectRequest.Callback.Task;
                 if (_serverConnectRequests.Count > 0)
                 {
-                    resolveTask = ResolvePendingReceiveConnection();
+                    ResolvePendingReceiveConnection();
                 }
             }
-            if (resolveTask != null)
-            {
-                await resolveTask;
-            }
             return await connectTask;
-        }
-
-        internal static Dictionary<string, object> CreateRequestEnvironment(
-            object serverEndpoint, object clientEndpoint)
-        {
-            // can later pass in server and client endpoint information.
-            var environment = new Dictionary<string, object>
-            {
-                { TransportUtils.ReqEnvKeyLocalPeerEndpoint, serverEndpoint },
-                { TransportUtils.ReqEnvKeyRemotePeerEndpoint, clientEndpoint },
-            };
-            return environment;
         }
 
         /// <summary>
@@ -169,7 +128,6 @@ namespace Kabomu.MemoryBasedTransport
         private async Task<IConnectionAllocationResponse> CreateConnectionForServer()
         {
             Task<IConnectionAllocationResponse> connectTask;
-            Task resolveTask = null;
             using (await MutexApi.Synchronize())
             {
                 if (!_running)
@@ -185,17 +143,13 @@ namespace Kabomu.MemoryBasedTransport
                 connectTask = serverConnectRequest.Callback.Task;
                 if (_clientConnectRequests.Count > 0)
                 {
-                    resolveTask = ResolvePendingReceiveConnection();
+                    ResolvePendingReceiveConnection();
                 }
-            }
-            if (resolveTask != null)
-            {
-                await resolveTask;
             }
             return await connectTask;
         }
 
-        private async Task ResolvePendingReceiveConnection()
+        private void ResolvePendingReceiveConnection()
         {
             var pendingServerConnectRequest = _serverConnectRequests.First.Value;
             var pendingClientConnectRequest = _clientConnectRequests.First.Value;
@@ -207,22 +161,10 @@ namespace Kabomu.MemoryBasedTransport
             _serverConnectRequests.RemoveFirst();
             _clientConnectRequests.RemoveFirst();
 
-            IMutexApi serverSideMutexApi = null, clientSideMutexApi = null;
-            if (MutexApiFactory != null)
-            {
-                serverSideMutexApi = await MutexApiFactory.Create();
-                clientSideMutexApi = await MutexApiFactory.Create();
-            }
-            var connection = new MemoryBasedTransportConnectionInternal(
-                serverSideMutexApi, clientSideMutexApi, 
-                MaxWriteBufferLimit, pendingClientConnectRequest.MaxWriteBufferLimit);
-            var requestEnvironment = CreateRequestEnvironment(
-                pendingClientConnectRequest.ServerEndpoint,
-                pendingClientConnectRequest.ClientEndpoint);
+            var connection = new MemoryBasedTransportConnectionInternal();
             var connectionAllocationResponseForServer = new DefaultConnectionAllocationResponse
             {
-                Connection = connection,
-                Environment = requestEnvironment
+                Connection = connection
             };
             var connectionAllocationResponseForClient = new DefaultConnectionAllocationResponse
             {
@@ -343,7 +285,6 @@ namespace Kabomu.MemoryBasedTransport
             public object ServerEndpoint { get; set; }
             public object ClientEndpoint { get; set; }
             public TaskCompletionSource<IConnectionAllocationResponse> Callback { get; set; }
-            public int MaxWriteBufferLimit { get; set; }
         }
     }
 }

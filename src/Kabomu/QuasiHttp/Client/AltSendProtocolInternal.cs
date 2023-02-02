@@ -70,19 +70,14 @@ namespace Kabomu.QuasiHttp.Client
             // it is not a problem if this call exceeds timeout before returning, since
             // cancellation handle has already been saved within same mutex as Cancel(),
             // and so Cancel() will definitely see the cancellation handle and make use of it.
-            IQuasiHttpResponse response = await cancellableResTask.Item1;
-            IDirectSendResult sendResult = new DefaultDirectSendResult
-            {
-                Response = response
-            };
+            IDirectSendResult sendResult = await cancellableResTask.Item1;
 
             if (sendResult?.Response == null)
             {
                 throw new ExpectationViolationException("no response");
             }
 
-            response = sendResult.Response;
-
+            var response = sendResult.Response;
             var responseBody = response.Body;
             bool responseBufferingApplied = false;
             try
