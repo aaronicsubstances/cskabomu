@@ -4,19 +4,20 @@ Kabomu is a networking library that extends the semantics of HTTP to transports 
 
 Such applications are termed "quasi web applications" in Kabomu. The end result is that Kabomu enables building quasi web applications that can connect endpoints within localhost and even within an OS process, through IPC mechanisms other than TCP.
 
-## Mission
+## Purpose
 
-Overall mission starts with enforcing the architecture of monolithic applications and better preparing them for evolution to distributed systems, through
+Kabomu seeks to demonstrate the following:
 
-1. extending powers of local procedure call via shared memory, to quasi procedure calls (potentially involving a network) via message passing
-2. support for input and output stream parameters, to prepare for all kinds of message passing
-3. serializable input and output parameters, to prepare for transportation of messages across a network.
-4. quasi web requests, to provide alternative request-response protocols resembling http, and also to ease transition to http usage
-5. quasi web mail, for deferred processing thanks to log-based message brokers, callbacks stored in memory cache and callback responses raced with timeouts, for simulating deferred processing as immediate processing.
+1. *Quasi procedure call framework*, i.e. offers improvement over RPC frameworks such as Protocol Buffers and Apache Thrift, by offering stream input parameters, stream return/output values, flexible timeout specification, non-TCP transports and a transition path to HTTP.
+
+2. *Quasi web protocol*, i.e. offers an HTTP-like abstraction which can be executed in memory, with IPC mechanisms, or as actual HTTP.
+
+3. *Cross-platform quasi web framework*, i.e. offers a web framework pattern which can be shared across programming languages, and does not assume the use of actual HTTP.
+
 
 ## Design
 
-1. Deployment enviroment: mainly localhost, and then the Internet via HTTP.
+1. Deployment enviroment: mainly localhost, but can include in-memory process and the Internet via HTTP.
 
 1. Quasi web transports provided by default: memory, localhost TCP, unix domain socket, windows named pipe, HTTP.
    1. *Support for HTTP makes it possible to use Kabomu with any HTTP client library.*
@@ -28,7 +29,7 @@ Overall mission starts with enforcing the architecture of monolithic application
    1. Also leverages atomic compare-and-swap CPU instructions to skip mutual exclusion entirely where possible.
 
 3. Quasi web request processing strategies: one of the following
-   1. use Kabomu.Mediator: it is a quasi web framework that was inspired by [ExpressJS](https://expressjs.com/) and [Ratpack](https://ratpack.io/).
+   1. use Kabomu.Mediator: it is a quasi web framework that was inspired by [ExpressJS](https://expressjs.com/) and [Ratpack](https://ratpack.io/) and meant to be implemented in multiple programming languages. It is called "quasi web framework" because it does not assume the use of TCP.
    2. use an existing web server gateway interface (e.g. Python WSGI, C#.NET OWIN, Java Servlet, Ruby Rack) and hook it to a quasi web transport. Existing web frameworks can then be used as usual.
    3. use data transfer objects to separate concerns between services and access points:
        1. Assume that the services to be developed with favourite web framework can be accesssed by different web framework or networking protocol aside HTTP, with different security policies and serialization mechanisms.
