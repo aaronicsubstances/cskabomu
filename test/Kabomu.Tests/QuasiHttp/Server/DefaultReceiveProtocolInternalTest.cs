@@ -139,18 +139,18 @@ namespace Kabomu.Tests.QuasiHttp.Server
             {
                 ReadBytesCallback = async (actualConnection, data, offset, length) =>
                 {
-                    Assert.Equal(connection, actualConnection);
+                    Assert.Same(connection, actualConnection);
                     var bytesRead = inputStream.Read(data, offset, length);
                     return bytesRead;
                 },
                 WriteBytesCallback = async (actualConnection, data, offset, length) =>
                 {
-                    Assert.Equal(connection, actualConnection);
+                    Assert.Same(connection, actualConnection);
                     outputStream.Write(data, offset, length);
                 },
                 ReleaseConnectionCallback = (actualConnection) =>
                 {
-                    Assert.Equal(connection, actualConnection);
+                    Assert.Same(connection, actualConnection);
                     return Task.CompletedTask;
                 },
             };

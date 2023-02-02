@@ -92,6 +92,12 @@ namespace Kabomu.Tests.Shared
             IQuasiHttpResponse expected, IQuasiHttpResponse actual,
             byte[] expectedResBodyBytes)
         {
+            if (expected == null)
+            {
+                Assert.Null(actual);
+                return;
+            }
+            Assert.NotNull(actual);
             Assert.Equal(expected.StatusCode, actual.StatusCode);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
             Assert.Equal(expected.HttpStatusMessage, actual.HttpStatusMessage);

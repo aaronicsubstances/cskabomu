@@ -229,12 +229,11 @@ namespace Kabomu.QuasiHttp.Server
             var transfer = new ReceiveTransferInternal
             {
                 Transport = transport,
-                Connection = connectionResponse.Connection,
-                CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
-                    TaskCreationOptions.RunContinuationsAsynchronously)
+                Connection = connectionResponse.Connection
             };
 
-            Task workTask;
+            Task<IQuasiHttpResponse> workTask;
+            Task<IQuasiHttpResponse> cancellationTask = null;
             using (await MutexApi.Synchronize())
             {
                 transfer.TimerApi = TimerApi;
@@ -244,31 +243,33 @@ namespace Kabomu.QuasiHttp.Server
                     null, DefaultProcessingOptions?.TimeoutMillis, 0);
                 transfer.SetReceiveTimeout();
 
+                if (transfer.TimeoutId != null)
+                {
+                    transfer.CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    cancellationTask = transfer.CancellationTcs.Task;
+                }
+
                 transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     null, DefaultProcessingOptions?.MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
 
                 transfer.RequestEnvironment = ProtocolUtilsInternal.DetermineEffectiveOptions(
                     connectionResponse.Environment, DefaultProcessingOptions?.RequestEnvironment);
 
-                workTask = ProcessDefaultTransfer(transfer);
+
+                transfer.Protocol = new DefaultReceiveProtocolInternal
+                {
+                    MaxChunkSize = transfer.MaxChunkSize,
+                    Application = Application,
+                    Transport = transfer.Transport,
+                    Connection = transfer.Connection,
+                    RequestEnvironment = transfer.RequestEnvironment
+                };
+                workTask = transfer.StartProtocol();
             }
 
-            await CompleteReceiveProcessing(transfer, workTask,
+            await ProtocolUtilsInternal.CompleteRequestProcessing(transfer, workTask, cancellationTask,
                 "encountered error during receive connection processing");
-        }
-
-        private async Task ProcessDefaultTransfer(ReceiveTransferInternal transfer)
-        {
-            var protocol = new DefaultReceiveProtocolInternal
-            {
-                MaxChunkSize = transfer.MaxChunkSize,
-                Application = Application,
-                Transport = transfer.Transport,
-                Connection = transfer.Connection,
-                RequestEnvironment = transfer.RequestEnvironment
-            };
-            await protocol.Receive();
-            await transfer.Abort(null, null);
         }
 
         /// <summary>
@@ -295,18 +296,11 @@ namespace Kabomu.QuasiHttp.Server
             var transfer = new ReceiveTransferInternal
             {
                 Request = request,
-                ProcessingOptions = options,
-                CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
-                    TaskCreationOptions.RunContinuationsAsynchronously)
+                ProcessingOptions = options
             };
-            Task workTask = ProcessSendToApplication(transfer);
-            return await CompleteReceiveProcessing(transfer, workTask,
-                "encountered error during receive request processing");
-        }
 
-        private async Task ProcessSendToApplication(ReceiveTransferInternal transfer)
-        {
             Task<IQuasiHttpResponse> workTask;
+            Task<IQuasiHttpResponse> cancellationTask = null;
             using (await MutexApi.Synchronize())
             {
                 transfer.TimerApi = TimerApi;
@@ -316,47 +310,26 @@ namespace Kabomu.QuasiHttp.Server
                     transfer.ProcessingOptions?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
                 transfer.SetReceiveTimeout();
 
+                if (transfer.TimeoutId != null)
+                {
+                    transfer.CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    cancellationTask = transfer.CancellationTcs.Task;
+                }
+
                 transfer.RequestEnvironment = ProtocolUtilsInternal.DetermineEffectiveOptions(
                     transfer.ProcessingOptions?.RequestEnvironment, DefaultProcessingOptions?.RequestEnvironment);
 
-                var protocol = new AltReceiveProtocolInternal
+                transfer.Protocol = new AltReceiveProtocolInternal
                 {
                     Application = Application,
+                    Request = transfer.Request,
                     RequestEnvironment = transfer.RequestEnvironment
                 };
-                workTask = protocol.SendToApplication(transfer.Request);
+                workTask = transfer.StartProtocol();
             }
-
-            var res = await workTask;
-            await transfer.Abort(null, res);
-        }
-
-        private async Task<IQuasiHttpResponse> CompleteReceiveProcessing(ReceiveTransferInternal transfer,
-            Task workTask, string errorMessage)
-        {
-            var firstCompletedTask = await Task.WhenAny(transfer.CancellationTcs.Task, workTask);
-            try
-            {
-                await firstCompletedTask;
-            }
-            catch (Exception e)
-            {
-                // let call to abort transfer determine whether exception is significant.
-                QuasiHttpRequestProcessingException abortError;
-                if (e is QuasiHttpRequestProcessingException quasiHttpError)
-                {
-                    abortError = quasiHttpError;
-                }
-                else
-                {
-                    abortError = new QuasiHttpRequestProcessingException(
-                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
-                        errorMessage, e);
-                }
-                await transfer.Abort(abortError, null);
-            }
-
-            return await transfer.CancellationTcs.Task;
+            return await ProtocolUtilsInternal.CompleteRequestProcessing(transfer, workTask, cancellationTask,
+                "encountered error during receive request processing");
         }
     }
 }

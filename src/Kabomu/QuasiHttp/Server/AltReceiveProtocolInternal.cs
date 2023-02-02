@@ -6,19 +6,31 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.Server
 {
-    internal class AltReceiveProtocolInternal
+    internal class AltReceiveProtocolInternal: IReceiveProtocolInternal
     {
         public IQuasiHttpApplication Application { get; set; }
+        public IQuasiHttpRequest Request { get; set; }
         public IDictionary<string, object> RequestEnvironment { get; set; }
 
-        public async Task<IQuasiHttpResponse> SendToApplication(IQuasiHttpRequest request)
+        public void Cancel()
+        {
+            Application = null;
+            Request = null;
+            RequestEnvironment = null;
+        }
+
+        public async Task<IQuasiHttpResponse> Receive()
         {
             if (Application == null)
             {
                 throw new MissingDependencyException("application");
             }
+            if (Request == null)
+            {
+                throw new MissingDependencyException("request");
+            }
 
-            var res = await Application.ProcessRequest(request, RequestEnvironment);
+            var res = await Application.ProcessRequest(Request, RequestEnvironment);
 
             if (res == null)
             {

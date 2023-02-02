@@ -1,6 +1,5 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
-using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Server;
 using Kabomu.Tests.Shared;
 using System;
@@ -15,14 +14,20 @@ namespace Kabomu.Tests.QuasiHttp.Server
     {
 
         [Fact]
-        public async Task TestSendToApplicationForDependencyErrors()
+        public async Task TestReceiveForDependencyErrors()
         {
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                new AltReceiveProtocolInternal().SendToApplication(new DefaultQuasiHttpRequest()));
+            {
+                var instance = new AltReceiveProtocolInternal
+                {
+                    Request = new DefaultQuasiHttpRequest()
+                };
+                return instance.Receive();
+            });
         }
 
         [Fact]
-        public async Task TestSendToApplicationForRejectionOfNullResponses()
+        public async Task TestReceiveForRejectionOfNullResponses()
         {
             var app = new ConfigurableQuasiHttpApplication
             {
@@ -31,25 +36,26 @@ namespace Kabomu.Tests.QuasiHttp.Server
                     return null;
                 }
             };
-            var instance = new AltReceiveProtocolInternal
-            {
-                Application = app,
-            };
             await Assert.ThrowsAsync<ExpectationViolationException>(() =>
             {
-                return instance.SendToApplication(new DefaultQuasiHttpRequest());
+                var instance = new AltReceiveProtocolInternal
+                {
+                    Application = app,
+                    Request = new DefaultQuasiHttpRequest()
+                };
+                return instance.Receive();
             });
         }
 
         [Fact]
-        public async Task TestSendToApplication()
+        public async Task TestReceive()
         {
             var request = new DefaultQuasiHttpRequest();
             var reqEnv = new Dictionary<string, object>
             {
                 { "shared", true }
             };
-            var expectedResponse = new ErrorQuasiHttpResponse();
+            var expectedResponse = new DefaultQuasiHttpResponse();
             var app = new ConfigurableQuasiHttpApplication
             {
                 ProcessRequestCallback = async (actualRequest, actualReqEnv) =>
@@ -61,29 +67,12 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             var instance = new AltReceiveProtocolInternal
             {
+                Request = request,
                 RequestEnvironment = reqEnv,
                 Application = app
             };
-            var actualResponse = await instance.SendToApplication(request);
-            Assert.Equal(expectedResponse, actualResponse);
-        }
-
-        class ErrorQuasiHttpResponse : IQuasiHttpResponse
-        {
-            public string HttpStatusMessage => throw new NotImplementedException();
-
-            public IDictionary<string, IList<string>> Headers => throw new NotImplementedException();
-
-            public IQuasiHttpBody Body => throw new NotImplementedException();
-
-            public int StatusCode => throw new NotImplementedException();
-
-            public string HttpVersion => throw new NotImplementedException();
-
-            public Task Close()
-            {
-                throw new NotImplementedException();
-            }
+            var actualResponse = await instance.Receive();
+            Assert.Same(expectedResponse, actualResponse);
         }
     }
 }

@@ -53,14 +53,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ProcessSendRequestCallback = (actualRequest, actualConnectivityParams) =>
                 {
-                    Assert.Equal(request, actualRequest);
-                    Assert.Equal(connectivityParams, actualConnectivityParams);
+                    Assert.Same(request, actualRequest);
+                    Assert.Same(connectivityParams, actualConnectivityParams);
                     return (Task.FromResult((IQuasiHttpResponse)response), sendCancellationHandle);
                 },
                 CancelSendRequestCallback = (actualSendCancellationHandle) =>
                 {
                     Assert.False(cancelSendCalled);
-                    Assert.Equal(sendCancellationHandle, actualSendCancellationHandle);
+                    Assert.Same(sendCancellationHandle, actualSendCancellationHandle);
                     cancelSendCalled = true;
                 }
             };
@@ -93,8 +93,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ProcessSendRequestCallback = (actualRequest, actualConnectivityParams) =>
                 {
-                    Assert.Equal(request, actualRequest);
-                    Assert.Equal(connectivityParams, actualConnectivityParams);
+                    Assert.Same(request, actualRequest);
+                    Assert.Same(connectivityParams, actualConnectivityParams);
                     return (Task.FromResult((IQuasiHttpResponse)expectedResponse), (object)null);
                 },
                 CancelSendRequestCallback = _ => Task.FromException(new NotImplementedException())
@@ -108,7 +108,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var response = await instance.Send(request);
             Assert.False(expectedResponse.CloseCalled);
-            Assert.Equal(expectedResponse, response?.Response);
+            Assert.Same(expectedResponse, response?.Response);
+            Assert.Equal(false, response?.ResponseBufferingApplied);
 
             // test successful cancellation due to null cancellation handle
             instance.Cancel();
@@ -126,14 +127,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ProcessSendRequestCallback = (actualRequest, actualConnectivityParams) =>
                 {
-                    Assert.Equal(request, actualRequest);
-                    Assert.Equal(connectivityParams, actualConnectivityParams);
+                    Assert.Same(request, actualRequest);
+                    Assert.Same(connectivityParams, actualConnectivityParams);
                     return (Task.FromResult((IQuasiHttpResponse)expectedResponse), sendCancellationHandle);
                 },
                 CancelSendRequestCallback = (actualSendCancellationHandle) =>
                 {
                     Assert.False(cancelSendCalled);
-                    Assert.Equal(sendCancellationHandle, actualSendCancellationHandle);
+                    Assert.Same(sendCancellationHandle, actualSendCancellationHandle);
                     cancelSendCalled = true;
                 }
             };
@@ -145,7 +146,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var response = await instance.Send(request);
             Assert.True(expectedResponse.CloseCalled);
-            Assert.Equal(expectedResponse, response?.Response);
+            Assert.Same(expectedResponse, response?.Response);
+            Assert.Equal(false, response?.ResponseBufferingApplied);
 
             instance.Cancel();
             Assert.True(cancelSendCalled);
@@ -170,14 +172,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ProcessSendRequestCallback = (actualRequest, actualConnectivityParams) =>
                 {
-                    Assert.Equal(request, actualRequest);
-                    Assert.Equal(connectivityParams, actualConnectivityParams);
+                    Assert.Same(request, actualRequest);
+                    Assert.Same(connectivityParams, actualConnectivityParams);
                     return (Task.FromResult((IQuasiHttpResponse)expectedResponse), sendCancellationHandle);
                 },
                 CancelSendRequestCallback = (actualSendCancellationHandle) =>
                 {
                     Assert.False(cancelSendCalled);
-                    Assert.Equal(sendCancellationHandle, actualSendCancellationHandle);
+                    Assert.Same(sendCancellationHandle, actualSendCancellationHandle);
                     cancelSendCalled = true;
                 }
             };
@@ -189,7 +191,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var response = await instance.Send(request);
             Assert.True(expectedResponse.CloseCalled);
-            Assert.Equal(expectedResponse, response?.Response);
+            Assert.Same(expectedResponse, response?.Response);
+            Assert.Equal(false, response?.ResponseBufferingApplied);
 
             instance.Cancel();
             Assert.True(cancelSendCalled);
@@ -208,14 +211,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ProcessSendRequestCallback = (actualRequest, actualConnectivityParams) =>
                 {
-                    Assert.Equal(request, actualRequest);
-                    Assert.Equal(connectivityParams, actualConnectivityParams);
+                    Assert.Same(request, actualRequest);
+                    Assert.Same(connectivityParams, actualConnectivityParams);
                     return (Task.FromResult((IQuasiHttpResponse)expectedResponse), sendCancellationHandle);
                 },
                 CancelSendRequestCallback = (actualSendCancellationHandle) =>
                 {
                     Assert.False(cancelSendCalled);
-                    Assert.Equal(sendCancellationHandle, actualSendCancellationHandle);
+                    Assert.Same(sendCancellationHandle, actualSendCancellationHandle);
                     cancelSendCalled = true;
                 }
             };
@@ -229,6 +232,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var response = await instance.Send(request);
             Assert.True(expectedResponse.CloseCalled);
+            Assert.Equal(true, response?.ResponseBufferingApplied);
             await ComparisonUtils.CompareResponses(instance.MaxChunkSize,
                 expectedResponse, response?.Response, expectedResBodyBytes);
 

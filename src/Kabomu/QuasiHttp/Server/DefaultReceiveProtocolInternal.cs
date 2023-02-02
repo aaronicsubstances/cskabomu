@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.Server
 {
-    internal class DefaultReceiveProtocolInternal
+    internal class DefaultReceiveProtocolInternal : IReceiveProtocolInternal
     {
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
@@ -17,7 +17,15 @@ namespace Kabomu.QuasiHttp.Server
         public int MaxChunkSize { get; set; }
         public IDictionary<string, object> RequestEnvironment { get; set; }
 
-        public Task Receive()
+        public void Cancel()
+        {
+            Application = null;
+            Transport = null;
+            Connection = null;
+            RequestEnvironment = null;
+        }
+
+        public async Task<IQuasiHttpResponse> Receive()
         {
             // assume properties are set correctly aside the transport and application.
             if (Transport == null)
@@ -28,10 +36,27 @@ namespace Kabomu.QuasiHttp.Server
             {
                 throw new MissingDependencyException("server application");
             }
-            return ReadRequestLeadChunk();
+
+            var request = await ReadRequestLeadChunk();
+
+            var response = await Application.ProcessRequest(request, RequestEnvironment);
+            if (response == null)
+            {
+                throw new ExpectationViolationException("no response");
+            }
+
+            try
+            {
+                await TransferResponseToTransport(response);
+                return null;
+            }
+            finally
+            {
+                await response.Close();
+            }
         }
 
-        private async Task ReadRequestLeadChunk()
+        private async Task<IQuasiHttpRequest> ReadRequestLeadChunk()
         {
             var chunk = await ChunkDecodingBody.ReadLeadChunk(Transport, Connection, MaxChunkSize);
 
@@ -54,22 +79,7 @@ namespace Kabomu.QuasiHttp.Server
                     request.Body = new ChunkDecodingBody(request.Body, MaxChunkSize);
                 }
             }
-
-            var response = await Application.ProcessRequest(request, RequestEnvironment); 
-            if (response == null)
-            {
-                throw new ExpectationViolationException("no response");
-            }
-
-            // ensure response is closed.
-            try
-            {
-                await TransferResponseToTransport(response);
-            }
-            finally
-            {
-                await response.Close();
-            }
+            return request;
         }
 
         private async Task TransferResponseToTransport(IQuasiHttpResponse response)

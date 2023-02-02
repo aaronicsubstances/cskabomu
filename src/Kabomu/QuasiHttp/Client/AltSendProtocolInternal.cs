@@ -11,6 +11,10 @@ namespace Kabomu.QuasiHttp.Client
     {
         private object _sendCancellationHandle;
 
+        public AltSendProtocolInternal()
+        {
+        }
+
         public IQuasiHttpAltTransport TransportBypass { get; set; }
         public IConnectivityParams ConnectivityParams { get; set; }
         public int MaxChunkSize { get; set; }
@@ -18,10 +22,6 @@ namespace Kabomu.QuasiHttp.Client
         public int ResponseBodyBufferingSizeLimit { get; set; }
         public bool RequestWrappingEnabled { get; set; }
         public bool ResponseWrappingEnabled { get; set; }
-
-        public AltSendProtocolInternal()
-        {
-        }
 
         public void Cancel()
         {
@@ -31,6 +31,9 @@ namespace Kabomu.QuasiHttp.Client
             {
                 TransportBypass.CancelSendRequest(_sendCancellationHandle);
             }
+            _sendCancellationHandle = null;
+            TransportBypass = null;
+            ConnectivityParams = null;
         }
 
         public async Task<ProtocolSendResult> Send(IQuasiHttpRequest request)

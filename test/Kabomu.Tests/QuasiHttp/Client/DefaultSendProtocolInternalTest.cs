@@ -51,18 +51,18 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ReadBytesCallback = async (actualConnection, data, offset, length) =>
                 {
-                    Assert.Equal(connection, actualConnection);
+                    Assert.Same(connection, actualConnection);
                     var bytesRead = inputStream.Read(data, offset, length);
                     return bytesRead;
                 },
                 WriteBytesCallback = async (actualConnection, data, offset, length) =>
                 {
-                    Assert.Equal(connection, actualConnection);
+                    Assert.Same(connection, actualConnection);
                     outputStream.Write(data, offset, length);
                 },
                 ReleaseConnectionCallback = (actualConnection) =>
                 {
-                    Assert.Equal(connection, actualConnection);
+                    Assert.Same(connection, actualConnection);
                     releaseCallCount++;
                     return Task.CompletedTask;
                 }
@@ -97,7 +97,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             // test cancellation after considering release call during comparison.
             releaseCallCount = 0;
             instance.Cancel();
-            Assert.Equal(1, releaseCallCount);
+            Assert.Equal(connection == null ? 0 : 1, releaseCallCount);
 
             // finally verify contents of output stream.
             var actualReq = outputStream.ToArray();

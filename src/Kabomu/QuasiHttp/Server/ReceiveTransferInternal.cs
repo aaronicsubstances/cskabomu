@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.Server
 {
-    internal class ReceiveTransferInternal
+    internal class ReceiveTransferInternal : IRequestProcessorInternal
     {
         public ITimerApi TimerApi { get; set; }
         public IMutexApi MutexApi { get; set; }
@@ -22,6 +22,7 @@ namespace Kabomu.QuasiHttp.Server
         public int MaxChunkSize { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
+        public IReceiveProtocolInternal Protocol { get; set; }
 
         public void SetReceiveTimeout()
         {
@@ -42,40 +43,56 @@ namespace Kabomu.QuasiHttp.Server
             }, TimeoutMillis).Item2;
         }
 
+        public async Task<IQuasiHttpResponse> StartProtocol()
+        {
+            var res = await Protocol.Receive();
+            await Abort(null, res);
+            return res;
+        }
+
+        public Task AbortWithError(Exception error)
+        {
+            return Abort(error, null);
+        }
+
         public async Task Abort(Exception cancellationError, IQuasiHttpResponse res)
         {
-            try
+            Task disableTransferTask;
+            using (await MutexApi.Synchronize())
             {
-                Task disableTransferTask;
-                using (await MutexApi.Synchronize())
+                if (IsAborted)
                 {
-                    if (IsAborted)
-                    {
-                        return;
-                    }
-                    disableTransferTask = Disable(cancellationError, res);
+                    return;
                 }
-                await disableTransferTask;
+                disableTransferTask = Disable(cancellationError, res);
             }
-            catch { } // ignore
+            MutexApi = null;
+            await disableTransferTask;
         }
 
         private async Task Disable(Exception cancellationError,
             IQuasiHttpResponse res)
         {
-            if (cancellationError != null)
-            {
-                CancellationTcs.SetException(cancellationError);
-            }
-            else
-            {
-                CancellationTcs.SetResult(res);
-            }
             IsAborted = true;
+
+            if (CancellationTcs != null)
+            {
+                if (cancellationError != null)
+                {
+                    CancellationTcs.SetException(cancellationError);
+                }
+                else
+                {
+                    CancellationTcs.SetResult(res);
+                }
+            }
+            CancellationTcs = null;
             if (TimeoutId != null)
             {
                 TimerApi.ClearTimeout(TimeoutId);
             }
+            TimeoutId = null;
+            TimerApi = null;
             if (Connection != null)
             {
                 try
@@ -84,18 +101,29 @@ namespace Kabomu.QuasiHttp.Server
                 }
                 catch (Exception) { }
             }
-            else
+            Connection = null;
+            if (Protocol != null)
             {
-                // close body of send to application request
-                if (Request?.Body != null)
+                try
                 {
-                    try
-                    {
-                        await Request.Body.EndRead();
-                    }
-                    catch (Exception) { }
+                    Protocol.Cancel();
                 }
+                catch { } // ignore
             }
+            Protocol = null;
+            // close body of send to application request
+            if (Request?.Body != null)
+            {
+                try
+                {
+                    await Request.Body.EndRead();
+                }
+                catch (Exception) { }
+            }
+            Request = null;
+            RequestEnvironment = null;
+            Transport = null;
+            ProcessingOptions = null;
         }
     }
 }

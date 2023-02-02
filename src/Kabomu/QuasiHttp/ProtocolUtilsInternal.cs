@@ -125,5 +125,47 @@ namespace Kabomu.QuasiHttp
                 };
             }
         }
+
+        public static async Task<IQuasiHttpResponse> CompleteRequestProcessing(
+            IRequestProcessorInternal transfer,
+            Task<IQuasiHttpResponse> workTask,
+            Task<IQuasiHttpResponse> cancellationTask, string errorMessage)
+        {
+            try
+            {
+                if (cancellationTask != null)
+                {
+                    await await Task.WhenAny(workTask, cancellationTask);
+                }
+                else
+                {
+                    return await workTask;
+                }
+            }
+            catch (Exception e)
+            {
+                // let call to abort transfer determine whether exception is significant.
+                QuasiHttpRequestProcessingException abortError;
+                if (e is QuasiHttpRequestProcessingException quasiHttpError)
+                {
+                    abortError = quasiHttpError;
+                }
+                else
+                {
+                    abortError = new QuasiHttpRequestProcessingException(
+                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                        errorMessage, e);
+                }
+                await transfer?.AbortWithError(abortError);
+                if (cancellationTask == null)
+                {
+                    throw abortError;
+                }
+            }
+
+            // by awaiting again for transfer cancellation, any significant error will bubble up, and
+            // any insignificant error will be swallowed.
+            return await cancellationTask;
+        }
     }
 }

@@ -24,21 +24,39 @@ namespace Kabomu.QuasiHttp.Client
 
         public void Cancel()
         {
-            // don't wait.
-            _ = Transport.ReleaseConnection(Connection);
+            if (Connection != null)
+            {
+                // don't wait.
+                _ = Transport.ReleaseConnection(Connection);
+            }
+            Connection = null;
+            Transport = null;
         }
 
-        public Task<ProtocolSendResult> Send(IQuasiHttpRequest request)
+        public async Task<ProtocolSendResult> Send(IQuasiHttpRequest request)
         {
             // assume properties are set correctly aside the transport.
             if (Transport == null)
             {
                 throw new MissingDependencyException("client transport");
             }
-            return SendRequestLeadChunk(request);
+            await SendRequestLeadChunk(request);
+            Task<ProtocolSendResult> resFetchTask = StartFetchingResponse();
+            if (request.Body != null)
+            {
+                Task reqTransferTask = TransferRequestBodyToTransport(request.Body);
+                // pass resFetchTask first so that hopefully even if both are completed, it
+                //  will still win.
+                if (await Task.WhenAny(resFetchTask, reqTransferTask) == reqTransferTask)
+                {
+                    // let any request transfer exceptions terminate entire processing.
+                    await reqTransferTask;
+                }
+            }
+            return await resFetchTask;
         }
 
-        private async Task<ProtocolSendResult> SendRequestLeadChunk(IQuasiHttpRequest request)
+        private async Task SendRequestLeadChunk(IQuasiHttpRequest request)
         {
             var chunk = new LeadChunk
             {
@@ -55,20 +73,6 @@ namespace Kabomu.QuasiHttp.Client
                 chunk.ContentType = request.Body.ContentType;
             }
             await ChunkEncodingBody.WriteLeadChunk(Transport, Connection, chunk, MaxChunkSize);
-
-            Task<ProtocolSendResult> resFetchTask = StartFetchingResponse();
-            if (request.Body != null)
-            {
-                Task reqTransferTask = TransferRequestBodyToTransport(request.Body);
-                // pass resFetchTask first so that hopefully even if both are completed, it
-                //  will still win.
-                if (await Task.WhenAny(resFetchTask, reqTransferTask) == reqTransferTask)
-                {
-                    // let any request transfer exceptions terminate entire processing.
-                    await reqTransferTask;
-                }
-            }
-            return await resFetchTask;
         }
 
         private async Task TransferRequestBodyToTransport(IQuasiHttpBody requestBody)
