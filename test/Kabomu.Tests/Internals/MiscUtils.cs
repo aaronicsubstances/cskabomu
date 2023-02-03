@@ -152,7 +152,7 @@ namespace Kabomu.Tests.Internals
 
         public static Task Delay(ITimerApi timerApi, int delay, Func<Task> cb)
         {
-            return timerApi.WhenSetTimeout(cb, delay).Item1;
+            return timerApi.WhenSetTimeout(delay, cb).Item1;
         }
     }
 }

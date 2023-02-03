@@ -474,14 +474,14 @@ namespace Kabomu.Tests.Concurrency
                 };
 
                 var related = new List<Task>();
-                var result = instance.WhenSetTimeout(cb, timeoutValue);
+                var result = instance.WhenSetTimeout(timeoutValue, cb);
                 related.Add(result.Item1);
                 cancellationHandles.Add(result.Item2);
 
                 // the rest should not execute.
                 for (int j = 0; j < 2; j++)
                 {
-                    result = instance.WhenSetTimeout(cb, timeoutValue);
+                    result = instance.WhenSetTimeout(timeoutValue, cb);
                     related.Add(result.Item1);
                     cancellationHandles.Add(result.Item2);
                 }
@@ -489,7 +489,7 @@ namespace Kabomu.Tests.Concurrency
             }
 
             // this must finish executing after all previous tasks have executed.
-            var lastOne = instance.WhenSetTimeout(() => Task.CompletedTask, 5000).Item1;
+            var lastOne = instance.WhenSetTimeout(5000);
 
             var maxPendingEventCount = instance.PendingEventCount; 
 
@@ -529,15 +529,15 @@ namespace Kabomu.Tests.Concurrency
             var instance = new VirtualTimeBasedEventLoopApi();
             var tcs = new TaskCompletionSource<object>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var laterTask = instance.WhenSetTimeout(() =>
+            var laterTask = instance.WhenSetTimeout(1800, () =>
             {
                 tcs.SetResult(null);
                 return Task.CompletedTask;
-            }, 1800).Item1;
-            var dependentTask = instance.WhenSetTimeout(async () =>
+            }).Item1;
+            var dependentTask = instance.WhenSetTimeout(500, async () =>
             {
                 await tcs.Task;
-            }, 500).Item1;
+            }).Item1;
 
             // act
             await instance.AdvanceTimeTo(2_000);

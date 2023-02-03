@@ -117,7 +117,7 @@ namespace Kabomu.QuasiHttp.Server
             }
 
             // close body of request received for direct send to application
-            if (Request.Body != null)
+            if (Request?.Body != null)
             {
                 try
                 {

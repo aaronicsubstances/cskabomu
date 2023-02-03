@@ -27,22 +27,22 @@ namespace Kabomu.Tests.Concurrency
             var expected = new List<int> { 3, 2 };
             var actual = new List<int>();
 
-            var timeout1Result = instance.WhenSetTimeout(() =>
+            var timeout1Result = instance.WhenSetTimeout(3200, () =>
             {
                 actual.Add(1);
                 return Task.CompletedTask;
-            }, 3200);
-            var timeout2Result = instance.WhenSetTimeout(() =>
+            });
+            var timeout2Result = instance.WhenSetTimeout(3000,() =>
             {
                 actual.Add(2);
                 instance.ClearTimeout(timeout1Result.Item2);
                 return Task.CompletedTask;
-            }, 3000);
-            var timeout3Result = instance.WhenSetTimeout(() =>
+            });
+            var timeout3Result = instance.WhenSetTimeout(2000,() =>
             {
                 actual.Add(3);
                 return Task.CompletedTask;
-            }, 2000);
+            });
 
             // act.
             var starTime = DateTime.Now;
@@ -66,15 +66,15 @@ namespace Kabomu.Tests.Concurrency
             var instance = new DefaultTimerApi();
             var tcs = new TaskCompletionSource<object>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var laterTask = instance.WhenSetTimeout(() =>
+            var laterTask = instance.WhenSetTimeout(1800, () =>
             {
                 tcs.SetResult(null);
                 return Task.CompletedTask;
-            }, 1800).Item1;
-            var dependentTask = instance.WhenSetTimeout(async () =>
+            }).Item1;
+            var dependentTask = instance.WhenSetTimeout(500, async () =>
             {
                 await tcs.Task;
-            }, 500).Item1;
+            }).Item1;
 
             // act and assert completion.
             await dependentTask;

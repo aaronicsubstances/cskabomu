@@ -117,16 +117,14 @@ namespace Kabomu.QuasiHttp.Client
 
             TimerApi?.ClearTimeout(TimeoutId);
 
-            bool cancelProtocol = false;
-            if (cancellationError != null || res?.Response?.Body == null || res?.ResponseBufferingApplied == true)
+            // just in case cancellation was requested even before transfer protocol could
+            // be set up...check to avoid possible null pointer error.
+            if (_protocol != null)
             {
-                cancelProtocol = true;
-            }
-            if (cancelProtocol && _protocol != null)
-            {
-                // just in case cancellation was requested even before transfer protocol could
-                // be set up...check to avoid possible null pointer error.
-                await _protocol.Cancel();
+                if (cancellationError != null || res?.Response?.Body == null || res?.ResponseBufferingApplied == true)
+                {
+                    await _protocol.Cancel();
+                }
             }
 
             // close request body

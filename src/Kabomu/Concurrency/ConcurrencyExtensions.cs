@@ -50,27 +50,19 @@ namespace Kabomu.Concurrency
         }
 
         /// <summary>
-        /// Schedules waiting for a given time period and makes it possible to 
+        /// Schedules a callback to execute after a given time period and makes it possible to 
         /// wait for its completion.
         /// </summary>
         /// <param name="timerApi">the timer api instance</param>
         /// <param name="millis">wait time period before execution in milliseconds.</param>
-        /// <returns>a task which can be used to wait for the execution to complete</returns>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="timerApi"/>
-        /// argument is null.</exception>
+        /// <param name="cb">the callback to execute after some time .Can be null</param>
+        /// <returns>Pair of a task which can be used to wait for the execution to complete, and an object
+        /// which can be passed to <see cref="ITimerApi.ClearTimeout"/> to cancel the execution and cause 
+        /// the returned task to never complete.</returns>
+        /// <exception cref="T:System.ArgumentNullException"><paramref name="timerApi"/> argument is null.
+        /// </exception>
         /// <exception cref="T:System.ArgumentException">The <paramref name="millis"/> argument is negative.</exception>
-        public static Task WhenSetTimeout(this ITimerApi timerApi, int millis)
-        {
-            var tcs = new TaskCompletionSource<object>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var cancellationHandle = timerApi.SetTimeout(() =>
-            {
-                tcs.SetResult(null);
-            }, millis);
-            return tcs.Task;
-        }
-
-        public static (Task, object) WhenSetTimeout(this ITimerApi timerApi, Func<Task> cb, int millis)
+        public static (Task, object) WhenSetTimeout(this ITimerApi timerApi, int millis, Func<Task> cb)
         {
             var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
             var cancellationHandle = timerApi.SetTimeout(() =>
@@ -80,21 +72,19 @@ namespace Kabomu.Concurrency
             return (tcs.Task, cancellationHandle);
         }
 
+        public static Task WhenSetTimeout(this ITimerApi timerApi, int millis)
+        {
+            return WhenSetTimeout(timerApi, millis, null).Item1;
+        }
+
         private static async Task ProcessCallback(Func<Task> cb, TaskCompletionSource<object> tcs)
         {
-            Task outcome;
             try
             {
-                outcome = cb.Invoke();
-            }
-            catch (Exception e)
-            {
-                tcs.SetException(e);
-                return;
-            }
-            try
-            {
-                await outcome;
+                if (cb != null)
+                {
+                    await cb.Invoke();
+                }
                 tcs.SetResult(null);
             }
             catch (Exception e)

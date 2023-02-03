@@ -139,27 +139,22 @@ namespace Kabomu.Tests.Concurrency
                 };
                 // Since it is not deterministic as to which call to setTimeout will execute first,
                 // race multiple tasks with cancellation.
-                // NB: DEPENDS ON CORRECT WORKING OF "SETIMMEDIATE"
                 // Also 50 ms is more than enough to distinguish callback firing times
                 // on the common operating systems (15ms max on Windows, 10ms max on Linux).
                 int timeoutValue = 2500 - 50 * i;
-                instance.WhenSetImmediate(() =>
+                var related = new List<Task>();
+                for (int j = 0; j < 3; j++)
                 {
-                    var related = new List<Task>();
-                    for (int i = 0; i < 3; i++)
-                    {
-                        var result = instance.WhenSetTimeout(cb, timeoutValue);
-                        related.Add(result.Item1);
-                        cancellationHandles.Add(result.Item2);
-                    }
-                    tasks.Add(related);
-                    return Task.CompletedTask;
-                });
+                    var result = instance.WhenSetTimeout(timeoutValue, cb);
+                    related.Add(result.Item1);
+                    cancellationHandles.Add(result.Item2);
+                }
+                tasks.Add(related);
             }
 
             // this should finish executing after all previous tasks have executed.
             var starTime = DateTime.Now;
-            await instance.WhenSetTimeout(() => Task.CompletedTask, 3000).Item1;
+            await instance.WhenSetTimeout(3000);
             var overallTimeTakenMs = (DateTime.Now - starTime).TotalMilliseconds;
 
             // assert
@@ -193,15 +188,15 @@ namespace Kabomu.Tests.Concurrency
             var instance = new DefaultEventLoopApi();
             var tcs = new TaskCompletionSource<object>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var laterTask = instance.WhenSetTimeout(() =>
+            var laterTask = instance.WhenSetTimeout(1800, () =>
             {
                 tcs.SetResult(null);
                 return Task.CompletedTask;
-            }, 1800).Item1;
-            var dependentTask = instance.WhenSetTimeout(async () =>
+            }).Item1;
+            var dependentTask = instance.WhenSetTimeout(500, async () =>
             {
                 await tcs.Task;
-            }, 500).Item1;
+            }).Item1;
 
             // act and assert completion.
             await dependentTask;
