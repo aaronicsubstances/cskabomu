@@ -28,10 +28,10 @@ namespace Kabomu.QuasiHttp.Client
         {
             // reading these variables is thread safe if caller calls current method within same mutex as
             // Send().
-            if (_sendCancellationHandle != null)
+            if (_sendCancellationHandle != null && TransportBypass != null)
             {
-                // just in case TransportBypass was incorrectly set to null.
-                TransportBypass?.CancelSendRequest(_sendCancellationHandle);
+                // check for case in which TransportBypass was incorrectly set to null.
+                TransportBypass.CancelSendRequest(_sendCancellationHandle);
             }
             return Task.CompletedTask;
         }

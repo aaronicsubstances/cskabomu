@@ -38,12 +38,12 @@ namespace Kabomu.QuasiHttp.Client
             {
                 throw new MissingDependencyException("timer api");
             }
-            TimeoutId = TimerApi.WhenSetTimeout(async () =>
+            TimeoutId = TimerApi.SetTimeout(() =>
             {
                 var timeoutError = new QuasiHttpRequestProcessingException(
                     QuasiHttpRequestProcessingException.ReasonCodeTimeout, "send timeout");
-                await Abort(timeoutError);
-            }, TimeoutMillis).Item2;
+                Abort(timeoutError);
+            }, TimeoutMillis);
         }
 
         public async Task<IQuasiHttpResponse> StartProtocol(
@@ -68,9 +68,10 @@ namespace Kabomu.QuasiHttp.Client
             return res.Response;
         }
 
-        public Task Abort(Exception error)
+        public void Abort(Exception error)
         {
-            return Abort(error, null);
+            // don't wait
+            _ = Abort(error, null);
         }
 
         private async Task Abort(Exception cancellationError, ProtocolSendResult res)
@@ -81,11 +82,14 @@ namespace Kabomu.QuasiHttp.Client
                 if (IsAborted)
                 {
                     // dispose off response
-                    try
+                    if (res?.Response != null)
                     {
-                        await res?.Response?.Close();
+                        try
+                        {
+                            await res.Response.Close();
+                        }
+                        catch { } // ignore.
                     }
-                    catch { } // ignore.
 
                     // in any case do not proceed with disabling.
                     return;
@@ -118,19 +122,22 @@ namespace Kabomu.QuasiHttp.Client
             {
                 cancelProtocol = true;
             }
-            if (cancelProtocol)
+            if (cancelProtocol && _protocol != null)
             {
                 // just in case cancellation was requested even before transfer protocol could
                 // be set up...check to avoid possible null pointer error.
-                await _protocol?.Cancel();
+                await _protocol.Cancel();
             }
 
             // close request body
-            try
+            if (Request.Body != null)
             {
-                await Request.Body?.EndRead();
+                try
+                {
+                    await Request.Body.EndRead();
+                }
+                catch { } // ignore
             }
-            catch { } // ignore
         }
     }
 }

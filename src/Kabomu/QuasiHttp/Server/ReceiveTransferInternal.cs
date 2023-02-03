@@ -35,12 +35,12 @@ namespace Kabomu.QuasiHttp.Server
             {
                 throw new MissingDependencyException("timer api");
             }
-            TimeoutId = timer.WhenSetTimeout(async () =>
+            TimeoutId = timer.SetTimeout(() =>
             {
                 var timeoutError = new QuasiHttpRequestProcessingException(
                     QuasiHttpRequestProcessingException.ReasonCodeTimeout, "receive timeout");
-                await Abort(timeoutError);
-            }, TimeoutMillis).Item2;
+                Abort(timeoutError);
+            }, TimeoutMillis);
         }
 
         public async Task<IQuasiHttpResponse> StartProtocol(
@@ -62,9 +62,10 @@ namespace Kabomu.QuasiHttp.Server
             return res;
         }
 
-        public Task Abort(Exception error)
+        public void Abort(Exception error)
         {
-            return Abort(error, null);
+            // don't wait
+            _ = Abort(error, null);
         }
 
         private async Task Abort(Exception cancellationError, IQuasiHttpResponse res)
@@ -75,11 +76,14 @@ namespace Kabomu.QuasiHttp.Server
                 if (IsAborted)
                 {
                     // dispose off response
-                    try
+                    if (res != null)
                     {
-                        await res?.Close();
+                        try
+                        {
+                            await res.Close();
+                        }
+                        catch { } // ignore.
                     }
-                    catch { } // ignore.
 
                     // in any case do not proceed with disabling.
                     return;
@@ -107,14 +111,20 @@ namespace Kabomu.QuasiHttp.Server
 
             TimerApi?.ClearTimeout(TimeoutId);
 
-            await _protocol?.Cancel();
-            
-            // close body of request received for direct send to application
-            try
+            if (_protocol != null)
             {
-                await Request?.Body?.EndRead();
+                await _protocol.Cancel();
             }
-            catch (Exception) { }
+
+            // close body of request received for direct send to application
+            if (Request.Body != null)
+            {
+                try
+                {
+                    await Request.Body.EndRead();
+                }
+                catch (Exception) { }
+            }
         }
     }
 }

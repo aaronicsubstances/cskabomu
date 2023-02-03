@@ -183,7 +183,7 @@ namespace Kabomu.QuasiHttp.Server
                 {
                     throw new MissingDependencyException("timer api");
                 }
-                await timerApi.WhenSetTimeout(() => Task.CompletedTask, waitTimeMillis).Item1;
+                await timerApi.WhenSetTimeout(waitTimeMillis);
             }
         }
 

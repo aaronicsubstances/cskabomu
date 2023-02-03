@@ -1,7 +1,7 @@
 ﻿using Kabomu.Common;
+using Kabomu.Concurrency;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
-using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
@@ -133,6 +133,26 @@ namespace Kabomu.Tests.Internals
             }
             stream.Position = 0; // rewind read pointer.
             return stream;
+        }
+
+        public static Task<IQuasiHttpResponse> EnsureCompletedTask(Task<IQuasiHttpResponse> sendTask)
+        {
+            if (sendTask.IsCompleted)
+            {
+                return sendTask;
+            }
+            throw new Exception("task is not completed");
+        }
+
+        public static async Task<T> Delay<T>(ITimerApi timerApi, int delay, Func<Task<T>> cb)
+        {
+            await timerApi.WhenSetTimeout(delay);
+            return await cb.Invoke();
+        }
+
+        public static Task Delay(ITimerApi timerApi, int delay, Func<Task> cb)
+        {
+            return timerApi.WhenSetTimeout(cb, delay).Item1;
         }
     }
 }

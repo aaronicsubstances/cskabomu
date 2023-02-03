@@ -112,6 +112,10 @@ namespace Kabomu.Tests.Concurrency
             }).Item1;
         }
 
+        /// <summary>
+        /// Currently a flaky test.
+        /// </summary>
+        /// <returns></returns>
         [Fact]
         public async Task TestWhenSetTimeout()
         {

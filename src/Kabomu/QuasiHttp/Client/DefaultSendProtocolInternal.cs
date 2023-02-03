@@ -26,7 +26,10 @@ namespace Kabomu.QuasiHttp.Client
         public async Task Cancel()
         {
             // just in case Transport was incorrectly set to null.
-            await Transport?.ReleaseConnection(Connection);
+            if (Transport != null)
+            {
+                await Transport.ReleaseConnection(Connection);
+            }
         }
 
         public async Task<ProtocolSendResult> Send()

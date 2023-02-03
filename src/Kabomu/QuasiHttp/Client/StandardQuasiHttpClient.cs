@@ -145,8 +145,7 @@ namespace Kabomu.QuasiHttp.Client
             {
                 var cancellationError = new QuasiHttpRequestProcessingException(
                     QuasiHttpRequestProcessingException.ReasonCodeCancelled, "send cancelled");
-                // don't wait
-                _ = transfer.Abort(cancellationError);
+                transfer.Abort(cancellationError);
             }
         }
 
