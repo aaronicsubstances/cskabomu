@@ -9,25 +9,26 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.Client
 {
-    internal class SendTransferInternal : IRequestProcessorInternal
+    internal class SendTransferInternal
     {
+        private ISendProtocolInternal _protocol;
+
         public IMutexApi MutexApi { get; set; }
         public ITimerApi TimerApi { get; set; }
-        public object TimeoutId { get; set; }
-        public bool IsAborted { get; set; }
-        public ISendProtocolInternal Protocol { get; set; }
-        public TaskCompletionSource<IQuasiHttpResponse> CancellationTcs { get; set; }
-        public DefaultConnectivityParams ConnectivityParams { get; set; }
-        public IQuasiHttpRequest Request { get; set; }
-        public IQuasiHttpSendOptions SendOptions { get; set; }
         public int TimeoutMillis { get; set; }
+        public object TimeoutId { get; private set; }
+        public bool IsAborted { get; private set; }
+        public TaskCompletionSource<IQuasiHttpResponse> CancellationTcs { get; set; }
+        public IQuasiHttpRequest Request { get; set; }
         public int MaxChunkSize { get; set; }
+        public IConnectivityParams ConnectivityParams { get; set; }
+        public object Connection { get; set; }
         public bool ResponseBufferingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
         public bool RequestWrappingEnabled { get; set; }
         public bool ResponseWrappingEnabled { get; set; }
 
-        public void SetSendTimeout()
+        public void SetTimeout()
         {
             if (TimeoutMillis <= 0)
             {
@@ -41,24 +42,40 @@ namespace Kabomu.QuasiHttp.Client
             {
                 var timeoutError = new QuasiHttpRequestProcessingException(
                     QuasiHttpRequestProcessingException.ReasonCodeTimeout, "send timeout");
-                await Abort(timeoutError, null);
+                await Abort(timeoutError);
             }, TimeoutMillis).Item2;
         }
 
-        public async Task<IQuasiHttpResponse> StartProtocol()
+        public async Task<IQuasiHttpResponse> StartProtocol(
+            Func<SendTransferInternal, ISendProtocolInternal> protocolFactory)
         {
-            var res = await Protocol.Send(Request);
+            _protocol = protocolFactory.Invoke(this);
+            if (IsAborted)
+            {
+                // Oops...connection establishment took so long, or a cancellation happened
+                // during connection establishment.
+                // just release the connection.
+                try
+                {
+                    await _protocol.Cancel();
+                }
+                catch { } // ignore.
+                
+                return null;
+            }
+            var res = await _protocol.Send();
             await Abort(null, res);
             return res.Response;
         }
 
-        public Task AbortWithError(Exception error)
+        public Task Abort(Exception error)
         {
             return Abort(error, null);
         }
 
-        public async Task Abort(Exception cancellationError, ProtocolSendResult res)
+        private async Task Abort(Exception cancellationError, ProtocolSendResult res)
         {
+            Task disableTask;
             using (await MutexApi.Synchronize())
             {
                 if (IsAborted)
@@ -66,17 +83,19 @@ namespace Kabomu.QuasiHttp.Client
                     // dispose off response
                     try
                     {
-                        // don't wait.
-                        res?.Response?.Close();
+                        await res?.Response?.Close();
                     }
                     catch { } // ignore.
+
+                    // in any case do not proceed with disabling.
                     return;
                 }
-                Disable(cancellationError, res);
+                disableTask = Disable(cancellationError, res);
             }
+            await disableTask;
         }
 
-        private void Disable(Exception cancellationError, ProtocolSendResult res)
+        private async Task Disable(Exception cancellationError, ProtocolSendResult res)
         {
             IsAborted = true;
 
@@ -91,13 +110,9 @@ namespace Kabomu.QuasiHttp.Client
                     CancellationTcs.SetResult(res?.Response);
                 }
             }
-            CancellationTcs = null;
-            if (TimeoutId != null)
-            {
-                TimerApi.ClearTimeout(TimeoutId);
-            }
-            TimeoutId = null;
-            TimerApi = null;
+
+            TimerApi?.ClearTimeout(TimeoutId);
+
             bool cancelProtocol = false;
             if (cancellationError != null || res?.Response?.Body == null || res?.ResponseBufferingApplied == true)
             {
@@ -105,27 +120,17 @@ namespace Kabomu.QuasiHttp.Client
             }
             if (cancelProtocol)
             {
-                try
-                {
-                    // just in case cancellation was requested even before transfer protocol could
-                    // be set up...check to avoid possible null pointer error.
-                    Protocol?.Cancel();
-                }
-                catch { } // ignore
+                // just in case cancellation was requested even before transfer protocol could
+                // be set up...check to avoid possible null pointer error.
+                await _protocol?.Cancel();
             }
-            Protocol = null;
-            if (Request.Body != null)
+
+            // close request body
+            try
             {
-                try
-                {
-                    // don't wait.
-                    _ = Request.Body.EndRead();
-                }
-                catch { } // ignore
+                await Request.Body?.EndRead();
             }
-            Request = null;
-            ConnectivityParams = null;
-            SendOptions = null;
+            catch { } // ignore
         }
     }
 }

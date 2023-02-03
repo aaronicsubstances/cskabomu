@@ -21,8 +21,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
         {
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
             {
-                var instance = new DefaultSendProtocolInternal();
-                return instance.Send(new DefaultQuasiHttpRequest());
+                var instance = new DefaultSendProtocolInternal
+                {
+                    Request = new DefaultQuasiHttpRequest()
+                };
+                return instance.Send();
             });
         }
 
@@ -74,6 +77,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             }
             var instance = new DefaultSendProtocolInternal
             {
+                Request = expectedRequest,
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize,
@@ -82,7 +86,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // act.
-            var actualResponse = await instance.Send(expectedRequest);
+            var actualResponse = await instance.Send();
 
             // assert.
             Assert.Equal(responseBufferingEnabled, actualResponse?.ResponseBufferingApplied);
@@ -96,7 +100,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // test cancellation after considering release call during comparison.
             releaseCallCount = 0;
-            instance.Cancel();
+            await instance.Cancel();
             Assert.Equal(connection == null ? 0 : 1, releaseCallCount);
 
             // finally verify contents of output stream.
@@ -189,7 +193,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
-            connection = null;
+            connection = "sth";
             maxChunkSize = 95;
             responseBufferingEnabled = true;
             request = new DefaultQuasiHttpRequest
@@ -248,7 +252,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 expectedResponse, expectedResBodyBytes });
 
             // generate response data which exceed 100 bytes buffering limit
-            connection = null;
+            connection = ".";
             maxChunkSize = 50;
             responseBufferingEnabled = false;
             request = new DefaultQuasiHttpRequest();
@@ -344,13 +348,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize,
-                ResponseBufferingEnabled = false
+                ResponseBufferingEnabled = false,
+                Request = expectedRequest
             };
 
             // act.
             await Assert.ThrowsAnyAsync<Exception>(async () =>
             {
-                await instance.Send(expectedRequest);
+                await instance.Send();
             });
 
             // assert expected behaviour of response closure occured by trying 
@@ -358,7 +363,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             Assert.Equal(0, releaseCallCount);
 
             // test cancellation
-            instance.Cancel();
+            await instance.Cancel();
             Assert.Equal(1, releaseCallCount);
 
             // finally verify contents of output stream.

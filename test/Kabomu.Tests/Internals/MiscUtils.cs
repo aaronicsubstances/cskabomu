@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.Client;
@@ -134,25 +133,6 @@ namespace Kabomu.Tests.Internals
             }
             stream.Position = 0; // rewind read pointer.
             return stream;
-        }
-
-        public static Task<IQuasiHttpResponse> SendWithDelay(IQuasiHttpClient instance, IEventLoopApi testEventLoop, int delay,
-            object remoteEndpoint, IQuasiHttpRequest request, IQuasiHttpSendOptions sendOptions)
-        {
-            var responseTcs = new TaskCompletionSource<IQuasiHttpResponse>();
-            testEventLoop.SetTimeout(async () =>
-            {
-                try
-                {
-                    var res = await instance.Send(remoteEndpoint, request, sendOptions);
-                    responseTcs.SetResult(res);
-                }
-                catch (Exception e)
-                {
-                    responseTcs.SetException(e);
-                }
-            }, delay);
-            return responseTcs.Task;
         }
     }
 }

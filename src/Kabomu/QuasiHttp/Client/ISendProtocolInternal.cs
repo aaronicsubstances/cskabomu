@@ -7,7 +7,7 @@ namespace Kabomu.QuasiHttp.Client
 {
     interface ISendProtocolInternal
     {
-        void Cancel();
-        Task<ProtocolSendResult> Send(IQuasiHttpRequest request);
+        Task Cancel();
+        Task<ProtocolSendResult> Send();
     }
 }

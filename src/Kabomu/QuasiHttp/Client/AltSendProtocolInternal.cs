@@ -15,6 +15,7 @@ namespace Kabomu.QuasiHttp.Client
         {
         }
 
+        public IQuasiHttpRequest Request { get; set; }
         public IQuasiHttpAltTransport TransportBypass { get; set; }
         public IConnectivityParams ConnectivityParams { get; set; }
         public int MaxChunkSize { get; set; }
@@ -23,26 +24,31 @@ namespace Kabomu.QuasiHttp.Client
         public bool RequestWrappingEnabled { get; set; }
         public bool ResponseWrappingEnabled { get; set; }
 
-        public void Cancel()
+        public Task Cancel()
         {
             // reading these variables is thread safe if caller calls current method within same mutex as
             // Send().
             if (_sendCancellationHandle != null)
             {
-                TransportBypass.CancelSendRequest(_sendCancellationHandle);
+                // just in case TransportBypass was incorrectly set to null.
+                TransportBypass?.CancelSendRequest(_sendCancellationHandle);
             }
-            _sendCancellationHandle = null;
-            TransportBypass = null;
-            ConnectivityParams = null;
+            return Task.CompletedTask;
         }
 
-        public async Task<ProtocolSendResult> Send(IQuasiHttpRequest request)
+        public async Task<ProtocolSendResult> Send()
         {
             // assume properties are set correctly aside the transport.
             if (TransportBypass == null)
             {
                 throw new MissingDependencyException("transport bypass");
             }
+            if (Request == null)
+            {
+                throw new ExpectationViolationException("request");
+            }
+
+            IQuasiHttpRequest request = Request;
 
             // apply request wrapping if needed.
             if (RequestWrappingEnabled)

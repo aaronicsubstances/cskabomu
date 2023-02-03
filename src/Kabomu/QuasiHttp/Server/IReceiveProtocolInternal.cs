@@ -7,7 +7,7 @@ namespace Kabomu.QuasiHttp.Server
 {
     interface IReceiveProtocolInternal
     {
-        void Cancel();
+        Task Cancel();
         Task<IQuasiHttpResponse> Receive();
     }
 }

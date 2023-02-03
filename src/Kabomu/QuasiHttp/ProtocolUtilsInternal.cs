@@ -128,9 +128,10 @@ namespace Kabomu.QuasiHttp
         }
 
         public static async Task<IQuasiHttpResponse> CompleteRequestProcessing(
-            IRequestProcessorInternal transfer,
             Task<IQuasiHttpResponse> workTask,
-            Task<IQuasiHttpResponse> cancellationTask, string errorMessage)
+            Task<IQuasiHttpResponse> cancellationTask,
+            string errorMessage,
+            Action<Exception> errorCallback)
         {
             try
             {
@@ -157,7 +158,7 @@ namespace Kabomu.QuasiHttp
                         QuasiHttpRequestProcessingException.ReasonCodeGeneral,
                         errorMessage, e);
                 }
-                await transfer?.AbortWithError(abortError);
+                errorCallback?.Invoke(abortError);
                 if (cancellationTask == null)
                 {
                     throw abortError;

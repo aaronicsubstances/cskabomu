@@ -10,16 +10,16 @@ Kabomu seeks to demonstrate the following:
 
 1. *Quasi procedure call framework*, i.e. offers improvement over RPC frameworks such as Protocol Buffers and Apache Thrift, by offering stream input parameters, stream return/output values, flexible timeout specification, non-TCP transports and a transition path to HTTP.
 
-2. *Quasi web protocol*, i.e. offers an HTTP-like abstraction which can be executed in memory, with IPC mechanisms, or as actual HTTP.
+2. *Quasi web protocol*, i.e. offers another request-response protocol which exactly resembles HTTP/1.1 in its semantics, such that it can be executed in memory, executed with IPC mechanisms, or executed as actual HTTP.
 
 3. *Cross-platform quasi web framework*, i.e. offers a web framework pattern which can be shared across programming languages, and does not assume the use of actual HTTP.
 
 
 ## Design
 
-1. Deployment enviroment: mainly localhost, but can include in-memory process and the Internet via HTTP.
+1. Deployment enviroment: mainly localhost, but can be extended to the Internet via HTTP.
 
-1. Quasi web transports provided by default: memory, localhost TCP, unix domain socket, windows named pipe, HTTP.
+1. Quasi web transports demonstrated: memory, localhost TCP, unix domain socket, windows named pipe, HTTP.
    1. *Support for HTTP makes it possible to use Kabomu with any HTTP client library.*
    2. Interfaces are provided for the creation of any custom quasi web transport.
 

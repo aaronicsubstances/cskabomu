@@ -17,12 +17,9 @@ namespace Kabomu.QuasiHttp.Server
         public int MaxChunkSize { get; set; }
         public IDictionary<string, object> RequestEnvironment { get; set; }
 
-        public void Cancel()
+        public Task Cancel()
         {
-            Application = null;
-            Transport = null;
-            Connection = null;
-            RequestEnvironment = null;
+            return Task.CompletedTask;
         }
 
         public async Task<IQuasiHttpResponse> Receive()

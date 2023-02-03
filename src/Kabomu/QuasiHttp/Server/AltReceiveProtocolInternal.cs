@@ -11,10 +11,9 @@ namespace Kabomu.QuasiHttp.Server
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpRequest Request { get; set; }
 
-        public void Cancel()
+        public Task Cancel()
         {
-            Application = null;
-            Request = null;
+            return Task.CompletedTask;
         }
 
         public async Task<IQuasiHttpResponse> Receive()
@@ -25,7 +24,7 @@ namespace Kabomu.QuasiHttp.Server
             }
             if (Request == null)
             {
-                throw new MissingDependencyException("request");
+                throw new ExpectationViolationException("request");
             }
 
             var res = await Application.ProcessRequest(Request);

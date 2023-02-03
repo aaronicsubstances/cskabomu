@@ -16,35 +16,36 @@ namespace Kabomu.QuasiHttp.Client
         {
         }
 
+        public IQuasiHttpRequest Request { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
         public int MaxChunkSize { get; set; }
         public bool ResponseBufferingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
 
-        public void Cancel()
+        public async Task Cancel()
         {
-            if (Connection != null)
-            {
-                // don't wait.
-                _ = Transport.ReleaseConnection(Connection);
-            }
-            Connection = null;
-            Transport = null;
+            // just in case Transport was incorrectly set to null.
+            await Transport?.ReleaseConnection(Connection);
         }
 
-        public async Task<ProtocolSendResult> Send(IQuasiHttpRequest request)
+        public async Task<ProtocolSendResult> Send()
         {
             // assume properties are set correctly aside the transport.
             if (Transport == null)
             {
                 throw new MissingDependencyException("client transport");
             }
-            await SendRequestLeadChunk(request);
-            Task<ProtocolSendResult> resFetchTask = StartFetchingResponse();
-            if (request.Body != null)
+            if (Request == null)
             {
-                Task reqTransferTask = TransferRequestBodyToTransport(request.Body);
+                throw new ExpectationViolationException("request");
+            }
+
+            await SendRequestLeadChunk();
+            Task<ProtocolSendResult> resFetchTask = StartFetchingResponse();
+            if (Request.Body != null)
+            {
+                Task reqTransferTask = TransferRequestBodyToTransport(Request.Body);
                 // pass resFetchTask first so that hopefully even if both are completed, it
                 //  will still win.
                 if (await Task.WhenAny(resFetchTask, reqTransferTask) == reqTransferTask)
@@ -56,21 +57,21 @@ namespace Kabomu.QuasiHttp.Client
             return await resFetchTask;
         }
 
-        private async Task SendRequestLeadChunk(IQuasiHttpRequest request)
+        private async Task SendRequestLeadChunk()
         {
             var chunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
-                RequestTarget = request.Target,
-                Headers = request.Headers,
-                HttpVersion = request.HttpVersion,
-                Method = request.Method
+                RequestTarget = Request.Target,
+                Headers = Request.Headers,
+                HttpVersion = Request.HttpVersion,
+                Method = Request.Method
             };
 
-            if (request.Body != null)
+            if (Request.Body != null)
             {
-                chunk.ContentLength = request.Body.ContentLength;
-                chunk.ContentType = request.Body.ContentType;
+                chunk.ContentLength = Request.Body.ContentLength;
+                chunk.ContentType = Request.Body.ContentType;
             }
             await ChunkEncodingBody.WriteLeadChunk(Transport, Connection, chunk, MaxChunkSize);
         }

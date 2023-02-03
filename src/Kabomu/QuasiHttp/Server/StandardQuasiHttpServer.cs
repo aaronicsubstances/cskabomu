@@ -35,6 +35,25 @@ namespace Kabomu.QuasiHttp.Server
         {
             MutexApi = new LockBasedMutexApi();
             TimerApi = new DefaultTimerApi();
+            DefaultProtocolFactory = transfer =>
+            {
+                return new DefaultReceiveProtocolInternal
+                {
+                    MaxChunkSize = transfer.MaxChunkSize,
+                    Application = Application,
+                    Transport = transfer.Transport,
+                    Connection = transfer.Connection,
+                    RequestEnvironment = transfer.RequestEnvironment
+                };
+            };
+            AltProtocolFactory = transfer =>
+            {
+                return new AltReceiveProtocolInternal
+                {
+                    Application = Application,
+                    Request = transfer.Request
+                };
+            };
         }
 
         /// <summary>
@@ -78,6 +97,16 @@ namespace Kabomu.QuasiHttp.Server
         /// and so there is no need to modify this property except for advanced scenarios.
         /// </remarks>
         public ITimerApi TimerApi { get; set; }
+
+        /// <summary>
+        /// Exposed for testing.
+        /// </summary>
+        internal Func<ReceiveTransferInternal, IReceiveProtocolInternal> DefaultProtocolFactory { get; set; }
+
+        /// <summary>
+        /// Exposed for testing.
+        /// </summary>
+        internal Func<ReceiveTransferInternal, IReceiveProtocolInternal> AltProtocolFactory { get; set; }
 
         /// <summary>
         /// Starts the instance set in the <see cref="Transport"/> property and begins
@@ -241,7 +270,7 @@ namespace Kabomu.QuasiHttp.Server
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     null, DefaultProcessingOptions?.TimeoutMillis, 0);
                 transfer.TimerApi = TimerApi;
-                transfer.SetReceiveTimeout();
+                transfer.SetTimeout();
 
                 if (transfer.TimeoutId != null)
                 {
@@ -255,19 +284,12 @@ namespace Kabomu.QuasiHttp.Server
 
                 transfer.RequestEnvironment = connectionResponse.Environment;
 
-                transfer.Protocol = new DefaultReceiveProtocolInternal
-                {
-                    MaxChunkSize = transfer.MaxChunkSize,
-                    Application = Application,
-                    Transport = transfer.Transport,
-                    Connection = transfer.Connection,
-                    RequestEnvironment = transfer.RequestEnvironment
-                };
-                workTask = transfer.StartProtocol();
+                workTask = transfer.StartProtocol(DefaultProtocolFactory);
             }
 
-            await ProtocolUtilsInternal.CompleteRequestProcessing(transfer, workTask, cancellationTask,
-                "encountered error during receive connection processing");
+            await ProtocolUtilsInternal.CompleteRequestProcessing(workTask, cancellationTask,
+                "encountered error during receive connection processing",
+                e => transfer.Abort(e));
         }
 
         /// <summary>
@@ -295,7 +317,6 @@ namespace Kabomu.QuasiHttp.Server
             {
                 MutexApi = MutexApi,
                 Request = request,
-                ProcessingOptions = options
             };
 
             Task<IQuasiHttpResponse> workTask;
@@ -303,9 +324,9 @@ namespace Kabomu.QuasiHttp.Server
             using (await MutexApi.Synchronize())
             {
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
-                    transfer.ProcessingOptions?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
+                    options?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
                 transfer.TimerApi = TimerApi;
-                transfer.SetReceiveTimeout();
+                transfer.SetTimeout();
 
                 if (transfer.TimeoutId != null)
                 {
@@ -314,15 +335,11 @@ namespace Kabomu.QuasiHttp.Server
                     cancellationTask = transfer.CancellationTcs.Task;
                 }
 
-                transfer.Protocol = new AltReceiveProtocolInternal
-                {
-                    Application = Application,
-                    Request = transfer.Request
-                };
-                workTask = transfer.StartProtocol();
+                workTask = transfer.StartProtocol(AltProtocolFactory);
             }
-            return await ProtocolUtilsInternal.CompleteRequestProcessing(transfer, workTask, cancellationTask,
-                "encountered error during receive request processing");
+            return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask, cancellationTask,
+                "encountered error during receive request processing",
+                e => transfer.Abort(e));
         }
     }
 }
