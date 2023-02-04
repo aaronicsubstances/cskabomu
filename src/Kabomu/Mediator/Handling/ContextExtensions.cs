@@ -48,7 +48,7 @@ namespace Kabomu.Mediator.Handling
                 return (false, null);
             };
             Task<T> parserTask;
-            using (await context.MutexApi.Synchronize())
+            lock (context.Mutex)
             {
                 bool found;
                 (found, parserTask) = RegistryExtensions.TryGetFirst(context,
@@ -107,7 +107,7 @@ namespace Kabomu.Mediator.Handling
                     return (false, null);
                 };
                 Task renderTask;
-                using (await context.MutexApi.Synchronize())
+                lock (context.Mutex)
                 {
                     bool found;
                     (found, renderTask) = RegistryExtensions.TryGetFirst(context,
@@ -154,7 +154,7 @@ namespace Kabomu.Mediator.Handling
                     return (false, null);
                 };
                 Task unexpectedEndTask;
-                using (await context.MutexApi.Synchronize())
+                lock (context.Mutex)
                 {
                     bool found;
                     (found, unexpectedEndTask) = RegistryExtensions.TryGetFirst(context,
@@ -214,7 +214,7 @@ namespace Kabomu.Mediator.Handling
                     return (false, null);
                 };
                 Task resultTask;
-                using (await context.MutexApi.Synchronize())
+                lock (context.Mutex)
                 {
                     bool found;
                     (found, resultTask) = RegistryExtensions.TryGetFirst(context,
@@ -236,10 +236,10 @@ namespace Kabomu.Mediator.Handling
             }
         }
 
-        private static async Task HandleErrorLastResort(IContext context, Exception original,
+        private static Task HandleErrorLastResort(IContext context, Exception original,
             Exception errorHandlerException)
         {
-            using (await context.MutexApi.Synchronize())
+            lock (context.Mutex)
             {
                 string msg;
                 if (errorHandlerException != null)
@@ -258,6 +258,7 @@ namespace Kabomu.Mediator.Handling
                         .SetBody(new StringBody(msg) { ContentType = "text/plain" });
                 });
             }
+            return Task.CompletedTask;
         }
 
         internal static string FlattenException(Exception exception)

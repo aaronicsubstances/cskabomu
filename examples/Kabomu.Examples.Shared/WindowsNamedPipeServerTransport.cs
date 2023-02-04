@@ -1,5 +1,4 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,40 +11,40 @@ namespace Kabomu.Examples.Shared
 {
     public class WindowsNamedPipeServerTransport : IQuasiHttpServerTransport
     {
+        private readonly object _mutex = new object();
         private readonly string _path;
         private CancellationTokenSource _startCancellationHandle;
 
         public WindowsNamedPipeServerTransport(string path)
         {
             _path = path;
-            MutexApi = new LockBasedMutexApi();
         }
 
-        public IMutexApi MutexApi { get; set; }
-
-        public async Task Start()
+        public Task Start()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (_startCancellationHandle == null)
                 {
                     _startCancellationHandle = new CancellationTokenSource();
                 }
             }
+            return Task.CompletedTask;
         }
 
-        public async Task Stop()
+        public Task Stop()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 _startCancellationHandle?.Cancel();
                 _startCancellationHandle = null;
             }
+            return Task.CompletedTask;
         }
 
-        public async Task<bool> IsRunning()
+        public bool IsRunning()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 return _startCancellationHandle != null;
             }
@@ -55,7 +54,7 @@ namespace Kabomu.Examples.Shared
         {
             NamedPipeServerStream pipeServer;
             Task waitTask;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (_startCancellationHandle == null)
                 {

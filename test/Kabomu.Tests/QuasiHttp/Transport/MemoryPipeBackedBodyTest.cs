@@ -1,5 +1,4 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -54,8 +53,7 @@ namespace Kabomu.Tests.QuasiHttp.Transport
             var expectedData = Encoding.UTF8.GetBytes("car seat");
             var instance = new MemoryPipeBackedBody
             {
-                ContentType = "text/xml",
-                MutexApi = new DefaultEventLoopApi()
+                ContentType = "text/xml"
             };
             var tasks = new Task[expectedData.Length];
             for (int i = 0; i < expectedData.Length; i++)

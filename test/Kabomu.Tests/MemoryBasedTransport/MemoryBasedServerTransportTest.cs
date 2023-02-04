@@ -14,18 +14,18 @@ namespace Kabomu.Tests.MemoryBasedTransport
         public async Task TestSequentialOperations()
         {
             var instance = new MemoryBasedServerTransport();
-            var running = await instance.IsRunning();
+            var running = instance.IsRunning();
             Assert.False(running);
             await instance.Start();
-            running = await instance.IsRunning();
+            running = instance.IsRunning();
             Assert.True(running);
             await instance.Stop();
-            running = await instance.IsRunning();
+            running = instance.IsRunning();
             Assert.False(running);
 
             await instance.Start();
             await instance.Start();
-            running = await instance.IsRunning();
+            running = instance.IsRunning();
             Assert.True(running);
 
             var serverConnectTask = instance.ReceiveConnection();
@@ -40,7 +40,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             await Assert.ThrowsAsync<TransportResetException>(() => serverConnectTask2);
 
             await instance.Stop();
-            running = await instance.IsRunning();
+            running = instance.IsRunning();
             Assert.False(running);
 
             await Assert.ThrowsAsync<TransportNotStartedException>(() =>
@@ -129,12 +129,12 @@ namespace Kabomu.Tests.MemoryBasedTransport
             var expectedRes = new DefaultQuasiHttpResponse();
             
             var instance = new MemoryBasedServerTransport();
-            var running = await instance.IsRunning();
+            var running = instance.IsRunning();
             Assert.False(running);
 
             await instance.Start();
             await instance.Start();
-            running = await instance.IsRunning();
+            running = instance.IsRunning();
             Assert.True(running);
 
             Task<IConnectionAllocationResponse> serverConnectTask;
@@ -180,7 +180,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
 
             await instance.Stop();
             await instance.Stop();
-            running = await instance.IsRunning();
+            running = instance.IsRunning();
             Assert.False(running);
         }
 

@@ -30,14 +30,14 @@ namespace Kabomu.Tests.MemoryBasedTransport
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
                 instance.AllocateConnection(null , validConnectivityParams));
 
-            await instance.AddServer(serverEndpoint, server);
-            await Assert.ThrowsAsync<ArgumentException>(() =>
+            instance.AddServer(serverEndpoint, server);
+            Assert.Throws<ArgumentException>(() =>
                 instance.AddServer(serverEndpoint, server));
 
             // test for argument errors.
-            await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
                 instance.AddServer("cv", null));
-            await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
                 instance.AddServer(null, new ConfigurableQuasiHttpTransport()));
             await Assert.ThrowsAsync<ArgumentException>(() =>
                 instance.AllocateConnection(null, null));
@@ -55,7 +55,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             var instance = new DefaultMemoryBasedTransportHub();
             var server = new MemoryBasedServerTransport();
             var serverEndpoint = "127.1";
-            await instance.AddServer(serverEndpoint, server);
+            instance.AddServer(serverEndpoint, server);
             await server.Start();
             var connectivityParams = new DefaultConnectivityParams
             {

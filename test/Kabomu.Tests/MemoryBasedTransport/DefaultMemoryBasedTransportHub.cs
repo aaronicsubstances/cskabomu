@@ -1,6 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
-using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -15,6 +13,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
     /// </summary>
     public class DefaultMemoryBasedTransportHub : IMemoryBasedTransportHub
     {
+        private readonly object _mutex = new object();
         private readonly Dictionary<object, MemoryBasedServerTransport> _servers;
 
         /// <summary>
@@ -46,18 +45,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
                 throw new ArgumentNullException(nameof(servers));
             }
             _servers = servers;
-            MutexApi = new LockBasedMutexApi();
         }
-
-        /// <summary>
-        /// Gets or sets mutex api used to guard multithreaded 
-        /// access to operations of this class.
-        /// </summary>
-        /// <remarks> 
-        /// An ordinary lock object is the initial value for this property, and so there is no need to modify
-        /// this property except for advanced scenarios.
-        /// </remarks>
-        public IMutexApi MutexApi { get; set; }
 
         /// <summary>
         /// Associates a quasi http server transport with an endpoint. Must be of the type
@@ -70,7 +58,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
         /// <paramref name="server"/> argument is null</exception>
         /// <exception cref="ArgumentException">The <paramref name="endpoint"/> argument is already in
         /// use with another server.</exception>
-        public async Task AddServer(object endpoint, IQuasiHttpServerTransport server)
+        public void AddServer(object endpoint, IQuasiHttpServerTransport server)
         {
             if (endpoint == null)
             {
@@ -80,7 +68,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             {
                 throw new ArgumentNullException(nameof(endpoint));
             }
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (_servers.ContainsKey(endpoint))
                 {
@@ -118,7 +106,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             }
 
             MemoryBasedServerTransport server = null;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (_servers.ContainsKey(serverEndpoint))
                 {

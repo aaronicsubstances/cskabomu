@@ -59,15 +59,6 @@ namespace Kabomu.QuasiHttp.Client
         double TransportBypassWrappingProbability { get; set; }
 
         /// <summary>
-        /// Gets and sets a mutex object which will most likely be needed to synchronize client operations.
-        /// <para>
-        /// This property is exposed publicly to allow frameworks employing a general concurrency mechanism
-        /// to impose their policy through this property.
-        /// </para>
-        /// </summary>
-        IMutexApi MutexApi { get; set; }
-
-        /// <summary>
         /// Gets and sets a timer object which will most likely be needed to impose timeouts on client operations.
         /// <para>
         /// This property is exposed publicly to allow frameworks employing a general concurrency mechanism

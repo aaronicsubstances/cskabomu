@@ -1,23 +1,25 @@
-﻿using System;
+﻿using Kabomu.Concurrency;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu.Concurrency
+namespace Kabomu.Tests.Concurrency
 {
     /// <summary>
-    /// Event loop implementation which doesn't use real time.
+    /// Timer api implementation which doesn't use real time.
     /// Useful for testing software components that depend on real time.
     /// </summary>
-    public class VirtualTimeBasedEventLoopApi : IEventLoopApi
+    public class VirtualTimeBasedEventLoopApi : ITimerApi
     {
-        private readonly object _lock = new object();
+        private readonly object _mutex = new object();
         private readonly List<TaskDescriptor> _taskQueue = new List<TaskDescriptor>();
-        private readonly Stack<Func<Task>> _delayFxnStack = new Stack<Func<Task>>();
         private int _cancelledTaskCount = 0;
         private int _idSeq = 0;
         private long _currentTimestamp;
+        private Func<Task> _stickyCallbackAftermathDelayance;
+        private Func<Task> _defaultCallbackAftermathDelayance;
 
         /// <summary>
         /// Constructs a new instance with a current virtual timestamp of zero.
@@ -26,31 +28,25 @@ namespace Kabomu.Concurrency
         {
         }
 
-        public void PushCallbackAftermathDelay(Func<Task> delayFxn)
+        public Func<Task> StickyCallbackAftermathDelayance
         {
-            if (delayFxn == null)
+            set
             {
-                delayFxn = () => Task.Delay(10);
-            }
-            lock (_lock)
-            {
-                _delayFxnStack.Push(delayFxn);
-            }
-        }
-
-        public void PopCallbackAftermathDelay()
-        {
-            lock (_lock)
-            {
-                _delayFxnStack.Pop();
+                lock (_mutex)
+                {
+                    _stickyCallbackAftermathDelayance = value;
+                }
             }
         }
 
-        public void ClearCallbackAftermathDelay()
+        public Func<Task> DefaultCallbackAftermathDelayance
         {
-            lock (_lock)
+            set
             {
-                _delayFxnStack.Clear();
+                lock (_mutex)
+                {
+                    _defaultCallbackAftermathDelayance = value;
+                }
             }
         }
 
@@ -69,7 +65,7 @@ namespace Kabomu.Concurrency
         {
             get
             {
-                lock (_lock)
+                lock (_mutex)
                 {
                     return _currentTimestamp;
                 }
@@ -83,17 +79,12 @@ namespace Kabomu.Concurrency
         {
             get
             {
-                lock (_lock)
+                lock (_mutex)
                 {
                     return _taskQueue.Count - _cancelledTaskCount;
                 }
             }
         }
-
-        /// <summary>
-        /// Returns false to indicate that there is no notion of event loop thread supported by this class.
-        /// </summary>
-        public bool IsInterimEventLoopThread => false;
 
         /// <summary>
         /// Advances time forward by a given value and executes all pending callbacks and any recursively scheduled callbacks
@@ -112,10 +103,11 @@ namespace Kabomu.Concurrency
         {
             if (delay < 0)
             {
-                throw new ArgumentException("negative timeout value: " + delay);
+                throw new ArgumentOutOfRangeException(nameof(delay),
+                    "cannot be negative. Received: " + delay);
             }
             long newTimestamp;
-            lock (_lock)
+            lock (_mutex)
             {
                 newTimestamp = _currentTimestamp + delay;
             }
@@ -139,7 +131,8 @@ namespace Kabomu.Concurrency
         {
             if (newTimestamp < 0)
             {
-                throw new ArgumentException("negative timestamp value: " + newTimestamp);
+                throw new ArgumentOutOfRangeException(nameof(newTimestamp),
+                    "cannot be negative. Received: " + newTimestamp);
             }
             return TriggerActions(newTimestamp);
         }
@@ -158,7 +151,7 @@ namespace Kabomu.Concurrency
             while (true)
             {
                 TaskDescriptor earliestTaskDescriptor;
-                lock (_lock)
+                lock (_mutex)
                 {
                     if (_taskQueue.Count == 0)
                     {
@@ -180,6 +173,10 @@ namespace Kabomu.Concurrency
                     else
                     {
                         _currentTimestamp = earliestTaskDescriptor.ScheduledAt;
+
+                        // set up default delayance which will be used unless callback
+                        // changes it.
+                        _stickyCallbackAftermathDelayance = _defaultCallbackAftermathDelayance;
                     }
                 }
 
@@ -189,49 +186,18 @@ namespace Kabomu.Concurrency
                     earliestTaskDescriptor.Callback.Invoke();
 
                     // give enough time to execute callback's asynchronous phase
-                    Func<Task> callbackAftermathDelayFxn = null;
-                    lock (_lock)
+                    // with effective delayance.
+                    Task callbackAftermath = null;
+                    lock (_mutex)
                     {
-                        if (_delayFxnStack.Count > 0)
-                        {
-                            callbackAftermathDelayFxn = _delayFxnStack.Peek();
-                        }
+                        callbackAftermath = _stickyCallbackAftermathDelayance?.Invoke();
                     }
-                    if (callbackAftermathDelayFxn != null)
+                    if (callbackAftermath != null)
                     {
-                        await callbackAftermathDelayFxn.Invoke();
+                        await callbackAftermath;
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// Runs a callback exclusively of any others. In this event loop implementation that is the same 
-        /// as calling <see cref="SetImmediate"/>.
-        /// </summary>
-        /// <param name="cb">the callback to run</param>
-        /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>
-        public void RunExclusively(Action cb)
-        {
-            SetImmediate(cb);
-        }
-
-        /// <summary>
-        /// Schedules callback to be run in this instance at the current virtual time, ie "now", unless it is cancelled.
-        /// If there are already callbacks scheduled "now", the callback will execute after them "now".
-        /// </summary>
-        /// <remarks>
-        /// The callback will only be executed as a result of an ongoing or future call to one of the Advance*() methods.
-        /// <para></para>
-        /// This method is equivalent to calling <see cref="SetTimeout(Action, int)"/> method with a timeout value of zero,
-        /// although cancellation will still have to be done with ClearImmediate rather than ClearTimeout.
-        /// </remarks>
-        /// <param name="cb">callback to run</param>
-        /// <returns>handle which can be used to cancel immediate execution request</returns>
-        /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>
-        public object SetImmediate(Action cb)
-        {
-            return SetTimeout(cb, 0, true);
         }
 
         /// <summary>
@@ -249,46 +215,26 @@ namespace Kabomu.Concurrency
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="cb"/> argument is null.</exception>
         public object SetTimeout(Action cb, int millis)
         {
-            return SetTimeout(cb, millis, false);
-        }
-
-        private object SetTimeout(Action cb, int millis, bool forImmediate)
-        {
             if (cb == null)
             {
                 throw new ArgumentNullException(nameof(cb));
             }
             if (millis < 0)
             {
-                throw new ArgumentException("negative timeout value: " + millis);
+                throw new ArgumentOutOfRangeException(nameof(millis),
+                    "cannot be negative. Received: " + millis);
             }
-            TaskDescriptor taskDescriptor;
-            lock (_lock)
+            lock (_mutex)
             {
                 var nextId = _idSeq++;
-                taskDescriptor = new TaskDescriptor
+                var taskDescriptor = new TaskDescriptor
                 {
                     Id = nextId,
                     Callback = cb,
                     ScheduledAt = _currentTimestamp + millis
                 };
                 InsertIntoSortedTasks(taskDescriptor);
-            }
-            if (forImmediate)
-            {
-                return new SetImmediateCancellationHandle
-                {
-                    Id = taskDescriptor.Id,
-                    ScheduledAt = taskDescriptor.ScheduledAt
-                };
-            }
-            else
-            {
-                return new SetTimeoutCancellationHandle
-                {
-                    Id = taskDescriptor.Id,
-                    ScheduledAt = taskDescriptor.ScheduledAt
-                };
+                return taskDescriptor;
             }
         }
 
@@ -310,33 +256,17 @@ namespace Kabomu.Concurrency
         }
 
         /// <summary>
-        /// Used to cancel the execution of a callback scheduled with <see cref="SetImmediate(Action)"/>.
-        /// </summary>
-        /// <param name="immediateHandle">cancellation handle returned from <see cref="SetImmediate(Action)"/>. 
-        /// No exception is thrown if handle is invalid or if callback execution has already been cancelled.</param>
-        public void ClearImmediate(object immediateHandle)
-        {
-            if (immediateHandle is SetImmediateCancellationHandle cancellationHandle)
-            {
-                lock (_lock)
-                {
-                    CancelTask(cancellationHandle.Id, cancellationHandle.ScheduledAt);
-                }
-            }
-        }
-
-        /// <summary>
         /// Used to cancel the execution of a callback scheduled with <see cref="SetTimeout(Action, int)"/>.
         /// </summary>
         /// <param name="timeoutHandle">cancellation handle returned from <see cref="SetTimeout(Action, int)"/>
         /// No exception is thrown if handle is invalid or if callback execution has already been cancelled.</param>
         public void ClearTimeout(object timeoutHandle)
         {
-            if (timeoutHandle is SetTimeoutCancellationHandle cancellationHandle)
+            if (timeoutHandle is TaskDescriptor t)
             {
-                lock (_lock)
+                lock (_mutex)
                 {
-                    CancelTask(cancellationHandle.Id, cancellationHandle.ScheduledAt);
+                    CancelTask(t.Id, t.ScheduledAt);
                 }
             }
         }
@@ -399,24 +329,20 @@ namespace Kabomu.Concurrency
             }
         }
 
+        public Task Delay(int millis)
+        {
+            var tcs = new TaskCompletionSource<object>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            SetTimeout(() => tcs.SetResult(null), millis);
+            return tcs.Task;
+        }
+
         private class TaskDescriptor
         {
             public int Id { get; set; }
             public Action Callback { get; set; }
             public long ScheduledAt { get; set; }
             public bool Cancelled { get; set; }
-        }
-
-        private class SetImmediateCancellationHandle
-        {
-            public int Id { get; set; }
-            public long ScheduledAt { get; set; }
-        }
-
-        private class SetTimeoutCancellationHandle
-        {
-            public int Id { get; set; }
-            public long ScheduledAt { get; set; }
         }
     }
 }

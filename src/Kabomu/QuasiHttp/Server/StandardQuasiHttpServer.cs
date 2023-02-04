@@ -25,6 +25,7 @@ namespace Kabomu.QuasiHttp.Server
     /// </remarks>
     public class StandardQuasiHttpServer : IQuasiHttpServer
     {
+        private readonly object _mutex = new object();
         private bool _running;
 
         /// <summary>
@@ -33,7 +34,6 @@ namespace Kabomu.QuasiHttp.Server
         /// </summary>
         public StandardQuasiHttpServer()
         {
-            MutexApi = new LockBasedMutexApi();
             TimerApi = new DefaultTimerApi();
             DefaultProtocolFactory = transfer =>
             {
@@ -80,16 +80,6 @@ namespace Kabomu.QuasiHttp.Server
         public UncaughtErrorCallback ErrorHandler { get; set; }
 
         /// <summary>
-        /// Gets or sets mutex api used to guard multithreaded 
-        /// access to connection acceptance operations of this class.
-        /// </summary>
-        /// <remarks> 
-        /// An ordinary lock object is the initial value for this property, and so there is no need to modify
-        /// this property except for advanced scenarios.
-        /// </remarks>
-        public IMutexApi MutexApi { get; set; }
-
-        /// <summary>
         /// Gets or sets timer api used to generate timeouts in this class.
         /// </summary>
         /// <remarks> 
@@ -124,7 +114,7 @@ namespace Kabomu.QuasiHttp.Server
         public async Task Start()
         {
             Task startTask;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (_running)
                 {
@@ -158,7 +148,7 @@ namespace Kabomu.QuasiHttp.Server
         {
             ITimerApi timerApi;
             Task stopTask;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (!_running)
                 {
@@ -183,13 +173,13 @@ namespace Kabomu.QuasiHttp.Server
                 {
                     throw new MissingDependencyException("timer api");
                 }
-                await timerApi.WhenSetTimeout(waitTimeMillis);
+                await timerApi.Delay(waitTimeMillis);
             }
         }
 
         private async Task StartAcceptingConnections()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 _running = true;
             }
@@ -199,7 +189,7 @@ namespace Kabomu.QuasiHttp.Server
                 {
                     Task<IConnectionAllocationResponse> connectTask;
                     IQuasiHttpServerTransport transport;
-                    using (await MutexApi.Synchronize())
+                    lock (_mutex)
                     {
                         if (!_running)
                         {
@@ -258,14 +248,13 @@ namespace Kabomu.QuasiHttp.Server
         {
             var transfer = new ReceiveTransferInternal
             {
-                MutexApi = MutexApi,
                 Transport = transport,
                 Connection = connectionResponse.Connection
             };
 
             Task<IQuasiHttpResponse> workTask;
             Task<IQuasiHttpResponse> cancellationTask = null;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     null, DefaultProcessingOptions?.TimeoutMillis, 0);
@@ -315,13 +304,12 @@ namespace Kabomu.QuasiHttp.Server
             }
             var transfer = new ReceiveTransferInternal
             {
-                MutexApi = MutexApi,
                 Request = request,
             };
 
             Task<IQuasiHttpResponse> workTask;
             Task<IQuasiHttpResponse> cancellationTask = null;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     options?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);

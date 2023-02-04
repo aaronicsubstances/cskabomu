@@ -25,6 +25,7 @@ namespace Kabomu.QuasiHttp.Client
     /// </remarks>
     public class StandardQuasiHttpClient : IQuasiHttpClient
     {
+        private readonly object _mutex = new object();
         private readonly Random _randGen = new Random();
 
         /// <summary>
@@ -33,7 +34,6 @@ namespace Kabomu.QuasiHttp.Client
         /// </summary>
         public StandardQuasiHttpClient()
         {
-            MutexApi = new LockBasedMutexApi();
             TimerApi = new DefaultTimerApi();
             DefaultProtocolFactory = transfer =>
             {
@@ -105,16 +105,6 @@ namespace Kabomu.QuasiHttp.Client
         /// equivalent to 1.
         /// </remarks>
         public double TransportBypassWrappingProbability { get; set; } = 0.0;
-
-        /// <summary>
-        /// Gets or sets mutex api used to guard multithreaded 
-        /// access to connection allocation operations of this class.
-        /// </summary>
-        /// <remarks> 
-        /// An ordinary lock object is the initial value for this property, and so there is no need to modify
-        /// this property except for advanced scenarios.
-        /// </remarks>
-        public IMutexApi MutexApi { get; set; }
 
         /// <summary>
         /// Gets or sets timer api used to generate timeouts in this class.
@@ -216,14 +206,9 @@ namespace Kabomu.QuasiHttp.Client
                 transfer = new SendTransferInternal();
             }
             
-            // set mutex api early, so that if an abort  happens early,
-            // transfer's internal abort will have a mutex to work with.
-            transfer.MutexApi = MutexApi;
-            transfer.Request = request;
-            
             Task<IQuasiHttpResponse> workTask;
             Task<IQuasiHttpResponse> cancellationTask = null;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 // NB: negative value is allowed for timeout, which indicates infinite timeout.
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
@@ -264,6 +249,8 @@ namespace Kabomu.QuasiHttp.Client
                     DefaultSendOptions?.ResponseBodyBufferingSizeLimit,
                     TransportUtils.DefaultResponseBodyBufferingSizeLimit);
 
+                transfer.Request = request;
+
                 if (TransportBypass != null)
                 {
                     transfer.RequestWrappingEnabled = _randGen.NextDouble() < TransportBypassWrappingProbability;
@@ -291,7 +278,7 @@ namespace Kabomu.QuasiHttp.Client
             var connectionResponse = await transport.AllocateConnection(transfer.ConnectivityParams);
 
             Task<IQuasiHttpResponse> workTask;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (connectionResponse?.Connection == null)
                 {

@@ -474,9 +474,10 @@ namespace Kabomu.Tests.Mediator.Handling
         {
             public TempContext()
             {
+                Mutex = new object();
             }
 
-            public IMutexApi MutexApi { get; set; }
+            public object Mutex { get; }
             public IContextRequest Request { get; set; }
             public IContextResponse Response { get; set; }
             public IList<Handler> HandlersSeen { get; set; }

@@ -231,7 +231,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             public DefaultConnectivityParams ExpectedConnectivityParams { get;  set; }
             public IQuasiHttpClientTransport ExpectedClient { get; set; }
 
-            public Task AddServer(object endpoint, IQuasiHttpServerTransport server)
+            public void AddServer(object endpoint, IQuasiHttpServerTransport server)
             {
                 throw new NotImplementedException();
             }

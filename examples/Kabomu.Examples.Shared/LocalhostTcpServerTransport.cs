@@ -1,5 +1,4 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,24 +11,22 @@ namespace Kabomu.Examples.Shared
 {
     public class LocalhostTcpServerTransport : IQuasiHttpServerTransport
     {
+        private readonly object _mutex = new object();
         private readonly int _port;
         private TcpListener _tcpServer;
 
         public LocalhostTcpServerTransport()
         {
-            MutexApi = new LockBasedMutexApi();
         }
-
-        public IMutexApi MutexApi { get; set; }
 
         public LocalhostTcpServerTransport(int port)
         {
             _port = port;
         }
 
-        public async Task Start()
+        public Task Start()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (_tcpServer == null)
                 {
@@ -49,11 +46,12 @@ namespace Kabomu.Examples.Shared
                     }
                 }
             }
+            return Task.CompletedTask;
         }
 
-        public async Task Stop()
+        public Task Stop()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 try
                 {
@@ -64,11 +62,12 @@ namespace Kabomu.Examples.Shared
                     _tcpServer = null;
                 }
             }
+            return Task.CompletedTask;
         }
 
-        public async Task<bool> IsRunning()
+        public bool IsRunning()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 return _tcpServer != null;
             }
@@ -77,7 +76,7 @@ namespace Kabomu.Examples.Shared
         public async Task<IConnectionAllocationResponse> ReceiveConnection()
         {
             Task<TcpClient> acceptTask;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (_tcpServer == null)
                 {

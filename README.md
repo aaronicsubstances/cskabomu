@@ -25,9 +25,6 @@ Kabomu seeks to demonstrate the following:
 
 3. Quasi web protocol: resembles HTTP/1.1 chunk encoding, in which request and response headers are sent in "lead" chunks.
 
-3. Multithreading strategy: *asynchronous* mutual exclusion API of which NodeJS-style event loops and dear old locks are specific implementations.
-   1. Also leverages atomic compare-and-swap CPU instructions to skip mutual exclusion entirely where possible.
-
 3. Quasi web request processing strategies: one of the following
    1. use Kabomu.Mediator: it is a quasi web framework that was inspired by [ExpressJS](https://expressjs.com/) and [Ratpack](https://ratpack.io/) and meant to be implemented in multiple programming languages. It is called "quasi web framework" because it does not assume the use of TCP.
    2. use an existing web server gateway interface (e.g. Python WSGI, C#.NET OWIN, Java Servlet, Ruby Rack) and hook it to a quasi web transport. Existing web frameworks can then be used as usual.

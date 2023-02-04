@@ -3,6 +3,7 @@ using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
+using Kabomu.Tests.Concurrency;
 using Kabomu.Tests.Internals;
 using System;
 using System.Collections.Generic;
@@ -19,11 +20,18 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
         }
 
+        private static VirtualTimeBasedEventLoopApi CreateTestEventLoopApi()
+        {
+            return new VirtualTimeBasedEventLoopApi
+            {
+                DefaultCallbackAftermathDelayance = () => Task.Delay(10)
+            };
+        }
+
         [Fact]
         public async Task Test1()
         {
-            var testEventLoopApi = new VirtualTimeBasedEventLoopApi();
-            testEventLoopApi.PushCallbackAftermathDelay(null);
+            var testEventLoopApi = CreateTestEventLoopApi();
 
             var expectedResponse = new DefaultQuasiHttpResponse();
             var cancelCallCounter = new int[1];
@@ -46,7 +54,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             var instance = new StandardQuasiHttpClient
             {
-                MutexApi = testEventLoopApi,
                 //TimerApi = testEventLoopApi,
                 AltProtocolFactory = altProtocolFactory,
                 TransportBypass = transportBypass,
@@ -68,8 +75,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task Test2()
         {
-            var testEventLoopApi = new VirtualTimeBasedEventLoopApi();
-            testEventLoopApi.PushCallbackAftermathDelay(null);
+            var testEventLoopApi = CreateTestEventLoopApi();
 
             var cancelCallCounter = new int[1];
             var sendCallCounter = new int[1];
@@ -95,7 +101,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             var instance = new StandardQuasiHttpClient
             {
-                MutexApi = testEventLoopApi,
                 TimerApi = testEventLoopApi,
                 AltProtocolFactory = altProtocolFactory,
                 TransportBypass = transportBypass,
@@ -117,8 +122,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task Test3()
         {
-            var testEventLoopApi = new VirtualTimeBasedEventLoopApi();
-            testEventLoopApi.PushCallbackAftermathDelay(null);
+            var testEventLoopApi = CreateTestEventLoopApi();
 
             var cancelCallCounter = new int[1];
             var sendCallCounter = new int[1];
@@ -144,7 +148,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             var instance = new StandardQuasiHttpClient
             {
-                MutexApi = testEventLoopApi,
                 TimerApi = testEventLoopApi,
                 AltProtocolFactory = altProtocolFactory,
                 TransportBypass = transportBypass,
@@ -180,8 +183,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task Test4()
         {
-            var testEventLoopApi = new VirtualTimeBasedEventLoopApi();
-            testEventLoopApi.PushCallbackAftermathDelay(null);
+            var testEventLoopApi = CreateTestEventLoopApi();
 
             var cancelCallCounter = new int[1];
             var sendCallCounter = new int[1];
@@ -207,7 +209,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             var instance = new StandardQuasiHttpClient
             {
-                MutexApi = testEventLoopApi,
                 TimerApi = testEventLoopApi,
                 AltProtocolFactory = altProtocolFactory,
                 TransportBypass = transportBypass,
@@ -275,7 +276,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     SendCallCounter[0]++;
                 }
-                await TimerApi.WhenSetTimeout(ResponseDelay);
+                await TimerApi.Delay(ResponseDelay);
                 return new ProtocolSendResult
                 {
                     Response = ResponseToReturn,

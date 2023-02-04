@@ -1,5 +1,4 @@
-﻿using Kabomu.QuasiHttp.Server;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -15,8 +14,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
         /// </summary>
         /// <param name="endpoint">the endpoint associated with this server.</param>
         /// <param name="server">the server associated with the endpoint</param>
-        /// <returns>task representing the asynchronous add operation</returns>
-        Task AddServer(object endpoint, IQuasiHttpServerTransport server);
+        void AddServer(object endpoint, IQuasiHttpServerTransport server);
 
         /// <summary>
         /// Allocates a connection to an attached server on behalf of clients.

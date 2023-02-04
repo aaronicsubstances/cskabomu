@@ -195,7 +195,7 @@ namespace Kabomu.Tests.QuasiHttp
             accraQuasiHttpServer.Transport = accraServerTransport;
             accraQuasiHttpServer.Application = CreateEndpointApplication(accraEndpoint,
                 accraServerMaxChunkSize, 27);
-            await hub.AddServer(accraEndpoint, accraServerTransport);
+            hub.AddServer(accraEndpoint, accraServerTransport);
             await accraQuasiHttpServer.Start();
 
             var accraClientTransport = new MemoryBasedClientTransport
@@ -227,7 +227,7 @@ namespace Kabomu.Tests.QuasiHttp
             kumasiQuasiHttpServer.Transport = kumasiServerTransport;
             kumasiQuasiHttpServer.Application = CreateEndpointApplication(kumasiEndpoint,
                 kumasiServerMaxChunkSize, 25);
-            await hub.AddServer(kumasiEndpoint, kumasiServerTransport);
+            hub.AddServer(kumasiEndpoint, kumasiServerTransport);
             await kumasiQuasiHttpServer.Start();
 
             var kumasiClientTransport = new MemoryBasedClientTransport

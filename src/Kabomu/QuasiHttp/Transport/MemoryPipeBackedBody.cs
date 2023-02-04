@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
@@ -19,6 +18,7 @@ namespace Kabomu.QuasiHttp.Transport
     /// </remarks>
     public class MemoryPipeBackedBody : IQuasiHttpBody
     {
+        private readonly object _mutex = new object();
         private readonly LinkedList<ReadRequest> _readRequests;
         private readonly LinkedList<WriteRequest> _writeRequests;
         private bool _endOfWriteSeen;
@@ -32,18 +32,7 @@ namespace Kabomu.QuasiHttp.Transport
         {
             _readRequests = new LinkedList<ReadRequest>();
             _writeRequests = new LinkedList<WriteRequest>();
-            MutexApi = new LockBasedMutexApi();
         }
-
-        /// <summary>
-        /// Gets or sets mutex api used to guard multithreaded 
-        /// access to operations of this class.
-        /// </summary>
-        /// <remarks> 
-        /// An ordinary lock object is the initial value for this property, and so there is no need to modify
-        /// this property except for advanced scenarios.
-        /// </remarks>
-        public IMutexApi MutexApi { get; set; }
 
         /// <summary>
         /// Returns -1 to indicate unknown length.
@@ -71,7 +60,7 @@ namespace Kabomu.QuasiHttp.Transport
             }
 
             Task<int> readTask;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (_endOfReadError != null)
                 {
@@ -139,7 +128,7 @@ namespace Kabomu.QuasiHttp.Transport
             }
 
             Task writeTask;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (_endOfReadError != null)
                 {
@@ -267,13 +256,13 @@ namespace Kabomu.QuasiHttp.Transport
         /// <param name="cause">the custom end of read error or null to make this call behave
         /// just like EndRead()</param>
         /// <returns>a task representing the asynchronous operation</returns>
-        public async Task EndRead(Exception cause)
+        public Task EndRead(Exception cause)
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (_endOfReadError != null)
                 {
-                    return;
+                    return Task.CompletedTask;
                 }
                 _endOfReadError = cause ?? new EndOfReadException();
                 foreach (var readReq in _readRequests)
@@ -288,6 +277,8 @@ namespace Kabomu.QuasiHttp.Transport
                 _writeRequests.Clear();
                 _pendingWriteByteCount = 0;
             }
+
+            return Task.CompletedTask;
         }
 
         class ReadRequest

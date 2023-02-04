@@ -146,13 +146,26 @@ namespace Kabomu.Tests.Internals
 
         public static async Task<T> Delay<T>(ITimerApi timerApi, int delay, Func<Task<T>> cb)
         {
-            await timerApi.WhenSetTimeout(delay);
-            return await cb.Invoke();
+            await timerApi.Delay(delay);
+            Task<T> t = cb?.Invoke();
+            if (t != null)
+            {
+                return await t;
+            }
+            else
+            {
+                return default(T);
+            }
         }
 
-        public static Task Delay(ITimerApi timerApi, int delay, Func<Task> cb)
+        public static async Task Delay(ITimerApi timerApi, int delay, Func<Task> cb)
         {
-            return timerApi.WhenSetTimeout(delay, cb).Item1;
+            await timerApi.Delay(delay);
+            Task t = cb?.Invoke();
+            if (t != null)
+            {
+                await t;
+            }
         }
     }
 }

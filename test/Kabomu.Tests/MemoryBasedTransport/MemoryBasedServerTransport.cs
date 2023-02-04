@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -12,6 +11,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
     /// </summary>
     public class MemoryBasedServerTransport : IQuasiHttpServerTransport
     {
+        private readonly object _mutex = new object();
         private readonly LinkedList<ClientConnectRequest> _clientConnectRequests;
         private readonly LinkedList<ServerConnectRequest> _serverConnectRequests;
         private bool _running = false;
@@ -23,26 +23,15 @@ namespace Kabomu.Tests.MemoryBasedTransport
         {
             _clientConnectRequests = new LinkedList<ClientConnectRequest>();
             _serverConnectRequests = new LinkedList<ServerConnectRequest>();
-            MutexApi = new LockBasedMutexApi();
         }
-
-        /// <summary>
-        /// Gets or sets mutex api used to guard multithreaded 
-        /// access to connection creation operations of this class.
-        /// </summary>
-        /// <remarks> 
-        /// An ordinary lock object is the initial value for this property, and so there is no need to modify
-        /// this property except for advanced scenarios.
-        /// </remarks>
-        public IMutexApi MutexApi { get; set; }
 
         /// <summary>
         /// Determines whether an instance of this class has been started.
         /// </summary>
-        /// <returns>task whose result is true if and only is an instance of this class is running.</returns>
-        public async Task<bool> IsRunning()
+        /// <returns>true if and only the instance of this class is running.</returns>
+        public bool IsRunning()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 return _running;
             }
@@ -53,12 +42,13 @@ namespace Kabomu.Tests.MemoryBasedTransport
         /// in order to create connections. Calls to this method are ignored if an instance has already been started.
         /// </summary>
         /// <returns>task representing asynchronous operation.</returns>
-        public async Task Start()
+        public Task Start()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 _running = true;
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -67,9 +57,9 @@ namespace Kabomu.Tests.MemoryBasedTransport
         /// Calls to this method are ignored if an instance has already been stopped.
         /// </summary>
         /// <returns>a task representing the asynchronous operation</returns>
-        public async Task Stop()
+        public Task Stop()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 _running = false;
                 var ex = new TransportResetException();
@@ -84,13 +74,14 @@ namespace Kabomu.Tests.MemoryBasedTransport
                 _serverConnectRequests.Clear();
                 _clientConnectRequests.Clear();
             }
+            return Task.CompletedTask;
         }
 
         internal async Task<IConnectionAllocationResponse> CreateConnectionForClient(
             object serverEndpoint, object clientEndpoint)
         {
             Task<IConnectionAllocationResponse> connectTask;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (!_running)
                 {
@@ -120,15 +111,10 @@ namespace Kabomu.Tests.MemoryBasedTransport
         /// <returns>task whose result will contain connection received from or allocated to a client</returns>
         /// <exception cref="TransportNotStartedException">if this instance is not running, ie has not been started.</exception>
         /// <exception cref="TransportResetException">If this instance is stopped while waiting for client connection</exception>
-        public Task<IConnectionAllocationResponse> ReceiveConnection()
-        {
-            return CreateConnectionForServer();
-        }
-
-        private async Task<IConnectionAllocationResponse> CreateConnectionForServer()
+        public async Task<IConnectionAllocationResponse> ReceiveConnection()
         {
             Task<IConnectionAllocationResponse> connectTask;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (!_running)
                 {
