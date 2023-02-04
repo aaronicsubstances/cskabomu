@@ -1,7 +1,6 @@
 remaining
 ==========
 -introduce enough timeout gaps to remove flakiness of QuasiHttpIntegrationTestOne
--StandardQuasiHttpClient
 -StandardQuasiHttpServer
 
 -move entire MemoryBasedTransport namespace to testing project. - done
@@ -9,6 +8,8 @@ remaining
 -remove SynchronizedBody - done
 
 -delete VirtualEventLoopApi and find alternative for its usage during testing. - done
+
+-delete mutexapi and event loop, replace with locks. - done
 
 -remove TransportBypassProbability and ResponseStreamingProbability of IQuasiHttpClient. - done
 -instead always use TransportBypass if not null. - done
@@ -27,7 +28,8 @@ remaining
 
 -create memorybasedtransport in examples - done.
 
-*reconsider use of callbacks for other languages lacking async/await syntax now that memorybasedtransport has been removed.
+*reconsider use of callbacks for other languages lacking async/await syntax now that memorybasedtransport has been removed
+and mutex apis have been removed.
 
 Release
 -------

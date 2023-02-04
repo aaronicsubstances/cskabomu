@@ -2,6 +2,7 @@
 using Kabomu.Mediator.Path;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
+using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Newtonsoft.Json;
 using System;
@@ -262,6 +263,28 @@ namespace Kabomu.Tests.Shared
             Assert.Equal(expected.BoundPath, actual.BoundPath);
             Assert.Equal(expected.UnboundRequestTarget, actual.UnboundRequestTarget);
             Assert.Equal(expected.PathValues, actual.PathValues);
+        }
+
+        internal static void CompareSendTransfers(SendTransferInternal expected,
+            SendTransferInternal actual)
+        {
+            if (expected == null)
+            {
+                Assert.Null(actual);
+                return;
+            }
+            Assert.NotNull(actual);
+            Assert.Equal(expected.IsAborted, actual.IsAborted);
+            Assert.Equal(expected.TimeoutMillis, actual.TimeoutMillis);
+            Assert.Equal(expected.ConnectivityParams?.RemoteEndpoint, actual.ConnectivityParams?.RemoteEndpoint);
+            Assert.Equal(expected.ConnectivityParams?.ExtraParams, actual.ConnectivityParams?.ExtraParams);
+            Assert.Equal(expected.Connection, actual.Connection);
+            Assert.Equal(expected.MaxChunkSize, actual.MaxChunkSize);
+            Assert.Equal(expected.Request, actual.Request);
+            Assert.Equal(expected.RequestWrappingEnabled, actual.RequestWrappingEnabled);
+            Assert.Equal(expected.ResponseWrappingEnabled, actual.ResponseWrappingEnabled);
+            Assert.Equal(expected.ResponseBufferingEnabled, actual.ResponseBufferingEnabled);
+            Assert.Equal(expected.ResponseBodyBufferingSizeLimit, actual.ResponseBodyBufferingSizeLimit);
         }
     }
 }

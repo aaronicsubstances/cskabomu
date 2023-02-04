@@ -17,8 +17,8 @@ namespace Kabomu.QuasiHttp.Client
 
         public ITimerApi TimerApi { get; set; }
         public int TimeoutMillis { get; set; }
-        public object TimeoutId { get; private set; }
-        public bool IsAborted { get; private set; }
+        public object TimeoutId { get; set; }
+        public bool IsAborted { get; set; }
         public TaskCompletionSource<IQuasiHttpResponse> CancellationTcs { get; set; }
         public IQuasiHttpRequest Request { get; set; }
         public int MaxChunkSize { get; set; }
