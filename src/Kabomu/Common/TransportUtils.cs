@@ -15,37 +15,37 @@ namespace Kabomu.Common
     public static class TransportUtils
     {
         /// <summary>
-        /// The default value of max chunk size used by quasi http servers and clients. Currently equal to 8,192 bytes.
+        /// The limit of data buffering when reading byte streams into memory. Equal to 128 MB.
         /// </summary>
-        public static readonly int DefaultMaxChunkSize = 8_192;
+        public static readonly int DefaultDataBufferLimit = 65_536 * 2 * 1024;
+
+        /// <summary>
+        /// The default value for the maximum size of a response body being read fully into memory when
+        /// response body buffering is enabled. Equal to 128 MB.
+        /// </summary>
+        public static readonly int DefaultResponseBodyBufferingSizeLimit = DefaultDataBufferLimit;
+
+        /// <summary>
+        /// The default read buffer size. Equal to 8,192 bytes.
+        /// </summary>
+        public static readonly int DefaultReadBufferSize = 8_192;
+
+        /// <summary>
+        /// The default value of max chunk size used by quasi http servers and clients. Equal to 8,192 bytes.
+        /// </summary>
+        public static readonly int DefaultMaxChunkSize = DefaultReadBufferSize;
 
         /// <summary>
         /// The maximum value of a max chunk size that can be tolerated during chunk decoding even if it
-        /// exceeds the value used for sending. Currently equal to 65,536 bytes.
+        /// exceeds the value used for sending. Equal to 65,536 bytes.
         /// </summary>
         /// <remarks>
         /// Practically this means that communicating parties can safely send chunks not exceeding 64KB without
-        /// fear of rejection, without prior negotiation. Beyond 64KB however, communicating parties must have
+        /// fear of rejection and without prior negotiation. Beyond 64KB however, communicating parties must have
         /// some prior negotiation (manual or automated) on max chunk sizes, or else chunks may be rejected
         /// by receivers as too large.
         /// </remarks>
         public static readonly int DefaultMaxChunkSizeLimit = 65_536;
-
-        /// <summary>
-        /// The default value for the maximum size of a response body being read fully into memory when
-        /// response body buffering is enabled. Currently equal to 128 MB.
-        /// </summary>
-        public static readonly int DefaultResponseBodyBufferingSizeLimit = 65_536 * 2 * 1024; // 128 MB.
-
-        /// <summary>
-        /// The limit of data buffering to use when a default value is needed. Currently equal to 65,536 bytes.
-        /// </summary>
-        public static readonly int DefaultDataBufferLimit = 65_536;
-
-        /// <summary>
-        /// The default read buffer size. Currently equal to 8,192 bytes.
-        /// </summary>
-        public static readonly int DefaultReadBufferSize = 8_192;
 
         /// <summary>
         /// Request environment variable name of "kabomu.local_peer_endpoint" for local server endpoint.
@@ -95,26 +95,32 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Reads all of a quasi http body's data into memory and ends it, using read buffer size of 8KB.
+        /// Reads all of a quasi http body's data into memory and ends it, using read buffer size of 8KB
+        /// and buffering limit of 128 MB.
         /// </summary>
         /// <param name="body">quasi http body whose data is to be read.</param>
         /// <returns>A promise whose result is a byte array containing all
         /// the data in the quasi http body.</returns>
+        /// <exception cref="BodySizeLimitExceededException">If the data in <paramref name="body"/> argument 
+        /// exceeds 128 MB.</exception>
         public static Task<byte[]> ReadBodyToEnd(IQuasiHttpBody body)
         {
             return ReadBodyToEnd(body, DefaultReadBufferSize);
         }
-        
+
         /// <summary>
-         /// Reads all of a quasi http body's data into memory and ends it.
-         /// </summary>
-         /// <param name="body">quasi http body whose data is to be read.</param>
-         /// <param name="bufferSize">the size in bytes of the read buffer.</param>
-         /// <returns>A promise whose result is a byte array containing all
-         /// the data in the quasi http body.</returns>
+        /// Reads all of a quasi http body's data into memory with a given read buffer size and ends it,
+        /// with a buffering limit of 128MB.
+        /// </summary>
+        /// <param name="body">quasi http body whose data is to be read.</param>
+        /// <param name="bufferSize">the size in bytes of the read buffer.</param>
+        /// <returns>A promise whose result is a byte array containing all
+        /// the data in the quasi http body.</returns>
+        /// <exception cref="BodySizeLimitExceededException">If the data in <paramref name="body"/> argument 
+        /// exceeds 128 MB.</exception>
         public static async Task<byte[]> ReadBodyToEnd(IQuasiHttpBody body, int bufferSize)
         {
-            var byteStream = await ReadBodyToMemoryStreamInternal(body, bufferSize, -1);
+            var byteStream = await ReadBodyToMemoryStreamInternal(body, bufferSize, DefaultDataBufferLimit);
             return byteStream.ToArray();
         }
 
@@ -219,47 +225,6 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Reads all of a quasi http transport connection's data into memory and releases it, using read buffer size of 8KB.
-        /// </summary>
-        /// <param name="transport">quasi http transport of connection to read from</param>
-        /// <param name="connection">connection to read from</param>
-        /// <returns>A promise whose result is a byte array containing all
-        /// the data in the quasi http transport connection.</returns>
-        public static Task<byte[]> ReadTransportToEnd(IQuasiHttpTransport transport, object connection)
-        {
-            return ReadTransportToEnd(transport, connection, DefaultReadBufferSize);
-        }
-
-        /// <summary>
-        /// Reads all of a quasi http transport connection's data into memory and releases it.
-        /// </summary>
-        /// <param name="transport">quasi http transport of connection to read from</param>
-        /// <param name="connection">connection to read from</param>
-        /// <param name="bufferSize">the size in bytes of the read buffer.</param>
-        /// <returns>A promise whose result is a byte array containing all
-        /// the data in the quasi http transport connection.</returns>
-        public static async Task<byte[]> ReadTransportToEnd(IQuasiHttpTransport transport, object connection, int bufferSize)
-        {
-            var readBuffer = new byte[bufferSize];
-            var byteStream = new MemoryStream();
-
-            while (true)
-            {
-                int bytesRead = await transport.ReadBytes(connection, readBuffer, 0, readBuffer.Length);
-                if (bytesRead > 0)
-                {
-                    byteStream.Write(readBuffer, 0, bytesRead);
-                }
-                else
-                {
-                    break;
-                }
-            }
-            await transport.ReleaseConnection(connection);
-            return byteStream.ToArray();
-        }
-
-        /// <summary>
         /// Transfers all the data in a quasi http body to a connection of a quasi http
         /// transport, and ends the body.
         /// </summary>
@@ -304,6 +269,42 @@ namespace Kabomu.Common
             {
                 await transport.WriteBytes(connection, slice.Data, slice.Offset, slice.Length);
             }
+        }
+
+        public static async Task<bool> TrySerializeFileBody(IQuasiHttpTransport transport,
+            object connection, byte[] prefix, IQuasiHttpBody body)
+        {
+            if (!(body is FileBody))
+            {
+                return false;
+            }
+            
+            await transport.WriteBytes(connection, prefix, 0, prefix.Length);
+
+            var fileBody = body as FileBody;
+
+            // format is offset, file name length, then file name.
+            var filePathAsBytes = ByteUtils.StringToBytes(fileBody.FilePath);
+            var offsetLengthSpec = new byte[10];
+            ByteUtils.SerializeUpToInt64BigEndian(fileBody.Offset, offsetLengthSpec, 0, 8);
+            ByteUtils.SerializeUpToInt64BigEndian(filePathAsBytes.Length, offsetLengthSpec, 8, 2);
+            await transport.WriteBytes(connection, offsetLengthSpec, 0, offsetLengthSpec.Length);
+            await transport.WriteBytes(connection, filePathAsBytes, 0, filePathAsBytes.Length);
+
+            return true;
+        }
+
+        public static async Task<FileBody> DeserializeFileBody(IQuasiHttpTransport transport,
+            object connection, long contentLength)
+        {
+            var offsetLengthSpec = new byte[10];
+            await ReadTransportBytesFully(transport, connection, offsetLengthSpec, 0, offsetLengthSpec.Length);
+            long offsetInFile = ByteUtils.DeserializeInt64BigEndian(offsetLengthSpec, 0);
+            short lengthOfFileNameAsBytes = ByteUtils.DeserializeInt16BigEndian(offsetLengthSpec, 8);
+            var filePathAsBytes = new byte[lengthOfFileNameAsBytes];
+            await ReadTransportBytesFully(transport, connection, filePathAsBytes, 0, filePathAsBytes.Length);
+            var filePath = ByteUtils.BytesToString(filePathAsBytes);
+            return new FileBody(filePath, offsetInFile, contentLength);
         }
     }
 }

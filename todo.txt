@@ -2,6 +2,8 @@ remaining
 ==========
 -introduce enough timeout gaps to remove flakiness of QuasiHttpIntegrationTestOne
 -StandardQuasiHttpServer
+-FileBody
+-ProtocolUtilsInternal
 
 -move entire MemoryBasedTransport namespace to testing project. - done
 
@@ -28,8 +30,10 @@ remaining
 
 -create memorybasedtransport in examples - done.
 
-*reconsider use of callbacks for other languages lacking async/await syntax now that memorybasedtransport has been removed
-and mutex apis have been removed.
+- added FileBody type. - done
+
+- added serialize/deserialize body to transport interface. - done
+- extended protocol to handle new serialization methods on transport -done
 
 Release
 -------
@@ -52,24 +56,3 @@ WindowsNamedPipeTransport - availability and making it async may require use of 
 HttpTransport
 MemoryTransport
 ZeroMQTransport?
-
--URL Path validation middleware (based on https://datatracker.ietf.org/doc/html/rfc1630). 
-    1. Valid path characters aside forward slash and percent encoding %xx (ISO-8859-1): A–Z a–z 0–9 . - _ ~ ! $ & ' ( ) * + , ; = : @
-
--Header validation middleware
-    1. key or value cannot contain newlines
-    2. case sensitive keys only
-    3. keys starts with English alphabet, and can contain other English alphabets, hyphens or decimal digits.
-    4. values: only printable ASCII.
-    3. the following headers are reserved for use by HTTP protocol, and hence will be ignored or lead to errors if set by clients for transmission over HTTP: content-length, transfer-encoding (fixed to "chunked"), trailer, te, upgrade, connection, keep-alive, proxy-authenticate, proxy-authorization, accept-encoding (fixed to "identity"), content-encoding.
-    4. See also https://datatracker.ietf.org/doc/html/rfc7230#section-3.3.3
-
-
-Optimize - reduce zero byte copy - v1.2.0?
------------------------------------------
-Created ExtendedTransport interface
--Add canTransferBody(body)->bool and transferBody - to support any  future sendfile/transmitfile
-Create ExtendedBody interface
--Add canreadslices and readslices - takes a maxchunksize param, and returns slices.
-  - of interest to extended transport and chunk encoding body.
--Have to still support readbytes and give ExtendedTransport the option to choose.

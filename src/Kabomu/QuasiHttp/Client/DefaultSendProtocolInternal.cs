@@ -1,6 +1,5 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.ChunkedTransfer;
-using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -48,7 +47,8 @@ namespace Kabomu.QuasiHttp.Client
             Task<ProtocolSendResult> resFetchTask = StartFetchingResponse();
             if (Request.Body != null)
             {
-                Task reqTransferTask = TransferRequestBodyToTransport(Request.Body);
+                Task reqTransferTask = ProtocolUtilsInternal.TransferBodyToTransport(
+                    Transport, Connection, MaxChunkSize, Request.Body);
                 // pass resFetchTask first so that hopefully even if both are completed, it
                 //  will still win.
                 if (await Task.WhenAny(resFetchTask, reqTransferTask) == reqTransferTask)
@@ -79,16 +79,6 @@ namespace Kabomu.QuasiHttp.Client
             await ChunkEncodingBody.WriteLeadChunk(Transport, Connection, chunk, MaxChunkSize);
         }
 
-        private async Task TransferRequestBodyToTransport(IQuasiHttpBody requestBody)
-        {
-            if (requestBody.ContentLength < 0)
-            {
-                requestBody = new ChunkEncodingBody(requestBody, MaxChunkSize);
-            }
-            await TransportUtils.TransferBodyToTransport(Transport,
-                Connection, requestBody, MaxChunkSize);
-        }
-
         private async Task<ProtocolSendResult> StartFetchingResponse()
         {
             var chunk = await ChunkDecodingBody.ReadLeadChunk(Transport, Connection,
@@ -103,14 +93,19 @@ namespace Kabomu.QuasiHttp.Client
 
             if (chunk.ContentLength != 0)
             {
-                response.Body = new TransportBackedBody(Transport, Connection,
-                    chunk.ContentLength, true)
+                response.Body = await ProtocolUtilsInternal.StartDeserializingBody(
+                    Transport, Connection, chunk.ContentLength);
+                if (response.Body == null)
                 {
-                    ContentType = chunk.ContentType
-                };
-                if (chunk.ContentLength < 0)
-                {
-                    response.Body = new ChunkDecodingBody(response.Body, MaxChunkSize);
+                    response.Body = new TransportBackedBody(Transport, Connection,
+                        chunk.ContentLength, true)
+                    {
+                        ContentType = chunk.ContentType
+                    };
+                    if (chunk.ContentLength < 0)
+                    {
+                        response.Body = new ChunkDecodingBody(response.Body, MaxChunkSize);
+                    }
                 }
                 if (ResponseBufferingEnabled)
                 {

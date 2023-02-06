@@ -69,8 +69,9 @@ namespace Kabomu.Tests.Internals
                     }.Serialize();
                     WriteChunk(emptyBodyChunk, stream);
                 }
-                else
+                else if (request.Body.ContentLength > 0)
                 {
+                    stream.Write(ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue);
                     stream.Write(requestBodyBytes);
                 }
             }
@@ -126,8 +127,9 @@ namespace Kabomu.Tests.Internals
                     }.Serialize();
                     WriteChunk(emptyBodyChunk, stream);
                 }
-                else
+                else if (response.Body.ContentLength > 0)
                 {
+                    stream.Write(ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue);
                     stream.Write(responseBodyBytes);
                 }
             }

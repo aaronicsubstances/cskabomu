@@ -156,6 +156,11 @@ namespace Kabomu.Tests.QuasiHttp.Server
                     Assert.Same(connection, actualConnection);
                     return Task.CompletedTask;
                 },
+                TrySerializeBodyCallback = (actualConnection, prefix, body) =>
+                {
+                    Assert.Same(connection, actualConnection);
+                    return Task.FromResult(false);
+                }
             };
             var instance = new DefaultReceiveProtocolInternal
             {
@@ -194,13 +199,18 @@ namespace Kabomu.Tests.QuasiHttp.Server
             // finally verify contents of output stream.
             var actualRes = outputStream.ToArray();
             Assert.NotEmpty(actualRes);
+
+            int resBytesOffset = 0;
             var actualResChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualRes, 0,
                 MiscUtils.LengthOfEncodedChunkLength);
-            var actualResChunk = LeadChunk.Deserialize(actualRes,
-                MiscUtils.LengthOfEncodedChunkLength, actualResChunkLength);
+            resBytesOffset += MiscUtils.LengthOfEncodedChunkLength;
+
+            var actualResChunk = LeadChunk.Deserialize(actualRes, resBytesOffset,
+                actualResChunkLength);
             ComparisonUtils.CompareLeadChunks(expectedResChunk, actualResChunk);
-            var actualResponseBodyLen = actualRes.Length - 
-                MiscUtils.LengthOfEncodedChunkLength - actualResChunkLength;
+            resBytesOffset += actualResChunkLength;
+            
+            var actualResponseBodyLen = actualRes.Length - resBytesOffset;
             if (expectedResponseBodyBytes == null)
             {
                 Assert.Equal(0, actualResponseBodyLen);
@@ -211,13 +221,19 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 if (actualResChunk.ContentLength < 0)
                 {
                     actualResBodyBytes = await MiscUtils.ReadChunkedBody(actualRes,
-                        actualResChunkLength + MiscUtils.LengthOfEncodedChunkLength,
-                        actualResponseBodyLen);
+                        resBytesOffset, actualResponseBodyLen);
                 }
                 else
                 {
+                    var resBodyPrefix = new byte[MiscUtils.LengthOfEncodedChunkLength];
+                    Array.Copy(actualRes, resBytesOffset,
+                        resBodyPrefix, 0, resBodyPrefix.Length);
+                    Assert.Equal(ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue, resBodyPrefix);
+                    resBytesOffset += MiscUtils.LengthOfEncodedChunkLength;
+                    actualResponseBodyLen -= MiscUtils.LengthOfEncodedChunkLength;
+
                     actualResBodyBytes = new byte[actualResponseBodyLen];
-                    Array.Copy(actualRes, actualResChunkLength + MiscUtils.LengthOfEncodedChunkLength,
+                    Array.Copy(actualRes, resBytesOffset,
                         actualResBodyBytes, 0, actualResponseBodyLen);
                 }
                 Assert.Equal(expectedResponseBodyBytes, actualResBodyBytes);

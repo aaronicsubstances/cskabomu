@@ -35,7 +35,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             // arrange
             var testEventLoopApi = CreateTestEventLoopApi();
 
-            var expectedResponse = new DefaultQuasiHttpResponse();
+            var expectedResponse = new TestQuasiHttpResponse();
             var cancelCallCounter = new MutableInt();
             var sendCallCounter = new MutableInt();
             var transfers = new List<SendTransferInternal>();
@@ -77,6 +77,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             Assert.Same(expectedResponse, res);
             Assert.Equal(new MutableInt(1), sendCallCounter);
             Assert.Equal(new MutableInt(1), cancelCallCounter);
+            Assert.Equal(0, expectedResponse.CloseCallCount);
 
             Assert.Single(transfers);
             var expectedTransfer = new SendTransferInternal
@@ -97,6 +98,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ResponseBodyBufferingSizeLimit = 134_217_728
             };
             ComparisonUtils.CompareSendTransfers(expectedTransfer, transfers[0]);
+            Assert.Null(transfers[0].CancellationTcs);
         }
 
         [Fact]
@@ -106,7 +108,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             var cancelCallCounter = new MutableInt();
             var sendCallCounter = new MutableInt();
-            var expectedResponse = new DefaultQuasiHttpResponse();
+            var expectedResponse = new TestQuasiHttpResponse();
             var transfers = new List<SendTransferInternal>();
             Func<SendTransferInternal, ISendProtocolInternal> altProtocolFactory = transfer =>
             {
@@ -155,6 +157,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             Assert.Same(expectedResponse, res);
             Assert.Equal(new MutableInt(1), sendCallCounter);
             Assert.Equal(new MutableInt(1), cancelCallCounter);
+            Assert.Equal(0, expectedResponse.CloseCallCount);
 
             Assert.Single(transfers);
             var expectedTransfer = new SendTransferInternal
@@ -178,6 +181,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ResponseBodyBufferingSizeLimit = 120
             };
             ComparisonUtils.CompareSendTransfers(expectedTransfer, transfers[0]);
+            Assert.NotNull(transfers[0].CancellationTcs);
         }
 
         [Fact]
@@ -187,7 +191,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             var cancelCallCounter = new MutableInt();
             var sendCallCounter = new MutableInt();
-            var expectedResponse = new DefaultQuasiHttpResponse();
+            var expectedResponse = new TestQuasiHttpResponse();
             var transfers = new List<SendTransferInternal>();
             Func<SendTransferInternal, ISendProtocolInternal> altProtocolFactory = transfer =>
             {
@@ -251,6 +255,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             Assert.Equal(new MutableInt(1), sendCallCounter);
             Assert.Equal(new MutableInt(1), cancelCallCounter);
             Assert.Equal(new MutableInt(1), bodyEndCallCount);
+            Assert.Equal(1, expectedResponse.CloseCallCount);
 
             Assert.Single(transfers);
             var expectedTransfer = new SendTransferInternal
@@ -274,6 +279,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ResponseBodyBufferingSizeLimit = 60
             };
             ComparisonUtils.CompareSendTransfers(expectedTransfer, transfers[0]);
+            Assert.NotNull(transfers[0].CancellationTcs);
         }
 
         [Fact]
@@ -373,6 +379,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ResponseBodyBufferingSizeLimit = 125
             };
             ComparisonUtils.CompareSendTransfers(expectedTransfer, transfers[0]);
+            Assert.NotNull(transfers[0].CancellationTcs);
         }
 
         [Fact]
@@ -492,6 +499,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ResponseBodyBufferingSizeLimit = 125
             };
             ComparisonUtils.CompareSendTransfers(expectedTransfer, transfers[0]);
+            Assert.NotNull(transfers[0].CancellationTcs);
         }
 
         [Fact]
@@ -501,7 +509,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             var cancelCallCounter = new MutableInt();
             var sendCallCounter = new MutableInt();
-            var expectedResponse = new DefaultQuasiHttpResponse
+            var expectedResponse = new TestQuasiHttpResponse
             {
                 Body = new StringBody("data")
             };
@@ -572,6 +580,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             Assert.Same(expectedResponse, response);
             Assert.Equal(new MutableInt(1), sendCallCounter);
             Assert.Equal(new MutableInt(0), cancelCallCounter);
+            Assert.Equal(0, expectedResponse.CloseCallCount);
 
             Assert.Single(transfers);
             var expectedTransfer = new SendTransferInternal
@@ -590,6 +599,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ResponseBodyBufferingSizeLimit = 125
             };
             ComparisonUtils.CompareSendTransfers(expectedTransfer, transfers[0]);
+            Assert.NotNull(transfers[0].CancellationTcs);
         }
 
         [Fact]
@@ -674,6 +684,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ResponseBodyBufferingSizeLimit = 150
             };
             ComparisonUtils.CompareSendTransfers(expectedTransfer, transfers[0]);
+            Assert.NotNull(transfers[0].CancellationTcs);
         }
 
         [Fact]
@@ -697,7 +708,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     ResponseToReturn = lateResponse
                 };
             };
-            DefaultQuasiHttpSendOptions defaultSendOptions = null;
+            DefaultQuasiHttpSendOptions defaultSendOptions = new DefaultQuasiHttpSendOptions
+            {
+                TimeoutMillis = 10,
+            };
             object connection = new List<object> { true, "and" };
             IDictionary<string, object> requestEnv = new Dictionary<string, object>();
             IQuasiHttpClientTransport transport = new ConfigurableQuasiHttpTransport
@@ -730,7 +744,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     EndReadCallback = async () => reqBodyCallCounter.Increment()
                 }
             };
-            IQuasiHttpSendOptions sendOptions = null;
+            IQuasiHttpSendOptions sendOptions = new DefaultQuasiHttpSendOptions
+            {
+                TimeoutMillis = -1
+            };
             var res = instance.Send2(remoteEndpoint, request, sendOptions);
             _ = MiscUtils.Delay(testEventLoopApi, 40, () =>
             {
@@ -754,7 +771,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 IsAborted = true,
                 Request = request,
-                TimeoutMillis = 0,
+                TimeoutMillis = -1,
                 ConnectivityParams = new DefaultConnectivityParams
                 {
                     RemoteEndpoint = remoteEndpoint,
@@ -763,9 +780,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Connection = connection,
                 MaxChunkSize = 8_192,
                 ResponseBufferingEnabled = true,
-                ResponseBodyBufferingSizeLimit = 134217728
+                ResponseBodyBufferingSizeLimit = 134_217_728
             };
             ComparisonUtils.CompareSendTransfers(expectedTransfer, transfers[0]);
+            Assert.NotNull(transfers[0].CancellationTcs);
         }
 
         private class TestSendProtocolInternal : ISendProtocolInternal
@@ -802,17 +820,17 @@ namespace Kabomu.Tests.QuasiHttp.Client
         {
             public int CloseCallCount { get; set; }
 
-            public int StatusCode => 0;
+            public int StatusCode { get; set; }
 
-            public IDictionary<string, IList<string>> Headers => null;
+            public IDictionary<string, IList<string>> Headers { get; set; }
 
-            public IQuasiHttpBody Body => null;
+            public IQuasiHttpBody Body { get; set; }
 
-            public string HttpStatusMessage => null;
+            public string HttpStatusMessage { get; set; }
 
-            public string HttpVersion => null;
+            public string HttpVersion { get; set; }
 
-            public IDictionary<string, object> Environment => null;
+            public IDictionary<string, object> Environment { get; set; }
 
             public Task Close()
             {

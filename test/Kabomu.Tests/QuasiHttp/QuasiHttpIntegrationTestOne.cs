@@ -4,7 +4,6 @@ using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
-using Kabomu.Tests.Internals;
 using Kabomu.Tests.MemoryBasedTransport;
 using Kabomu.Tests.Shared;
 using System;
@@ -92,7 +91,7 @@ namespace Kabomu.Tests.QuasiHttp
             };
             options = new DefaultQuasiHttpSendOptions
             {
-                TimeoutMillis = 200
+                TimeoutMillis = 5_000
             };
             responseTimeMillis = 160;
             expectedResponse = new DefaultQuasiHttpResponse
@@ -112,8 +111,11 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 Target = "/long",
             };
-            options = null;
-            responseTimeMillis = 27;
+            options = new DefaultQuasiHttpSendOptions
+            {
+                TimeoutMillis = -1
+            };
+            responseTimeMillis = 127;
             expectedResponse = new DefaultQuasiHttpResponse();
             testData.Add(new object[] { remoteEndpoint, request, options,
                 responseTimeMillis, expectedResponse });

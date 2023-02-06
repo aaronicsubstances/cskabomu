@@ -72,14 +72,19 @@ namespace Kabomu.QuasiHttp.Server
             };
             if (chunk.ContentLength != 0)
             {
-                request.Body = new TransportBackedBody(Transport, Connection,
-                    chunk.ContentLength, false)
+                request.Body = await ProtocolUtilsInternal.StartDeserializingBody(Transport,
+                    Connection, chunk.ContentLength);
+                if (request.Body == null)
                 {
-                    ContentType = chunk.ContentType
-                };
-                if (chunk.ContentLength < 0)
-                {
-                    request.Body = new ChunkDecodingBody(request.Body, MaxChunkSize);
+                    request.Body = new TransportBackedBody(Transport, Connection,
+                        chunk.ContentLength, false)
+                    {
+                        ContentType = chunk.ContentType
+                    };
+                    if (chunk.ContentLength < 0)
+                    {
+                        request.Body = new ChunkDecodingBody(request.Body, MaxChunkSize);
+                    }
                 }
             }
             return request;
@@ -106,13 +111,8 @@ namespace Kabomu.QuasiHttp.Server
 
             if (response.Body != null)
             {
-                var responseBody = response.Body;
-                if (responseBody.ContentLength < 0)
-                {
-                    responseBody = new ChunkEncodingBody(responseBody, MaxChunkSize);
-                }
-                await TransportUtils.TransferBodyToTransport(Transport,
-                    Connection, responseBody, MaxChunkSize);
+                await ProtocolUtilsInternal.TransferBodyToTransport(Transport, Connection,
+                    MaxChunkSize, response.Body);
             }
 
             await response.Close();

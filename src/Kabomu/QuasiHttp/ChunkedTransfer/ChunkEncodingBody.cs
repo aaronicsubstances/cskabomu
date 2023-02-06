@@ -28,6 +28,33 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// </summary>
         public static readonly int HardMaxChunkSizeLimit = 1 << (8 * LengthOfEncodedChunkLength) - 1;
 
+        private static readonly int ReservedBytesToUse;
+        private static readonly ByteBufferSlice[] ChunkPrefix;
+        private static readonly int ChunkPrefixLength;
+
+        internal static readonly int DefaultValueForInvalidChunkLength = -1;
+        internal static readonly int CustomValueForInvalidChunkLength = -2;
+        internal static readonly byte[] EncodedChunkLengthOfDefaultInvalidValue;
+        internal static readonly byte[] EncodedChunkLengthOfCustomInvalidValue;
+
+        static ChunkEncodingBody()
+        {
+            ChunkPrefix = new SubsequentChunk
+            {
+                Version = LeadChunk.Version01
+            }.Serialize();
+            ChunkPrefixLength = ByteUtils.CalculateSizeOfSlices(ChunkPrefix);
+            ReservedBytesToUse = LengthOfEncodedChunkLength + ChunkPrefixLength;
+
+            EncodedChunkLengthOfDefaultInvalidValue = new byte[LengthOfEncodedChunkLength];
+            ByteUtils.SerializeUpToInt64BigEndian(DefaultValueForInvalidChunkLength,
+                EncodedChunkLengthOfDefaultInvalidValue, 0, LengthOfEncodedChunkLength);
+
+            EncodedChunkLengthOfCustomInvalidValue = new byte[LengthOfEncodedChunkLength];
+            ByteUtils.SerializeUpToInt64BigEndian(CustomValueForInvalidChunkLength,
+                EncodedChunkLengthOfCustomInvalidValue, 0, LengthOfEncodedChunkLength);
+        }
+
         private readonly IQuasiHttpBody _wrappedBody;
         private readonly int _maxChunkSize;
         private bool _endOfReadSeen;
@@ -116,13 +143,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
         {
-            var chunkPrefix = new SubsequentChunk
-            {
-                Version = LeadChunk.Version01
-            }.Serialize();
-            var chunkPrefixLength = ByteUtils.CalculateSizeOfSlices(chunkPrefix);
-            var reservedBytesToUse = LengthOfEncodedChunkLength + chunkPrefixLength;
-            if (bytesToRead <= reservedBytesToUse)
+            if (bytesToRead <= ReservedBytesToUse)
             {
                 if (bytesToRead < 0)
                 {
@@ -130,17 +151,17 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 }
                 else
                 {
-                    throw new ArgumentException($"require at least {reservedBytesToUse + 1} bytes to read");
+                    throw new ArgumentException($"require at least {ReservedBytesToUse + 1} bytes to read");
                 }
             }
             bytesToRead = Math.Min(bytesToRead, _maxChunkSize);
-            if (bytesToRead <= reservedBytesToUse)
+            if (bytesToRead <= ReservedBytesToUse)
             {
                 throw new ArgumentException("max chunk size too small to read and encode any number of bytes");
             }
 
             int bytesRead = await _wrappedBody.ReadBytes(data,
-                offset + reservedBytesToUse, bytesToRead - reservedBytesToUse);
+                offset + ReservedBytesToUse, bytesToRead - ReservedBytesToUse);
 
             if (bytesRead == 0)
             {
@@ -153,17 +174,17 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                     _endOfReadSeen = true;
                 }
             }
-            ByteUtils.SerializeUpToInt64BigEndian(bytesRead + chunkPrefixLength, data, offset,
+            ByteUtils.SerializeUpToInt64BigEndian(bytesRead + ChunkPrefixLength, data, offset,
                 LengthOfEncodedChunkLength);
             int sliceBytesWritten = 0;
-            foreach (var slice in chunkPrefix)
+            foreach (var slice in ChunkPrefix)
             {
                 Array.Copy(slice.Data, slice.Offset, 
                     data, offset + LengthOfEncodedChunkLength + sliceBytesWritten, 
                     slice.Length);
                 sliceBytesWritten += slice.Length;
             }
-            return bytesRead + reservedBytesToUse;
+            return bytesRead + ReservedBytesToUse;
         }
 
         public Task EndRead()

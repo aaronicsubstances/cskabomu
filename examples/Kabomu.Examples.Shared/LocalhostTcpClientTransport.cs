@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -37,6 +38,16 @@ namespace Kabomu.Examples.Shared
         public Task WriteBytes(object connection, byte[] data, int offset, int length)
         {
             return LocalhostTcpServerTransport.WriteBytesInternal(connection, data, offset, length);
+        }
+
+        public Task<bool> TrySerializeBody(object connection, byte[] prefix, IQuasiHttpBody body)
+        {
+            return LocalhostTcpServerTransport.TrySerializeBodyInternal(this, connection, prefix, body);
+        }
+
+        public Task<IQuasiHttpBody> DeserializeBody(object connection, long contentLength)
+        {
+            return LocalhostTcpServerTransport.DeserializeBodyInternal(this, connection, contentLength);
         }
     }
 }
