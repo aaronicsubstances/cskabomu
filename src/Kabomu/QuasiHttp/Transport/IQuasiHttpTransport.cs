@@ -1,5 +1,4 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -55,35 +54,5 @@ namespace Kabomu.QuasiHttp.Transport
         /// <param name="connection">the connection to release or close</param>
         /// <returns>a task representing the asynchronous connection release operation</returns>
         Task ReleaseConnection(object connection);
-
-        /// <summary>
-        /// Meant to be used to efficiently write out certain kinds of quasi http bodies with 
-        /// positive content lengths. Typical example is sending files efficiently on localhost.
-        /// </summary>
-        /// <remarks>
-        /// If an implementation chooses to write out a body, it must first write out given blob of bytes,
-        /// then serialize the body onto a connection handle, and then return true afterwards.
-        /// <para>
-        /// Implementations which are not interested in handling bodies directly should simply return false.
-        /// </para>
-        /// </remarks>
-        /// <param name="connection">a network handle with which writing can be done</param>
-        /// <param name="prefix">an opaque blob which should first be written out if it is decided
-        /// that the body should be seriarlized.</param>
-        /// <param name="body">body to serialize</param>
-        /// <returns>a task whose result is true if body was written out, and false if no writing occured.</returns>
-        Task<bool> TrySerializeBody(object connection, byte[] prefix, IQuasiHttpBody body);
-
-        /// <summary>
-        /// Counterpart to <see cref="TrySerializeBody"/> for efficiently retrieving
-        /// certain kinds of quasi http bodies with positive content length.
-        /// </summary>
-        /// <remarks>
-        /// Once this method is called, an implementation must provide a non-null quasi http body.
-        /// </remarks>
-        /// <param name="connection">a network handle with which writing can be done</param>
-        /// <param name="contentLength">length of quasi http body to retrieve.</param>
-        /// <returns>task whose result is a quasi http body deserialized from a connection handle.</returns>
-        Task<IQuasiHttpBody> DeserializeBody(object connection, long contentLength);
     }
 }

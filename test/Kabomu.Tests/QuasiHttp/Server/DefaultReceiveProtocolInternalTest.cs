@@ -155,11 +155,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 {
                     Assert.Same(connection, actualConnection);
                     return Task.CompletedTask;
-                },
-                TrySerializeBodyCallback = (actualConnection, prefix, body) =>
-                {
-                    Assert.Same(connection, actualConnection);
-                    return Task.FromResult(false);
                 }
             };
             var instance = new DefaultReceiveProtocolInternal
@@ -202,7 +197,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             int resBytesOffset = 0;
             var actualResChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualRes, 0,
-                MiscUtils.LengthOfEncodedChunkLength);
+                MiscUtils.LengthOfEncodedChunkLength, true);
             resBytesOffset += MiscUtils.LengthOfEncodedChunkLength;
 
             var actualResChunk = LeadChunk.Deserialize(actualRes, resBytesOffset,

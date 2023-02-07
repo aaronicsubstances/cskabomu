@@ -11,8 +11,16 @@ namespace Kabomu.QuasiHttp.Server
 {
     internal class ReceiveTransferInternal
     {
-        private readonly object _mutex = new object();
+        private object _mutex;
         private IReceiveProtocolInternal _protocol;
+
+        public object Mutex
+        {
+            set
+            {
+                _mutex = value;
+            }
+        }
 
         public ITimerApi TimerApi { get; set; }
         public int TimeoutMillis { get; set; }
@@ -44,23 +52,23 @@ namespace Kabomu.QuasiHttp.Server
             }, TimeoutMillis);
         }
 
+        /// <summary>
+        /// Assume this call occurs under mutex.
+        /// </summary>
+        /// <param name="protocolFactory"></param>
+        /// <returns></returns>
         public async Task<IQuasiHttpResponse> StartProtocol(
             Func<ReceiveTransferInternal, IReceiveProtocolInternal> protocolFactory)
         {
             // even if abort has already happened, still go ahead and
             // create protocol instance and cancel it because the
             // factory may be holding on to some live resources.
+            // NB: the code structure here is meant to mirror that of
+            // SendTransferInternal. Over here, there is currently no
+            // reason why an abort will occur before protocol instance is creatd.
             var protocol = protocolFactory.Invoke(this);
-            bool abortedAlready = false;
-            lock (_mutex)
-            {
-                _protocol = protocol;
-                if (IsAborted)
-                {
-                    abortedAlready = true;
-                }
-            }
-            if (abortedAlready)
+            _protocol = protocol;
+            if (IsAborted)
             {
                 try
                 {

@@ -20,8 +20,6 @@ namespace Kabomu.Tests.Shared
         public Func<bool> IsRunningCallback { get; set; }
         public Func<Task> StopCallback { get; set; }
         public Func<Task<IConnectionAllocationResponse>> ReceiveConnectionCallback { get; set; }
-        public Func<object, byte[], IQuasiHttpBody, Task<bool>> TrySerializeBodyCallback { get; set; }
-        public Func<object, long, Task<IQuasiHttpBody>> DeserializeBodyCallback { get; set; }
 
         public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(IQuasiHttpRequest request,
             IConnectivityParams connectivityParams)
@@ -72,16 +70,6 @@ namespace Kabomu.Tests.Shared
         public Task Stop()
         {
             return StopCallback.Invoke();
-        }
-
-        public Task<bool> TrySerializeBody(object connection, byte[] prefix, IQuasiHttpBody body)
-        {
-            return TrySerializeBodyCallback.Invoke(connection, prefix, body);
-        }
-
-        public Task<IQuasiHttpBody> DeserializeBody(object connection, long contentLength)
-        {
-            return DeserializeBodyCallback.Invoke(connection, contentLength);
         }
     }
 }

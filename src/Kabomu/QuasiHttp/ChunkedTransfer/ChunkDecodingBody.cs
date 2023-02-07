@@ -89,7 +89,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
 
            int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
-                encodedLength.Length);
+                encodedLength.Length, true);
             ValidateChunkLength(chunkLen, maxChunkSize, "Failed to decode quasi http headers");
             var chunkBytes = new byte[chunkLen];
             try
@@ -155,7 +155,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
             var chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
-                encodedLength.Length);
+                encodedLength.Length, true);
             ValidateChunkLength(chunkLen, _maxChunkSize, "Failed to decode quasi http body");
             var chunkBytes = new byte[chunkLen];
 

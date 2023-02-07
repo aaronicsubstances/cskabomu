@@ -185,7 +185,10 @@ namespace Kabomu.QuasiHttp.Client
                 throw new ArgumentNullException(nameof(request));
             }
 
-            var transfer = new SendTransferInternal();
+            var transfer = new SendTransferInternal
+            {
+                Mutex = _mutex
+            };
             var sendTask = ProcessSend(remoteEndpoint, request, options, transfer);
             return (sendTask, transfer);
         }
@@ -203,7 +206,10 @@ namespace Kabomu.QuasiHttp.Client
             else
             {
                 setUpForCancellation = false;
-                transfer = new SendTransferInternal();
+                transfer = new SendTransferInternal
+                {
+                    Mutex = _mutex
+                };
             }
             
             Task<IQuasiHttpResponse> workTask;

@@ -399,7 +399,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     CancelCallCounter = cancelCallCounter,
                     SendCallCounter = sendCallCounter,
                     TimerApi = testEventLoopApi,
-                    ResponseDelay = 30,
+                    ResponseDelay = 15,
                     ResponseToReturn = expectedResponse,
                     ResponseBufferingApplied = false
                 };
@@ -462,10 +462,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 },
                 ResponseBufferingEnabled = false
             };
-            Task<IQuasiHttpResponse> sendTask = MiscUtils.Delay(testEventLoopApi, 20,
+            Task<IQuasiHttpResponse> sendTask = MiscUtils.Delay(testEventLoopApi, 5,
                 () => {
                     var res = instance.Send2(remoteEndpoint, request, sendOptions);
-                    _ = MiscUtils.Delay(testEventLoopApi, 70, () =>
+                    _ = MiscUtils.Delay(testEventLoopApi, 80, () =>
                     {
                         instance.CancelSend(res.Item2);
                         return Task.CompletedTask;

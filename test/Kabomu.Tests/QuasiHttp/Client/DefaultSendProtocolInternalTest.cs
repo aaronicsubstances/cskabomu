@@ -72,11 +72,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     Assert.Same(connection, actualConnection);
                     releaseCallCount++;
                     return Task.CompletedTask;
-                },
-                TrySerializeBodyCallback = (actualConnection, prefix, body) =>
-                {
-                    Assert.Same(connection, actualConnection);
-                    return Task.FromResult(false);
                 }
             };
             var expectedReleaseCallCount = 0;
@@ -118,7 +113,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             int reqBytesOffset = 0; 
             
             var actualReqChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualReq, 0,
-                MiscUtils.LengthOfEncodedChunkLength);
+                MiscUtils.LengthOfEncodedChunkLength, true);
             reqBytesOffset += MiscUtils.LengthOfEncodedChunkLength;
             
             var actualReqChunk = LeadChunk.Deserialize(actualReq, reqBytesOffset,
@@ -390,7 +385,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var actualReq = outputStream.ToArray();
             Assert.NotEmpty(actualReq);
             var actualReqChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualReq, 0,
-                MiscUtils.LengthOfEncodedChunkLength);
+                MiscUtils.LengthOfEncodedChunkLength, true);
             var actualReqChunk = LeadChunk.Deserialize(actualReq,
                 MiscUtils.LengthOfEncodedChunkLength, actualReqChunkLength);
             ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);

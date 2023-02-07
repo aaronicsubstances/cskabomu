@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -260,16 +259,6 @@ namespace Kabomu.Tests.MemoryBasedTransport
                 throw new ArgumentException("invalid payload");
             }
             await typedConnection.ProcessWriteRequest(fromServer, data, offset, length);
-        }
-
-        public Task<bool> TrySerializeBody(object connection, byte[] prefix, IQuasiHttpBody body)
-        {
-            return Task.FromResult(false);
-        }
-
-        public Task<IQuasiHttpBody> DeserializeBody(object connection, long contentLength)
-        {
-            throw new NotImplementedException();
         }
 
         class ServerConnectRequest

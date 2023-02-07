@@ -270,41 +270,5 @@ namespace Kabomu.Common
                 await transport.WriteBytes(connection, slice.Data, slice.Offset, slice.Length);
             }
         }
-
-        public static async Task<bool> TrySerializeFileBody(IQuasiHttpTransport transport,
-            object connection, byte[] prefix, IQuasiHttpBody body)
-        {
-            if (!(body is FileBody))
-            {
-                return false;
-            }
-            
-            await transport.WriteBytes(connection, prefix, 0, prefix.Length);
-
-            var fileBody = body as FileBody;
-
-            // format is offset, file name length, then file name.
-            var filePathAsBytes = ByteUtils.StringToBytes(fileBody.FilePath);
-            var offsetLengthSpec = new byte[10];
-            ByteUtils.SerializeUpToInt64BigEndian(fileBody.Offset, offsetLengthSpec, 0, 8);
-            ByteUtils.SerializeUpToInt64BigEndian(filePathAsBytes.Length, offsetLengthSpec, 8, 2);
-            await transport.WriteBytes(connection, offsetLengthSpec, 0, offsetLengthSpec.Length);
-            await transport.WriteBytes(connection, filePathAsBytes, 0, filePathAsBytes.Length);
-
-            return true;
-        }
-
-        public static async Task<FileBody> DeserializeFileBody(IQuasiHttpTransport transport,
-            object connection, long contentLength)
-        {
-            var offsetLengthSpec = new byte[10];
-            await ReadTransportBytesFully(transport, connection, offsetLengthSpec, 0, offsetLengthSpec.Length);
-            long offsetInFile = ByteUtils.DeserializeInt64BigEndian(offsetLengthSpec, 0);
-            short lengthOfFileNameAsBytes = ByteUtils.DeserializeInt16BigEndian(offsetLengthSpec, 8);
-            var filePathAsBytes = new byte[lengthOfFileNameAsBytes];
-            await ReadTransportBytesFully(transport, connection, filePathAsBytes, 0, filePathAsBytes.Length);
-            var filePath = ByteUtils.BytesToString(filePathAsBytes);
-            return new FileBody(filePath, offsetInFile, contentLength);
-        }
     }
 }

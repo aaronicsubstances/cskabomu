@@ -2,38 +2,8 @@ remaining
 ==========
 -introduce enough timeout gaps to remove flakiness of QuasiHttpIntegrationTestOne
 -StandardQuasiHttpServer
--FileBody
 -ProtocolUtilsInternal
-
--move entire MemoryBasedTransport namespace to testing project. - done
-
--remove SynchronizedBody - done
-
--delete VirtualEventLoopApi and find alternative for its usage during testing. - done
-
--delete mutexapi and event loop, replace with locks. - done
-
--remove TransportBypassProbability and ResponseStreamingProbability of IQuasiHttpClient. - done
--instead always use TransportBypass if not null. - done
--and let response streaming be disabled by default. - done
--rename ResponseStreamingEnabled to ResponseBuferringEnabled - done
-
--repurpose TransportBypassProbability as TransportBypassWrappingProbability - done
-
--merge request environment into request - done
--add an environment property to response - done
--deleted environment from processing options of StandardQuasiHttpServer - done 
---so now environment is supplied solely by transport or whatever external caller attaches to request - done
-
-*Remove resets - done
---hence stop storing transfers - done
-
--create memorybasedtransport in examples - done.
-
-- added FileBody type. - done
-
-- added serialize/deserialize body to transport interface. - done
-- extended protocol to handle new serialization methods on transport -done
+*can skip above if library works with all examples
 
 Release
 -------

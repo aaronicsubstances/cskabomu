@@ -186,10 +186,13 @@ namespace Kabomu.Common
         /// <param name="rawBytes">source buffer for conversion.</param>
         /// <param name="offset">the start of the data for the integer in the source buffer</param>
         /// <param name="length">the number of least significant bytes of the representation to fetch from the source buffer (0-8).</param>
+        /// <param name="signed">whether the bytes should be interpreted as a signed integer. pass false to interpret as an
+        /// unsigned integer. NB: for length of 8 bytes, interpretation is always as a signed integer.</param>
         /// <returns></returns>
         /// <exception cref="T:System.ArgumentException">The <paramref name="offset"/> argument is negative.</exception>
         /// <exception cref="T:System.ArgumentException">The <paramref name="length"/> argument is negative or larger than 8.</exception>
-        public static long DeserializeUpToInt64BigEndian(byte[] rawBytes, int offset, int length)
+        public static long DeserializeUpToInt64BigEndian(byte[] rawBytes, int offset, int length,
+            bool signed)
         {
             if (offset < 0)
             {
@@ -211,6 +214,12 @@ namespace Kabomu.Common
                 v |= (long)(rawBytes[nextIndex--] & 0xff) << shiftCount;
                 shiftCount += 8;
             }
+            // cater for signed integers of size less than 8 bytes
+            if (signed && length > 0 && length < 8 && (rawBytes[offset] >> 7) != 0)
+            {
+                long inverter = ~((1L << (length * 8)) - 1);
+                v = v | inverter;
+            }
             return v;
         }
 
@@ -222,7 +231,7 @@ namespace Kabomu.Common
         /// <returns>16-bit integer equivalent of big-endian representation in source buffer</returns>
         public static short DeserializeInt16BigEndian(byte[] rawBytes, int offset)
         {
-            return (short)DeserializeUpToInt64BigEndian(rawBytes, offset, 2);
+            return (short)DeserializeUpToInt64BigEndian(rawBytes, offset, 2, false);
         }
 
         /// <summary>
@@ -233,7 +242,7 @@ namespace Kabomu.Common
         /// <returns>32-bit integer equivalent of big-endian representation in source buffer</returns>
         public static int DeserializeInt32BigEndian(byte[] rawBytes, int offset)
         {
-            return (int)DeserializeUpToInt64BigEndian(rawBytes, offset, 4);
+            return (int)DeserializeUpToInt64BigEndian(rawBytes, offset, 4, false);
         }
 
         /// <summary>
@@ -244,7 +253,7 @@ namespace Kabomu.Common
         /// <returns>64-bit integer equivalent of big-endian representation in source buffer</returns>
         public static long DeserializeInt64BigEndian(byte[] rawBytes, int offset)
         {
-            return DeserializeUpToInt64BigEndian(rawBytes, offset, 8);
+            return DeserializeUpToInt64BigEndian(rawBytes, offset, 8, false);
         }
 
         /// <summary>

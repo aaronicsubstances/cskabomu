@@ -248,6 +248,7 @@ namespace Kabomu.QuasiHttp.Server
         {
             var transfer = new ReceiveTransferInternal
             {
+                Mutex = _mutex,
                 Transport = transport,
                 Connection = connectionResponse.Connection
             };
@@ -304,6 +305,7 @@ namespace Kabomu.QuasiHttp.Server
             }
             var transfer = new ReceiveTransferInternal
             {
+                Mutex = _mutex,
                 Request = request,
             };
 

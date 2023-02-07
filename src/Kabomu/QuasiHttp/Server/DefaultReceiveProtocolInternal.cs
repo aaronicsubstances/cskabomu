@@ -72,19 +72,16 @@ namespace Kabomu.QuasiHttp.Server
             };
             if (chunk.ContentLength != 0)
             {
-                request.Body = await ProtocolUtilsInternal.StartDeserializingBody(Transport,
+                await ProtocolUtilsInternal.StartDeserializingBody(Transport,
                     Connection, chunk.ContentLength);
-                if (request.Body == null)
+                request.Body = new TransportBackedBody(Transport, Connection,
+                    chunk.ContentLength, false)
                 {
-                    request.Body = new TransportBackedBody(Transport, Connection,
-                        chunk.ContentLength, false)
-                    {
-                        ContentType = chunk.ContentType
-                    };
-                    if (chunk.ContentLength < 0)
-                    {
-                        request.Body = new ChunkDecodingBody(request.Body, MaxChunkSize);
-                    }
+                    ContentType = chunk.ContentType
+                };
+                if (chunk.ContentLength < 0)
+                {
+                    request.Body = new ChunkDecodingBody(request.Body, MaxChunkSize);
                 }
             }
             return request;

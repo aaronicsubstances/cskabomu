@@ -228,46 +228,21 @@ namespace Kabomu.QuasiHttp
             return null;
         }
 
-        public static async Task<IQuasiHttpBody> StartDeserializingBody(IQuasiHttpTransport transport,
+        public static async Task StartDeserializingBody(IQuasiHttpTransport transport,
             object connection, long contentLength)
         {
-            if (contentLength <= 0)
+            if (contentLength > 0)
             {
-                return null;
-            }
-            var encLengthBytes = new byte[ChunkEncodingBody.LengthOfEncodedChunkLength];
-            await TransportUtils.ReadTransportBytesFully(transport, connection,
-                encLengthBytes, 0, encLengthBytes.Length);
-            if (AreByteArraysEqual(encLengthBytes, ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue))
-            {
-                return null;
-            }
-            if (!AreByteArraysEqual(encLengthBytes, ChunkEncodingBody.EncodedChunkLengthOfCustomInvalidValue))
-            {
-                throw new Exception("invalid prefix for known content length");
-            }
-            var deserializedBody = await transport.DeserializeBody(connection, contentLength);
-            if (deserializedBody == null)
-            {
-                throw new Exception("received null body from deserialization by transport");
-            }
-            return deserializedBody;
-        }
-
-        private static bool AreByteArraysEqual(byte[] a, byte[] b)
-        {
-            if (a.Length != b.Length)
-            {
-                return false;
-            }
-            for (int i = 0; i < a.Length; i++)
-            {
-                if (a[i] != b[i])
+                var encLengthBytes = new byte[ChunkEncodingBody.LengthOfEncodedChunkLength];
+                await TransportUtils.ReadTransportBytesFully(transport, connection,
+                    encLengthBytes, 0, encLengthBytes.Length);
+                int knownContentLengthPrefix = (int)ByteUtils.DeserializeUpToInt64BigEndian(encLengthBytes, 0,
+                    encLengthBytes.Length, true);
+                if (knownContentLengthPrefix != ChunkEncodingBody.DefaultValueForInvalidChunkLength)
                 {
-                    return false;
+                    throw new Exception("invalid prefix for known content length");
                 }
             }
-            return true;
         }
 
         public static async Task TransferBodyToTransport(IQuasiHttpTransport transport, 
@@ -279,12 +254,6 @@ namespace Kabomu.QuasiHttp
             }
             else if (body.ContentLength > 0)
             {
-                bool customSerializationDone = await transport.TrySerializeBody(connection,
-                    ChunkEncodingBody.EncodedChunkLengthOfCustomInvalidValue, body);
-                if (customSerializationDone)
-                {
-                    return;
-                }
                 var defaultPrefixForKnownContentLength = ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue;
                 await transport.WriteBytes(connection, defaultPrefixForKnownContentLength, 0,
                     defaultPrefixForKnownContentLength.Length);

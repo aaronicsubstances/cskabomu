@@ -93,19 +93,16 @@ namespace Kabomu.QuasiHttp.Client
 
             if (chunk.ContentLength != 0)
             {
-                response.Body = await ProtocolUtilsInternal.StartDeserializingBody(
+                await ProtocolUtilsInternal.StartDeserializingBody(
                     Transport, Connection, chunk.ContentLength);
-                if (response.Body == null)
+                response.Body = new TransportBackedBody(Transport, Connection,
+                    chunk.ContentLength, true)
                 {
-                    response.Body = new TransportBackedBody(Transport, Connection,
-                        chunk.ContentLength, true)
-                    {
-                        ContentType = chunk.ContentType
-                    };
-                    if (chunk.ContentLength < 0)
-                    {
-                        response.Body = new ChunkDecodingBody(response.Body, MaxChunkSize);
-                    }
+                    ContentType = chunk.ContentType
+                };
+                if (chunk.ContentLength < 0)
+                {
+                    response.Body = new ChunkDecodingBody(response.Body, MaxChunkSize);
                 }
                 if (ResponseBufferingEnabled)
                 {

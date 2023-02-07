@@ -24,18 +24,16 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <summary>
         /// Constant which communicates the largest chunk size possible with the standard chunk transfer 
         /// implementation in the Kabomu library, and that is currently the largest
-        /// unsigned integer that can fit into 3 bytes.
+        /// signed integer that can fit into 3 bytes.
         /// </summary>
-        public static readonly int HardMaxChunkSizeLimit = 1 << (8 * LengthOfEncodedChunkLength) - 1;
+        public static readonly int HardMaxChunkSizeLimit = 1 << (8 * LengthOfEncodedChunkLength - 1) - 1;
 
         private static readonly int ReservedBytesToUse;
         private static readonly ByteBufferSlice[] ChunkPrefix;
         private static readonly int ChunkPrefixLength;
 
         internal static readonly int DefaultValueForInvalidChunkLength = -1;
-        internal static readonly int CustomValueForInvalidChunkLength = -2;
         internal static readonly byte[] EncodedChunkLengthOfDefaultInvalidValue;
-        internal static readonly byte[] EncodedChunkLengthOfCustomInvalidValue;
 
         static ChunkEncodingBody()
         {
@@ -49,10 +47,6 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             EncodedChunkLengthOfDefaultInvalidValue = new byte[LengthOfEncodedChunkLength];
             ByteUtils.SerializeUpToInt64BigEndian(DefaultValueForInvalidChunkLength,
                 EncodedChunkLengthOfDefaultInvalidValue, 0, LengthOfEncodedChunkLength);
-
-            EncodedChunkLengthOfCustomInvalidValue = new byte[LengthOfEncodedChunkLength];
-            ByteUtils.SerializeUpToInt64BigEndian(CustomValueForInvalidChunkLength,
-                EncodedChunkLengthOfCustomInvalidValue, 0, LengthOfEncodedChunkLength);
         }
 
         private readonly IQuasiHttpBody _wrappedBody;

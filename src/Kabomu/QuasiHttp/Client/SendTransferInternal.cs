@@ -12,8 +12,16 @@ namespace Kabomu.QuasiHttp.Client
 {
     internal class SendTransferInternal
     {
-        private readonly object _mutex = new object();
+        private object _mutex;
         private ISendProtocolInternal _protocol;
+
+        public object Mutex
+        {
+            set
+            {
+                _mutex = value;
+            }
+        }
 
         public ITimerApi TimerApi { get; set; }
         public int TimeoutMillis { get; set; }
@@ -47,6 +55,11 @@ namespace Kabomu.QuasiHttp.Client
             }, TimeoutMillis);
         }
 
+        /// <summary>
+        /// Assume this call occurs under mutex.
+        /// </summary>
+        /// <param name="protocolFactory"></param>
+        /// <returns></returns>
         public async Task<IQuasiHttpResponse> StartProtocol(
             Func<SendTransferInternal, ISendProtocolInternal> protocolFactory)
         {
@@ -54,19 +67,11 @@ namespace Kabomu.QuasiHttp.Client
             // create protocol instance and cancel it because the
             // factory may be holding on to some live resources.
             var protocol = protocolFactory.Invoke(this);
-            bool abortedAlready = false;
-            lock (_mutex)
+            _protocol = protocol;
+            if (IsAborted)
             {
-                _protocol = protocol;
-                if (IsAborted)
-                {
-                    // Oops...connection establishment took so long, or a cancellation happened
-                    // during connection establishment.
-                    abortedAlready = true;
-                }
-            }
-            if (abortedAlready)
-            {
+                // Oops...connection establishment took so long, or a cancellation happened
+                // during connection establishment.
                 try
                 {
                     await protocol.Cancel();
