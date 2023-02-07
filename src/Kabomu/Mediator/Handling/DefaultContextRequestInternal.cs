@@ -11,17 +11,14 @@ namespace Kabomu.Mediator.Handling
     {
         private readonly DefaultMutableRegistry _registry;
 
-        public DefaultContextRequestInternal(IQuasiHttpRequest rawRequest, IDictionary<string, object> requestEnvironment)
+        public DefaultContextRequestInternal(IQuasiHttpRequest rawRequest)
         {
             RawRequest = rawRequest ?? throw new ArgumentNullException(nameof(rawRequest));
-            Environment = requestEnvironment ?? new Dictionary<string, object>();
             Headers = new DefaultMutableHeadersWrapper(_ => rawRequest.Headers);
             _registry = new DefaultMutableRegistry();
         }
 
         public IQuasiHttpRequest RawRequest { get; }
-
-        public IDictionary<string, object> Environment { get; }
 
         public string Method => RawRequest.Method;
 

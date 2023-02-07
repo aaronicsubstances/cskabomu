@@ -30,14 +30,8 @@ namespace Kabomu.QuasiHttp
         /// </summary>
         public const int ReasonCodeCancelled = 3;
 
-        /// <summary>
-        /// Indicates that request processing has been cancelled as part of a reset operation
-        /// on <see cref="Client.StandardQuasiHttpClient"/> and <see cref="Server.StandardQuasiHttpServer"/>
-        /// instances.
-        /// </summary>
-        public const int ReasonCodeReset = 4;
-
         // the following codes are reserved for future use.
+        private const int ReasonCodeReserved4 = 4;
         private const int ReasonCodeReserved5 = 5;
         private const int ReasonCodeReserved6 = 6;
         private const int ReasonCodeReserved7 = 7;
@@ -80,6 +74,7 @@ namespace Kabomu.QuasiHttp
         {
             switch (reasonCode)
             {
+                case ReasonCodeReserved4:
                 case ReasonCodeReserved5:
                 case ReasonCodeReserved6:
                 case ReasonCodeReserved7:

@@ -1,5 +1,4 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,15 +10,13 @@ namespace Kabomu.Examples.Shared
 {
     public class UnixDomainSocketServerTransport : IQuasiHttpServerTransport
     {
+        private readonly object _mutex = new object();
         private readonly string _path;
         private Socket _serverSocket;
 
         public UnixDomainSocketServerTransport()
         {
-            MutexApi = new LockBasedMutexApi();
         }
-
-        public IMutexApi MutexApi { get; set; }
 
         public UnixDomainSocketServerTransport(string path)
         {
@@ -30,9 +27,9 @@ namespace Kabomu.Examples.Shared
             _path = path;
         }
 
-        public async Task Start()
+        public Task Start()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (_serverSocket == null)
                 {
@@ -53,11 +50,12 @@ namespace Kabomu.Examples.Shared
                     }
                 }
             }
+            return Task.CompletedTask;
         }
 
-        public async Task Stop()
+        public Task Stop()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 try
                 {
@@ -68,11 +66,12 @@ namespace Kabomu.Examples.Shared
                     _serverSocket = null;
                 }
             }
+            return Task.CompletedTask;
         }
 
-        public async Task<bool> IsRunning()
+        public bool IsRunning()
         {
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 return _serverSocket != null;
             }
@@ -81,7 +80,7 @@ namespace Kabomu.Examples.Shared
         public async Task<IConnectionAllocationResponse> ReceiveConnection()
         {
             Task<Socket> acceptTask;
-            using (await MutexApi.Synchronize())
+            lock (_mutex)
             {
                 if (_serverSocket == null)
                 {

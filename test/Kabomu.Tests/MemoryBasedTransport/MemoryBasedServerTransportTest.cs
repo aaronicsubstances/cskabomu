@@ -1,5 +1,4 @@
-﻿using Kabomu.MemoryBasedTransport;
-using Kabomu.QuasiHttp;
+﻿using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -15,23 +14,23 @@ namespace Kabomu.Tests.MemoryBasedTransport
         public async Task TestSequentialOperations()
         {
             var instance = new MemoryBasedServerTransport();
-            var running = await instance.IsRunning();
+            var running = instance.IsRunning();
             Assert.False(running);
             await instance.Start();
-            running = await instance.IsRunning();
+            running = instance.IsRunning();
             Assert.True(running);
             await instance.Stop();
-            running = await instance.IsRunning();
+            running = instance.IsRunning();
             Assert.False(running);
 
             await instance.Start();
             await instance.Start();
-            running = await instance.IsRunning();
+            running = instance.IsRunning();
             Assert.True(running);
 
             var serverConnectTask = instance.ReceiveConnection();
             var serverConnectTask2 = instance.ReceiveConnection();
-            var expectedConnectionResponse = await instance.CreateConnectionForClient(null, null, 0);
+            var expectedConnectionResponse = await instance.CreateConnectionForClient(null, null);
             var receiveConnectionResponse = await serverConnectTask;
             Assert.Equal(expectedConnectionResponse.Connection, receiveConnectionResponse.Connection);
 
@@ -41,7 +40,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             await Assert.ThrowsAsync<TransportResetException>(() => serverConnectTask2);
 
             await instance.Stop();
-            running = await instance.IsRunning();
+            running = instance.IsRunning();
             Assert.False(running);
 
             await Assert.ThrowsAsync<TransportNotStartedException>(() =>
@@ -82,7 +81,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             var instance = new MemoryBasedServerTransport();
             await Assert.ThrowsAsync<TransportNotStartedException>(() =>
             {
-                return instance.CreateConnectionForClient(null, null, 0);
+                return instance.CreateConnectionForClient(null, null);
             });
             
             await instance.Start();
@@ -97,7 +96,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             });
             await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                return instance.ReadBytes(new MemoryBasedTransportConnectionInternal(null, null, 0, 0), new byte[1], 1, 1);
+                return instance.ReadBytes(new MemoryBasedTransportConnectionInternal(), new byte[1], 1, 1);
             });
             await Assert.ThrowsAsync<ArgumentNullException>(() =>
             {
@@ -109,7 +108,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
             });
             await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                return instance.WriteBytes(new MemoryBasedTransportConnectionInternal(null, null, 0, 0), new byte[1], 1, 1);
+                return instance.WriteBytes(new MemoryBasedTransportConnectionInternal(), new byte[1], 1, 1);
             });
         }
 
@@ -130,25 +129,25 @@ namespace Kabomu.Tests.MemoryBasedTransport
             var expectedRes = new DefaultQuasiHttpResponse();
             
             var instance = new MemoryBasedServerTransport();
-            var running = await instance.IsRunning();
+            var running = instance.IsRunning();
             Assert.False(running);
 
             await instance.Start();
             await instance.Start();
-            running = await instance.IsRunning();
+            running = instance.IsRunning();
             Assert.True(running);
 
             Task<IConnectionAllocationResponse> serverConnectTask;
             Task<IConnectionAllocationResponse> clientConnectTask;
             if (connectToClientFirst)
             {
-                clientConnectTask = instance.CreateConnectionForClient("Accra", "Kumasi", 0);
+                clientConnectTask = instance.CreateConnectionForClient("Accra", "Kumasi");
                 serverConnectTask = instance.ReceiveConnection();
             }
             else
             {
                 serverConnectTask = instance.ReceiveConnection();
-                clientConnectTask = instance.CreateConnectionForClient("Accra", "Kumasi", 0);
+                clientConnectTask = instance.CreateConnectionForClient("Accra", "Kumasi");
             }
 
             // use whenany before whenall to catch any task exceptions which may
@@ -181,7 +180,7 @@ namespace Kabomu.Tests.MemoryBasedTransport
 
             await instance.Stop();
             await instance.Stop();
-            running = await instance.IsRunning();
+            running = instance.IsRunning();
             Assert.False(running);
         }
 

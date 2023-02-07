@@ -1,12 +1,15 @@
 ﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.ChunkedTransfer;
+using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
 {
-    internal class ProtocolUtilsInternal
+    internal static class ProtocolUtilsInternal
     {
         public static int DetermineEffectiveNonZeroIntegerOption(int? preferred,
             int? fallback1, int defaultValue)
@@ -124,6 +127,138 @@ namespace Kabomu.QuasiHttp
                     ContentType = body.ContentType
                 };
             }
+        }
+
+        public static async Task<IQuasiHttpResponse> CompleteRequestProcessing(
+            Task<IQuasiHttpResponse> workTask,
+            Task<IQuasiHttpResponse> cancellationTask,
+            string errorMessage,
+            Action<Exception> errorCallback)
+        {
+            try
+            {
+                if (cancellationTask != null)
+                {
+                    await await Task.WhenAny(workTask, cancellationTask);
+                }
+                else
+                {
+                    return await workTask;
+                }
+            }
+            catch (Exception e)
+            {
+                // let call to abort transfer determine whether exception is significant.
+                QuasiHttpRequestProcessingException abortError;
+                if (e is QuasiHttpRequestProcessingException quasiHttpError)
+                {
+                    abortError = quasiHttpError;
+                }
+                else
+                {
+                    abortError = new QuasiHttpRequestProcessingException(
+                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                        errorMessage, e);
+                }
+                errorCallback?.Invoke(abortError);
+                if (cancellationTask == null)
+                {
+                    throw abortError;
+                }
+            }
+
+            // by awaiting again for transfer cancellation, any significant error will bubble up, and
+            // any insignificant error will be swallowed.
+            return await cancellationTask;
+        }
+
+        public static IQuasiHttpRequest CloneQuasiHttpRequest(IQuasiHttpRequest request,
+            Action<IQuasiHttpMutableRequest> modifier)
+        {
+            var reqClone = new DefaultQuasiHttpRequest
+            {
+                HttpVersion = request.HttpVersion,
+                Method = request.Method,
+                Target = request.Target,
+                Headers = request.Headers,
+                Body = request.Body,
+                Environment = request.Environment
+            };
+            if (modifier != null)
+            {
+                modifier.Invoke(reqClone);
+            }
+            return reqClone;
+        }
+
+        public static IQuasiHttpResponse CloneQuasiHttpResponse(IQuasiHttpResponse response,
+            Action<IQuasiHttpMutableResponse> modifier)
+        {
+            var resClone = new DefaultQuasiHttpResponse
+            {
+                StatusCode = response.StatusCode,
+                Headers = response.Headers,
+                HttpVersion = response.HttpVersion,
+                HttpStatusMessage = response.HttpStatusMessage,
+                Body = response.Body,
+                Environment = response.Environment
+            };
+            if (modifier != null)
+            {
+                modifier.Invoke(resClone);
+            }
+            return resClone;
+        }
+
+        public static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment, 
+            string key)
+        {
+            if (environment != null && environment.ContainsKey(key))
+            {
+                var value = environment[key];
+                if (value is bool b)
+                {
+                    return b;
+                }
+                else if (value != null)
+                {
+                    return bool.Parse((string)value);
+                }
+            }
+            return null;
+        }
+
+        public static async Task StartDeserializingBody(IQuasiHttpTransport transport,
+            object connection, long contentLength)
+        {
+            if (contentLength > 0)
+            {
+                var encLengthBytes = new byte[ChunkEncodingBody.LengthOfEncodedChunkLength];
+                await TransportUtils.ReadTransportBytesFully(transport, connection,
+                    encLengthBytes, 0, encLengthBytes.Length);
+                int knownContentLengthPrefix = (int)ByteUtils.DeserializeUpToInt64BigEndian(encLengthBytes, 0,
+                    encLengthBytes.Length, true);
+                if (knownContentLengthPrefix != ChunkEncodingBody.DefaultValueForInvalidChunkLength)
+                {
+                    throw new Exception("invalid prefix for known content length");
+                }
+            }
+        }
+
+        public static async Task TransferBodyToTransport(IQuasiHttpTransport transport, 
+            object connection, int maxChunkSize, IQuasiHttpBody body)
+        {
+            if (body.ContentLength < 0)
+            {
+                body = new ChunkEncodingBody(body, maxChunkSize);
+            }
+            else if (body.ContentLength > 0)
+            {
+                var defaultPrefixForKnownContentLength = ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue;
+                await transport.WriteBytes(connection, defaultPrefixForKnownContentLength, 0,
+                    defaultPrefixForKnownContentLength.Length);
+            }
+            await TransportUtils.TransferBodyToTransport(transport, connection, body, maxChunkSize);
         }
     }
 }

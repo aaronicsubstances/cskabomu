@@ -16,15 +16,15 @@ namespace Kabomu.Examples.Shared
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
         private readonly object _remoteEndpoint;
-        private readonly string _uploadDirPath;
+        private readonly string _downloadDirPath;
 
-        public FileReceiver(object remoteEndpoint, string uploadDirPath)
+        public FileReceiver(object remoteEndpoint, string downloadDirPath)
         {
             _remoteEndpoint = remoteEndpoint;
-            _uploadDirPath = uploadDirPath;
+            _downloadDirPath = downloadDirPath;
         }
 
-        public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
+        public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request)
         {
             var initialHandlers = new Handler[]
             {
@@ -34,7 +34,7 @@ namespace Kabomu.Examples.Shared
             {
                 InitialHandlers = initialHandlers
             };
-            return delegateApp.ProcessRequest(request, requestEnvironment);
+            return delegateApp.ProcessRequest(request);
         }
 
         private async Task ReceiveFileTransfer(IContext context)
@@ -48,7 +48,7 @@ namespace Kabomu.Examples.Shared
                 // ensure directory exists.
                 // just in case remote endpoint contains invalid file path characters...
                 var pathForRemoteEndpoint = Regex.Replace(_remoteEndpoint.ToString(), @"\W", "_");
-                var directory = new DirectoryInfo(Path.Combine(_uploadDirPath, pathForRemoteEndpoint));
+                var directory = new DirectoryInfo(Path.Combine(_downloadDirPath, pathForRemoteEndpoint));
                 directory.Create();
                 string p = Path.Combine(directory.Name, fileName);
                 using (var fileStream = new FileStream(p, FileMode.Create))

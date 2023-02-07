@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -12,39 +11,54 @@ namespace Kabomu.QuasiHttp.Client
     {
         private object _sendCancellationHandle;
 
-        public object Parent { get; set; }
-        public Func<object, IQuasiHttpResponse, Task> AbortCallback { get; set; }
-        public IQuasiHttpAltTransport TransportBypass { get; set; }
-        public IConnectivityParams ConnectivityParams { get; set; }
-        public int MaxChunkSize { get; set; }
-        public bool ResponseStreamingEnabled { get; set; }
-        public int ResponseBodyBufferingSizeLimit { get; set; }
-
         public AltSendProtocolInternal()
         {
         }
+
+        public IQuasiHttpRequest Request { get; set; }
+        public IQuasiHttpAltTransport TransportBypass { get; set; }
+        public IConnectivityParams ConnectivityParams { get; set; }
+        public int MaxChunkSize { get; set; }
+        public bool ResponseBufferingEnabled { get; set; }
+        public int ResponseBodyBufferingSizeLimit { get; set; }
+        public bool RequestWrappingEnabled { get; set; }
+        public bool ResponseWrappingEnabled { get; set; }
 
         public Task Cancel()
         {
             // reading these variables is thread safe if caller calls current method within same mutex as
             // Send().
-            if (_sendCancellationHandle != null)
+            if (_sendCancellationHandle != null && TransportBypass != null)
             {
-                try
-                {
-                    TransportBypass.CancelSendRequest(_sendCancellationHandle);
-                }
-                catch (Exception) { }
+                // check for case in which TransportBypass was incorrectly set to null.
+                TransportBypass.CancelSendRequest(_sendCancellationHandle);
             }
             return Task.CompletedTask;
         }
 
-        public async Task<IQuasiHttpResponse> Send(IQuasiHttpRequest request)
+        public async Task<ProtocolSendResult> Send()
         {
             // assume properties are set correctly aside the transport.
             if (TransportBypass == null)
             {
                 throw new MissingDependencyException("transport bypass");
+            }
+            if (Request == null)
+            {
+                throw new ExpectationViolationException("request");
+            }
+
+            IQuasiHttpRequest request = Request;
+
+            // apply request wrapping if needed.
+            if (RequestWrappingEnabled)
+            {
+                var requestBody = request.Body;
+                if (requestBody != null)
+                {
+                    requestBody = new ProxyBody(requestBody);
+                }
+                request = ProtocolUtilsInternal.CloneQuasiHttpRequest(request, c => c.Body = requestBody);
             }
 
             var cancellableResTask = TransportBypass.ProcessSendRequest(request, ConnectivityParams);
@@ -55,49 +69,66 @@ namespace Kabomu.QuasiHttp.Client
             // it is not a problem if this call exceeds timeout before returning, since
             // cancellation handle has already been saved within same mutex as Cancel(),
             // and so Cancel() will definitely see the cancellation handle and make use of it.
-            IQuasiHttpResponse response = await cancellableResTask.Item1;
+            var response = await cancellableResTask.Item1;
 
             if (response == null)
             {
                 throw new ExpectationViolationException("no response");
             }
-
-            var responseBody = response.Body;
-            if (responseBody == null)
+            
+            // save for closing later if needed.
+            var originalResponse = response;
+            try
             {
-                await response.Close();
-                await AbortCallback.Invoke(Parent, response);
-                return response;
-            }
+                var originalResponseBufferingApplied = ProtocolUtilsInternal.GetEnvVarAsBoolean(
+                    response.Environment, TransportUtils.ResEnvKeyResponseBufferingApplied);
 
-            if (!ResponseStreamingEnabled)
-            {
-                // read response body into memmory and create equivalent response for 
-                // which Close() operation is redundant.
-                // in any case make sure original response is closed.
-                IQuasiHttpBody eqResponseBody = null;
-                try
+                var responseBody = response.Body;
+                bool responseBufferingApplied = false;
+                if (responseBody != null && ResponseBufferingEnabled && originalResponseBufferingApplied != true)
                 {
-                    eqResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
+                    // mark as applied here, so that if an error occurs,
+                    // closing will still be done.
+                    responseBufferingApplied = true;
+
+                    // read response body into memory and create equivalent response for 
+                    // which Close() operation is redundant.
+                    responseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
                         MaxChunkSize, ResponseBodyBufferingSizeLimit);
+                    response = ProtocolUtilsInternal.CloneQuasiHttpResponse(response, c => c.Body = responseBody);
                 }
-                finally
+
+                // apply response wrapping if needed.
+                // NB: leverage wrapping done as a byproduct of applying response buffering.
+                if (ResponseWrappingEnabled && !responseBufferingApplied)
                 {
-                    await response.Close();
+                    response = new ProxyQuasiHttpResponse(response);
                 }
-                response = new DefaultQuasiHttpResponse
+
+                if (responseBody == null || originalResponseBufferingApplied == true ||
+                        responseBufferingApplied)
                 {
-                    StatusCode = response.StatusCode,
-                    Headers = response.Headers,
-                    HttpVersion = response.HttpVersion,
-                    HttpStatusMessage = response.HttpStatusMessage,
-                    Body = eqResponseBody
+                    // close original response.
+                    await originalResponse.Close();
+                }
+
+                return new ProtocolSendResult
+                {
+                    Response = response,
+                    ResponseBufferingApplied = originalResponseBufferingApplied == true ||
+                        responseBufferingApplied
                 };
             }
-
-            await AbortCallback.Invoke(Parent, response);
-
-            return response;
+            catch
+            {
+                try
+                {
+                    // don't wait.
+                    _ = originalResponse.Close();
+                }
+                catch { } // ignore
+                throw;
+            }
         }
     }
 }

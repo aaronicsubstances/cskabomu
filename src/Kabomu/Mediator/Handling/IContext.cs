@@ -49,7 +49,7 @@ namespace Kabomu.Mediator.Handling
         /// <summary>
         /// Gets a mutual exclusion async lock which can be used to synchronize access to instances of this object.
         /// </summary>
-        IMutexApi MutexApi { get; set; }
+        object Mutex { get; }
 
         /// <summary>
         /// Gets the wrapper through which the quasi http request can be accessed. The wrapper also

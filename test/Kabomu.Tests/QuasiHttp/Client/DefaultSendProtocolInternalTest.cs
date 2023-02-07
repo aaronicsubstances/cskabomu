@@ -21,14 +21,17 @@ namespace Kabomu.Tests.QuasiHttp.Client
         {
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
             {
-                var instance = new DefaultSendProtocolInternal();
-                return instance.Send(new DefaultQuasiHttpRequest());
+                var instance = new DefaultSendProtocolInternal
+                {
+                    Request = new DefaultQuasiHttpRequest()
+                };
+                return instance.Send();
             });
         }
 
         [Theory]
         [MemberData(nameof(CreateTestSendData))]
-        public async Task TestSend(object connection, int maxChunkSize, bool responseStreamingEnabled,
+        public async Task TestSend(object connection, int maxChunkSize, bool responseBufferingEnabled,
             IQuasiHttpRequest expectedRequest, byte[] expectedRequestBodyBytes,
             IQuasiHttpResponse response, byte[] responseBodyBytes)
         {
@@ -51,87 +54,74 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ReadBytesCallback = async (actualConnection, data, offset, length) =>
                 {
-                    Assert.Equal(connection, actualConnection);
+                    Assert.Same(connection, actualConnection);
                     var bytesRead = inputStream.Read(data, offset, length);
+                    // introduce delay so that any write exceptions will not be swallowed.
+                    await Task.Delay(10);
                     return bytesRead;
                 },
                 WriteBytesCallback = async (actualConnection, data, offset, length) =>
                 {
-                    Assert.Equal(connection, actualConnection);
+                    Assert.Same(connection, actualConnection);
+                    // introduce delay so that any read exceptions will not be swallowed.
+                    await Task.Delay(10);
                     outputStream.Write(data, offset, length);
                 },
                 ReleaseConnectionCallback = (actualConnection) =>
                 {
-                    Assert.Equal(connection, actualConnection);
+                    Assert.Same(connection, actualConnection);
                     releaseCallCount++;
                     return Task.CompletedTask;
                 }
             };
             var expectedReleaseCallCount = 0;
-            if (response.Body != null && !responseStreamingEnabled)
+            if (response.Body != null && responseBufferingEnabled)
             {
                 expectedReleaseCallCount++;
             }
             var instance = new DefaultSendProtocolInternal
             {
-                Parent = new object(),
+                Request = expectedRequest,
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize,
-                ResponseStreamingEnabled = responseStreamingEnabled,
+                ResponseBufferingEnabled = responseBufferingEnabled,
                 ResponseBodyBufferingSizeLimit = 100
-            };
-            var errorsSeen = new List<Exception>();
-            var responsesSeen = new List<IQuasiHttpResponse>();
-            int abortCallCount = 0;
-            instance.AbortCallback = (parent, e, res) =>
-            {
-                Assert.Equal(instance.Parent, parent);
-                lock (parent)
-                {
-                    if (e != null)
-                    {
-                        errorsSeen.Add(e);
-                    }
-                    if (res != null)
-                    {
-                        responsesSeen.Add(res);
-                    }
-                    abortCallCount++;
-                }
-                return Task.CompletedTask;
             };
 
             // act.
-            IQuasiHttpResponse actualResponse = await instance.Send(expectedRequest);
+            var actualResponse = await instance.Send();
 
             // assert.
-            Assert.Equal(1, abortCallCount);
-            Assert.Empty(errorsSeen);
-            Assert.Equal(new List<IQuasiHttpResponse> { actualResponse }, responsesSeen);
+            Assert.Equal(responseBufferingEnabled, actualResponse?.ResponseBufferingApplied);
 
             // assert expected behaviour of response closure occured by trying 
             // to determine if connection was released.
             Assert.Equal(expectedReleaseCallCount, releaseCallCount);
 
-            await ComparisonUtils.CompareResponses(maxChunkSize, response, actualResponse,
+            await ComparisonUtils.CompareResponses(maxChunkSize, response, actualResponse.Response,
                 responseBodyBytes);
 
             // test cancellation after considering release call during comparison.
             releaseCallCount = 0;
             await instance.Cancel();
-            Assert.Equal(1, releaseCallCount);
+            Assert.Equal(connection == null ? 0 : 1, releaseCallCount);
 
             // finally verify contents of output stream.
             var actualReq = outputStream.ToArray();
             Assert.NotEmpty(actualReq);
+            int reqBytesOffset = 0; 
+            
             var actualReqChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualReq, 0,
-                MiscUtils.LengthOfEncodedChunkLength);
-            var actualReqChunk = LeadChunk.Deserialize(actualReq,
-                MiscUtils.LengthOfEncodedChunkLength, actualReqChunkLength);
+                MiscUtils.LengthOfEncodedChunkLength, true);
+            reqBytesOffset += MiscUtils.LengthOfEncodedChunkLength;
+            
+            var actualReqChunk = LeadChunk.Deserialize(actualReq, reqBytesOffset,
+                actualReqChunkLength);
             ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
-            var actualRequestBodyLen = actualReq.Length -
-                MiscUtils.LengthOfEncodedChunkLength- actualReqChunkLength;
+            reqBytesOffset += actualReqChunkLength;
+
+            var actualRequestBodyLen = actualReq.Length - reqBytesOffset;
             if (expectedRequestBodyBytes == null)
             {
                 Assert.Equal(0, actualRequestBodyLen);
@@ -142,13 +132,19 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 if (actualReqChunk.ContentLength < 0)
                 {
                     actualReqBodyBytes = await MiscUtils.ReadChunkedBody(actualReq,
-                        actualReqChunkLength + MiscUtils.LengthOfEncodedChunkLength,
-                        actualRequestBodyLen);
+                        reqBytesOffset, actualRequestBodyLen);
                 }
                 else
                 {
+                    var reqBodyPrefix = new byte[MiscUtils.LengthOfEncodedChunkLength];
+                    Array.Copy(actualReq, reqBytesOffset,
+                        reqBodyPrefix, 0, reqBodyPrefix.Length);
+                    Assert.Equal(ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue, reqBodyPrefix);
+                    reqBytesOffset += MiscUtils.LengthOfEncodedChunkLength;
+                    actualRequestBodyLen -= MiscUtils.LengthOfEncodedChunkLength;
+
                     actualReqBodyBytes = new byte[actualRequestBodyLen];
-                    Array.Copy(actualReq, actualReqChunkLength + MiscUtils.LengthOfEncodedChunkLength,
+                    Array.Copy(actualReq, reqBytesOffset,
                         actualReqBodyBytes, 0, actualRequestBodyLen);
                 }
                 Assert.Equal(expectedRequestBodyBytes, actualReqBodyBytes);
@@ -161,7 +157,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             object connection = "vgh";
             int maxChunkSize = 115;
-            bool responseStreamingEnabled = false;
+            bool responseBufferingEnabled = true;
             var request = new DefaultQuasiHttpRequest
             {
                 Method = "POST",
@@ -191,12 +187,12 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ContentType = "image/png"
             };
-            testData.Add(new object[] { connection, maxChunkSize, responseStreamingEnabled, request, reqBodyBytes,
+            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
             connection = 123;
             maxChunkSize = 90;
-            responseStreamingEnabled = true;
+            responseBufferingEnabled = false;
             request = new DefaultQuasiHttpRequest
             {
                 Target = "/p"
@@ -209,12 +205,12 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 HttpStatusMessage = "not found"
             };
             expectedResBodyBytes = null;
-            testData.Add(new object[] { connection, maxChunkSize, responseStreamingEnabled, request, reqBodyBytes,
+            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
-            connection = null;
+            connection = "sth";
             maxChunkSize = 95;
-            responseStreamingEnabled = false;
+            responseBufferingEnabled = true;
             request = new DefaultQuasiHttpRequest
             {
                 HttpVersion = "1.1",
@@ -233,12 +229,12 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 HttpStatusMessage = "server error"
             };
             expectedResBodyBytes = null;
-            testData.Add(new object[] { connection, maxChunkSize, responseStreamingEnabled, request, reqBodyBytes,
+            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
             connection = new object();
             maxChunkSize = 100;
-            responseStreamingEnabled = false;
+            responseBufferingEnabled = true;
             request = new DefaultQuasiHttpRequest
             {
                 Target = "/fxn",
@@ -267,13 +263,13 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ContentType = "application/xml"
             };
-            testData.Add(new object[] { connection, maxChunkSize, responseStreamingEnabled, request, reqBodyBytes,
+            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
             // generate response data which exceed 100 bytes buffering limit
-            connection = null;
+            connection = ".";
             maxChunkSize = 50;
-            responseStreamingEnabled = true;
+            responseBufferingEnabled = false;
             request = new DefaultQuasiHttpRequest();
             reqBodyBytes = null;
 
@@ -287,12 +283,12 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ContentType = "null"
             };
-            testData.Add(new object[] { connection, maxChunkSize, responseStreamingEnabled, request, reqBodyBytes,
+            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
             connection = 79;
             maxChunkSize = 40;
-            responseStreamingEnabled = true;
+            responseBufferingEnabled = false;
             request = new DefaultQuasiHttpRequest();
             reqBodyBytes = null;
 
@@ -306,7 +302,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ContentType = "text/plain"
             };
-            testData.Add(new object[] { connection, maxChunkSize, responseStreamingEnabled, request, reqBodyBytes,
+            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
             return testData;
@@ -346,6 +342,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     Assert.Equal(connection, actualConnection);
                     var bytesRead = inputStream.Read(data, offset, length);
+                    // introduce intentional delay to force request read to finish first.
+                    await Task.Delay(1);
                     return bytesRead;
                 },
                 WriteBytesCallback = async (actualConnection, data, offset, length) =>
@@ -362,41 +360,18 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var instance = new DefaultSendProtocolInternal
             {
-                Parent = new object(),
                 Transport = transport,
                 Connection = connection,
-                MaxChunkSize = maxChunkSize
-            };
-            int abortCallCount = 0;
-            var errorsSeen = new List<Exception>();
-            var responsesSeen = new List<IQuasiHttpResponse>();
-            instance.AbortCallback = (parent, e, res) =>
-            {
-                Assert.Equal(instance.Parent, parent);
-                lock (parent)
-                {
-                    if (e != null)
-                    {
-                        errorsSeen.Add(e);
-                    }
-                    if (res != null)
-                    {
-                        responsesSeen.Add(res);
-                    }
-                    abortCallCount++;
-                }
-                return Task.CompletedTask;
+                MaxChunkSize = maxChunkSize,
+                ResponseBufferingEnabled = false,
+                Request = expectedRequest
             };
 
             // act.
-            IQuasiHttpResponse actualResponse = await instance.Send(expectedRequest);
-
-            // assert.
-            Assert.Equal(2, abortCallCount);
-            Assert.Single(errorsSeen);
-            Assert.Equal(new List<IQuasiHttpResponse> { actualResponse }, responsesSeen);
-            await ComparisonUtils.CompareResponses(maxChunkSize, response, actualResponse,
-                null);
+            await Assert.ThrowsAnyAsync<Exception>(async () =>
+            {
+                await instance.Send();
+            });
 
             // assert expected behaviour of response closure occured by trying 
             // to determine if connection was released.
@@ -410,7 +385,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var actualReq = outputStream.ToArray();
             Assert.NotEmpty(actualReq);
             var actualReqChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualReq, 0,
-                MiscUtils.LengthOfEncodedChunkLength);
+                MiscUtils.LengthOfEncodedChunkLength, true);
             var actualReqChunk = LeadChunk.Deserialize(actualReq,
                 MiscUtils.LengthOfEncodedChunkLength, actualReqChunkLength);
             ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);

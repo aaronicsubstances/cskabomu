@@ -9,17 +9,20 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.Server
 {
-    internal class DefaultReceiveProtocolInternal
+    internal class DefaultReceiveProtocolInternal : IReceiveProtocolInternal
     {
-        public object Parent { get; set; }
-        public Func<object, Task> AbortCallback { get; set; }
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
         public int MaxChunkSize { get; set; }
         public IDictionary<string, object> RequestEnvironment { get; set; }
 
-        public Task Receive()
+        public Task Cancel()
+        {
+            return Task.CompletedTask;
+        }
+
+        public async Task<IQuasiHttpResponse> Receive()
         {
             // assume properties are set correctly aside the transport and application.
             if (Transport == null)
@@ -30,10 +33,32 @@ namespace Kabomu.QuasiHttp.Server
             {
                 throw new MissingDependencyException("server application");
             }
-            return ReadRequestLeadChunk();
+
+            var request = await ReadRequestLeadChunk();
+
+            var response = await Application.ProcessRequest(request);
+            if (response == null)
+            {
+                throw new ExpectationViolationException("no response");
+            }
+
+            try
+            {
+                await TransferResponseToTransport(response);
+                return null;
+            }
+            catch
+            {
+                try
+                {
+                    _ = response.Close();
+                }
+                catch { } // ignore
+                throw;
+            }
         }
 
-        private async Task ReadRequestLeadChunk()
+        private async Task<IQuasiHttpRequest> ReadRequestLeadChunk()
         {
             var chunk = await ChunkDecodingBody.ReadLeadChunk(Transport, Connection, MaxChunkSize);
 
@@ -42,10 +67,13 @@ namespace Kabomu.QuasiHttp.Server
                 Target = chunk.RequestTarget,
                 Headers = chunk.Headers,
                 HttpVersion = chunk.HttpVersion,
-                Method = chunk.Method
+                Method = chunk.Method,
+                Environment = RequestEnvironment
             };
             if (chunk.ContentLength != 0)
             {
+                await ProtocolUtilsInternal.StartDeserializingBody(Transport,
+                    Connection, chunk.ContentLength);
                 request.Body = new TransportBackedBody(Transport, Connection,
                     chunk.ContentLength, false)
                 {
@@ -56,26 +84,7 @@ namespace Kabomu.QuasiHttp.Server
                     request.Body = new ChunkDecodingBody(request.Body, MaxChunkSize);
                 }
             }
-
-            var response = await Application.ProcessRequest(request, RequestEnvironment); 
-            if (response == null)
-            {
-                throw new ExpectationViolationException("no response");
-            }
-
-            // ensure response is closed.
-            try
-            {
-                await TransferResponseToTransport(response);
-            }
-            finally
-            {
-                try
-                {
-                    await response.Close();
-                }
-                catch (Exception) { }
-            }
+            return request;
         }
 
         private async Task TransferResponseToTransport(IQuasiHttpResponse response)
@@ -99,16 +108,11 @@ namespace Kabomu.QuasiHttp.Server
 
             if (response.Body != null)
             {
-                var responseBody = response.Body;
-                if (responseBody.ContentLength < 0)
-                {
-                    responseBody = new ChunkEncodingBody(responseBody, MaxChunkSize);
-                }
-                await TransportUtils.TransferBodyToTransport(Transport,
-                    Connection, responseBody, MaxChunkSize);
+                await ProtocolUtilsInternal.TransferBodyToTransport(Transport, Connection,
+                    MaxChunkSize, response.Body);
             }
 
-            await AbortCallback.Invoke(Parent);
+            await response.Close();
         }
     }
 }

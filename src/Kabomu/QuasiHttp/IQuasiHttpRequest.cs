@@ -40,5 +40,8 @@ namespace Kabomu.QuasiHttp
         /// Gets an HTTP request version value.
         /// </summary>
         string HttpVersion { get; }
+
+        /// Gets any objects which may be of interest during request processing.
+        IDictionary<string, object> Environment { get; }
     }
 }

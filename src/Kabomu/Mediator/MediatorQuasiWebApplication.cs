@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.Mediator.Handling;
 using Kabomu.Mediator.Registry;
 using Kabomu.QuasiHttp;
@@ -66,20 +65,6 @@ namespace Kabomu.Mediator
         public IRegistry HandlerConstants { get; set; }
 
         /// <summary>
-        /// Gets or sets a factory for creating "async locks" one for each instance of 
-        /// <see cref="IContext"/> class that will be created.
-        /// </summary>
-        /// <remarks>
-        /// Such locks will be used for internal sychronization within <see cref="IContext"/> and other
-        /// framework classes. They can also be used for external synchronization by handlers.
-        /// <para></para>
-        /// Can be null, which is the same as the default value, which will lead to
-        /// no synchronization. Clients will then have to exclude concurrent non thread safe
-        /// accesses to context objects and their responses.
-        /// </remarks>
-        public IMutexApiFactory MutexApiFactory { get; set; }
-
-        /// <summary>
         /// Creates an instance of <see cref="IContext"/> class with the properties of this instance, and begins
         /// processing the pipeline of handlers set up in the <see cref="InitialHandlers"/> property.
         /// </summary>
@@ -87,9 +72,9 @@ namespace Kabomu.Mediator
         /// <param name="requestEnvironment">request environment variables</param>
         /// <returns>a task whose result will be a quasi http response</returns>
         /// <exception cref="MissingDependencyException">The <see cref="InitialHandlers"/> property is null</exception>
-        public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request, IDictionary<string, object> requestEnvironment)
+        public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request)
         {
-            var contextRequest = new DefaultContextRequestInternal(request, requestEnvironment);
+            var contextRequest = new DefaultContextRequestInternal(request);
             var responseTransmmitter = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var contextResponse = new DefaultContextResponseInternal(new DefaultQuasiHttpResponse(), responseTransmmitter);
@@ -101,12 +86,6 @@ namespace Kabomu.Mediator
                 InitialHandlerVariables = InitialHandlerVariables,
                 HandlerConstants = HandlerConstants,
             };
-
-            var mutexApiTask = MutexApiFactory?.Create();
-            if (mutexApiTask != null)
-            {
-                context.MutexApi = await mutexApiTask;
-            }
 
             context.Start();
 

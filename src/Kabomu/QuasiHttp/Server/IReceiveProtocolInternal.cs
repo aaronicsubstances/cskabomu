@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.Client
+namespace Kabomu.QuasiHttp.Server
 {
-    interface ISendProtocolInternal
+    interface IReceiveProtocolInternal
     {
         Task Cancel();
-        Task<ProtocolSendResult> Send();
+        Task<IQuasiHttpResponse> Receive();
     }
 }

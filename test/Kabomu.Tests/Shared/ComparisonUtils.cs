@@ -2,6 +2,7 @@
 using Kabomu.Mediator.Path;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
+using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Newtonsoft.Json;
 using System;
@@ -70,28 +71,29 @@ namespace Kabomu.Tests.Shared
             IQuasiHttpRequest expected, IQuasiHttpRequest actual,
             byte[] expectedReqBodyBytes)
         {
+            if (expected == null)
+            {
+                Assert.Null(actual);
+                return;
+            }
             Assert.Equal(expected.Method, actual.Method);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
             Assert.Equal(expected.Target, actual.Target);
             CompareHeaders(expected.Headers, actual.Headers);
-            if (expectedReqBodyBytes == null)
-            {
-                Assert.Null(actual.Body);
-            }
-            else
-            {
-                Assert.NotNull(actual.Body);
-                Assert.Equal(expected.Body.ContentLength, actual.Body.ContentLength);
-                Assert.Equal(expected.Body.ContentType, actual.Body.ContentType);
-                var actualReqBodyBytes = await TransportUtils.ReadBodyToEnd(actual.Body, maxChunkSize);
-                Assert.Equal(expectedReqBodyBytes, actualReqBodyBytes);
-            }
+            Assert.Same(expected.Environment, actual.Environment);
+            await CompareBodies(maxChunkSize, expected.Body, actual.Body, expectedReqBodyBytes);
         }
 
         public static async Task CompareResponses(int maxChunkSize,
             IQuasiHttpResponse expected, IQuasiHttpResponse actual,
             byte[] expectedResBodyBytes)
         {
+            if (expected == null)
+            {
+                Assert.Null(actual);
+                return;
+            }
+            Assert.NotNull(actual);
             Assert.Equal(expected.StatusCode, actual.StatusCode);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
             Assert.Equal(expected.HttpStatusMessage, actual.HttpStatusMessage);
@@ -104,16 +106,14 @@ namespace Kabomu.Tests.Shared
         {
             if (expectedBodyBytes == null)
             {
-                Assert.Null(actual);
+                Assert.Same(expected, actual);
+                return;
             }
-            else
-            {
-                Assert.NotNull(actual);
-                Assert.Equal(expected.ContentLength, actual.ContentLength);
-                Assert.Equal(expected.ContentType, actual.ContentType);
-                var actualResBodyBytes = await TransportUtils.ReadBodyToEnd(actual, maxChunkSize);
-                Assert.Equal(expectedBodyBytes, actualResBodyBytes);
-            }
+            Assert.NotNull(actual);
+            Assert.Equal(expected.ContentLength, actual.ContentLength);
+            Assert.Equal(expected.ContentType, actual.ContentType);
+            var actualResBodyBytes = await TransportUtils.ReadBodyToEnd(actual, maxChunkSize);
+            Assert.Equal(expectedBodyBytes, actualResBodyBytes);
         }
 
         public static void CompareHeaders(IDictionary<string, IList<string>> expected,
@@ -263,6 +263,28 @@ namespace Kabomu.Tests.Shared
             Assert.Equal(expected.BoundPath, actual.BoundPath);
             Assert.Equal(expected.UnboundRequestTarget, actual.UnboundRequestTarget);
             Assert.Equal(expected.PathValues, actual.PathValues);
+        }
+
+        internal static void CompareSendTransfers(SendTransferInternal expected,
+            SendTransferInternal actual)
+        {
+            if (expected == null)
+            {
+                Assert.Null(actual);
+                return;
+            }
+            Assert.NotNull(actual);
+            Assert.Equal(expected.IsAborted, actual.IsAborted);
+            Assert.Equal(expected.TimeoutMillis, actual.TimeoutMillis);
+            Assert.Equal(expected.ConnectivityParams?.RemoteEndpoint, actual.ConnectivityParams?.RemoteEndpoint);
+            Assert.Equal(expected.ConnectivityParams?.ExtraParams, actual.ConnectivityParams?.ExtraParams);
+            Assert.Equal(expected.Connection, actual.Connection);
+            Assert.Equal(expected.MaxChunkSize, actual.MaxChunkSize);
+            Assert.Equal(expected.Request, actual.Request);
+            Assert.Equal(expected.RequestWrappingEnabled, actual.RequestWrappingEnabled);
+            Assert.Equal(expected.ResponseWrappingEnabled, actual.ResponseWrappingEnabled);
+            Assert.Equal(expected.ResponseBufferingEnabled, actual.ResponseBufferingEnabled);
+            Assert.Equal(expected.ResponseBodyBufferingSizeLimit, actual.ResponseBodyBufferingSizeLimit);
         }
     }
 }

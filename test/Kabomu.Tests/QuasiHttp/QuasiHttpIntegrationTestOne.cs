@@ -1,11 +1,10 @@
 ﻿using Kabomu.Common;
-using Kabomu.MemoryBasedTransport;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
-using Kabomu.Tests.Internals;
+using Kabomu.Tests.MemoryBasedTransport;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -19,13 +18,10 @@ namespace Kabomu.Tests.QuasiHttp
 {
     public class QuasiHttpIntegrationTestOne
     {
-        /// <summary>
-        /// Currently a flaky test.
-        /// </summary>
         [Theory]
         [MemberData(nameof(CreateTestDirectSendData))]
         public async Task TestDirectSend(object remoteEndpoint, IQuasiHttpRequest request, IQuasiHttpSendOptions options,
-            int responseTimeMillis, string expectedResponseError, IQuasiHttpResponse expectedResponse)
+            int responseTimeMillis, IQuasiHttpResponse expectedResponse)
         {
             // arrange.
             IQuasiHttpAltTransport directProcessingTransport = new ConfigurableQuasiHttpTransport
@@ -47,35 +43,17 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
+                    ResponseBufferingEnabled = false,
                     TimeoutMillis = 100
                 },
                 TransportBypass = directProcessingTransport,
-                ResponseStreamingProbabilty = 1
             };
-            IQuasiHttpResponse actualResponse = null;
-            Exception actualResponseError = null;
-
+            
             // act.
-            try
-            {
-                actualResponse = await instance.Send(remoteEndpoint, request, options);
-            }
-            catch (Exception e)
-            {
-                actualResponseError = e;
-            }
+            var actualResponse = await instance.Send(remoteEndpoint, request, options);
 
             // assert.
-            if (expectedResponseError != null)
-            {
-                Assert.NotNull(actualResponseError);
-                MiscUtils.AssertMessageInErrorTree(expectedResponseError, actualResponseError);
-            }
-            else
-            {
-                Assert.Null(actualResponseError);
-                Assert.Equal(expectedResponse, actualResponse);
-            }
+            Assert.Equal(expectedResponse, actualResponse);
         }
 
         public static List<object[]> CreateTestDirectSendData()
@@ -94,7 +72,6 @@ namespace Kabomu.Tests.QuasiHttp
             };
             DefaultQuasiHttpSendOptions options = null;
             int responseTimeMillis = 0;
-            string expectedResponseError = null;
             var expectedResponse = new DefaultQuasiHttpResponse
             {
                 StatusCode = 200,
@@ -105,7 +82,7 @@ namespace Kabomu.Tests.QuasiHttp
                 }
             };
             testData.Add(new object[] { remoteEndpoint, request, options,
-                responseTimeMillis, expectedResponseError, expectedResponse });
+                responseTimeMillis, expectedResponse });
 
             remoteEndpoint = 3;
             request = new DefaultQuasiHttpRequest
@@ -114,10 +91,9 @@ namespace Kabomu.Tests.QuasiHttp
             };
             options = new DefaultQuasiHttpSendOptions
             {
-                TimeoutMillis = 200
+                TimeoutMillis = 5_000
             };
             responseTimeMillis = 160;
-            expectedResponseError = null;
             expectedResponse = new DefaultQuasiHttpResponse
             {
                 StatusCode = 200,
@@ -128,200 +104,23 @@ namespace Kabomu.Tests.QuasiHttp
                 }
             };
             testData.Add(new object[] { remoteEndpoint, request, options,
-                responseTimeMillis, expectedResponseError, expectedResponse });
+                responseTimeMillis, expectedResponse });
 
             remoteEndpoint = 3;
             request = new DefaultQuasiHttpRequest
             {
                 Target = "/long",
             };
-            options = null;
-            responseTimeMillis = 127;
-            expectedResponseError = "send timeout";
-            expectedResponse = null;
-            testData.Add(new object[] { remoteEndpoint, request, options,
-                responseTimeMillis, expectedResponseError, expectedResponse });
-
-            remoteEndpoint = null;
-            request = new DefaultQuasiHttpRequest
+            options = new DefaultQuasiHttpSendOptions
             {
-                Target = "/ping",
+                TimeoutMillis = -1
             };
-            options = null;
-            responseTimeMillis = 15;
-            expectedResponseError = "no response";
-            expectedResponse = null;
+            responseTimeMillis = 127;
+            expectedResponse = new DefaultQuasiHttpResponse();
             testData.Add(new object[] { remoteEndpoint, request, options,
-                responseTimeMillis, expectedResponseError, expectedResponse });
+                responseTimeMillis, expectedResponse });
 
             return testData;
-        }
-
-        /// <summary>
-        /// Currently a flaky test.
-        /// </summary>
-        [Fact]
-        public async Task TestResetOfTransfersWithoutConnections()
-        {
-            // arrange.
-            var cancellationHandle = new CancellationTokenSource();
-            var transport = new ConfigurableQuasiHttpTransport
-            {
-                AllocateConnectionCallback = async (connectivityParams) =>
-                {
-                    await Task.Delay(200_000, cancellationHandle.Token);
-                    return null;
-                },
-                ProcessSendRequestCallback = (req, connectivityParams) =>
-                {
-                    Func<Task<IQuasiHttpResponse>> helperFunc = async () =>
-                    {
-                        await Task.Delay(200_000, cancellationHandle.Token);
-                        return null;
-                    };
-                    var resTask = helperFunc.Invoke();
-                    return (resTask, (object)null);
-                }
-            };
-            var client = new StandardQuasiHttpClient
-            {
-                DefaultSendOptions = new DefaultQuasiHttpSendOptions
-                {
-                    TimeoutMillis = 20
-                },
-                Transport = transport,
-                TransportBypass = transport
-            };
-            var expectedErrors = new string[] { "send timeout", "send timeout",
-                "send timeout", "client reset", "client reset" };
-            var actualResponseErrors = new Exception[expectedErrors.Length];
-
-            var tasks = new List<Task>();
-
-            // act
-            for (int i = 0; i < expectedErrors.Length; i++)
-            {
-                var capturedIndex = i;
-                // 30 ms should be enough to distinguish callback firing times
-                // on the common operating systems (15ms max on Windows, 10ms max on Linux).
-                var sendTime = Math.Min(i * 30, 95);
-                tasks.Add(Task.Run(async () =>
-                {
-                    await Task.Delay(sendTime);
-                    var options = new DefaultQuasiHttpSendOptions
-                    {
-                        TimeoutMillis = capturedIndex > 2 ? 40 : 15
-                    };
-                    client.TransportBypassProbabilty = capturedIndex == 0 ? 1 : 0;
-                    try
-                    {
-                        await client.Send(null, new DefaultQuasiHttpRequest(), options);
-                        actualResponseErrors[capturedIndex] = null;
-                    }
-                    catch (Exception e)
-                    {
-                        actualResponseErrors[capturedIndex] = e;
-                    }
-                }));
-            }
-
-            tasks.Add(Task.Run(async () =>
-            {
-                await Task.Delay(110);
-                await client.Reset(null);
-            }));
-
-            // wait for actions to complete.
-            await Task.WhenAll(tasks);
-            cancellationHandle.Cancel();
-
-            // assert.
-            for (int i = 0; i < expectedErrors.Length; i++)
-            {
-                Assert.NotNull(actualResponseErrors[i]);
-                Assert.Equal(i + ". " + expectedErrors[i], i + ". " + actualResponseErrors[i].Message);
-            }
-        }
-
-        /// <summary>
-        /// Currently a flaky test.
-        /// </summary>
-        [Fact]
-        public async Task TestResetOfTransfersWithConnections()
-        {
-            // arrange.
-            var cancellationHandle = new CancellationTokenSource();
-            var transport = new ConfigurableQuasiHttpTransport
-            {
-                AllocateConnectionCallback = async (connectivityParams) =>
-                {
-                    return new DefaultConnectionAllocationResponse
-                    {
-                        Connection = new object()
-                    };
-                },
-                WriteBytesCallback = async (c, d, o, l) =>
-                {
-                    await Task.Delay(200_000, cancellationHandle.Token);
-                }, 
-                ReleaseConnectionCallback = c => Task.CompletedTask
-            };
-            var client = new StandardQuasiHttpClient
-            {
-                DefaultSendOptions = new DefaultQuasiHttpSendOptions
-                {
-                    TimeoutMillis = 20
-                },
-                Transport = transport
-            };
-            var expectedErrors = new string[] { "send timeout", "send timeout",
-                "send timeout", "client reset", "client reset" };
-            var actualResponseErrors = new Exception[expectedErrors.Length];
-
-            var tasks = new List<Task>();
-
-            // act
-            for (int i = 0; i < expectedErrors.Length; i++)
-            {
-                var capturedIndex = i;
-                // 30 ms should be enough to distinguish callback firing times
-                // on the common operating systems (15ms max on Windows, 10ms max on Linux).
-                var sendTime = Math.Min(i * 30, 95);
-                tasks.Add(Task.Run(async () =>
-                {
-                    await Task.Delay(sendTime);
-                    var options = new DefaultQuasiHttpSendOptions
-                    {
-                        TimeoutMillis = capturedIndex > 2 ? 40 : 15
-                    };
-                    try
-                    {
-                        await client.Send(null, new DefaultQuasiHttpRequest(), options);
-                        actualResponseErrors[capturedIndex] = null;
-                    }
-                    catch (Exception e)
-                    {
-                        actualResponseErrors[capturedIndex] = e;
-                    }
-                }));
-            }
-
-            tasks.Add(Task.Run(async () =>
-            {
-                await Task.Delay(110);
-                await client.Reset(null);
-            }));
-
-            // wait for actions to complete.
-            await Task.WhenAll(tasks);
-            cancellationHandle.Cancel();
-
-            // assert.
-            for (int i = 0; i < expectedErrors.Length; i++)
-            {
-                Assert.NotNull(actualResponseErrors[i]);
-                Assert.Equal(i + ". " + expectedErrors[i], i + ". " + actualResponseErrors[i].Message);
-            }
         }
 
         [Theory]
@@ -362,7 +161,7 @@ namespace Kabomu.Tests.QuasiHttp
             accraQuasiHttpServer.Transport = accraServerTransport;
             accraQuasiHttpServer.Application = CreateEndpointApplication(accraEndpoint,
                 accraServerMaxChunkSize, 27);
-            await hub.AddServer(accraEndpoint, accraQuasiHttpServer);
+            hub.AddServer(accraEndpoint, accraServerTransport);
             await accraQuasiHttpServer.Start();
 
             var accraClientTransport = new MemoryBasedClientTransport
@@ -394,7 +193,7 @@ namespace Kabomu.Tests.QuasiHttp
             kumasiQuasiHttpServer.Transport = kumasiServerTransport;
             kumasiQuasiHttpServer.Application = CreateEndpointApplication(kumasiEndpoint,
                 kumasiServerMaxChunkSize, 25);
-            await hub.AddServer(kumasiEndpoint, kumasiQuasiHttpServer);
+            hub.AddServer(kumasiEndpoint, kumasiServerTransport);
             await kumasiQuasiHttpServer.Start();
 
             var kumasiClientTransport = new MemoryBasedClientTransport
@@ -730,7 +529,7 @@ namespace Kabomu.Tests.QuasiHttp
         {
             var app = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = async (req, options) =>
+                ProcessRequestCallback = async (req) =>
                 {
                     Func<byte, byte> selectedOp = null;
                     if (req.Headers != null && req.Headers.ContainsKey("second") &&

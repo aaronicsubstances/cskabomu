@@ -50,18 +50,13 @@ namespace Http.FileClient
             try
             {
                 var serverUrl = new Uri(serverUrlStr);
-                LOG.Info("Started Http.FileClient to {0}", serverUrl);
+                LOG.Info("Created Http.FileClient to {0}", serverUrl);
 
                 await FileSender.StartTransferringFiles(instance, serverUrl, uploadDirPath);
             }
             catch (Exception e)
             {
                 LOG.Error(e, "Fatal error encountered");
-            }
-            finally
-            {
-                LOG.Debug("Stopping Http.FileClient...");
-                await instance.Reset(null);
             }
         }
     }

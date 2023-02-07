@@ -142,7 +142,7 @@ namespace Kabomu.Mediator.Handling
             return async (context) =>
             {
                 IPathMatchResult parentPathMatchResult;
-                using (await context.MutexApi.Synchronize())
+                lock (context.Mutex)
                 {
                     parentPathMatchResult = ContextUtils.GetPathMatchResult(context);
                 }

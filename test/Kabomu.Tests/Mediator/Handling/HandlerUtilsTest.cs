@@ -423,7 +423,7 @@ namespace Kabomu.Tests.Mediator.Handling
             {
                 Method = methodToMatch
             };
-            var contextRequest = new DefaultContextRequestInternal(rawRequest, null);
+            var contextRequest = new DefaultContextRequestInternal(rawRequest);
             var context = new TempContext
             {
                 Request = contextRequest
@@ -448,7 +448,7 @@ namespace Kabomu.Tests.Mediator.Handling
             {
                 Method = methodToMismatch
             };
-            var contextRequest = new DefaultContextRequestInternal(rawRequest, null);
+            var contextRequest = new DefaultContextRequestInternal(rawRequest);
             var context = new TempContext
             {
                 Request = contextRequest
@@ -474,9 +474,10 @@ namespace Kabomu.Tests.Mediator.Handling
         {
             public TempContext()
             {
+                Mutex = new object();
             }
 
-            public IMutexApi MutexApi { get; set; }
+            public object Mutex { get; }
             public IContextRequest Request { get; set; }
             public IContextResponse Response { get; set; }
             public IList<Handler> HandlersSeen { get; set; }

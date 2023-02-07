@@ -57,9 +57,8 @@ namespace Kabomu.Tests.QuasiHttp.Server
             IQuasiHttpResponse response = null;
             var app = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = (req, actualReqEnv) =>
+                ProcessRequestCallback = (req) =>
                 {
-                    Assert.Null(actualReqEnv);
                     return Task.FromResult(response);
                 }
             };
@@ -68,17 +67,11 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Transport = transport,
                 Application = app,
             };
-            var cbCallCount = 0;
-            instance.AbortCallback = async (parent) =>
-            {
-                cbCallCount++;
-            };
             var ex = await Assert.ThrowsAsync<ExpectationViolationException>(() =>
             {
                 return instance.Receive();
             });
             Assert.Contains("no response", ex.Message);
-            Assert.Equal(0, cbCallCount);
         }
 
         [Fact]
@@ -86,7 +79,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
         {
             var request = new DefaultQuasiHttpRequest();
             var connectivityParams = new DefaultConnectivityParams();
-            var response = new ErrorQuasiHttpResponse();
+            var response = new QuasiHttpResponseImpl();
 
             var inputStream = MiscUtils.CreateRequestInputStream(request, null);
 
@@ -97,33 +90,31 @@ namespace Kabomu.Tests.QuasiHttp.Server
                     Assert.Null(actualConnection);
                     var bytesRead = inputStream.Read(data, offset, length);
                     return bytesRead;
-                }
+                },
+                WriteBytesCallback = async (actualConnection, data, offset, length) =>
+                {
+                    throw new NotImplementedException();
+                },
             };
 
             var app = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = (req, actualReqEnv) =>
+                ProcessRequestCallback = (req) =>
                 {
-                    Assert.Null(actualReqEnv);
                     return Task.FromResult((IQuasiHttpResponse)response);
                 }
             };
             var instance = new DefaultReceiveProtocolInternal
             {
                 Application = app,
-                Transport = transport
-            };
-            var cbCallCount = 0;
-            instance.AbortCallback = async (parent) =>
-            {
-                cbCallCount++;
+                Transport = transport,
+                MaxChunkSize = 50
             };
             await Assert.ThrowsAsync<NotImplementedException>(() =>
             {
                 return instance.Receive();
             });
 
-            Assert.Equal(0, cbCallCount);
             Assert.True(response.CloseCalled);
         }
 
@@ -151,24 +142,23 @@ namespace Kabomu.Tests.QuasiHttp.Server
             {
                 ReadBytesCallback = async (actualConnection, data, offset, length) =>
                 {
-                    Assert.Equal(connection, actualConnection);
+                    Assert.Same(connection, actualConnection);
                     var bytesRead = inputStream.Read(data, offset, length);
                     return bytesRead;
                 },
                 WriteBytesCallback = async (actualConnection, data, offset, length) =>
                 {
-                    Assert.Equal(connection, actualConnection);
+                    Assert.Same(connection, actualConnection);
                     outputStream.Write(data, offset, length);
                 },
                 ReleaseConnectionCallback = (actualConnection) =>
                 {
-                    Assert.Equal(connection, actualConnection);
+                    Assert.Same(connection, actualConnection);
                     return Task.CompletedTask;
-                },
+                }
             };
             var instance = new DefaultReceiveProtocolInternal
             {
-                Parent = new object(),
                 Transport = transport,
                 Connection = connection,
                 RequestEnvironment = reqEnv,
@@ -176,34 +166,21 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
 
             IQuasiHttpRequest actualRequest = null;
-            IDictionary<string, object> actualRequestEnvironment = null;
             instance.Application = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = async (req, env) =>
+                ProcessRequestCallback = async (req) =>
                 {
                     actualRequest = req;
-                    actualRequestEnvironment = env;
                     return expectedResponse;
                 }
-            };
-            int abortCallCount = 0;
-            object actualProtocolParentSeen = null;
-            instance.AbortCallback = (parent) =>
-            {
-                actualProtocolParentSeen = parent;
-                abortCallCount++;
-                return Task.CompletedTask;
             };
 
             // act
             await instance.Receive();
 
             // assert
-            Assert.Equal(1, abortCallCount);
-            Assert.Equal(instance.Parent, actualProtocolParentSeen);
             await ComparisonUtils.CompareRequests(maxChunkSize, request, actualRequest,
                 requestBodyBytes);
-            Assert.Equal(reqEnv, actualRequestEnvironment);
 
             // ensure that response closure occured by trying to read response body
             if (expectedResponse.Body != null)
@@ -217,13 +194,18 @@ namespace Kabomu.Tests.QuasiHttp.Server
             // finally verify contents of output stream.
             var actualRes = outputStream.ToArray();
             Assert.NotEmpty(actualRes);
+
+            int resBytesOffset = 0;
             var actualResChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualRes, 0,
-                MiscUtils.LengthOfEncodedChunkLength);
-            var actualResChunk = LeadChunk.Deserialize(actualRes,
-                MiscUtils.LengthOfEncodedChunkLength, actualResChunkLength);
+                MiscUtils.LengthOfEncodedChunkLength, true);
+            resBytesOffset += MiscUtils.LengthOfEncodedChunkLength;
+
+            var actualResChunk = LeadChunk.Deserialize(actualRes, resBytesOffset,
+                actualResChunkLength);
             ComparisonUtils.CompareLeadChunks(expectedResChunk, actualResChunk);
-            var actualResponseBodyLen = actualRes.Length - 
-                MiscUtils.LengthOfEncodedChunkLength - actualResChunkLength;
+            resBytesOffset += actualResChunkLength;
+            
+            var actualResponseBodyLen = actualRes.Length - resBytesOffset;
             if (expectedResponseBodyBytes == null)
             {
                 Assert.Equal(0, actualResponseBodyLen);
@@ -234,13 +216,19 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 if (actualResChunk.ContentLength < 0)
                 {
                     actualResBodyBytes = await MiscUtils.ReadChunkedBody(actualRes,
-                        actualResChunkLength + MiscUtils.LengthOfEncodedChunkLength,
-                        actualResponseBodyLen);
+                        resBytesOffset, actualResponseBodyLen);
                 }
                 else
                 {
+                    var resBodyPrefix = new byte[MiscUtils.LengthOfEncodedChunkLength];
+                    Array.Copy(actualRes, resBytesOffset,
+                        resBodyPrefix, 0, resBodyPrefix.Length);
+                    Assert.Equal(ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue, resBodyPrefix);
+                    resBytesOffset += MiscUtils.LengthOfEncodedChunkLength;
+                    actualResponseBodyLen -= MiscUtils.LengthOfEncodedChunkLength;
+
                     actualResBodyBytes = new byte[actualResponseBodyLen];
-                    Array.Copy(actualRes, actualResChunkLength + MiscUtils.LengthOfEncodedChunkLength,
+                    Array.Copy(actualRes, resBytesOffset,
                         actualResBodyBytes, 0, actualResponseBodyLen);
                 }
                 Assert.Equal(expectedResponseBodyBytes, actualResBodyBytes);
@@ -253,6 +241,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             object connection = "vgh";
             int maxChunkSize = 100;
+            IDictionary<string, object> reqEnv = null;
             var request = new DefaultQuasiHttpRequest
             {
                 Method = "POST",
@@ -260,14 +249,14 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "variant", new List<string>{ "sea", "drive" } }
-                }
+                },
+                Environment = reqEnv
             };
             var reqBodyBytes = Encoding.UTF8.GetBytes("this is our king");
             request.Body = new ByteBufferBody(reqBodyBytes, 0, reqBodyBytes.Length)
             {
                 ContentType = "text/plain"
             };
-            IDictionary<string, object> reqEnv = null;
 
             var expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -288,15 +277,16 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             connection = 123;
             maxChunkSize = 95;
-            request = new DefaultQuasiHttpRequest
-            {
-                Target = "/p"
-            };
-            reqBodyBytes = null;
             reqEnv = new Dictionary<string, object>
             {
                 { "is_ssl", "true" }
             };
+            request = new DefaultQuasiHttpRequest
+            {
+                Target = "/p",
+                Environment = reqEnv
+            };
+            reqBodyBytes = null;
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -309,17 +299,18 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             connection = null;
             maxChunkSize = 90;
+            reqEnv = new Dictionary<string, object>();
             request = new DefaultQuasiHttpRequest
             {
                 HttpVersion = "1.1",
-                Target = "/bread"
+                Target = "/bread",
+                Environment = reqEnv
             };
             reqBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
             request.Body = new StringBody("<a>this is news</a>")
             {
                 ContentType = "application/xml"
             };
-            reqEnv = new Dictionary<string, object>();
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -333,6 +324,10 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             connection = new object();
             maxChunkSize = 150;
+            reqEnv = new Dictionary<string, object>
+            {
+                { "r", 2 }, { "tea", new byte[3] }
+            };
             request = new DefaultQuasiHttpRequest
             {
                 Target = "/fxn",
@@ -342,13 +337,10 @@ namespace Kabomu.Tests.QuasiHttp.Server
                     { "a", new List<string>{ "A" } },
                     { "bb", new List<string>{ "B1", "B2" } },
                     { "ccc", new List<string>{ "C1", "C2", "C3" } }
-                }
+                },
+                Environment = reqEnv
             };
             reqBodyBytes = null;
-            reqEnv = new Dictionary<string, object>
-            {
-                { "r", 2 }, { "tea", new byte[3] }
-            };
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -371,19 +363,21 @@ namespace Kabomu.Tests.QuasiHttp.Server
             return testData;
         }
 
-        class ErrorQuasiHttpResponse : IQuasiHttpResponse
+        private class QuasiHttpResponseImpl : IQuasiHttpResponse
         {
             public bool CloseCalled { get; set; }
 
-            public string HttpStatusMessage => throw new NotImplementedException();
+            public string HttpStatusMessage { get; set; }
 
-            public IDictionary<string, IList<string>> Headers => throw new NotImplementedException();
+            public IDictionary<string, IList<string>> Headers { get; set; }
 
-            public IQuasiHttpBody Body => throw new NotImplementedException();
+            public IQuasiHttpBody Body { get; set; }
 
-            public int StatusCode => throw new NotImplementedException();
+            public int StatusCode { get; set; }
 
-            public string HttpVersion => throw new NotImplementedException();
+            public string HttpVersion { get; set; }
+
+            public IDictionary<string, object> Environment { get; set; }
 
             public Task Close()
             {

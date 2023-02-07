@@ -1,6 +1,5 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
-using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Server;
 using Kabomu.Tests.Shared;
 using System;
@@ -15,87 +14,63 @@ namespace Kabomu.Tests.QuasiHttp.Server
     {
 
         [Fact]
-        public async Task TestSendToApplicationForDependencyErrors()
+        public async Task TestReceiveForDependencyErrors()
         {
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
-                new AltReceiveProtocolInternal().SendToApplication(new DefaultQuasiHttpRequest()));
-        }
-
-        [Fact]
-        public async Task TestSendToApplicationForRejectionOfNullResponses()
-        {
-            var app = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = async (req, reqEnv) =>
+                var instance = new AltReceiveProtocolInternal
                 {
-                    return null;
-                }
-            };
-            var instance = new AltReceiveProtocolInternal
-            {
-                Parent = new object(),
-                Application = app,
-                AbortCallback = (parent, res) => Task.CompletedTask
-            };
-            await Assert.ThrowsAsync<ExpectationViolationException>(() =>
-            {
-                return instance.SendToApplication(new DefaultQuasiHttpRequest());
+                    Request = new DefaultQuasiHttpRequest()
+                };
+                return instance.Receive();
             });
         }
 
         [Fact]
-        public async Task TestSendToApplication()
+        public async Task TestReceiveForRejectionOfNullResponses()
+        {
+            var app = new ConfigurableQuasiHttpApplication
+            {
+                ProcessRequestCallback = async (req) =>
+                {
+                    return null;
+                }
+            };
+            await Assert.ThrowsAsync<ExpectationViolationException>(() =>
+            {
+                var instance = new AltReceiveProtocolInternal
+                {
+                    Application = app,
+                    Request = new DefaultQuasiHttpRequest()
+                };
+                return instance.Receive();
+            });
+        }
+
+        [Fact]
+        public async Task TestReceive()
         {
             var request = new DefaultQuasiHttpRequest();
             var reqEnv = new Dictionary<string, object>
             {
                 { "shared", true }
             };
-            var expectedResponse = new ErrorQuasiHttpResponse();
+            var expectedResponse = new DefaultQuasiHttpResponse();
             var app = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = async (actualRequest, actualReqEnv) =>
+                ProcessRequestCallback = async (actualRequest) =>
                 {
-                    Assert.Equal(request, actualRequest);
-                    Assert.Equal(reqEnv, actualReqEnv);
+                    Assert.Same(request, actualRequest);
                     return expectedResponse;
                 }
             };
             var instance = new AltReceiveProtocolInternal
             {
-                Parent = new object(),
-                RequestEnvironment = reqEnv,
+                Request = request,
                 Application = app
             };
-            var cbCalled = false;
-            instance.AbortCallback = async (parent, res) =>
-            {
-                Assert.False(cbCalled);
-                Assert.Equal(instance.Parent, parent);
-                Assert.Equal(expectedResponse, res);
-                cbCalled = true;
-            };
-            var actualResponse = await instance.SendToApplication(request);
-            Assert.True(cbCalled);
-            Assert.Equal(expectedResponse, actualResponse);
-        }
-
-        class ErrorQuasiHttpResponse : IQuasiHttpResponse
-        {
-            public string HttpStatusMessage => throw new NotImplementedException();
-
-            public IDictionary<string, IList<string>> Headers => throw new NotImplementedException();
-
-            public IQuasiHttpBody Body => throw new NotImplementedException();
-
-            public int StatusCode => throw new NotImplementedException();
-
-            public string HttpVersion => throw new NotImplementedException();
-
-            public Task Close()
-            {
-                throw new NotImplementedException();
-            }
+            var actualResponse = await instance.Receive();
+            Assert.Same(expectedResponse, actualResponse);
         }
     }
 }

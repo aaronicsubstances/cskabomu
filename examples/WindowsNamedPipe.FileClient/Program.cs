@@ -49,18 +49,13 @@ namespace WindowsNamedPipe.FileClient
 
             try
             {
-                LOG.Info("Started WindowsNamedPipe.FileClient to {0}", serverPath);
+                LOG.Info("Created WindowsNamedPipe.FileClient to {0}", serverPath);
 
                 await FileSender.StartTransferringFiles(instance, serverPath, uploadDirPath);
             }
             catch (Exception e)
             {
                 LOG.Error(e, "Fatal error encountered");
-            }
-            finally
-            {
-                LOG.Debug("Stopping WindowsNamedPipe.FileClient...");
-                await instance.Reset(null);
             }
         }
     }

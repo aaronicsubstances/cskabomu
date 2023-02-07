@@ -52,15 +52,6 @@ namespace Kabomu.QuasiHttp.Server
         IQuasiHttpServerTransport Transport { get; set; }
 
         /// <summary>
-        /// Gets and sets a mutex object which will most likely be needed to synchronize server operations.
-        /// <para>
-        /// This property is exposed publicly to allow frameworks employing a general concurrency mechanism
-        /// to impose their policy through this property.
-        /// </para>
-        /// </summary>
-        IMutexApi MutexApi { get; set; }
-
-        /// <summary>
         /// Gets and sets a timer object which will most likely be needed to impose timeouts on server operations.
         /// <para>
         /// This property is exposed publicly to allow frameworks employing a general concurrency mechanism
@@ -76,21 +67,12 @@ namespace Kabomu.QuasiHttp.Server
         Task Start();
 
         /// <summary>
-        /// Used by implementations to stop receiving connections from their quasi http transports, and 
-        /// optionally releasing any ongoing connections.
+        /// Used by implementations to stop receiving connections from their quasi http transports.
         /// </summary>
-        /// <param name="resetTimeMillis">if nonnegative, then it indicates the delay in ms
-        /// from the current time after which all ongoing connections will be forcefully released.</param>
+        /// <param name="waitTimeMillis">if nonnegative, then it indicates the delay in ms
+        /// from the current time during which ongoing processing is allowed to finish.</param>
         /// <returns>a task representing asynchronous operations.</returns>
-        Task Stop(int resetTimeMillis);
-
-        /// <summary>
-        /// Releases all ongoing connections. Implementations must allow this to be called
-        /// regardless of whether instance is running.
-        /// </summary>
-        /// <param name="cause">optional exception object indicating cause of reset.</param>
-        /// <returns>a task representing asynchronous operation.</returns>
-        Task Reset(Exception cause);
+        Task Stop(int waitTimeMillis);
 
         /// <summary>
         /// Hook for transports external to Kabomu for using the quasi http application of an

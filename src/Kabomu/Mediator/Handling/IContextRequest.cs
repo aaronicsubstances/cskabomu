@@ -18,11 +18,6 @@ namespace Kabomu.Mediator.Handling
         IQuasiHttpRequest RawRequest { get; }
 
         /// <summary>
-        /// Gets the request environment supplied at request time.
-        /// </summary>
-        IDictionary<string, object> Environment { get; }
-
-        /// <summary>
         /// Gets the method of the <see cref="RawRequest"/> property.
         /// </summary>
         string Method { get; }

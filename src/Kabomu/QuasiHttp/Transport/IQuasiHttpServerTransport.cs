@@ -1,5 +1,4 @@
-﻿using Kabomu.Concurrency;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,15 +11,6 @@ namespace Kabomu.QuasiHttp.Transport
     /// </summary>
     public interface IQuasiHttpServerTransport : IQuasiHttpTransport
     {
-        /// <summary>
-        /// Gets and sets a mutex object which will most likely be needed to synchronize server operations.
-        /// <para>
-        /// This property is exposed publicly to allow frameworks employing a general concurrency mechanism
-        /// to impose their policy through this property.
-        /// </para>
-        /// </summary>
-        IMutexApi MutexApi { get; set; }
-
         /// <summary>
         /// Performs any startup operations required for receiving of connections to succeed. E.g. TCP servers will
         /// bind and listen at this point.
@@ -44,8 +34,8 @@ namespace Kabomu.QuasiHttp.Transport
         /// <summary>
         /// Returns true if and only if the server has been started and has not been stopped, ie is running.
         /// </summary>
-        /// <returns>a task whose result indicates whether the server is running</returns>
-        Task<bool> IsRunning();
+        /// <returns>true if and only if the server is running</returns>
+        bool IsRunning();
 
         /// <summary>
         /// Waits for any incoming connection. Equivalent to TCP's accept() operation. This operation should only

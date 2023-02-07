@@ -1,5 +1,5 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.QuasiHttp;
+﻿using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -17,10 +17,9 @@ namespace Kabomu.Tests.Shared
         public Func<object, byte[], int, int, Task<int>> ReadBytesCallback { get; set; }
         public Func<object, byte[], int, int, Task> WriteBytesCallback { get; set; }
         public Func<Task> StartCallback { get;  set; }
-        public Func<Task<bool>> IsRunningCallback { get; set; }
+        public Func<bool> IsRunningCallback { get; set; }
         public Func<Task> StopCallback { get; set; }
         public Func<Task<IConnectionAllocationResponse>> ReceiveConnectionCallback { get; set; }
-        public IMutexApi MutexApi { get; set; }
 
         public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(IQuasiHttpRequest request,
             IConnectivityParams connectivityParams)
@@ -63,7 +62,7 @@ namespace Kabomu.Tests.Shared
             return StartCallback.Invoke();
         }
 
-        public Task<bool> IsRunning()
+        public bool IsRunning()
         {
             return IsRunningCallback.Invoke();
         }

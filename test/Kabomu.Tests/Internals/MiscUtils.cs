@@ -2,7 +2,6 @@
 using Kabomu.Concurrency;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
-using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
@@ -70,8 +69,9 @@ namespace Kabomu.Tests.Internals
                     }.Serialize();
                     WriteChunk(emptyBodyChunk, stream);
                 }
-                else
+                else if (request.Body.ContentLength > 0)
                 {
+                    stream.Write(ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue);
                     stream.Write(requestBodyBytes);
                 }
             }
@@ -127,8 +127,9 @@ namespace Kabomu.Tests.Internals
                     }.Serialize();
                     WriteChunk(emptyBodyChunk, stream);
                 }
-                else
+                else if (response.Body.ContentLength > 0)
                 {
+                    stream.Write(ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue);
                     stream.Write(responseBodyBytes);
                 }
             }
@@ -136,23 +137,37 @@ namespace Kabomu.Tests.Internals
             return stream;
         }
 
-        public static Task<IQuasiHttpResponse> SendWithDelay(IQuasiHttpClient instance, IEventLoopApi testEventLoop, int delay,
-            object remoteEndpoint, IQuasiHttpRequest request, IQuasiHttpSendOptions sendOptions)
+        public static Task<IQuasiHttpResponse> EnsureCompletedTask(Task<IQuasiHttpResponse> sendTask)
         {
-            var responseTcs = new TaskCompletionSource<IQuasiHttpResponse>();
-            testEventLoop.SetTimeout(async () =>
+            if (sendTask.IsCompleted)
             {
-                try
-                {
-                    var res = await instance.Send(remoteEndpoint, request, sendOptions);
-                    responseTcs.SetResult(res);
-                }
-                catch (Exception e)
-                {
-                    responseTcs.SetException(e);
-                }
-            }, delay);
-            return responseTcs.Task;
+                return sendTask;
+            }
+            throw new Exception("task is not completed");
+        }
+
+        public static async Task<T> Delay<T>(ITimerApi timerApi, int delay, Func<Task<T>> cb)
+        {
+            await timerApi.Delay(delay);
+            Task<T> t = cb?.Invoke();
+            if (t != null)
+            {
+                return await t;
+            }
+            else
+            {
+                return default(T);
+            }
+        }
+
+        public static async Task Delay(ITimerApi timerApi, int delay, Func<Task> cb)
+        {
+            await timerApi.Delay(delay);
+            Task t = cb?.Invoke();
+            if (t != null)
+            {
+                await t;
+            }
         }
     }
 }

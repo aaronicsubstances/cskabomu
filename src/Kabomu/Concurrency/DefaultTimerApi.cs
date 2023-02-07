@@ -7,7 +7,8 @@ using System.Threading.Tasks;
 namespace Kabomu.Concurrency
 {
     /// <summary>
-    /// Provides default implementation of the <see cref="ITimerApi"/> interface which runs callbacks without any mutual exclusion.
+    /// Provides default implementation of the <see cref="ITimerApi"/> interface for
+    /// executing delays and timeouts.
     /// </summary>
     public class DefaultTimerApi : ITimerApi
     {
@@ -28,21 +29,27 @@ namespace Kabomu.Concurrency
             }
             if (millis < 0)
             {
-                throw new ArgumentException("negative timeout value: " + millis);
+                throw new ArgumentOutOfRangeException(nameof(millis), "cannot be negative. received: " + millis);
             }
             var cancellationHandle = new CancellationTokenSource();
-            Task.Delay(millis, cancellationHandle.Token).ContinueWith(t =>
+            _ = RunTimeoutCallback(millis, cancellationHandle.Token, cb);
+            return cancellationHandle;
+        }
+
+        private async Task RunTimeoutCallback(int millis, CancellationToken cancellationToken, Action cb)
+        {
+            try
             {
-                if (t.IsCanceled)
-                {
-                    return;
-                }
+                await Task.Delay(millis, cancellationToken);
                 cb.Invoke();
-            });
-            return new SetTimeoutCancellationHandle
+            }
+            catch (TaskCanceledException)
             {
-                Cts = cancellationHandle
-            };
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+            }
         }
 
         /// <summary>
@@ -52,15 +59,15 @@ namespace Kabomu.Concurrency
         /// No exception is thrown if handle is invalid or if callback execution has already been cancelled.</param>
         public void ClearTimeout(object timeoutHandle)
         {
-            if (timeoutHandle is SetTimeoutCancellationHandle w)
+            if (timeoutHandle is CancellationTokenSource cts)
             {
-                w.Cts.Cancel();
+                cts.Cancel();
             }
         }
 
-        private class SetTimeoutCancellationHandle
+        public Task Delay(int millis)
         {
-            public CancellationTokenSource Cts { get; set; }
+            return Task.Delay(millis);
         }
     }
 }

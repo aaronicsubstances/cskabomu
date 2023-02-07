@@ -12,10 +12,18 @@ namespace Kabomu.Mediator.Handling
 {
     internal class DefaultContextInternal : IContext
     {
+        private readonly object _mutex = new object();
         private Stack<HandlerGroup> _handlerStack;
         private IRegistry _joinedRegistry;
 
-        public IMutexApi MutexApi { get; set; }
+        public object Mutex
+        {
+            get
+            {
+                return _mutex;
+            }
+        }
+
         public IContextRequest Request { get; set; } // getter is equivalent to fetching from joined registry
         public IContextResponse Response { get; set; } // getter is equivalent to fetching from joined registry
         public IList<Handler> InitialHandlers { get; set; }
@@ -61,7 +69,7 @@ namespace Kabomu.Mediator.Handling
                 }
 
                 Handler nextHandler;
-                using (await MutexApi.Synchronize())
+                lock (_mutex)
                 {
                     _handlerStack = new Stack<HandlerGroup>();
                     var firstHandlerGroup = new HandlerGroup(InitialHandlers,
@@ -126,7 +134,7 @@ namespace Kabomu.Mediator.Handling
             async Task InsertInternal()
             {
                 Handler nextHandler;
-                using (await MutexApi.Synchronize())
+                lock (_mutex)
                 {
                     var applicableRegistry = CurrentRegistry.Join(registry);
                     var newHandlerGroup = new HandlerGroup(handlers, applicableRegistry);
@@ -143,7 +151,7 @@ namespace Kabomu.Mediator.Handling
             async Task SkipInsertInternal()
             {
                 Handler nextHandler;
-                using (await MutexApi.Synchronize())
+                lock (_mutex)
                 {
                     _handlerStack.Peek().EndIteration();
                     nextHandler = AdvanceHandlerStackPointer();
@@ -163,7 +171,7 @@ namespace Kabomu.Mediator.Handling
             async Task NextInternal()
             {
                 Handler nextHandler;
-                using (await MutexApi.Synchronize())
+                lock (_mutex)
                 {
                     if (registry != null)
                     {

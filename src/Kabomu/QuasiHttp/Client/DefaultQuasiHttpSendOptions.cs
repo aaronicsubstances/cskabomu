@@ -26,9 +26,9 @@ namespace Kabomu.QuasiHttp.Client
         public int MaxChunkSize { get; set; }
 
         /// <summary>
-        /// Gets or sets an indication of whether response streaming is enabled or not.
+        /// Gets or sets an indication of whether response buffering is enabled or not.
         /// </summary>
-        public bool? ResponseStreamingEnabled { get; set; }
+        public bool? ResponseBufferingEnabled { get; set; }
 
         /// <summary>
         /// Gets or sets a value that imposes a maximum size on response bodies when they are being buffered in situations

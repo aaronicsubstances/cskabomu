@@ -1,6 +1,4 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.Tests.Shared;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,13 +10,6 @@ namespace Kabomu.Tests.Concurrency
 {
     public class VirtualTimeBasedEventLoopApiTest
     {
-        private readonly ITestOutputHelper _outputHelper;
-
-        public VirtualTimeBasedEventLoopApiTest(ITestOutputHelper outputHelper)
-        {
-            _outputHelper = outputHelper;
-        }
-
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
@@ -33,12 +24,12 @@ namespace Kabomu.Tests.Concurrency
             Assert.Equal(10, instance.CurrentTimestamp);
             Assert.Empty(callbackLogs);
 
-            instance.SetImmediate(() =>
-                callbackLogs.Add($"{instance.CurrentTimestamp}:cac4e224-15b6-45af-8df4-0a4d43b2ae05"));
-            instance.SetImmediate(() =>
-                callbackLogs.Add($"{instance.CurrentTimestamp}:757d903d-376f-4e5f-accf-371fd5f06c3d"));
-            instance.SetImmediate(() =>
-                callbackLogs.Add($"{instance.CurrentTimestamp}:245bd145-a538-49b8-b7c8-733f77e5d245"));
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:cac4e224-15b6-45af-8df4-0a4d43b2ae05"), 0);
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:757d903d-376f-4e5f-accf-371fd5f06c3d"), 0);
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:245bd145-a538-49b8-b7c8-733f77e5d245"), 0);
 
             await AdvanceLoop(instance, callAdvanceBy, 0);
             Assert.Equal(10, instance.CurrentTimestamp);
@@ -90,8 +81,8 @@ namespace Kabomu.Tests.Concurrency
             // test repeated cancellation of same id doesn't cause problems.
             instance.ClearTimeout(testTimeoutId);
 
-            instance.SetImmediate(() =>
-                callbackLogs.Add($"{instance.CurrentTimestamp}:6d3a5586-b81d-4ca5-880b-2b711881a14e"));
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:6d3a5586-b81d-4ca5-880b-2b711881a14e"), 0);
             testTimeoutId = instance.SetTimeout(() =>
                 callbackLogs.Add($"{instance.CurrentTimestamp}:8722d9a6-a7d4-47fe-a6d4-eee624fb0740"), 3);
             Assert.NotNull(testTimeoutId);
@@ -102,21 +93,14 @@ namespace Kabomu.Tests.Concurrency
             Assert.NotNull(testTimeoutId2);
             instance.SetTimeout(() =>
                 callbackLogs.Add($"{instance.CurrentTimestamp}:9b463fec-6a9c-44cc-8165-e106080b18fc"), 0);
-            var testImmediateId = instance.SetImmediate(() =>
-                callbackLogs.Add($"{instance.CurrentTimestamp}:56805433-1f02-4327-b190-50862c0ba93e"));
-            Assert.NotNull(testImmediateId);
 
             Assert.Empty(callbackLogs);
-
-            // check whether wrong cancellation call will be ignored.
-            instance.ClearTimeout(testImmediateId);
 
             await AdvanceLoop(instance, callAdvanceBy, 2);
             Assert.Equal(new List<string>
             {
                 "20:6d3a5586-b81d-4ca5-880b-2b711881a14e",
-                "20:9b463fec-6a9c-44cc-8165-e106080b18fc",
-                "20:56805433-1f02-4327-b190-50862c0ba93e"
+                "20:9b463fec-6a9c-44cc-8165-e106080b18fc"
             }, callbackLogs);
 
             callbackLogs.Clear();
@@ -132,29 +116,26 @@ namespace Kabomu.Tests.Concurrency
             callbackLogs.Clear();
             instance.ClearTimeout(testTimeoutId);
 
-            instance.SetImmediate(() =>
-                callbackLogs.Add($"{instance.CurrentTimestamp}:6d3a5586-b81d-4ca5-880b-2b711881a14e"));
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:6d3a5586-b81d-4ca5-880b-2b711881a14e"), 0);
             instance.SetTimeout(() =>
                 callbackLogs.Add($"{instance.CurrentTimestamp}:8722d9a6-a7d4-47fe-a6d4-eee624fb0740"), 3);
             instance.SetTimeout(() =>
                 callbackLogs.Add($"{instance.CurrentTimestamp}:2f7deeb1-f857-4f29-82de-b4168133f093"), 4);
-            testTimeoutId = instance.SetTimeout(() =>
+            instance.SetTimeout(() =>
                 callbackLogs.Add($"{instance.CurrentTimestamp}:42989f22-a6d1-48ff-a554-86f79e87321e"), 3);
-            Assert.NotNull(testTimeoutId);
-
-            // check whether wrong cancellation call will be ignored.
-            instance.ClearImmediate(testTimeoutId);
 
             instance.SetTimeout(() =>
                 callbackLogs.Add($"{instance.CurrentTimestamp}:9b463fec-6a9c-44cc-8165-e106080b18fc"), 0);
-            instance.SetImmediate(() =>
-                callbackLogs.Add($"{instance.CurrentTimestamp}:56805433-1f02-4327-b190-50862c0ba93e"));
-            testImmediateId = instance.SetImmediate(() =>
-                callbackLogs.Add($"{instance.CurrentTimestamp}:5f08ae56-f596-4703-a9ab-3a66c6c29c07"));
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:56805433-1f02-4327-b190-50862c0ba93e"), 0);
+            testTimeoutId = instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:5f08ae56-f596-4703-a9ab-3a66c6c29c07"), 0);
+            Assert.NotNull(testTimeoutId);
             Assert.Empty(callbackLogs);
 
             Assert.Equal(7, instance.PendingEventCount);
-            instance.ClearImmediate(testImmediateId);
+            instance.ClearTimeout(testTimeoutId);
             Assert.Equal(6, instance.PendingEventCount);
 
             await AdvanceLoop(instance, callAdvanceBy, 5);
@@ -170,13 +151,10 @@ namespace Kabomu.Tests.Concurrency
             }, callbackLogs);
 
             callbackLogs.Clear();
-            instance.ClearImmediate(testImmediateId); // test already used immediate cancellation isn't a problem.
             instance.ClearTimeout(testTimeoutId); // test already used timeout cancellation isn't a problem.
             instance.ClearTimeout(testTimeoutId2);  // test already used timeout isn't a problem.
             instance.ClearTimeout(null);  // test unexpected doesn't cause problems.
-            instance.ClearImmediate(null);
             instance.ClearTimeout("jal");  // test unexpected doesn't cause problems.
-            instance.ClearImmediate(3);
 
             await AdvanceLoop(instance, callAdvanceBy, 5);
             Assert.Equal(35, instance.CurrentTimestamp);
@@ -206,12 +184,12 @@ namespace Kabomu.Tests.Concurrency
 
             var callbackLogs = new List<string>();
 
-            instance.SetImmediate(() =>
-                callbackLogs.Add($"{instance.CurrentTimestamp}:cac4e224-15b6-45af-8df4-0a4d43b2ae05"));
-            instance.SetImmediate(() =>
-                callbackLogs.Add($"{instance.CurrentTimestamp}:757d903d-376f-4e5f-accf-371fd5f06c3d"));
-            instance.SetImmediate(() =>
-                callbackLogs.Add($"{instance.CurrentTimestamp}:245bd145-a538-49b8-b7c8-733f77e5d245"));
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:cac4e224-15b6-45af-8df4-0a4d43b2ae05"), 0);
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:757d903d-376f-4e5f-accf-371fd5f06c3d"), 0);
+            instance.SetTimeout(() =>
+                callbackLogs.Add($"{instance.CurrentTimestamp}:245bd145-a538-49b8-b7c8-733f77e5d245"), 0);
 
             await instance.AdvanceTimeBy(0);
             Assert.Equal(0, instance.CurrentTimestamp);
@@ -238,7 +216,7 @@ namespace Kabomu.Tests.Concurrency
                 callbackLogs.Add($"{instance.CurrentTimestamp}:e1e039a0-c83a-43da-8f29-81725eb7147f"), 6);
 
             // test that in the absence of any extra setting, async work
-            // will cause timestamp supplied at callback execution to be differetn
+            // will cause timestamp supplied at callback execution to be different
             // from the logged value.
             var tcs = new TaskCompletionSource<object>();
             Func<Task> asyncWork = async () =>
@@ -271,26 +249,20 @@ namespace Kabomu.Tests.Concurrency
             Assert.Equal(4, instance.CurrentTimestamp);
             Assert.Empty(callbackLogs);
 
-            // test suspension and resumption of advances, and
+            // test long async work with callback aftermath delays, and
             // ensure async work passes equality check this time.
+            instance.DefaultCallbackAftermathDelayance = () => Task.Delay(700);
             asyncWork = async () =>
             {
-                instance.AdvanceSuspended = true;
-                try
+                instance.StickyCallbackAftermathDelayance = () => Task.Delay(1_200);
+
+                await Task.Delay(1_000);
+                callbackLogs.Add($"{instance.CurrentTimestamp}:c74feb30-7e58-4e47-956b-f4ce5f3fc32c");
+                instance.SetTimeout(async () =>
                 {
-                    await Task.Delay(1_000);
-                    callbackLogs.Add($"{instance.CurrentTimestamp}:c74feb30-7e58-4e47-956b-f4ce5f3fc32c");
-                    instance.SetTimeout(async () =>
-                    {
-                        instance.MaxCallbackAsyncContinuationTimeoutMillis = 1_000;
-                        await Task.Delay(500);
-                        callbackLogs.Add($"{instance.CurrentTimestamp}:b180111d-3179-4c50-9006-4a7591f05640");
-                    }, 7);
-                }
-                finally
-                {
-                    instance.AdvanceSuspended = false;
-                }
+                    await Task.Delay(500);
+                    callbackLogs.Add($"{instance.CurrentTimestamp}:b180111d-3179-4c50-9006-4a7591f05640");
+                }, 7);
             };
             instance.SetTimeout(() =>
             {
@@ -304,6 +276,9 @@ namespace Kabomu.Tests.Concurrency
                 "14:b180111d-3179-4c50-9006-4a7591f05640"
             }, callbackLogs);
             Assert.Equal(0, instance.PendingEventCount);
+
+            // reset default delayance.
+            instance.DefaultCallbackAftermathDelayance = null;
 
             callbackLogs.Clear();
             await instance.AdvanceTimeTo(0);
@@ -330,207 +305,37 @@ namespace Kabomu.Tests.Concurrency
         public async Task TestForErrors()
         {
             var instance = new VirtualTimeBasedEventLoopApi();
-            await Assert.ThrowsAsync<ArgumentException>(() =>
-                instance.AdvanceTimeBy(-1));
-            await Assert.ThrowsAsync<ArgumentException>(() =>
-                instance.AdvanceTimeTo(-1));
-            Assert.Throws<ArgumentNullException>(() =>
-                instance.SetImmediate(null));
             Assert.Throws<ArgumentNullException>(() =>
                 instance.SetTimeout(null, 0));
-            Assert.Throws<ArgumentException>(() =>
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
                 instance.SetTimeout(() => { }, -1));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+                instance.AdvanceTimeBy(-1));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+                instance.AdvanceTimeTo(-1));
         }
 
         [Fact]
-        public async Task TestRunExclusively()
-        {
-            // arrange.
-            var instance = new VirtualTimeBasedEventLoopApi();
-            var expected = false;
-
-            var tcs = new TaskCompletionSource<bool>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            instance.RunExclusively(() =>
-            {
-                Assert.Equal(0, instance.CurrentTimestamp);
-                tcs.SetResult(instance.IsInterimEventLoopThread);
-            });
-
-            var maxPendingEventCount = instance.PendingEventCount;
-
-            // act.
-            await instance.AdvanceTimeBy(0);
-
-            // assert.
-            var actual = await tcs.Task;
-            Assert.Equal(0, instance.PendingEventCount);
-            Assert.Equal(1, maxPendingEventCount);
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public async Task TestWhenSetImmediate()
-        {
-            // arrange.
-            var instance = new VirtualTimeBasedEventLoopApi();
-            var expected = new List<string>();
-            var actual = new List<string>();
-            var tasks = new List<List<Task>>();
-
-            for (int i = 0; i < 100; i++)
-            {
-                var capturedIndex = i;
-                expected.Add("" + capturedIndex + false);
-                var cancellationHandles = new List<object>();
-                Func<Task<int>> cb = () =>
-                {
-                    Assert.Equal(0, instance.CurrentTimestamp);
-                    cancellationHandles.ForEach(h => instance.ClearImmediate(h));
-                    actual.Add("" + capturedIndex + instance.IsInterimEventLoopThread);
-                    return Task.FromResult(capturedIndex);
-                };
-
-                var related = new List<Task>();
-                var result = instance.WhenSetImmediate(cb);
-                related.Add(result.Item1);
-                cancellationHandles.Add(result.Item2);
-
-                // the rest should not execute.
-                for (int j = 0; j < 2; j++)
-                {
-                    result = instance.WhenSetImmediate(async () =>
-                    {
-                        await cb.Invoke();
-                    });
-                    related.Add(result.Item1);
-                    cancellationHandles.Add(result.Item2);
-                }
-                tasks.Add(related);
-            }
-
-            // this must finish executing after all previous tasks have executed.
-            var lastOne = instance.WhenSetImmediate(() => Task.CompletedTask).Item1;
-
-            var maxPendingEventCount = instance.PendingEventCount;
-
-            // act
-            await instance.AdvanceTimeBy(0);
-
-            // assert
-            await lastOne;
-            Assert.Equal(0, instance.PendingEventCount);
-            Assert.Equal(tasks.SelectMany(t => t).Count() + 1, maxPendingEventCount);
-
-            // check cancellations
-            foreach (var related in tasks)
-            {
-                for (var i = 0; i < related.Count; i++)
-                {
-                    var t = related[i];
-                    if (i == 0)
-                    {
-                        await t;
-                    }
-                    else
-                    {
-                        Assert.False(t.IsCompleted);
-                    }
-                }
-            }
-
-            // finally ensure correct ordering of execution of tasks.
-            ComparisonUtils.AssertLogsEqual(expected, actual, _outputHelper);
-        }
-
-        [Fact]
-        public async Task TestWhenSetTimeout()
-        {
-            // arrange.
-            var instance = new VirtualTimeBasedEventLoopApi();
-            var expected = new List<string>();
-            var actual = new List<string>();
-            var tasks = new List<List<Task>>();
-
-            for (int i = 0; i < 50; i++)
-            {
-                var capturedIndex = i;
-                expected.Insert(0, "" + capturedIndex + false); // ie reverse
-                var cancellationHandles = new List<object>();
-                int timeoutValue = 4000 - 50 * i;
-                Func<Task<int>> cb = () =>
-                {
-                    Assert.Equal(timeoutValue, instance.CurrentTimestamp);
-                    cancellationHandles.ForEach(h => instance.ClearTimeout(h));
-                    actual.Add("" + capturedIndex + instance.IsInterimEventLoopThread);
-                    return Task.FromResult(capturedIndex);
-                };
-
-                var related = new List<Task>();
-                var result = instance.WhenSetTimeout(cb, timeoutValue);
-                related.Add(result.Item1);
-                cancellationHandles.Add(result.Item2);
-
-                // the rest should not execute.
-                for (int j = 0; j < 2; j++)
-                {
-                    result = instance.WhenSetTimeout(cb, timeoutValue);
-                    related.Add(result.Item1);
-                    cancellationHandles.Add(result.Item2);
-                }
-                tasks.Add(related);
-            }
-
-            // this must finish executing after all previous tasks have executed.
-            var lastOne = instance.WhenSetTimeout(() => Task.CompletedTask, 5000).Item1;
-
-            var maxPendingEventCount = instance.PendingEventCount; 
-
-            // act.
-            await instance.AdvanceTimeTo(5000);
-
-            // assert
-            await lastOne;
-            Assert.Equal(0, instance.PendingEventCount);
-            Assert.Equal(tasks.SelectMany(t => t).Count() + 1, maxPendingEventCount);
-
-            // check cancellations
-            foreach (var related in tasks)
-            {
-                for (var i = 0; i < related.Count; i++)
-                {
-                    var t = related[i];
-                    if (i == 0)
-                    {
-                        await t;
-                    }
-                    else
-                    {
-                        Assert.False(t.IsCompleted);
-                    }
-                }
-            }
-
-            // finally ensure correct ordering of execution of tasks.
-            ComparisonUtils.AssertLogsEqual(expected, actual, _outputHelper);
-        }
-
-        [Fact]
-        public async Task TestForDeadlockAvoidance()
+        public async Task TestDelayWithDeadlockAvoidance()
         {
             // arrange.
             var instance = new VirtualTimeBasedEventLoopApi();
             var tcs = new TaskCompletionSource<object>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var laterTask = instance.WhenSetTimeout(() =>
+
+            async Task RunLaterTask()
             {
+                await instance.Delay(1800);
                 tcs.SetResult(null);
-                return Task.CompletedTask;
-            }, 1800).Item1;
-            var dependentTask = instance.WhenSetTimeout(async () =>
+            }
+
+            async Task RunDependentTask()
             {
+                await instance.Delay(500);
                 await tcs.Task;
-            }, 500).Item1;
+            }
+            var laterTask = RunLaterTask();
+            var dependentTask = RunDependentTask();
 
             // act
             await instance.AdvanceTimeTo(2_000);

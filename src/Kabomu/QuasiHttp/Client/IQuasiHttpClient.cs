@@ -49,30 +49,14 @@ namespace Kabomu.QuasiHttp.Client
         IQuasiHttpAltTransport TransportBypass { get; set; }
 
         /// <summary>
-        /// Gets or sets a value from 0-1 for choosing between Transport and TransportBypass
-        /// properties if both are present. Implementations are to skip use of this property
-        /// if either of them is null.
+        /// Gets or sets a value from 0-1 for deciding on whether to wrap a request or
+        /// a response with proxy objects when using <see cref="IQuasiHttpAltTransport"/>
+        /// implementations.
         /// <para></para>
-        /// A value of 0 means never use TransportBypass, whereas
-        /// a value of 1 means always use TransportBypass.
+        /// A value of 0 means wrap a request or a response, whereas
+        /// a value of 1 means always wrap requests and responses.
         /// </summary>
-        double TransportBypassProbabilty { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value from 0-1 for making a final decision on whether streaming will be
-        /// enabled on a response with a body, if default send options does not indicate what to 
-        /// do (ie ResponseStreamingEnabled is null).
-        /// </summary>
-        double ResponseStreamingProbabilty { get; set; }
-
-        /// <summary>
-        /// Gets and sets a mutex object which will most likely be needed to synchronize client operations.
-        /// <para>
-        /// This property is exposed publicly to allow frameworks employing a general concurrency mechanism
-        /// to impose their policy through this property.
-        /// </para>
-        /// </summary>
-        IMutexApi MutexApi { get; set; }
+        double TransportBypassWrappingProbability { get; set; }
 
         /// <summary>
         /// Gets and sets a timer object which will most likely be needed to impose timeouts on client operations.
@@ -82,13 +66,6 @@ namespace Kabomu.QuasiHttp.Client
         /// </para>
         /// </summary>
         ITimerApi TimerApi { get; set; }
-
-        /// <summary>
-        /// Releases all ongoing connections.
-        /// </summary>
-        /// <param name="cause">optional exception object indicating cause of reset.</param>
-        /// <returns>a task representing asynchronous operation.</returns>
-        Task Reset(Exception cause);
 
         /// <summary>
         /// Sends a quasi http request via quasi http transport
