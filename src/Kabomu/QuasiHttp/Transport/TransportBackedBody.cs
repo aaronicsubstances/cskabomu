@@ -1,6 +1,5 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.QuasiHttp.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -11,13 +10,12 @@ namespace Kabomu.QuasiHttp.Transport
     /// <summary>
     /// Represents a stream of bytes from a connection of a quasi http transport.
     /// </summary>
-    public class TransportBackedBody : IQuasiHttpBody
+    public class TransportBackedBody : IQuasiHttpBody, IBytesAlreadyReadProviderInternal
     {
         private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
         private readonly IQuasiHttpTransport _transport;
         private readonly object _connection;
         private readonly bool _releaseConnection;
-        private long _bytesRemaining;
 
         /// <summary>
         /// Creates a new instance.
@@ -40,60 +38,38 @@ namespace Kabomu.QuasiHttp.Transport
             _connection = connection;
             _releaseConnection = releaseConnection;
             ContentLength = contentLength;
-            if (ContentLength >= 0)
-            {
-                _bytesRemaining = contentLength;
-            }
-            else
-            {
-                _bytesRemaining = -1;
-            }
         }
 
         /// <summary>
         /// Returns the number of bytes to read from connection of a transport, or negative value
         /// to indicate unknown length, and hence all bytes of connection will be read.
         /// </summary>
-        public long ContentLength { get; }
+        public long ContentLength { get; set; }
 
         public string ContentType { get; set; }
 
-        public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
+        long IBytesAlreadyReadProviderInternal.BytesAlreadyRead { get; set; }
+
+        public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
-            if (!ByteUtils.IsValidByteBufferSlice(data, offset, bytesToRead))
+            if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
                 throw new ArgumentException("invalid destination buffer");
             }
 
             EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
-            // very important to return zero at this stage, because certain transport
-            // implementations can choose to block forever after announcing the amount of data they are
-            // returning, and returning all that data.
-            if (_bytesRemaining == 0)
+            async Task<int> ReadBytesInternal(int bytesToRead)
             {
-                return 0;
+                int bytesRead = await _transport.ReadBytes(_connection, data, offset, bytesToRead);
+
+                EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
+
+                return bytesRead;
             }
 
-            if (_bytesRemaining >= 0)
-            {
-                bytesToRead = (int)Math.Min(bytesToRead, _bytesRemaining);
-            }
-            int bytesRead = await _transport.ReadBytes(_connection, data, offset, bytesToRead);
-
-            EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
-
-            if (_bytesRemaining > 0)
-            {
-                if (bytesRead == 0)
-                {
-                    throw new ContentLengthNotSatisfiedException(ContentLength,
-                        $"could not read remaining {_bytesRemaining} " +
-                        $"bytes before end of read", null);
-                }
-                _bytesRemaining -= bytesRead;
-            }
-            return bytesRead;
+            return EntityBodyUtilsInternal.PerformGeneralRead(this,
+                length, ReadBytesInternal);
         }
 
         public async Task EndRead()

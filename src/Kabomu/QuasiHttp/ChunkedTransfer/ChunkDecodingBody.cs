@@ -116,6 +116,11 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
         private static void ValidateChunkLength(int chunkLen, int maxChunkSize, string prefix)
         {
+            if (chunkLen < 0)
+            {
+                throw new ChunkDecodingException(
+                    $"{prefix}: received negative chunk size of {chunkLen}");
+            }
             if (chunkLen > TransportUtils.DefaultMaxChunkSizeLimit && chunkLen > maxChunkSize)
             {
                 throw new ChunkDecodingException(
