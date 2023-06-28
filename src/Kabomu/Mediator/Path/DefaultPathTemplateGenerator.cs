@@ -130,27 +130,10 @@ namespace Kabomu.Mediator.Path
         /// <exception cref="PathTemplateException">If an error occurs due to invalid arguments</exception>
         public IPathTemplate Parse(string spec, object options)
         {
-            try
-            {
-                return ParseInternal(spec, options);
-            }
-            catch (Exception e)
-            {
-                if (e is PathTemplateException)
-                {
-                    throw;
-                }
-                throw new PathTemplateException(null, e);
-            }
-        }
-
-        private IPathTemplate ParseInternal(string spec, object options)
-        {
             if (spec == null)
             {
                 throw new ArgumentNullException(nameof(spec));
             }
-
             DefaultPathTemplateMatchOptions optionsForAll = null;
             IDictionary<string, DefaultPathTemplateMatchOptions> individualOptions = null;
             if (options != null)
@@ -165,7 +148,15 @@ namespace Kabomu.Mediator.Path
                 }
             }
 
-            var parsedCsv = CsvUtils.Deserialize(spec);
+            IList<IList<string>> parsedCsv;
+            try
+            {
+                parsedCsv = CsvUtils.Deserialize(spec);
+            }
+            catch (ArgumentException e)
+            {
+                throw new PathTemplateException(e.Message);
+            }
 
             var parsedExamples = new List<DefaultPathTemplateExampleInternal>();
             var defaultValues = new Dictionary<string, string>();
@@ -255,7 +246,7 @@ namespace Kabomu.Mediator.Path
                     }
                     else
                     {
-                        throw new ExpectationViolationException($"unexpected reference key: {referenceKey}");
+                        throw AbortParse(rowNum, 1, $"unexpected reference key: {referenceKey}");
                     }
                 }
                 else

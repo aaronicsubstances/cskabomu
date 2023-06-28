@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
@@ -10,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.Internals
+namespace Kabomu.Tests.Shared
 {
     public static class MiscUtils
     {
@@ -144,30 +143,6 @@ namespace Kabomu.Tests.Internals
                 return sendTask;
             }
             throw new Exception("task is not completed");
-        }
-
-        public static async Task<T> Delay<T>(ITimerApi timerApi, int delay, Func<Task<T>> cb)
-        {
-            await timerApi.Delay(delay);
-            Task<T> t = cb?.Invoke();
-            if (t != null)
-            {
-                return await t;
-            }
-            else
-            {
-                return default(T);
-            }
-        }
-
-        public static async Task Delay(ITimerApi timerApi, int delay, Func<Task> cb)
-        {
-            await timerApi.Delay(delay);
-            Task t = cb?.Invoke();
-            if (t != null)
-            {
-                await t;
-            }
         }
     }
 }

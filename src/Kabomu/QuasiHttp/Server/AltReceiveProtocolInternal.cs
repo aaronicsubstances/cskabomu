@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -31,7 +32,9 @@ namespace Kabomu.QuasiHttp.Server
 
             if (res == null)
             {
-                throw new ExpectationViolationException("no response");
+                throw new QuasiHttpRequestProcessingException(
+                    QuasiHttpRequestProcessingException.ReasonCodeNoResponse,
+                    "null response");
             }
 
             return res;

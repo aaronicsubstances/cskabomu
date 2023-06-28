@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace Kabomu.QuasiHttp.EntityBody
+namespace Kabomu.QuasiHttp.Exceptions
 {
     /// <summary>
     /// Thrown by IQuasiHttpBody implementations to cause Read() calls following EndOfRead() calls to fail.
@@ -11,7 +11,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// <summary>
         /// Creates an instance with default message of "end of read"
         /// </summary>
-        public EndOfReadException():
+        public EndOfReadException() :
             this("end of read")
         {
         }

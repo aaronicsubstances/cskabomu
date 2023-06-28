@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -10,10 +9,9 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <summary>
     /// Represents byte stream directly with in-memory byte array.
     /// </summary>
-    public class ByteBufferBody : IQuasiHttpBody
+    public class ByteBufferBody : IQuasiHttpBody, IBytesAlreadyReadProviderInternal
     {
         private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
-        private int _bytesRead;
 
         /// <summary>
         /// Creates a new instance.
@@ -48,6 +46,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             Buffer = data;
             Offset = offset;
             Length = length;
+            ContentLength = length;
         }
 
         /// <summary>
@@ -66,11 +65,14 @@ namespace Kabomu.QuasiHttp.EntityBody
         public int Length { get; }
 
         /// <summary>
-        /// Same as the total number of bytes available for read requests. It is never negative.
+        /// Returns the number of bytes to read, or negative value to indicate that all
+        /// the number indicated by the Length property should be returned.
         /// </summary>
-        public long ContentLength => Length;
+        public long ContentLength { get; set; }
 
         public string ContentType { get; set; }
+
+        long IBytesAlreadyReadProviderInternal.BytesAlreadyRead { get; set; }
 
         public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
@@ -81,10 +83,18 @@ namespace Kabomu.QuasiHttp.EntityBody
 
             EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
 
-            var lengthToUse = Math.Min(Length - _bytesRead, length);
-            Array.Copy(Buffer, Offset + _bytesRead, data, offset, lengthToUse);
-            _bytesRead += lengthToUse;
-            return Task.FromResult(lengthToUse);
+            Task<int> ReadBytesInternal(int bytesToRead)
+            {
+                var bytesAlreadyRead = ((IBytesAlreadyReadProviderInternal)this).BytesAlreadyRead;
+
+                bytesToRead = (int)Math.Min(Length - bytesAlreadyRead, bytesToRead);
+                Array.Copy(Buffer, Offset + bytesAlreadyRead,
+                    data, offset, bytesToRead);
+                return Task.FromResult(bytesToRead);
+            }
+
+            return EntityBodyUtilsInternal.PerformGeneralRead(this,
+                length, ReadBytesInternal);
         }
 
         public Task EndRead()

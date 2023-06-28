@@ -58,7 +58,7 @@ namespace Kabomu.Examples.Shared
             {
                 if (_startCancellationHandle == null)
                 {
-                    throw new TransportNotStartedException();
+                    throw new InvalidOperationException("transport not started");
                 }
                 pipeServer = new NamedPipeServerStream(_path, PipeDirection.InOut,
                     NamedPipeServerStream.MaxAllowedServerInstances,

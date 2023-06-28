@@ -20,10 +20,6 @@ namespace Memory.FileExchange
             [Option('s', "server-download-dir", Required = false,
                 HelpText = "Path to directory for saving uploaded files. Defaults to current directory")]
             public string ServerDownloadDirPath { get; set; }
-
-            [Option('p', "wrapping-probability (0-1)", Required = false,
-                HelpText = "Probability of wrapping request or responses. Defaults to 0.5")]
-            public double? WrappingProbability { get; set; }
         }
 
         static void Main(string[] args)
@@ -32,12 +28,11 @@ namespace Memory.FileExchange
                    .WithParsed<Options>(o =>
                    {
                        RunMain(o.ClientUploadDirPath ?? ".",
-                           o.ServerDownloadDirPath ?? ".", 
-                           o.WrappingProbability ?? 0.5).Wait();
+                           o.ServerDownloadDirPath ?? ".").Wait();
                    });
         }
 
-        public static async Task RunMain(string uploadDirPath, string downloadDirPath, double wrappingProbability)
+        public static async Task RunMain(string uploadDirPath, string downloadDirPath)
         {
             var clientEndpoint = "takoradi";
             var serverEndpoint = "kumasi";
@@ -50,7 +45,6 @@ namespace Memory.FileExchange
             {
                 DefaultSendOptions = defaultSendOptions,
                 TransportBypass = transport,
-                TransportBypassWrappingProbability = wrappingProbability
             };
 
             try

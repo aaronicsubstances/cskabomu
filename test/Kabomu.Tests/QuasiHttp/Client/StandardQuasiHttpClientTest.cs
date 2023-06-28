@@ -1,10 +1,8 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.QuasiHttp;
+﻿using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Transport;
-using Kabomu.Tests.Concurrency;
-using Kabomu.Tests.Internals;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -21,20 +19,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
         }
 
-        private static VirtualTimeBasedEventLoopApi CreateTestEventLoopApi()
-        {
-            return new VirtualTimeBasedEventLoopApi
-            {
-                DefaultCallbackAftermathDelayance = () => Task.Delay(10)
-            };
-        }
-
         [Fact]
         public async Task TestDirectSend1()
         {
             // arrange
-            var testEventLoopApi = CreateTestEventLoopApi();
-
             var expectedResponse = new TestQuasiHttpResponse();
             var cancelCallCounter = new MutableInt();
             var sendCallCounter = new MutableInt();
@@ -44,7 +32,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 transfers.Add(transfer);
                 return new TestSendProtocolInternal
                 {
-                    TimerApi = testEventLoopApi,
                     ResponseDelay = 50,
                     ResponseToReturn = expectedResponse,
                     ResponseBufferingApplied = null,
@@ -54,14 +41,12 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             DefaultQuasiHttpSendOptions defaultSendOptions = null;
             IQuasiHttpAltTransport transportBypass = new ConfigurableQuasiHttpTransport();
-            double transportBypassWrappingProbability = 0;
 
             var instance = new StandardQuasiHttpClient
             {
                 //TimerApi = testEventLoopApi,
                 AltProtocolFactory = altProtocolFactory,
                 TransportBypass = transportBypass,
-                TransportBypassWrappingProbability = transportBypassWrappingProbability,
                 DefaultSendOptions = defaultSendOptions,
             };
             object remoteEndpoint = "localhost";
@@ -70,7 +55,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // act
             Task<IQuasiHttpResponse> sendTask = instance.Send(remoteEndpoint, request, sendOptions);
-            await testEventLoopApi.AdvanceTimeTo(100);
             IQuasiHttpResponse res = await MiscUtils.EnsureCompletedTask(sendTask);
 
             // assert
@@ -92,8 +76,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 },
                 Connection = null,
                 MaxChunkSize = 8_192,
-                RequestWrappingEnabled = false,
-                ResponseWrappingEnabled = false,
                 ResponseBufferingEnabled = true,
                 ResponseBodyBufferingSizeLimit = 134_217_728
             };
@@ -104,8 +86,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestDirectSend2()
         {
-            var testEventLoopApi = CreateTestEventLoopApi();
-
             var cancelCallCounter = new MutableInt();
             var sendCallCounter = new MutableInt();
             var expectedResponse = new TestQuasiHttpResponse();
@@ -117,7 +97,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     CancelCallCounter = cancelCallCounter,
                     SendCallCounter = sendCallCounter,
-                    TimerApi = testEventLoopApi,
                     ResponseDelay = 79,
                     ResponseToReturn = expectedResponse,
                     ResponseBufferingApplied = null
@@ -132,14 +111,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 }
             };
             IQuasiHttpAltTransport transportBypass = new ConfigurableQuasiHttpTransport();
-            double transportBypassWrappingProbability = 1;
 
             var instance = new StandardQuasiHttpClient
             {
-                TimerApi = testEventLoopApi,
                 AltProtocolFactory = altProtocolFactory,
                 TransportBypass = transportBypass,
-                TransportBypassWrappingProbability = transportBypassWrappingProbability,
                 DefaultSendOptions = defaultSendOptions
             };
             object remoteEndpoint = null;
@@ -152,7 +128,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             Task<IQuasiHttpResponse> sendTask = instance.Send(remoteEndpoint, request, sendOptions);
 
-            await testEventLoopApi.AdvanceTimeTo(100);
             IQuasiHttpResponse res = await MiscUtils.EnsureCompletedTask(sendTask);
             Assert.Same(expectedResponse, res);
             Assert.Equal(new MutableInt(1), sendCallCounter);
@@ -175,8 +150,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 },
                 Connection = null,
                 MaxChunkSize = 90,
-                RequestWrappingEnabled = true,
-                ResponseWrappingEnabled = true,
                 ResponseBufferingEnabled = true,
                 ResponseBodyBufferingSizeLimit = 120
             };
@@ -187,8 +160,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestDirectSend3()
         {
-            var testEventLoopApi = CreateTestEventLoopApi();
-
             var cancelCallCounter = new MutableInt();
             var sendCallCounter = new MutableInt();
             var expectedResponse = new TestQuasiHttpResponse();
@@ -200,7 +171,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     CancelCallCounter = cancelCallCounter,
                     SendCallCounter = sendCallCounter,
-                    TimerApi = testEventLoopApi,
                     ResponseDelay = 80,
                     ResponseToReturn = expectedResponse,
                     ResponseBufferingApplied = null
@@ -214,14 +184,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ResponseBufferingEnabled = true
             };
             IQuasiHttpAltTransport transportBypass = new ConfigurableQuasiHttpTransport();
-            double transportBypassWrappingProbability = 2;
 
             var instance = new StandardQuasiHttpClient
             {
-                TimerApi = testEventLoopApi,
                 AltProtocolFactory = altProtocolFactory,
                 TransportBypass = transportBypass,
-                TransportBypassWrappingProbability = transportBypassWrappingProbability,
                 DefaultSendOptions = defaultSendOptions
             };
             object remoteEndpoint = null;
@@ -246,7 +213,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             Task<IQuasiHttpResponse> sendTask = instance.Send(remoteEndpoint, request, sendOptions);
 
-            await testEventLoopApi.AdvanceTimeTo(100);
             var sendError = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
             {
                 return MiscUtils.EnsureCompletedTask(sendTask);
@@ -273,8 +239,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 },
                 Connection = null,
                 MaxChunkSize = 50,
-                RequestWrappingEnabled = true,
-                ResponseWrappingEnabled = true,
                 ResponseBufferingEnabled = false,
                 ResponseBodyBufferingSizeLimit = 60
             };
@@ -285,8 +249,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestDirectSend4()
         {
-            var testEventLoopApi = CreateTestEventLoopApi();
-
             var cancelCallCounter = new MutableInt();
             var sendCallCounter = new MutableInt();
             var lateResponse = new TestQuasiHttpResponse();
@@ -298,7 +260,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     CancelCallCounter = cancelCallCounter,
                     SendCallCounter = sendCallCounter,
-                    TimerApi = testEventLoopApi,
                     ResponseDelay = 50,
                     ResponseToReturn = lateResponse,
                     ResponseBufferingApplied = null
@@ -315,14 +276,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 }
             };
             IQuasiHttpAltTransport transportBypass = new ConfigurableQuasiHttpTransport();
-            double transportBypassWrappingProbability = -20;
 
             var instance = new StandardQuasiHttpClient
             {
-                TimerApi = testEventLoopApi,
                 AltProtocolFactory = altProtocolFactory,
                 TransportBypass = transportBypass,
-                TransportBypassWrappingProbability = transportBypassWrappingProbability,
                 DefaultSendOptions = defaultSendOptions
             };
             object remoteEndpoint = "s34";
@@ -337,17 +295,17 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     { "k", 1 }, { "u7", true }
                 }
             };
-            Task<IQuasiHttpResponse> sendTask = MiscUtils.Delay(testEventLoopApi, 10,
-                () => {
+            Task<IQuasiHttpResponse> sendTask = Task.Delay(10).ContinueWith(
+                _ =>
+                {
                     var res = instance.Send2(remoteEndpoint, request, sendOptions);
-                    _ = MiscUtils.Delay(testEventLoopApi, 30, () =>
+                    Task.Delay(30).ContinueWith(_ =>
                     {
                         instance.CancelSend(res.Item2);
                         return Task.CompletedTask;
                     });
                     return res.Item1;
-                });
-            await testEventLoopApi.AdvanceTimeTo(100);
+                }).Unwrap();
             var sendError = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
             {
                 return MiscUtils.EnsureCompletedTask(sendTask);
@@ -373,8 +331,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 },
                 Connection = null,
                 MaxChunkSize = 75,
-                RequestWrappingEnabled = false,
-                ResponseWrappingEnabled = false,
                 ResponseBufferingEnabled = true,
                 ResponseBodyBufferingSizeLimit = 125
             };
@@ -385,8 +341,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestDefaultSend1()
         {
-            var testEventLoopApi = CreateTestEventLoopApi();
-
             var cancelCallCounter = new MutableInt();
             var sendCallCounter = new MutableInt();
             var expectedResponse = new DefaultQuasiHttpResponse();
@@ -398,7 +352,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     CancelCallCounter = cancelCallCounter,
                     SendCallCounter = sendCallCounter,
-                    TimerApi = testEventLoopApi,
                     ResponseDelay = 15,
                     ResponseToReturn = expectedResponse,
                     ResponseBufferingApplied = false
@@ -423,7 +376,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 AllocateConnectionCallback = async (paramsC) =>
                 {
-                    await testEventLoopApi.Delay(15);
+                    await Task.Delay(15);
                     return new DefaultConnectionAllocationResponse
                     {
                         Connection = connection,
@@ -434,7 +387,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             var instance = new StandardQuasiHttpClient
             {
-                TimerApi = testEventLoopApi,
                 DefaultProtocolFactory = defaultProtocolFactory,
                 Transport = transport,
                 DefaultSendOptions = defaultSendOptions
@@ -462,17 +414,13 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 },
                 ResponseBufferingEnabled = false
             };
-            Task<IQuasiHttpResponse> sendTask = MiscUtils.Delay(testEventLoopApi, 5,
-                () => {
+            Task<IQuasiHttpResponse> sendTask = Task.Delay(5).ContinueWith(
+                _ =>
+                {
                     var res = instance.Send2(remoteEndpoint, request, sendOptions);
-                    _ = MiscUtils.Delay(testEventLoopApi, 80, () =>
-                    {
-                        instance.CancelSend(res.Item2);
-                        return Task.CompletedTask;
-                    });
+                    Task.Delay(80).ContinueWith(_ => instance.CancelSend(res.Item2));
                     return res.Item1;
-                });
-            await testEventLoopApi.AdvanceTimeTo(100);
+                }).Unwrap();
             var response = await MiscUtils.EnsureCompletedTask(sendTask);
             Assert.Same(expectedResponse, response);
             Assert.Equal(new MutableInt(1), sendCallCounter);
@@ -505,8 +453,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestDefaultSend2()
         {
-            var testEventLoopApi = CreateTestEventLoopApi();
-
             var cancelCallCounter = new MutableInt();
             var sendCallCounter = new MutableInt();
             var expectedResponse = new TestQuasiHttpResponse
@@ -521,7 +467,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     CancelCallCounter = cancelCallCounter,
                     SendCallCounter = sendCallCounter,
-                    TimerApi = testEventLoopApi,
                     ResponseDelay = 30,
                     ResponseToReturn = expectedResponse,
                     ResponseBufferingApplied = false
@@ -537,7 +482,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 AllocateConnectionCallback = async (paramsC) =>
                 {
-                    await testEventLoopApi.Delay(15);
+                    await Task.Delay(15);
                     return new DefaultConnectionAllocationResponse
                     {
                         Connection = connection,
@@ -548,7 +493,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             var instance = new StandardQuasiHttpClient
             {
-                TimerApi = testEventLoopApi,
                 DefaultProtocolFactory = defaultProtocolFactory,
                 Transport = transport,
                 DefaultSendOptions = defaultSendOptions
@@ -565,17 +509,13 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ResponseBodyBufferingSizeLimit = 125,
                 MaxChunkSize = 50
             };
-            Task<IQuasiHttpResponse> sendTask = MiscUtils.Delay(testEventLoopApi, 10,
-                () => {
+            Task<IQuasiHttpResponse> sendTask = Task.Delay(10).ContinueWith(
+                _ =>
+                {
                     var res = instance.Send2(remoteEndpoint, request, sendOptions);
-                    _ = MiscUtils.Delay(testEventLoopApi, 70, () =>
-                    {
-                        instance.CancelSend(res.Item2);
-                        return Task.CompletedTask;
-                    });
+                    Task.Delay(70).ContinueWith(_ => instance.CancelSend(res.Item2));
                     return res.Item1;
-                });
-            await testEventLoopApi.AdvanceTimeTo(100);
+                }).Unwrap();
             var response = await  MiscUtils.EnsureCompletedTask(sendTask);
             Assert.Same(expectedResponse, response);
             Assert.Equal(new MutableInt(1), sendCallCounter);
@@ -605,8 +545,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestDefaultSend3()
         {
-            var testEventLoopApi = CreateTestEventLoopApi();
-
             var cancelCallCounter = new MutableInt();
             var sendCallCounter = new MutableInt();
             var transfers = new List<SendTransferInternal>();
@@ -616,8 +554,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 return new TestSendProtocolInternal
                 {
                     CancelCallCounter = cancelCallCounter,
-                    SendCallCounter = sendCallCounter,
-                    TimerApi = testEventLoopApi
+                    SendCallCounter = sendCallCounter
                 };
             };
             DefaultQuasiHttpSendOptions defaultSendOptions = new DefaultQuasiHttpSendOptions
@@ -630,7 +567,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 AllocateConnectionCallback = async (paramsC) =>
                 {
-                    await testEventLoopApi.Delay(80);
+                    await Task.Delay(80);
                     return new DefaultConnectionAllocationResponse
                     {
                         Connection = connection,
@@ -641,7 +578,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             var instance = new StandardQuasiHttpClient
             {
-                TimerApi = testEventLoopApi,
                 DefaultProtocolFactory = defaultProtocolFactory,
                 Transport = transport,
                 DefaultSendOptions = defaultSendOptions
@@ -658,7 +594,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ResponseBodyBufferingSizeLimit = 150,
             };
             Task<IQuasiHttpResponse> sendTask = instance.Send(remoteEndpoint, request, sendOptions);
-            await testEventLoopApi.AdvanceTimeTo(100);
             var sendError = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
             {
                 return MiscUtils.EnsureCompletedTask(sendTask);
@@ -690,8 +625,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestDefaultSend4()
         {
-            var testEventLoopApi = CreateTestEventLoopApi();
-
             var cancelCallCounter = new MutableInt();
             var sendCallCounter = new MutableInt();
             var transfers = new List<SendTransferInternal>();
@@ -703,7 +636,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 {
                     CancelCallCounter = cancelCallCounter,
                     SendCallCounter = sendCallCounter,
-                    TimerApi = testEventLoopApi,
                     ResponseDelay = 50,
                     ResponseToReturn = lateResponse
                 };
@@ -718,7 +650,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 AllocateConnectionCallback = async (paramsC) =>
                 {
-                    await testEventLoopApi.Delay(10);
+                    await Task.Delay(10);
                     return new DefaultConnectionAllocationResponse
                     {
                         Connection = connection,
@@ -729,7 +661,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             var instance = new StandardQuasiHttpClient
             {
-                //TimerApi = testEventLoopApi,
                 DefaultProtocolFactory = defaultProtocolFactory,
                 Transport = transport,
                 DefaultSendOptions = defaultSendOptions
@@ -749,13 +680,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 TimeoutMillis = -1
             };
             var res = instance.Send2(remoteEndpoint, request, sendOptions);
-            _ = MiscUtils.Delay(testEventLoopApi, 40, () =>
-            {
-                instance.CancelSend(res.Item2);
-                return Task.CompletedTask;
-            });
+            _ = Task.Delay(40).ContinueWith(_ => instance.CancelSend(res.Item2));
             Task<IQuasiHttpResponse> sendTask = res.Item1;
-            await testEventLoopApi.AdvanceTimeTo(100);
             var sendError = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
             {
                 return MiscUtils.EnsureCompletedTask(sendTask);
@@ -788,8 +714,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
         private class TestSendProtocolInternal : ISendProtocolInternal
         {
-            public ITimerApi TimerApi { get; set; }
-
             public int ResponseDelay { get; set; }
 
             public IQuasiHttpResponse ResponseToReturn { get; set; }
@@ -807,7 +731,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             public async Task<ProtocolSendResult> Send()
             {
                 SendCallCounter?.Increment();
-                await TimerApi.Delay(ResponseDelay);
+                await Task.Delay(ResponseDelay);
                 return new ProtocolSendResult
                 {
                     Response = ResponseToReturn,

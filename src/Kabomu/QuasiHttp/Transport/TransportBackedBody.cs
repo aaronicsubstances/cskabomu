@@ -1,6 +1,6 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -70,8 +70,6 @@ namespace Kabomu.QuasiHttp.Transport
             // very important to return zero at this stage, because certain transport
             // implementations can choose to block forever after announcing the amount of data they are
             // returning, and returning all that data.
-            // e.g. memory based implementation may just block forever if content length is nonnegative,
-            // and bytes remaining is zero.
             if (_bytesRemaining == 0)
             {
                 return 0;

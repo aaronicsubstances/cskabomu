@@ -1,5 +1,4 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.Mediator.Registry;
+﻿using Kabomu.Mediator.Registry;
 using Kabomu.Mediator.RequestParsing;
 using Kabomu.Mediator.ResponseRendering;
 using Kabomu.QuasiHttp.EntityBody;
@@ -245,12 +244,12 @@ namespace Kabomu.Mediator.Handling
                 if (errorHandlerException != null)
                 {
                     msg = "Exception thrown by error handler while handling exception\n" +
-                        "Original exception: " + FlattenException(original) + "\n" +
-                        "Error handler exception: " + FlattenException(errorHandlerException);
+                        "Original exception: " + original + "\n" +
+                        "Error handler exception: " + errorHandlerException;
                 }
                 else
                 {
-                    msg = FlattenException(original);
+                    msg = original.ToString();
                 }
                 context.Response.TrySend(() =>
                 {
@@ -259,27 +258,6 @@ namespace Kabomu.Mediator.Handling
                 });
             }
             return Task.CompletedTask;
-        }
-
-        internal static string FlattenException(Exception exception)
-        {
-            var stringBuilder = new StringBuilder();
-
-            while (exception != null)
-            {
-                if (!string.IsNullOrEmpty(exception.Message))
-                {
-                    stringBuilder.AppendLine(exception.Message);
-                }
-                if (!string.IsNullOrEmpty(exception.StackTrace))
-                {
-                    stringBuilder.AppendLine(exception.StackTrace);
-                }
-
-                exception = exception.InnerException;
-            }
-
-            return stringBuilder.ToString();
         }
     }
 }

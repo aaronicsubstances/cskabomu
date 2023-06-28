@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Concurrency
+namespace Kabomu.Common
 {
     /// <summary>
     /// Used to communicate cancellation requests in multithreaded execution contexts.

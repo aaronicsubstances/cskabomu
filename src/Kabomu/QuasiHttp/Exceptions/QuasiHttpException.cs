@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp
+namespace Kabomu.QuasiHttp.Exceptions
 {
     /// <summary>
     /// Base exception class for errors encountered during quasi http exchanges.

@@ -1,5 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.IO;

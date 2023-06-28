@@ -281,8 +281,6 @@ namespace Kabomu.Tests.Shared
             Assert.Equal(expected.Connection, actual.Connection);
             Assert.Equal(expected.MaxChunkSize, actual.MaxChunkSize);
             Assert.Equal(expected.Request, actual.Request);
-            Assert.Equal(expected.RequestWrappingEnabled, actual.RequestWrappingEnabled);
-            Assert.Equal(expected.ResponseWrappingEnabled, actual.ResponseWrappingEnabled);
             Assert.Equal(expected.ResponseBufferingEnabled, actual.ResponseBufferingEnabled);
             Assert.Equal(expected.ResponseBodyBufferingSizeLimit, actual.ResponseBodyBufferingSizeLimit);
         }

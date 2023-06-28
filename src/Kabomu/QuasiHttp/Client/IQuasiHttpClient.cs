@@ -1,5 +1,4 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -47,25 +46,6 @@ namespace Kabomu.QuasiHttp.Client
         /// done by an implementation can be hooked in.
         /// </remarks>
         IQuasiHttpAltTransport TransportBypass { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value from 0-1 for deciding on whether to wrap a request or
-        /// a response with proxy objects when using <see cref="IQuasiHttpAltTransport"/>
-        /// implementations.
-        /// <para></para>
-        /// A value of 0 means wrap a request or a response, whereas
-        /// a value of 1 means always wrap requests and responses.
-        /// </summary>
-        double TransportBypassWrappingProbability { get; set; }
-
-        /// <summary>
-        /// Gets and sets a timer object which will most likely be needed to impose timeouts on client operations.
-        /// <para>
-        /// This property is exposed publicly to allow frameworks employing a general concurrency mechanism
-        /// to impose their policy through this property.
-        /// </para>
-        /// </summary>
-        ITimerApi TimerApi { get; set; }
 
         /// <summary>
         /// Sends a quasi http request via quasi http transport

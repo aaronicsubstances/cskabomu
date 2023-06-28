@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.EntityBody
+namespace Kabomu.QuasiHttp.Exceptions
 {
     /// <summary>
     /// Exception thrown when the reading of a quasi http body ends and the total number of bytes read is less than

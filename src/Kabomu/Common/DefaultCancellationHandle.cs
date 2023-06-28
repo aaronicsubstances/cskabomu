@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 
-namespace Kabomu.Concurrency
+namespace Kabomu.Common
 {
     /// <summary>
     /// Default implementation of <see cref="ICancellationHandle"/> interface used in Kabomu library,

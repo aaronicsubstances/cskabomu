@@ -52,9 +52,9 @@ namespace Http.FileServer
                     httpContext.Request.Headers["Transfer-Encoding"],
                     httpContext.Request.ContentLength,
                     httpContext.Request.ContentType);
-                quasiRequest.Body = new StreamBackedBody(httpContext.Request.Body,
-                    httpContext.Request.ContentLength ?? -1)
+                quasiRequest.Body = new StreamBackedBody(httpContext.Request.Body)
                 {
+                    ContentLength = httpContext.Request.ContentLength ?? -1,
                     ContentType = httpContext.Request.ContentType
                 };
             }

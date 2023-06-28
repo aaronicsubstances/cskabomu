@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Tests.Internals
+namespace Kabomu.Tests.Shared
 {
     public class MutableInt
     {

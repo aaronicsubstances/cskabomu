@@ -84,7 +84,7 @@ namespace Kabomu.Examples.Shared
             {
                 if (_serverSocket == null)
                 {
-                    throw new TransportNotStartedException();
+                    throw new InvalidOperationException("transport not started");
                 }
                 acceptTask = _serverSocket.AcceptAsync();
             }

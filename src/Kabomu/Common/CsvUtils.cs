@@ -89,6 +89,7 @@ namespace Kabomu.Common
         /// <param name="csv">the csv string to parse.</param>
         /// <returns>CSV parse results as a list of rows, in which each row is represented as a list of values
         /// corresponding to the row's columns.</returns>
+        /// <exception cref="ArgumentException">If an error occurs</exception>
         public static IList<IList<string>> Deserialize(string csv)
         {
             var parsedCsv = new List<IList<string>>();
@@ -119,7 +120,7 @@ namespace Kabomu.Common
                     if (!LocateNextToken(csv, nextValueStartIdx + 1, true, tokenInfo))
                     {
                         throw CreateCsvParseError(parsedCsv.Count, currentRow.Count,
-                            "ending double quote not found", null);
+                            "ending double quote not found");
                     }
                     nextValueEndIdx = tokenInfo[1] + 1;
                 }
@@ -163,9 +164,9 @@ namespace Kabomu.Common
                         nextValue = UnescapeValue(csv.Substring(nextValueStartIdx,
                             nextValueEndIdx - nextValueStartIdx));
                     }
-                    catch (Exception ex)
+                    catch (ArgumentException ex)
                     {
-                        throw CreateCsvParseError(parsedCsv.Count, currentRow.Count, null, ex);
+                        throw CreateCsvParseError(parsedCsv.Count, currentRow.Count, ex.Message);
                     }
                     currentRow.Add(nextValue);
                 }
@@ -203,7 +204,7 @@ namespace Kabomu.Common
                         else
                         {
                             throw CreateCsvParseError(parsedCsv.Count, currentRow.Count,
-                                string.Format("unexpected character '{0}' found at beginning", c), null);
+                                string.Format("unexpected character '{0}' found at beginning", c));
                         }
                     }
                     else
@@ -228,7 +229,7 @@ namespace Kabomu.Common
                 {
                     throw CreateCsvParseError(parsedCsv.Count, currentRow.Count,
                         "algorithm bug detected as parsing didn't make an advance. Potential for infinite " +
-                        "looping.", null);
+                        "looping.");
                 }
             }
 
@@ -247,11 +248,10 @@ namespace Kabomu.Common
             return parsedCsv;
         }
 
-        private static Exception CreateCsvParseError(int row, int column, string errorMessage,
-            Exception innerException)
+        private static Exception CreateCsvParseError(int row, int column, string errorMessage)
         {
             throw new ArgumentException(string.Format("CSV parse error at row {0} column {1}: {2}",
-                row + 1, column + 1, errorMessage ?? ""), innerException);
+                row + 1, column + 1, errorMessage ?? ""));
         }
 
         /// <summary>

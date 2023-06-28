@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Transport
+namespace Kabomu.QuasiHttp.Exceptions
 {
     /// <summary>
     /// Exception thrown when an imposed limit on data bufering is exceeded.
@@ -41,7 +41,7 @@ namespace Kabomu.QuasiHttp.Transport
         /// </summary>
         /// <param name="bufferSizeLimit">maximum data buffer size limit to include in error message</param>
         /// <returns>default error message describing buffer size limit.</returns>
-        private static string CreateErrorMessage(int bufferSizeLimit)
+        public static string CreateErrorMessage(int bufferSizeLimit)
         {
             return $"data buffer size limit of {bufferSizeLimit} bytes exceeded";
         }

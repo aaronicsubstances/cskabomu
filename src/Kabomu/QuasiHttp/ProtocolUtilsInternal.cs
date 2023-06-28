@@ -1,7 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.ChunkedTransfer;
-using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -94,6 +94,24 @@ namespace Kabomu.QuasiHttp
             return fallback1 ?? defaultValue;
         }
 
+        public static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment,
+            string key)
+        {
+            if (environment != null && environment.ContainsKey(key))
+            {
+                var value = environment[key];
+                if (value is bool b)
+                {
+                    return b;
+                }
+                else if (value != null)
+                {
+                    return bool.Parse((string)value);
+                }
+            }
+            return null;
+        }
+
         public static async Task<IQuasiHttpBody> CreateEquivalentInMemoryBody(
             IQuasiHttpBody body, int bufferSize, int bufferingLimit)
         {
@@ -101,10 +119,11 @@ namespace Kabomu.QuasiHttp
             // maintain content length and content type for the sake of tests.
             if (body.ContentLength < 0)
             {
-                var inMemStream = await TransportUtils.ReadBodyToMemoryStream(body, bufferSize,
+                var inMemBuffer = await TransportUtils.ReadBodyToEnd(body, bufferSize,
                     bufferingLimit);
-                return new StreamBackedBody(inMemStream, body.ContentLength)
+                return new ByteBufferBody(inMemBuffer)
                 {
+                    ContentLength = body.ContentLength,
                     ContentType = body.ContentType
                 };
             }
@@ -112,7 +131,7 @@ namespace Kabomu.QuasiHttp
             {
                 if (body.ContentLength > bufferingLimit)
                 {
-                    throw new BodySizeLimitExceededException(bufferingLimit,
+                    throw new DataBufferLimitExceededException(bufferingLimit,
                         $"content length larger than buffering limit of " +
                         $"{bufferingLimit} bytes", null);
                 }
@@ -172,25 +191,6 @@ namespace Kabomu.QuasiHttp
             return await cancellationTask;
         }
 
-        public static IQuasiHttpRequest CloneQuasiHttpRequest(IQuasiHttpRequest request,
-            Action<IQuasiHttpMutableRequest> modifier)
-        {
-            var reqClone = new DefaultQuasiHttpRequest
-            {
-                HttpVersion = request.HttpVersion,
-                Method = request.Method,
-                Target = request.Target,
-                Headers = request.Headers,
-                Body = request.Body,
-                Environment = request.Environment
-            };
-            if (modifier != null)
-            {
-                modifier.Invoke(reqClone);
-            }
-            return reqClone;
-        }
-
         public static IQuasiHttpResponse CloneQuasiHttpResponse(IQuasiHttpResponse response,
             Action<IQuasiHttpMutableResponse> modifier)
         {
@@ -208,24 +208,6 @@ namespace Kabomu.QuasiHttp
                 modifier.Invoke(resClone);
             }
             return resClone;
-        }
-
-        public static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment, 
-            string key)
-        {
-            if (environment != null && environment.ContainsKey(key))
-            {
-                var value = environment[key];
-                if (value is bool b)
-                {
-                    return b;
-                }
-                else if (value != null)
-                {
-                    return bool.Parse((string)value);
-                }
-            }
-            return null;
         }
 
         public static async Task StartDeserializingBody(IQuasiHttpTransport transport,

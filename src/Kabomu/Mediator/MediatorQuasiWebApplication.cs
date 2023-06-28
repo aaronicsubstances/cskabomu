@@ -72,7 +72,7 @@ namespace Kabomu.Mediator
         /// <param name="requestEnvironment">request environment variables</param>
         /// <returns>a task whose result will be a quasi http response</returns>
         /// <exception cref="MissingDependencyException">The <see cref="InitialHandlers"/> property is null</exception>
-        public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request)
+        public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request)
         {
             var contextRequest = new DefaultContextRequestInternal(request);
             var responseTransmmitter = new TaskCompletionSource<IQuasiHttpResponse>(
@@ -89,7 +89,7 @@ namespace Kabomu.Mediator
 
             context.Start();
 
-            return await responseTransmmitter.Task;
+            return responseTransmmitter.Task;
         }
     }
 }

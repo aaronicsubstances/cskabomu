@@ -1,5 +1,5 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
+using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -26,7 +26,6 @@ namespace Kabomu.QuasiHttp.Client
     public class StandardQuasiHttpClient : IQuasiHttpClient
     {
         private readonly object _mutex = new object();
-        private readonly Random _randGen = new Random();
 
         /// <summary>
         /// Creates a new instance of the <see cref="StandardQuasiHttpClient"/> class with defaults provided
@@ -34,7 +33,6 @@ namespace Kabomu.QuasiHttp.Client
         /// </summary>
         public StandardQuasiHttpClient()
         {
-            TimerApi = new DefaultTimerApi();
             DefaultProtocolFactory = transfer =>
             {
                 return new DefaultSendProtocolInternal
@@ -56,9 +54,7 @@ namespace Kabomu.QuasiHttp.Client
                     ConnectivityParams = transfer.ConnectivityParams,
                     ResponseBufferingEnabled = transfer.ResponseBufferingEnabled,
                     ResponseBodyBufferingSizeLimit = transfer.ResponseBodyBufferingSizeLimit,
-                    MaxChunkSize = transfer.MaxChunkSize,
-                    RequestWrappingEnabled = transfer.RequestWrappingEnabled,
-                    ResponseWrappingEnabled = transfer.ResponseWrappingEnabled
+                    MaxChunkSize = transfer.MaxChunkSize
                 };
             };
         }
@@ -83,37 +79,6 @@ namespace Kabomu.QuasiHttp.Client
         /// effectively receives full responsibility for sending the request.
         /// </remarks>
         public IQuasiHttpAltTransport TransportBypass { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value from 0-1 for deciding on whether to wrap a request or
-        /// a response with proxy objects when using <see cref="IQuasiHttpAltTransport"/>
-        /// implementations.
-        /// <para></para>
-        /// E.g. a value of 0 means never use wrap; a value of 0.1 means almost never
-        /// wrap; a value of 0.9 means almost always wrap; and a value of 1 means always wrap a request (or
-        /// response) object with a proxy object.
-        /// </summary>
-        /// <remarks>
-        /// The purpose of this property is to help prevent end users of IQuasiHttpAltTransport 
-        /// implementations from presuming use of a particular request or request body class, when
-        /// using them with this class.
-        /// <para></para>
-        /// By default, the value of this property is zero, meaning that wrapping step is omitted for
-        /// request and response bodies.
-        /// <para></para>
-        /// NB: negative values are treated as equivalent to zero; and values larger than 1 are treated as
-        /// equivalent to 1.
-        /// </remarks>
-        public double TransportBypassWrappingProbability { get; set; } = 0.0;
-
-        /// <summary>
-        /// Gets or sets timer api used to generate timeouts in this class.
-        /// </summary>
-        /// <remarks> 
-        /// An instance of <see cref="DefaultTimerApi"/> class is the initial value for this property,
-        /// and so there is no need to modify this property except for advanced scenarios.
-        /// </remarks>
-        public ITimerApi TimerApi { get; set; }
 
         /// <summary>
         /// Exposed for testing.
@@ -221,7 +186,6 @@ namespace Kabomu.QuasiHttp.Client
                     options?.TimeoutMillis,
                     DefaultSendOptions?.TimeoutMillis,
                     0);
-                transfer.TimerApi = TimerApi;
                 transfer.SetTimeout();
 
                 if (setUpForCancellation || transfer.TimeoutId != null)
@@ -253,15 +217,12 @@ namespace Kabomu.QuasiHttp.Client
                 transfer.ResponseBodyBufferingSizeLimit = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     options?.ResponseBodyBufferingSizeLimit,
                     DefaultSendOptions?.ResponseBodyBufferingSizeLimit,
-                    TransportUtils.DefaultResponseBodyBufferingSizeLimit);
+                    TransportUtils.DefaultDataBufferLimit);
 
                 transfer.Request = request;
 
                 if (TransportBypass != null)
                 {
-                    transfer.RequestWrappingEnabled = _randGen.NextDouble() < TransportBypassWrappingProbability;
-                    transfer.ResponseWrappingEnabled = _randGen.NextDouble() < TransportBypassWrappingProbability;
-
                     workTask = transfer.StartProtocol(AltProtocolFactory);
                 }
                 else
@@ -288,7 +249,9 @@ namespace Kabomu.QuasiHttp.Client
             {
                 if (connectionResponse?.Connection == null)
                 {
-                    throw new ExpectationViolationException("no connection");
+                    throw new QuasiHttpRequestProcessingException(
+                        QuasiHttpRequestProcessingException.ReasonCodeNoConnection,
+                        "no connection");
                 }
 
                 transfer.Connection = connectionResponse.Connection;

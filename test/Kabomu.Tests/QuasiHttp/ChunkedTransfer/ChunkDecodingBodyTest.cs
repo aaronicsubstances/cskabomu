@@ -1,7 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.Tests.Internals;
+using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;

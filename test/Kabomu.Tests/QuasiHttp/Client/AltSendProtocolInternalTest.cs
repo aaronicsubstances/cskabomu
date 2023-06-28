@@ -114,8 +114,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ConnectivityParams = connectivityParams,
                 ResponseBufferingEnabled = false,
                 MaxChunkSize = 10,
-                TransportBypass = transport,
-                RequestWrappingEnabled = true
+                TransportBypass = transport
             };
             var response = await instance.Send();
             Assert.False(expectedResponse.CloseCalled);
@@ -158,12 +157,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Request = request,
                 ConnectivityParams = connectivityParams,
                 ResponseBufferingEnabled = false,
-                TransportBypass = transport,
-                ResponseWrappingEnabled  = true
+                TransportBypass = transport
             };
             var response = await instance.Send();
             Assert.True(expectedResponse.CloseCalled);
-            Assert.NotSame(expectedResponse, response?.Response);
+            Assert.Same(expectedResponse, response?.Response);
             Assert.Equal(true, response?.ResponseBufferingApplied);
 
             await instance.Cancel();
@@ -286,8 +284,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 StatusCode = 200,
                 HttpVersion = "",
                 Headers = new Dictionary<string, IList<string>>(),
-                Body = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
-                    expectedResBodyBytes.Length))
+                Body = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes))
             };
             testData.Add(new object[] { maxChunkSize, responseBodyBufferingLimit, sendCancellationHandle,
                 expectedResBodyBytes, expectedResponse });
@@ -299,8 +296,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             responseBodyBufferingLimit = expectedResBodyBytes.Length;
             expectedResponse = new QuasiHttpResponseImpl
             {
-                Body = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
-                    expectedResBodyBytes.Length))
+                Body = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes))
             };
             testData.Add(new object[] { maxChunkSize, responseBodyBufferingLimit, sendCancellationHandle,
                 expectedResBodyBytes, expectedResponse });
@@ -312,8 +308,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             responseBodyBufferingLimit = expectedResBodyBytes.Length;
             expectedResponse = new QuasiHttpResponseImpl
             {
-                Body = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
-                    expectedResBodyBytes.Length))
+                Body = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes))
             };
             testData.Add(new object[] { maxChunkSize, responseBodyBufferingLimit, sendCancellationHandle,
                 expectedResBodyBytes, expectedResponse });

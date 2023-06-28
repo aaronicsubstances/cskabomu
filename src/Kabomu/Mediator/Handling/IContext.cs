@@ -1,5 +1,4 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.Mediator.Registry;
+﻿using Kabomu.Mediator.Registry;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;

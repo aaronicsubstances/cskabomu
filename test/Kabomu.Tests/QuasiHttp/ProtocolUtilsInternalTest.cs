@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -311,9 +312,9 @@ namespace Kabomu.Tests.QuasiHttp
             // arrange.
             IQuasiHttpBody expected = new ByteBufferBody(expectedBodyBytes)
             {
-                ContentType = originalBody.ContentType
+                ContentType = originalBody.ContentType,
+                ContentLength = originalBody.ContentLength
             };
-            expected = new ContentLengthOverrideBody(expected, originalBody.ContentLength);
 
             // act.
             var actualResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(originalBody,
@@ -339,16 +340,14 @@ namespace Kabomu.Tests.QuasiHttp
             bufferSize = 1;
             bufferingLimit = 0;
             expectedResBodyBytes = new byte[0];
-            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
-                expectedResBodyBytes.Length));
+            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes));
             testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
 
             bufferSize = 2;
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' };
             bufferingLimit = expectedResBodyBytes.Length;
-            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
-                expectedResBodyBytes.Length))
+            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes))
             {
                 ContentType = "text/plain"
             };
@@ -358,8 +357,7 @@ namespace Kabomu.Tests.QuasiHttp
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' };
             bufferingLimit = expectedResBodyBytes.Length;
-            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
-                expectedResBodyBytes.Length));
+            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes));
             testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
 
             bufferSize = 10;
@@ -379,9 +377,9 @@ namespace Kabomu.Tests.QuasiHttp
             responseBody = new ByteBufferBody(new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' })
             {
-                ContentType = "application/json"
+                ContentType = "application/json",
+                ContentLength = 3
             };
-            responseBody = new ContentLengthOverrideBody(responseBody, 3);
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c' };
             testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
 
@@ -407,7 +405,7 @@ namespace Kabomu.Tests.QuasiHttp
             int bufferSize = 1;
             int bufferingLimit = 3;
             var responseBody = new ByteBufferBody(ByteUtils.StringToBytes("xyz!"));
-            await Assert.ThrowsAsync<BodySizeLimitExceededException>(() =>
+            await Assert.ThrowsAsync<DataBufferLimitExceededException>(() =>
             {
                 return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
                     bufferSize, bufferingLimit);
@@ -419,7 +417,10 @@ namespace Kabomu.Tests.QuasiHttp
         {
             int bufferSize = 1;
             int bufferingLimit = 30;
-            var responseBody = new ContentLengthOverrideBody(new StringBody("xyz!"), 5);
+            var responseBody = new StringBody("xyz!")
+            {
+                ContentLength = 5
+            };
             await Assert.ThrowsAsync<ContentLengthNotSatisfiedException>(() =>
             {
                 return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,

@@ -1,10 +1,10 @@
-﻿using Kabomu.Concurrency;
+﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.Concurrency
+namespace Kabomu.Tests.Common
 {
     public class DefaultCancellationHandleTest
     {

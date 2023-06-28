@@ -1,5 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.ChunkedTransfer;
+using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -39,7 +40,9 @@ namespace Kabomu.QuasiHttp.Server
             var response = await Application.ProcessRequest(request);
             if (response == null)
             {
-                throw new ExpectationViolationException("no response");
+                throw new QuasiHttpRequestProcessingException(
+                    QuasiHttpRequestProcessingException.ReasonCodeNoResponse,
+                    "null response");
             }
 
             try
@@ -53,7 +56,7 @@ namespace Kabomu.QuasiHttp.Server
                 {
                     _ = response.Close();
                 }
-                catch { } // ignore
+                catch (Exception) { } // ignore
                 throw;
             }
         }

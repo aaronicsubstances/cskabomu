@@ -1,4 +1,5 @@
 ﻿using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -18,12 +19,6 @@ namespace Kabomu.Common
         /// The limit of data buffering when reading byte streams into memory. Equal to 128 MB.
         /// </summary>
         public static readonly int DefaultDataBufferLimit = 65_536 * 2 * 1024;
-
-        /// <summary>
-        /// The default value for the maximum size of a response body being read fully into memory when
-        /// response body buffering is enabled. Equal to 128 MB.
-        /// </summary>
-        public static readonly int DefaultResponseBodyBufferingSizeLimit = DefaultDataBufferLimit;
 
         /// <summary>
         /// The default read buffer size. Equal to 8,192 bytes.
@@ -63,135 +58,6 @@ namespace Kabomu.Common
         public static readonly string ResEnvKeyResponseBufferingApplied = "kabomu.response_buffering_enabled";
 
         /// <summary>
-        /// Reads in data from a quasi http body in order to completely fill in a byte buffer slice.
-        /// </summary>
-        /// <param name="body">source of bytes to read</param>
-        /// <param name="data">destination buffer</param>
-        /// <param name="offset">start position in buffer to fill from</param>
-        /// <param name="bytesToRead">number of bytes to read. Failure to obtain this number of bytes will
-        /// result in an exception.</param>
-        /// <returns>A task that represents the asynchronous read operation.</returns>
-        public static async Task ReadBodyBytesFully(IQuasiHttpBody body,
-            byte[] data, int offset, int bytesToRead)
-        {
-            while (true)
-            {
-                int bytesRead = await body.ReadBytes(data, offset, bytesToRead);
-
-                if (bytesRead < bytesToRead)
-                {
-                    if (bytesRead <= 0)
-                    {
-                        throw new EndOfReadException("unexpected end of read");
-                    }
-                    offset += bytesRead;
-                    bytesToRead -= bytesRead;
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Reads all of a quasi http body's data into memory and ends it, using read buffer size of 8KB
-        /// and buffering limit of 128 MB.
-        /// </summary>
-        /// <param name="body">quasi http body whose data is to be read.</param>
-        /// <returns>A promise whose result is a byte array containing all
-        /// the data in the quasi http body.</returns>
-        /// <exception cref="BodySizeLimitExceededException">If the data in <paramref name="body"/> argument 
-        /// exceeds 128 MB.</exception>
-        public static Task<byte[]> ReadBodyToEnd(IQuasiHttpBody body)
-        {
-            return ReadBodyToEnd(body, DefaultReadBufferSize);
-        }
-
-        /// <summary>
-        /// Reads all of a quasi http body's data into memory with a given read buffer size and ends it,
-        /// with a buffering limit of 128MB.
-        /// </summary>
-        /// <param name="body">quasi http body whose data is to be read.</param>
-        /// <param name="bufferSize">the size in bytes of the read buffer.</param>
-        /// <returns>A promise whose result is a byte array containing all
-        /// the data in the quasi http body.</returns>
-        /// <exception cref="BodySizeLimitExceededException">If the data in <paramref name="body"/> argument 
-        /// exceeds 128 MB.</exception>
-        public static async Task<byte[]> ReadBodyToEnd(IQuasiHttpBody body, int bufferSize)
-        {
-            var byteStream = await ReadBodyToMemoryStreamInternal(body, bufferSize, DefaultDataBufferLimit);
-            return byteStream.ToArray();
-        }
-
-        /// <summary>
-        /// Reads in all of a quasi http body's data into an in-memory stream within some maximum limit, and ends it.
-        /// The resulting stream can then be read to fully access all of the body's data even after the body is closed.
-        /// </summary>
-        /// <remarks>
-        /// One can optionally specifify a body size limit beyond which an <see cref="BodySizeLimitExceededException"/> instance will be
-        /// thrown if there is more data after that limit.
-        /// </remarks>
-        /// <param name="body">The quasi http body to fully read.</param>
-        /// <param name="bufferSize">The size in bytes of the read buffer</param>
-        /// <param name="bufferingLimit">Indicates the maximum size in bytes of the resulting stream if nonnegative;
-        /// a negative value leads to all of the body's data being read into resulting stream.</param>
-        /// <returns>A promise whose result is an in-memory stream which has all of the quasi http body's data.</returns>
-        /// <exception cref="BodySizeLimitExceededException">If <paramref name="bufferingLimit"/> argument has a nonnegative value,
-        /// and data in <paramref name="body"/> argument exceeds that value.</exception>
-        public static async Task<Stream> ReadBodyToMemoryStream(IQuasiHttpBody body, int bufferSize, int bufferingLimit)
-        {
-            var byteStream = await ReadBodyToMemoryStreamInternal(body, bufferSize, bufferingLimit);
-            byteStream.Position = 0; // very important to rewind.
-            return byteStream;
-        }
-
-        private static async Task<MemoryStream> ReadBodyToMemoryStreamInternal(IQuasiHttpBody body, int bufferSize,
-            int bufferingLimit)
-        {
-            var readBuffer = new byte[bufferSize];
-            var byteStream = new MemoryStream();
-
-            int totalBytesRead = 0;
-
-            while (true)
-            {
-                int bytesToRead = readBuffer.Length;
-                if (bufferingLimit >= 0)
-                {
-                    bytesToRead = Math.Min(bytesToRead, bufferingLimit - totalBytesRead);
-                }
-                // force a read of 1 byte if there are no more bytes to read into memory stream buffer
-                // but still remember that no bytes was expected.
-                var expectedEndOfRead = false;
-                if (bytesToRead == 0)
-                {
-                    bytesToRead = 1;
-                    expectedEndOfRead = true;
-                }
-                int bytesRead = await body.ReadBytes(readBuffer, 0, bytesToRead);
-                if (bytesRead > 0)
-                {
-                    if (expectedEndOfRead)
-                    {
-                        throw new BodySizeLimitExceededException(bufferingLimit);
-                    }
-                    byteStream.Write(readBuffer, 0, bytesRead);
-                    if (bufferingLimit >= 0)
-                    {
-                        totalBytesRead += bytesRead;
-                    }
-                }
-                else
-                {
-                    break;
-                }
-            }
-            await body.EndRead();
-            return byteStream;
-        }
-
-        /// <summary>
         /// Reads in data from a quasi http transport connection in order to completely fill in a byte buffer slice.
         /// </summary>
         /// <param name="transport">quasi http transport of connection to read from</param>
@@ -225,17 +91,120 @@ namespace Kabomu.Common
         }
 
         /// <summary>
+        /// Reads in data from a quasi http body in order to completely fill in a byte buffer slice.
+        /// </summary>
+        /// <param name="body">source of bytes to read</param>
+        /// <param name="data">destination buffer</param>
+        /// <param name="offset">start position in buffer to fill from</param>
+        /// <param name="bytesToRead">number of bytes to read. Failure to obtain this number of bytes will
+        /// result in an exception.</param>
+        /// <returns>A task that represents the asynchronous read operation.</returns>
+        public static async Task ReadBodyBytesFully(IQuasiHttpBody body,
+            byte[] data, int offset, int bytesToRead)
+        {
+            while (true)
+            {
+                int bytesRead = await body.ReadBytes(data, offset, bytesToRead);
+
+                if (bytesRead < bytesToRead)
+                {
+                    if (bytesRead <= 0)
+                    {
+                        throw new EndOfReadException("unexpected end of read");
+                    }
+                    offset += bytesRead;
+                    bytesToRead -= bytesRead;
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reads in all of a quasi http body's data into an in-memory buffer within some maximum limit, and ends it.
+        /// </summary>
+        /// <remarks>
+        /// One can optionally specifify a body size limit beyond which an <see cref="DataBufferLimitExceededException"/> instance will be
+        /// thrown if there is more data after that limit.
+        /// </remarks>
+        /// <param name="body">The quasi http body to fully read.</param>
+        /// <param name="bufferSize">The size in bytes of the read buffer; zero or negative uses default value</param>
+        /// <param name="bufferingLimit">Indicates the maximum size in bytes of the resulting stream if positive; zero uses default value,
+        /// a negative value leads to all of the body's data being read into resulting stream.</param>
+        /// <returns>A promise whose result is an in-memory stream which has all of the quasi http body's data.</returns>
+        /// <exception cref="DataBufferLimitExceededException">If <paramref name="bufferingLimit"/> argument has a nonnegative value,
+        /// and data in <paramref name="body"/> argument exceeds that value.</exception>
+        public static async Task<byte[]> ReadBodyToEnd(IQuasiHttpBody body, int bufferSize = 0,
+            int bufferingLimit = 0)
+        {
+            if (bufferSize <= 0)
+            {
+                bufferSize = DefaultReadBufferSize;
+            }
+            if (bufferingLimit == 0)
+            {
+                bufferingLimit = DefaultDataBufferLimit;
+            }
+            var readBuffer = new byte[bufferSize];
+            var byteStream = new MemoryStream();
+
+            int totalBytesRead = 0;
+
+            while (true)
+            {
+                int bytesToRead = readBuffer.Length;
+                if (bufferingLimit >= 0)
+                {
+                    bytesToRead = Math.Min(bytesToRead, bufferingLimit - totalBytesRead);
+                }
+                // force a read of 1 byte if there are no more bytes to read into memory stream buffer
+                // but still remember that no bytes was expected.
+                var expectedEndOfRead = false;
+                if (bytesToRead == 0)
+                {
+                    bytesToRead = 1;
+                    expectedEndOfRead = true;
+                }
+                int bytesRead = await body.ReadBytes(readBuffer, 0, bytesToRead);
+                if (bytesRead > 0)
+                {
+                    if (expectedEndOfRead)
+                    {
+                        throw new DataBufferLimitExceededException(bufferingLimit);
+                    }
+                    byteStream.Write(readBuffer, 0, bytesRead);
+                    if (bufferingLimit >= 0)
+                    {
+                        totalBytesRead += bytesRead;
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+            await body.EndRead();
+            return byteStream.ToArray();
+        }
+
+        /// <summary>
         /// Transfers all the data in a quasi http body to a connection of a quasi http
         /// transport, and ends the body.
         /// </summary>
         /// <param name="transport">transport of connection to write to</param>
         /// <param name="connection">destination connection</param>
         /// <param name="body">source body to read from</param>
-        /// <param name="bufferSize">size in bytes of read buffer</param>
+        /// <param name="bufferSize">size in bytes of read buffer; zero or negative uses default value</param>
         /// <returns>A task that represents the asynchronous transfer operation.</returns>
         public static async Task TransferBodyToTransport(IQuasiHttpTransport transport,
             object connection, IQuasiHttpBody body, int bufferSize)
         {
+            if (bufferSize <= 0)
+            {
+                bufferSize = DefaultReadBufferSize;
+            }
             byte[] readBuffer = new byte[bufferSize];
 
             while (true)

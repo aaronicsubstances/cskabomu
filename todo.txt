@@ -1,14 +1,7 @@
 remaining (can skip if library works with all examples)
 ==========
--introduce enough timeout gaps to remove flakiness of QuasiHttpIntegrationTestOne
--add more tests for StandardQuasiHttpServer, ProtocolUtilsInternal
--introduce cycle detection in ContextExtensions.FlattenException, 
-  as well as cater for AggregateException having multiple inner exceptions,
-  or get a utility method in some library to use for entire method.
--introduce zero bufferingLimit as default in TransportUtils.ReadBodyToMemoryStream
--consider moving MemoryPipeBackedBody and TransportBackedBody to join the rest of the body implementations, now that
- memory based transport is purged from project.
--resolve need for VirtualTimeBasedEventLoopApi once and for all
+-add integration tests for StandardQuasiHttpServer and StandardQuasiHttpClient
+-remove need for VirtualTimeBasedEventLoopApi once and for all
 
 Release
 -------

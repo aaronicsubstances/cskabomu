@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
@@ -16,7 +15,6 @@ namespace Kabomu.Tests.Shared
         public UncaughtErrorCallback ErrorHandler { get; set; }
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpServerTransport Transport { get; set; }
-        public ITimerApi TimerApi { get; set; }
         public Func<Task> StartCallback { get; set; }
         public Func<int, Task> StopCallback { get; set; }
         public Func<Exception, Task> ResetCallback { get; set; }

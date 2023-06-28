@@ -1,6 +1,5 @@
-﻿using Kabomu.Common;
-using Kabomu.Concurrency;
-using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -22,9 +21,8 @@ namespace Kabomu.QuasiHttp.Server
             }
         }
 
-        public ITimerApi TimerApi { get; set; }
         public int TimeoutMillis { get; set; }
-        public object TimeoutId { get; private set; }
+        public CancellationTokenSource TimeoutId { get; private set; }
         public bool IsAborted { get; private set; }
         public TaskCompletionSource<IQuasiHttpResponse> CancellationTcs { get; set; }
         public IQuasiHttpRequest Request { get; set; }
@@ -39,17 +37,17 @@ namespace Kabomu.QuasiHttp.Server
             {
                 return;
             }
-            var timer = TimerApi;
-            if (timer == null)
-            {
-                throw new MissingDependencyException("timer api");
-            }
-            TimeoutId = timer.SetTimeout(() =>
-            {
-                var timeoutError = new QuasiHttpRequestProcessingException(
-                    QuasiHttpRequestProcessingException.ReasonCodeTimeout, "receive timeout");
-                Abort(timeoutError);
-            }, TimeoutMillis);
+            TimeoutId = new CancellationTokenSource();
+            Task.Delay(TimeoutMillis, TimeoutId.Token)
+                .ContinueWith(t =>
+                {
+                    if (!t.IsCanceled)
+                    {
+                        var timeoutError = new QuasiHttpRequestProcessingException(
+                            QuasiHttpRequestProcessingException.ReasonCodeTimeout, "receive timeout");
+                        Abort(timeoutError);
+                    }
+                });
         }
 
         /// <summary>
@@ -74,7 +72,7 @@ namespace Kabomu.QuasiHttp.Server
                 {
                     await protocol.Cancel();
                 }
-                catch { } // ignore.
+                catch (Exception) { } // ignore.
 
                 return null;
             }
@@ -104,7 +102,7 @@ namespace Kabomu.QuasiHttp.Server
                             // don't wait.
                             _ = res.Close();
                         }
-                        catch { } // ignore.
+                        catch (Exception) { } // ignore.
                     }
 
                     // in any case do not proceed with disabling.
@@ -112,7 +110,7 @@ namespace Kabomu.QuasiHttp.Server
                 }
                 IsAborted = true;
                 disableTask = Disable(cancellationError, res,
-                    CancellationTcs, TimerApi, TimeoutId, _protocol, Request?.Body);
+                    CancellationTcs, TimeoutId, _protocol, Request?.Body);
             }
             if (disableTask != null)
             {
@@ -121,8 +119,8 @@ namespace Kabomu.QuasiHttp.Server
         }
 
         private static async Task Disable(Exception cancellationError, IQuasiHttpResponse res,
-            TaskCompletionSource<IQuasiHttpResponse> cancellationTcs, ITimerApi timerApi,
-            object timeoutId, IReceiveProtocolInternal protocol, IQuasiHttpBody requestBody)
+            TaskCompletionSource<IQuasiHttpResponse> cancellationTcs,
+            CancellationTokenSource timeoutId, IReceiveProtocolInternal protocol, IQuasiHttpBody requestBody)
         {
             if (cancellationTcs != null)
             {
@@ -136,7 +134,7 @@ namespace Kabomu.QuasiHttp.Server
                 }
             }
 
-            timerApi?.ClearTimeout(timeoutId);
+            timeoutId?.Cancel();
 
             if (protocol != null)
             {

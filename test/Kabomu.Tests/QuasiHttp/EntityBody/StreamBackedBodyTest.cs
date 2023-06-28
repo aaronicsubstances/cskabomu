@@ -16,8 +16,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var backingStream = new MemoryStream();
-            var instance = new StreamBackedBody(backingStream, 0)
+            var instance = new StreamBackedBody(backingStream)
             {
+                ContentLength = 0,
                 ContentType = "text/csv"
             };
 
@@ -31,8 +32,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var backingStream = new MemoryStream(new byte[4]);
-            var instance = new StreamBackedBody(backingStream, 0)
+            var instance = new StreamBackedBody(backingStream)
             {
+                ContentLength = 0,
                 ContentType = "text/csv"
             };
 
@@ -61,8 +63,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var backingStream = new MemoryStream(new byte[] { (byte)'A', (byte)'b', (byte)'2' });
-            var instance = new StreamBackedBody(backingStream, 3)
+            var instance = new StreamBackedBody(backingStream)
             {
+                ContentLength = 3,
                 ContentType = "image/png"
             };
 
@@ -76,7 +79,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var backingStream = new MemoryStream(new byte[] { (byte)'A', (byte)'b', (byte)'2', 0 });
-            var instance = new StreamBackedBody(backingStream, 3);
+            var instance = new StreamBackedBody(backingStream)
+            {
+                ContentLength = 3
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, null,
@@ -88,8 +94,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var backingStream = new MemoryStream();
-            var instance = new StreamBackedBody(backingStream, 1)
+            var instance = new StreamBackedBody(backingStream)
             {
+                ContentLength = 1,
                 ContentType = "text/csv"
             };
 
@@ -103,7 +110,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var backingStream = new MemoryStream(new byte[] { (byte)'A', (byte)'b' });
-            var instance = new StreamBackedBody(backingStream, 3);
+            var instance = new StreamBackedBody(backingStream)
+            {
+                ContentLength = 3
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, null,
@@ -115,10 +125,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             Assert.Throws<ArgumentNullException>(() =>
             {
-                new StreamBackedBody(null, -1);
+                new StreamBackedBody(null);
             });
             var backingStream = new MemoryStream(new byte[] { (byte)'c', (byte)'2' });
-            var instance = new StreamBackedBody(backingStream, -1);
+            var instance = new StreamBackedBody(backingStream);
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }

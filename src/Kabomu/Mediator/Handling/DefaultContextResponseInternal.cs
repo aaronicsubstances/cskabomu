@@ -1,4 +1,4 @@
-﻿using Kabomu.Concurrency;
+﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
 using System;
@@ -95,16 +95,7 @@ namespace Kabomu.Mediator.Handling
 
         public void Send(Action changesCb)
         {
-            bool alreadySent;
-            try
-            {
-                alreadySent = !TrySend(changesCb);
-            }
-            catch (Exception e)
-            {
-                throw new ResponseCommittedException("quasi http response has already been sent", e);
-            }
-            if (alreadySent)
+            if (!TrySend(changesCb))
             {
                 throw new ResponseCommittedException("quasi http response has already been sent");
             }

@@ -9,16 +9,18 @@ using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
-    public class ContentLengthOverrideBodyTest
+    public class OverridingProxyBodyTest
     {
         [Fact]
         public Task TestEmptyRead()
         {
             // arrange.
-            var instance = new ContentLengthOverrideBody(new ByteBufferBody(new byte[0], 0, 0)
+            var instance = new OverridingProxyBody(new ByteBufferBody(new byte[0], 0, 0))
             {
-                ContentType = "text/plain"
-            }, -1);
+                ContentType = "text/plain",
+                ContentLength = 9, // should not take effect
+                IsContentLengthProxied = true
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "text/plain",
@@ -30,9 +32,8 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var expectedData = new byte[] { (byte)'A', (byte)'b', (byte)'2' };
-            var instance = new ContentLengthOverrideBody(new StringBody(
-                ByteUtils.BytesToString(expectedData, 0, expectedData.Length)),
-                3);
+            var instance = new OverridingProxyBody(new StringBody(
+                ByteUtils.BytesToString(expectedData)));
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, null,
@@ -44,10 +45,13 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var expectedData = new byte[] { (byte)'A', (byte)'b', (byte)'2' };
-            var instance = new ContentLengthOverrideBody(new ByteBufferBody(expectedData)
+            var instance = new OverridingProxyBody(new ByteBufferBody(expectedData)
             {
                 ContentType = "form"
-            }, -1);
+            })
+            {
+                IsContentTypeProxied = true
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, -1, "form",
@@ -59,11 +63,11 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var excessData = new byte[4];
-            var instance = new ContentLengthOverrideBody(
-                new ByteBufferBody(excessData, 0, excessData.Length)
-                {
-                    ContentType = "text/csv"
-                }, 0);
+            var instance = new OverridingProxyBody(new ByteBufferBody(excessData))
+            {
+                ContentType = "text/csv",
+                ContentLength = 0
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "text/csv",
@@ -75,9 +79,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var excessData = new byte[] { (byte)'A', (byte)'b', (byte)'2', 0 };
-            var instance = new ContentLengthOverrideBody(
-                new ByteBufferBody(excessData, 0, excessData.Length),
-                3);
+            var instance = new OverridingProxyBody(new ByteBufferBody(excessData))
+            {
+                ContentLength = 3
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, null,
@@ -88,11 +93,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public Task TestWithEmptyBodyWhichCannotCompleteReads()
         {
             // arrange.
-            var instance = new ContentLengthOverrideBody(
-                new ByteBufferBody(new byte[0], 0, 0)
-                {
-                    ContentType = "text/plain"
-                }, 1);
+            var instance = new OverridingProxyBody(new ByteBufferBody(new byte[0]))
+            {
+                ContentLength = 1
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 1, "text/plain",
@@ -104,8 +108,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange.
             var insufficientData = new byte[] { (byte)'A', (byte)'b' };
-            var instance = new ContentLengthOverrideBody(
-                new ByteBufferBody(insufficientData, 0, insufficientData.Length), 3);
+            var instance = new OverridingProxyBody(new ByteBufferBody(insufficientData))
+            {
+                ContentLength = 3
+            };
 
             // act and assert.
             return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, null,
@@ -117,10 +123,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             Assert.Throws<ArgumentNullException>(() =>
             {
-                new ContentLengthOverrideBody(null, 2);
+                new OverridingProxyBody(null);
             });
-            var instance = new ContentLengthOverrideBody(new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2),
-                2);
+            var instance = new OverridingProxyBody(new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2));
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }

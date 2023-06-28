@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -18,7 +17,7 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// not done eagerly at construction time. This then makes it possible for memory-based communications
     /// to avoid performance hits due to serialization.
     /// </remarks>
-    public class SerializableObjectBody : IQuasiHttpBody
+    public class SerializableObjectBody : IQuasiHttpBody, IBytesAlreadyReadProviderInternal
     {
         private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
         private IQuasiHttpBody _backingBody;
@@ -38,6 +37,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
             Content = content;
             SerializationHandler = serializationHandler;
+            ContentLength = -1;
         }
 
         /// <summary>
@@ -52,16 +52,15 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         public object Content { get; }
 
-        /// <summary>
-        /// Returns -1 to indicate unknown length.
-        /// </summary>
-        public long ContentLength => -1;
+        public long ContentLength { get; set; }
 
         public string ContentType { get; set; }
 
-        public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
+        long IBytesAlreadyReadProviderInternal.BytesAlreadyRead { get; set; }
+
+        public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
-            if (!ByteUtils.IsValidByteBufferSlice(data, offset, bytesToRead))
+            if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
                 throw new ArgumentException("invalid destination buffer");
             }
@@ -78,8 +77,9 @@ namespace Kabomu.QuasiHttp.EntityBody
                 var srcData = serializationHandler.Invoke(Content);
                 _backingBody = new ByteBufferBody(srcData, 0, srcData.Length);
             }
-            int bytesRead = await _backingBody.ReadBytes(data, offset, bytesToRead);
-            return bytesRead;
+            return EntityBodyUtilsInternal.PerformGeneralRead(this,
+                length, bytesToRead => _backingBody.ReadBytes(
+                    data, offset, bytesToRead));
         }
 
         public Task EndRead()

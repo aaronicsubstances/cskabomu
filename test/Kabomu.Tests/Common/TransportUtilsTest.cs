@@ -399,15 +399,15 @@ namespace Kabomu.Tests.Common
         }
 
         [Theory]
-        [MemberData(nameof(CreateTestReadBodyToMemoryStreamData))]
-        public async Task TestReadBodyToMemoryStream(IQuasiHttpBody body, int bufferSize, int bufferingLimit,
+        [MemberData(nameof(CreateTestReadBodyToEnd2Data))]
+        public async Task TestReadBodyToEnd2(IQuasiHttpBody body, int bufferSize, int bufferingLimit,
             string expectedError, string expectedData)
         {
-            Stream stream = null;
+            byte[] data = null;
             Exception actualError = null;
             try
             {
-                stream = await TransportUtils.ReadBodyToMemoryStream(body, bufferSize, bufferingLimit);
+                data = await TransportUtils.ReadBodyToEnd(body, bufferSize, bufferingLimit);
             }
             catch (Exception e)
             {
@@ -416,7 +416,6 @@ namespace Kabomu.Tests.Common
             if (expectedError == null)
             {
                 Assert.Null(actualError);
-                var data = await TransportUtils.ReadBodyToEnd(new StreamBackedBody(stream, -1), 100);
                 var actualData = Encoding.UTF8.GetString(data);
                 Assert.Equal(expectedData, actualData);
                 Exception eofError = await Assert.ThrowsAnyAsync<Exception>(() =>
@@ -430,7 +429,7 @@ namespace Kabomu.Tests.Common
             }
         }
 
-        public static List<object[]> CreateTestReadBodyToMemoryStreamData()
+        public static List<object[]> CreateTestReadBodyToEnd2Data()
         {
             var testData = new List<object[]>();
 

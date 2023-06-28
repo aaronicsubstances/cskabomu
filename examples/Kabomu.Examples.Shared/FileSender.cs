@@ -48,7 +48,10 @@ namespace Kabomu.Examples.Shared
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
             long fLen = RandGen.NextDouble() < 0.5 ? -1 : f.Length;
-            request.Body = new StreamBackedBody(fileStream, fLen);
+            request.Body = new StreamBackedBody(fileStream)
+            {
+                ContentLength = fLen
+            };
             IQuasiHttpResponse res;
             try
             {
@@ -71,7 +74,7 @@ namespace Kabomu.Examples.Shared
                     try
                     {
                         var responseMsgBytes = await TransportUtils.ReadBodyToEnd(res.Body, 100);
-                        responseMsg = ByteUtils.BytesToString(responseMsgBytes, 0, responseMsgBytes.Length);
+                        responseMsg = ByteUtils.BytesToString(responseMsgBytes);
                     }
                     catch (Exception)
                     {

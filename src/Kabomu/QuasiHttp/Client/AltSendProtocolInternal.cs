@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -21,8 +22,6 @@ namespace Kabomu.QuasiHttp.Client
         public int MaxChunkSize { get; set; }
         public bool ResponseBufferingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
-        public bool RequestWrappingEnabled { get; set; }
-        public bool ResponseWrappingEnabled { get; set; }
 
         public Task Cancel()
         {
@@ -50,17 +49,6 @@ namespace Kabomu.QuasiHttp.Client
 
             IQuasiHttpRequest request = Request;
 
-            // apply request wrapping if needed.
-            if (RequestWrappingEnabled)
-            {
-                var requestBody = request.Body;
-                if (requestBody != null)
-                {
-                    requestBody = new ProxyBody(requestBody);
-                }
-                request = ProtocolUtilsInternal.CloneQuasiHttpRequest(request, c => c.Body = requestBody);
-            }
-
             var cancellableResTask = TransportBypass.ProcessSendRequest(request, ConnectivityParams);
             // writing this variable is thread safe if caller calls current method within same mutex as
             // Cancel().
@@ -73,7 +61,9 @@ namespace Kabomu.QuasiHttp.Client
 
             if (response == null)
             {
-                throw new ExpectationViolationException("no response");
+                throw new QuasiHttpRequestProcessingException(
+                    QuasiHttpRequestProcessingException.ReasonCodeNoResponse,
+                    "null response");
             }
             
             // save for closing later if needed.
@@ -98,13 +88,6 @@ namespace Kabomu.QuasiHttp.Client
                     response = ProtocolUtilsInternal.CloneQuasiHttpResponse(response, c => c.Body = responseBody);
                 }
 
-                // apply response wrapping if needed.
-                // NB: leverage wrapping done as a byproduct of applying response buffering.
-                if (ResponseWrappingEnabled && !responseBufferingApplied)
-                {
-                    response = new ProxyQuasiHttpResponse(response);
-                }
-
                 if (responseBody == null || originalResponseBufferingApplied == true ||
                         responseBufferingApplied)
                 {
@@ -126,7 +109,7 @@ namespace Kabomu.QuasiHttp.Client
                     // don't wait.
                     _ = originalResponse.Close();
                 }
-                catch { } // ignore
+                catch (Exception) { } // ignore
                 throw;
             }
         }

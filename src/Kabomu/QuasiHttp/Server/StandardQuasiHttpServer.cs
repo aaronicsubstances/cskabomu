@@ -1,5 +1,5 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
+using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -34,7 +34,6 @@ namespace Kabomu.QuasiHttp.Server
         /// </summary>
         public StandardQuasiHttpServer()
         {
-            TimerApi = new DefaultTimerApi();
             DefaultProtocolFactory = transfer =>
             {
                 return new DefaultReceiveProtocolInternal
@@ -78,15 +77,6 @@ namespace Kabomu.QuasiHttp.Server
         /// received from connections.
         /// </summary>
         public UncaughtErrorCallback ErrorHandler { get; set; }
-
-        /// <summary>
-        /// Gets or sets timer api used to generate timeouts in this class.
-        /// </summary>
-        /// <remarks> 
-        /// An instance of <see cref="DefaultTimerApi"/> class is the initial value for this property,
-        /// and so there is no need to modify this property except for advanced scenarios.
-        /// </remarks>
-        public ITimerApi TimerApi { get; set; }
 
         /// <summary>
         /// Exposed for testing.
@@ -146,7 +136,6 @@ namespace Kabomu.QuasiHttp.Server
         /// the <see cref="TimerApi"/> property needed is null.</exception>
         public async Task Stop(int waitTimeMillis)
         {
-            ITimerApi timerApi;
             Task stopTask;
             lock (_mutex)
             {
@@ -155,7 +144,6 @@ namespace Kabomu.QuasiHttp.Server
                     return;
                 }
                 _running = false;
-                timerApi = TimerApi;
                 stopTask = Transport?.Stop();
             }
             if (stopTask == null)
@@ -169,11 +157,7 @@ namespace Kabomu.QuasiHttp.Server
             }
             if (waitTimeMillis > 0)
             {
-                if (timerApi == null)
-                {
-                    throw new MissingDependencyException("timer api");
-                }
-                await timerApi.Delay(waitTimeMillis);
+                await Task.Delay(waitTimeMillis);
             }
         }
 
@@ -203,13 +187,11 @@ namespace Kabomu.QuasiHttp.Server
                         connectTask = transport.ReceiveConnection();
                     }
                     var connectionAllocationResponse = await connectTask;
-                    if (connectionAllocationResponse == null)
+                    if (connectionAllocationResponse?.Connection == null)
                     {
-                        throw new ExpectationViolationException("received null connection allocation response");
-                    }
-                    if (connectionAllocationResponse.Connection == null)
-                    {
-                        throw new ExpectationViolationException("no connection");
+                        throw new QuasiHttpRequestProcessingException(
+                            QuasiHttpRequestProcessingException.ReasonCodeNoConnection,
+                            "no connection");
                     }
                     // let TaskScheduler.UnobservedTaskException handle any uncaught task exceptions.
                     _ = AcceptConnection(transport, connectionAllocationResponse);
@@ -259,7 +241,6 @@ namespace Kabomu.QuasiHttp.Server
             {
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     null, DefaultProcessingOptions?.TimeoutMillis, 0);
-                transfer.TimerApi = TimerApi;
                 transfer.SetTimeout();
 
                 if (transfer.TimeoutId != null)
@@ -315,7 +296,6 @@ namespace Kabomu.QuasiHttp.Server
             {
                 transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     options?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
-                transfer.TimerApi = TimerApi;
                 transfer.SetTimeout();
 
                 if (transfer.TimeoutId != null)

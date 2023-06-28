@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp
+namespace Kabomu.QuasiHttp.Exceptions
 {
     /// <summary>
     /// Error thrown by instances of <see cref="Client.StandardQuasiHttpClient"/> and
@@ -30,9 +30,18 @@ namespace Kabomu.QuasiHttp
         /// </summary>
         public const int ReasonCodeCancelled = 3;
 
+        /// <summary>
+        /// Indicates that connection allocation or receipt yielded a null
+        /// or non-existent connection.
+        /// </summary>
+        public const int ReasonCodeNoConnection = 4;
+
+        /// <summary>
+        /// Indicates that a null or non-existent response was received.
+        /// </summary>
+        public const int ReasonCodeNoResponse = 5;
+
         // the following codes are reserved for future use.
-        private const int ReasonCodeReserved4 = 4;
-        private const int ReasonCodeReserved5 = 5;
         private const int ReasonCodeReserved6 = 6;
         private const int ReasonCodeReserved7 = 7;
         private const int ReasonCodeReserved8 = 8;
@@ -55,7 +64,7 @@ namespace Kabomu.QuasiHttp
         /// <param name="message">error message</param>
         /// <exception cref="ArgumentException">The <paramref name="reasonCode"/> argument is reserved for future use
         /// by this class</exception>
-        public QuasiHttpRequestProcessingException(int reasonCode, string message) : 
+        public QuasiHttpRequestProcessingException(int reasonCode, string message) :
             this(reasonCode, message, null)
         {
         }
@@ -74,8 +83,6 @@ namespace Kabomu.QuasiHttp
         {
             switch (reasonCode)
             {
-                case ReasonCodeReserved4:
-                case ReasonCodeReserved5:
                 case ReasonCodeReserved6:
                 case ReasonCodeReserved7:
                 case ReasonCodeReserved8:

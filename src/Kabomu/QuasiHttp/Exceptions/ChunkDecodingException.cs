@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.ChunkedTransfer
+namespace Kabomu.QuasiHttp.Exceptions
 {
     /// <summary>
     /// Exception thrown when chunk decoding of data from transport connections and quasi http body fail.
