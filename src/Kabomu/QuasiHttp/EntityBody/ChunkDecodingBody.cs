@@ -1,5 +1,5 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Transport;
 using System;
@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.ChunkedTransfer
+namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
     /// The standard chunk decoder of byte streams in the Kabomu library. Wraps a quasi http body and assumes it consists of
@@ -88,8 +88,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                     "reading a chunk length specification", e);
             }
 
-           int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
-                encodedLength.Length, true);
+            int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
+                 encodedLength.Length, true);
             ValidateChunkLength(chunkLen, maxChunkSize, "Failed to decode quasi http headers");
             var chunkBytes = new byte[chunkLen];
             try
@@ -144,7 +144,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             if (_lastChunk != null && (_lastChunk.DataLength == 0 || _lastChunkUsedBytes < _lastChunk.DataLength))
             {
                 return SupplyFromLastChunk(data, offset, bytesToRead);
-            }            
+            }
 
             try
             {

@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
+namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class ChunkDecodingBodyTest
     {

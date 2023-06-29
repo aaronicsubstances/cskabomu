@@ -1,12 +1,12 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.ChunkedTransfer
+namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
     /// The standard chunk encoder of byte streams of unknown lengths in the Kabomu library. Wraps a quasi http body
@@ -26,7 +26,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// implementation in the Kabomu library, and that is currently the largest
         /// signed integer that can fit into 3 bytes.
         /// </summary>
-        public static readonly int HardMaxChunkSizeLimit = 1 << (8 * LengthOfEncodedChunkLength - 1) - 1;
+        public static readonly int HardMaxChunkSizeLimit = 1 << 8 * LengthOfEncodedChunkLength - 1 - 1;
 
         private static readonly int ReservedBytesToUse;
         private static readonly ByteBufferSlice[] ChunkPrefix;
@@ -173,8 +173,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             int sliceBytesWritten = 0;
             foreach (var slice in ChunkPrefix)
             {
-                Array.Copy(slice.Data, slice.Offset, 
-                    data, offset + LengthOfEncodedChunkLength + sliceBytesWritten, 
+                Array.Copy(slice.Data, slice.Offset,
+                    data, offset + LengthOfEncodedChunkLength + sliceBytesWritten,
                     slice.Length);
                 sliceBytesWritten += slice.Length;
             }

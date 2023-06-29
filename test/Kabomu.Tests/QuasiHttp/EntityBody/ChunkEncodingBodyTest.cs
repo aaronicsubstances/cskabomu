@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
+namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class ChunkEncodingBodyTest
     {
@@ -67,7 +67,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             {
                 var instance = new ChunkEncodingBody(new StringBody("3")
                 {
-                    ContentType = "text/html" 
+                    ContentType = "text/html"
                 }, 100);
                 return instance.ReadBytes(new byte[4], 0, 4);
             });
