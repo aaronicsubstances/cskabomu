@@ -7,6 +7,6 @@ namespace Kabomu.Common
 {
     public interface ICustomDisposable
     {
-        Task CloseAsync();
+        Task CustomDispose();
     }
 }

@@ -123,6 +123,62 @@ namespace Kabomu.Common
         }
 
         /// <summary>
+        /// Reads in data in order to completely fill in a byte buffer slice.
+        /// </summary>
+        /// <param name="reader">source of bytes to read</param>
+        /// <param name="data">destination buffer</param>
+        /// <param name="offset">start position in buffer to fill from</param>
+        /// <param name="bytesToRead">number of bytes to read. Failure to obtain this number of bytes will
+        /// result in an exception.</param>
+        /// <returns>A task that represents the asynchronous read operation.</returns>
+        public static async Task ReadBytesFully(ICustomReader reader,
+            byte[] data, int offset, int bytesToRead)
+        {
+            while (true)
+            {
+                int bytesRead = await reader.ReadBytes(data, offset, bytesToRead);
+
+                if (bytesRead < bytesToRead)
+                {
+                    if (bytesRead <= 0)
+                    {
+                        throw new EndOfReadException("unexpected end of read");
+                    }
+                    offset += bytesRead;
+                    bytesToRead -= bytesRead;
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        public static async Task CopyBytes(ICustomReader reader,
+            ICustomWriter writer, int bufferSize)
+        {
+            if (bufferSize <= 0)
+            {
+                bufferSize = DefaultReadBufferSize;
+            }
+            byte[] readBuffer = new byte[bufferSize];
+
+            while (true)
+            {
+                int bytesRead = await reader.ReadBytes(readBuffer, 0, readBuffer.Length);
+
+                if (bytesRead > 0)
+                {
+                    await writer.WriteBytes(readBuffer, 0, bytesRead);
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
         /// Reads in all of a quasi http body's data into an in-memory buffer within some maximum limit, and ends it.
         /// </summary>
         /// <remarks>

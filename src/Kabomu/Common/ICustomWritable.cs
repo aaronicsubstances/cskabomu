@@ -7,6 +7,6 @@ namespace Kabomu.Common
 {
     public interface ICustomWritable<T> : ICustomDisposable
     {
-        Task WriteToAsync(ICustomWriter writer, T context);
+        Task WriteBytesTo(ICustomWriter writer, T context);
     }
 }

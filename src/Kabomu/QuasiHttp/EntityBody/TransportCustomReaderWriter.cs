@@ -7,7 +7,10 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
-    public class TransportCustomReader : ICustomReader
+    /// <summary>
+    /// Represents a stream of bytes from a connection of a quasi http transport.
+    /// </summary>
+    public class TransportCustomReaderWriter : ICustomReader, ICustomWriter
     {
         private readonly IQuasiHttpTransport _transport;
         private readonly object _connection;
@@ -16,12 +19,12 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        /// <param name="transport">the quasi http transport to read from</param>
-        /// <param name="connection">the connection to read from</param>
-        /// <param name="releaseConnection">true if connection should be released during end of read; false
-        /// if connection should not be released.</param>
+        /// <param name="transport">the quasi http transport to use</param>
+        /// <param name="connection">the connection to read from or write to</param>
+        /// <param name="releaseConnection">true if connection should be released upon disposal; false
+        /// if connection should be left open</param>
         /// <exception cref="ArgumentNullException">The <paramref name="transport"/> argument is null.</exception>
-        public TransportCustomReader(IQuasiHttpTransport transport, object connection,
+        public TransportCustomReaderWriter(IQuasiHttpTransport transport, object connection,
              bool releaseConnection)
         {
             if (transport == null)
@@ -33,12 +36,17 @@ namespace Kabomu.QuasiHttp.EntityBody
             _releaseConnection = releaseConnection;
         }
 
-        public Task<int> ReadAsync(byte[] data, int offset, int length)
+        public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
             return _transport.ReadBytes(_connection, data, offset, length);
         }
 
-        public Task CloseAsync()
+        public Task WriteBytes(byte[] data, int offset, int length)
+        {
+            return _transport.WriteBytes(_connection, data, offset, length);
+        }
+
+        public Task CustomDispose()
         {
             if (_releaseConnection)
             {

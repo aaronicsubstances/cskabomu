@@ -7,6 +7,6 @@ namespace Kabomu.Common
 {
     public interface ICustomReader : ICustomDisposable
     {
-        Task<int> ReadAsync(byte[] data, int offset, int length);
+        Task<int> ReadBytes(byte[] data, int offset, int length);
     }
 }

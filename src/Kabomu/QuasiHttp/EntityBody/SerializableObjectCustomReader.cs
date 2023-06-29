@@ -6,6 +6,16 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Represents a byte stream which is derived from lazy serialization an in-memory object, ie 
+    /// serialization isn't done until ReadBytes() is called.
+    /// </summary>
+    /// <remarks>
+    /// This class is implemented with the interest of memory-based transport in mind, and that is the
+    /// reason why serialization handler is not required at construction time, or why serialization is
+    /// not done eagerly at construction time. This then makes it possible for memory-based communications
+    /// to avoid performance hits due to serialization.
+    /// </remarks>
     public class SerializableObjectCustomReader : ICustomReader, ICustomWritable<IDictionary<string, object>>
     {
         private ByteBufferCustomReader _backingBody;
@@ -39,10 +49,10 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         public object Content { get; }
 
-        public Task<int> ReadAsync(byte[] data, int offset, int length)
+        public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
             EnsureSerialization();
-            return _backingBody.ReadAsync(data, offset, length);
+            return _backingBody.ReadBytes(data, offset, length);
         }
 
         private void EnsureSerialization()
@@ -59,15 +69,15 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
         }
 
-        public Task CloseAsync()
+        public Task CustomDispose()
         {
-            return _backingBody?.CloseAsync() ?? Task.CompletedTask;
+            return _backingBody?.CustomDispose() ?? Task.CompletedTask;
         }
 
-        public Task WriteToAsync(ICustomWriter writer, IDictionary<string, object> context)
+        public Task WriteBytesTo(ICustomWriter writer, IDictionary<string, object> context)
         {
             EnsureSerialization();
-            return _backingBody.WriteToAsync(writer, context);
+            return _backingBody.WriteBytesTo(writer, context);
         }
     }
 }

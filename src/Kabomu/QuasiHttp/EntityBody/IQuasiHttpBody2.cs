@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Represents a byte stream which forms part of a quasi HTTP request or response.
+    /// </summary>
     public interface IQuasiHttpBody2
     {
         /// <summary>

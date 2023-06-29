@@ -7,8 +7,6 @@ namespace Kabomu.Common
 {
     public interface ICustomWriter : ICustomDisposable
     {
-        Task WriteAsync(byte[] data, int offset, int length);
-
-        Task FlushAsync();
+        Task WriteBytes(byte[] data, int offset, int length);
     }
 }

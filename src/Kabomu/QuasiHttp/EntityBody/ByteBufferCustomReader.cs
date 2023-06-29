@@ -60,7 +60,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         public int Length { get; }
 
-        public Task<int> ReadAsync(byte[] data, int offset, int length)
+        public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
             length = Math.Max(0, Math.Min(Length - _bytesRead, length));
             Array.Copy(Buffer, Offset + _bytesRead, data, offset, length);
@@ -68,14 +68,14 @@ namespace Kabomu.QuasiHttp.EntityBody
             return Task.FromResult(length);
         }
 
-        public Task CloseAsync()
+        public Task CustomDispose()
         {
             return Task.CompletedTask;
         }
 
-        public Task WriteToAsync(ICustomWriter writer, IDictionary<string, object> context)
+        public Task WriteBytesTo(ICustomWriter writer, IDictionary<string, object> context)
         {
-            return writer.WriteAsync(Buffer, Offset, Length);
+            return writer.WriteBytes(Buffer, Offset, Length);
         }
     }
 }

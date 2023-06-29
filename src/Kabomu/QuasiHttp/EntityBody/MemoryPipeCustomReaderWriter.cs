@@ -22,7 +22,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         private ReadWriteRequest _readRequest, _writeRequest;
         private bool _endOfReadSeen, _endOfWriteSeen;
 
-        public async Task<int> ReadAsync(byte[] data, int offset, int length)
+        public async Task<int> ReadBytes(byte[] data, int offset, int length)
         {
             Task<int> readTask;
             lock (_mutex)
@@ -72,7 +72,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             return Task.CompletedTask;
         }
 
-        public async Task WriteAsync(byte[] data, int offset, int length)
+        public async Task WriteBytes(byte[] data, int offset, int length)
         {
             Task writeTask;
             lock (_mutex)
@@ -155,12 +155,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             _readRequest = null;
         }
 
-        public Task FlushAsync()
-        {
-            return Task.CompletedTask;
-        }
-
-        public Task CloseAsync()
+        public Task CustomDispose()
         {
             return Task.CompletedTask;
         }
