@@ -57,7 +57,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             {
                 try
                 {
-                    await TransportUtils.ReadBytesFully(_wrappedReader,
+                    await IOUtils.ReadBytesFully(_wrappedReader,
                        _encodedLengthReceiver, 0, _encodedLengthReceiver.Length);
                 }
                 catch (Exception e)
@@ -82,7 +82,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             bytesToRead = Math.Min(_chunkLenRem, bytesToRead);
             try
             {
-                await TransportUtils.ReadBytesFully(_wrappedReader,
+                await IOUtils.ReadBytesFully(_wrappedReader,
                     data, offset, bytesToRead);
             }
             catch (Exception e)

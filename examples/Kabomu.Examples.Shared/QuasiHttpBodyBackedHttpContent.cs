@@ -16,18 +16,10 @@ namespace Kabomu.Examples.Shared
             _backingBody = backingBody;
         }
 
-        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
         {
-            var data = new byte[TransportUtils.DefaultMaxChunkSize];
-            while (true)
-            {
-                var bytesRead = await _backingBody.ReadBytes(data, 0, data.Length);
-                if (bytesRead == 0)
-                {
-                    break;
-                }
-                await stream.WriteAsync(data, 0, bytesRead);
-            }
+            return IOUtils.CopyBytes(_backingBody.AsReader(),
+                new StreamCustomReaderWriter(stream));
         }
 
         protected override bool TryComputeLength(out long length)

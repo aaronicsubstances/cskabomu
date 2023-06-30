@@ -7,14 +7,14 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <summary>
     /// Represents byte stream derived from a string's UTF-8 representation.
     /// </summary>
-    public class StringCustomReader : SerializableObjectCustomReader
+    public class StringCustomWritable : SerializableObjectCustomWritable
     {
         /// <summary>
         /// Creates a new instance with the given string.
         /// </summary>
         /// <param name="content">string content</param>
         /// <exception cref="ArgumentNullException">if string argument is null</exception>
-        public StringCustomReader(string content) :
+        public StringCustomWritable(string content) :
             base(content, SerializeContent)
         {
         }

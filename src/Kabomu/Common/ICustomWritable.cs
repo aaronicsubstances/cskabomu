@@ -5,8 +5,8 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Common
 {
-    public interface ICustomWritable<T> : ICustomDisposable
+    public interface ICustomWritable : ICustomDisposable
     {
-        Task WriteBytesTo(ICustomWriter writer, T context);
+        Task WriteBytesTo(ICustomWriter writer);
     }
 }

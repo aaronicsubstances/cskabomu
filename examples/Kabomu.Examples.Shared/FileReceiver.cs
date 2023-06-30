@@ -1,6 +1,8 @@
-﻿using Kabomu.Mediator;
+﻿using Kabomu.Common;
+using Kabomu.Mediator;
 using Kabomu.Mediator.Handling;
 using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.EntityBody;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -53,16 +55,11 @@ namespace Kabomu.Examples.Shared
                 string p = Path.Combine(directory.Name, fileName);
                 using (var fileStream = new FileStream(p, FileMode.Create))
                 {
-                    var buffer = new byte[4096];
-                    while (true)
-                    {
-                        var length = await context.Request.Body.ReadBytes(buffer, 0, buffer.Length);
-                        if (length == 0)
-                        {
-                            break;
-                        }
-                        await fileStream.WriteAsync(buffer, 0, length);
-                    }
+                    var reader = context.Request.Body.AsReader();
+                    var fileStreamWrapper = new LambdaBasedCustomWriter(
+                        (data, offset, length) =>
+                            fileStream.WriteAsync(data, offset, length));
+                    await IOUtils.CopyBytes(reader, fileStreamWrapper, 0);
                 }
             }
             catch (Exception e)

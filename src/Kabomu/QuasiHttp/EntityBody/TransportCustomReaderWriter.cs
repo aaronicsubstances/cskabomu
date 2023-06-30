@@ -10,11 +10,15 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <summary>
     /// Represents a stream of bytes from a connection of a quasi http transport.
     /// </summary>
-    public class TransportCustomReaderWriter : ICustomReader, ICustomWriter
+    public class TransportCustomReaderWriter : ICustomReader, ICustomWriter, ITransportContext
     {
         private readonly IQuasiHttpTransport _transport;
         private readonly object _connection;
         private readonly bool _releaseConnection;
+
+        public object Transport => _transport;
+
+        public object Connection => _connection;
 
         /// <summary>
         /// Creates a new instance.

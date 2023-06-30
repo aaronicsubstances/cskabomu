@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
@@ -16,14 +15,14 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <item>each row can have a different number of columns</item>
     /// </list>
     /// </summary>
-    public class CsvBody : SerializableObjectBody
+    public class CsvCustomWritable : SerializableObjectCustomWritable
     {
         /// <summary>
         /// Creates a new instance with the given CSV data.
         /// </summary>
         /// <param name="content">CSV data.</param>
         /// <exception cref="ArgumentNullException">if CSV data argument is null</exception>
-        public CsvBody(IDictionary<string, IList<string>> content):
+        public CsvCustomWritable(IDictionary<string, IList<string>> content) :
             base(content, SerializeContent)
         {
         }
@@ -43,10 +42,5 @@ namespace Kabomu.QuasiHttp.EntityBody
             var csvBytes = Encoding.UTF8.GetBytes(csv);
             return csvBytes;
         }
-
-        /// <summary>
-        /// Gets the CSV data supplied at construction time which will be serialized.
-        /// </summary>
-        public Dictionary<string, List<string>> CsvContent => (Dictionary<string, List<string>>)Content;
     }
 }

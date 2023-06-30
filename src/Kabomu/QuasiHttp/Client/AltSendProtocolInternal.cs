@@ -71,7 +71,7 @@ namespace Kabomu.QuasiHttp.Client
             try
             {
                 var originalResponseBufferingApplied = ProtocolUtilsInternal.GetEnvVarAsBoolean(
-                    response.Environment, TransportUtils.ResEnvKeyResponseBufferingApplied);
+                    response.Environment, IOUtils.ResEnvKeyResponseBufferingApplied);
 
                 var responseBody = response.Body;
                 bool responseBufferingApplied = false;
@@ -92,7 +92,7 @@ namespace Kabomu.QuasiHttp.Client
                         responseBufferingApplied)
                 {
                     // close original response.
-                    await originalResponse.Close();
+                    await originalResponse.CustomDispose();
                 }
 
                 return new ProtocolSendResult
@@ -107,7 +107,7 @@ namespace Kabomu.QuasiHttp.Client
                 try
                 {
                     // don't wait.
-                    _ = originalResponse.Close();
+                    _ = originalResponse.CustomDispose();
                 }
                 catch (Exception) { } // ignore
                 throw;

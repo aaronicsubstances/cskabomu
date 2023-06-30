@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
-    public class ByteBufferCustomReader : ICustomReader, ICustomWritable<IDictionary<string, object>>
+    public class ByteBufferCustomWritable : ICustomReader, ICustomWritable
     {
         private int _bytesRead = 0;
 
@@ -15,7 +15,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         /// <param name="data">backing byte array</param>
         /// <exception cref="ArgumentNullException">The <paramref name="data"/> argument is null</exception>
-        public ByteBufferCustomReader(byte[] data) :
+        public ByteBufferCustomWritable(byte[] data) :
             this(data, 0, data?.Length ?? 0)
         {
         }
@@ -29,7 +29,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// <exception cref="ArgumentNullException">The <paramref name="data"/> argument is null</exception>
         /// <exception cref="ArgumentException">The combination of offset and length arguments generate invalid indices
         /// in data argument</exception>
-        public ByteBufferCustomReader(byte[] data, int offset, int length)
+        public ByteBufferCustomWritable(byte[] data, int offset, int length)
         {
             if (data == null)
             {
@@ -73,7 +73,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             return Task.CompletedTask;
         }
 
-        public Task WriteBytesTo(ICustomWriter writer, IDictionary<string, object> context)
+        public Task WriteBytesTo(ICustomWriter writer)
         {
             return writer.WriteBytes(Buffer, Offset, Length);
         }

@@ -1,5 +1,4 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.QuasiHttp.Exceptions;
+﻿using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -100,7 +99,7 @@ namespace Kabomu.QuasiHttp.Server
                         try
                         {
                             // don't wait.
-                            _ = res.Close();
+                            _ = res.CustomDispose();
                         }
                         catch (Exception) { } // ignore.
                     }
@@ -110,7 +109,7 @@ namespace Kabomu.QuasiHttp.Server
                 }
                 IsAborted = true;
                 disableTask = Disable(cancellationError, res,
-                    CancellationTcs, TimeoutId, _protocol, Request?.Body);
+                    CancellationTcs, TimeoutId, _protocol, Request);
             }
             if (disableTask != null)
             {
@@ -120,7 +119,7 @@ namespace Kabomu.QuasiHttp.Server
 
         private static async Task Disable(Exception cancellationError, IQuasiHttpResponse res,
             TaskCompletionSource<IQuasiHttpResponse> cancellationTcs,
-            CancellationTokenSource timeoutId, IReceiveProtocolInternal protocol, IQuasiHttpBody requestBody)
+            CancellationTokenSource timeoutId, IReceiveProtocolInternal protocol, IQuasiHttpRequest request)
         {
             if (cancellationTcs != null)
             {
@@ -142,11 +141,11 @@ namespace Kabomu.QuasiHttp.Server
             }
 
             // close body of request received for direct send to application
-            if (requestBody != null)
+            if (request != null)
             {
                 try
                 {
-                    await requestBody.EndRead();
+                    await request.CustomDispose();
                 }
                 catch (Exception) { }
             }

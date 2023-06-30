@@ -212,12 +212,12 @@ namespace Kabomu.QuasiHttp.Client
                 transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     options?.MaxChunkSize,
                     DefaultSendOptions?.MaxChunkSize,
-                    TransportUtils.DefaultMaxChunkSize);
+                    IOUtils.DefaultMaxChunkSize);
 
                 transfer.ResponseBodyBufferingSizeLimit = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     options?.ResponseBodyBufferingSizeLimit,
                     DefaultSendOptions?.ResponseBodyBufferingSizeLimit,
-                    TransportUtils.DefaultDataBufferLimit);
+                    IOUtils.DefaultDataBufferLimit);
 
                 transfer.Request = request;
 

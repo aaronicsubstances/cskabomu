@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -10,7 +11,7 @@ namespace Kabomu.QuasiHttp
     /// Represents the equivalent of an HTTP request entity: request line,
     /// request headers, and request body.
     /// </summary>
-    public interface IQuasiHttpRequest
+    public interface IQuasiHttpRequest : ICustomDisposable
     {
         /// <summary>
         /// Gets the equivalent of request target component of HTTP request line.

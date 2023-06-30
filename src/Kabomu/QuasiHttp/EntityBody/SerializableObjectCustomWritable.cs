@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
@@ -17,10 +16,9 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// not done eagerly at construction time. This then makes it possible for memory-based communications
     /// to avoid performance hits due to serialization.
     /// </remarks>
-    public class SerializableObjectBody : IQuasiHttpBody, IBytesAlreadyReadProviderInternal
+    public class SerializableObjectCustomWritable : ICustomReader, ICustomWritable
     {
-        private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
-        private IQuasiHttpBody _backingBody;
+        private ByteBufferCustomWritable _backingBody;
 
         /// <summary>
         /// Creates a new instance with any object which can be converted into bytes through serialization.
@@ -29,7 +27,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// <param name="serializationHandler">Initial serialization function. Can be null, in which
         /// case it must be set via corresponding property for initial read to succeed.</param>
         /// <exception cref="ArgumentNullException">The <paramref name="content"/> argument is null.</exception>
-        public SerializableObjectBody(object content, Func<object, byte[]> serializationHandler)
+        public SerializableObjectCustomWritable(object content, Func<object, byte[]> serializationHandler)
         {
             if (content == null)
             {
@@ -37,7 +35,6 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
             Content = content;
             SerializationHandler = serializationHandler;
-            ContentLength = -1;
         }
 
         /// <summary>
@@ -52,21 +49,14 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         public object Content { get; }
 
-        public long ContentLength { get; set; }
-
-        public string ContentType { get; set; }
-
-        long IBytesAlreadyReadProviderInternal.BytesAlreadyRead { get; set; }
-
         public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
-            if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
-            {
-                throw new ArgumentException("invalid destination buffer");
-            }
+            EnsureSerialization();
+            return _backingBody.ReadBytes(data, offset, length);
+        }
 
-            EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
-
+        private void EnsureSerialization()
+        {
             if (_backingBody == null)
             {
                 var serializationHandler = SerializationHandler;
@@ -75,21 +65,19 @@ namespace Kabomu.QuasiHttp.EntityBody
                     throw new MissingDependencyException("serialization handler");
                 }
                 var srcData = serializationHandler.Invoke(Content);
-                _backingBody = new ByteBufferBody(srcData, 0, srcData.Length);
+                _backingBody = new ByteBufferCustomWritable(srcData);
             }
-            return EntityBodyUtilsInternal.PerformGeneralRead(this,
-                length, bytesToRead => _backingBody.ReadBytes(
-                    data, offset, bytesToRead));
         }
 
-        public Task EndRead()
+        public Task CustomDispose()
         {
-            _readCancellationHandle.Cancel();
-            // don't bother about ending read of backing body since it is just an in-memory object
-            // and there is no contract to cancel ongoing reads.
-            // that spares us from dealing with possible null reference and memory inconsistency
-            // in determining whether backing body has been initialized or not.
-            return Task.CompletedTask;
+            return _backingBody?.CustomDispose() ?? Task.CompletedTask;
+        }
+
+        public Task WriteBytesTo(ICustomWriter writer)
+        {
+            EnsureSerialization();
+            return _backingBody.WriteBytesTo(writer);
         }
     }
 }

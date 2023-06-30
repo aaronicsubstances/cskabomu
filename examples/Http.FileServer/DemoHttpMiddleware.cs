@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Kabomu.Common;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Server;
@@ -52,8 +53,9 @@ namespace Http.FileServer
                     httpContext.Request.Headers["Transfer-Encoding"],
                     httpContext.Request.ContentLength,
                     httpContext.Request.ContentType);
-                quasiRequest.Body = new StreamBackedBody(httpContext.Request.Body)
+                quasiRequest.Body = new DefaultQuasiHttpBody
                 {
+                    Reader = new StreamCustomReaderWriter(httpContext.Request.Body),
                     ContentLength = httpContext.Request.ContentLength ?? -1,
                     ContentType = httpContext.Request.ContentType
                 };
@@ -74,22 +76,21 @@ namespace Http.FileServer
                 LOG.Error(e, "http request processing failed");
                 quasiResponse = new DefaultQuasiHttpResponse
                 {
-                    Body = new StringBody(e.Message)
+                    Body = new DefaultQuasiHttpBody
+                    {
+                        Writable = new StringCustomWritable(e.Message)
+                    }
                 };
             }
             SetResponseStatusAndHeaders(quasiResponse, httpContext.Response);
             if (quasiResponse.Body != null)
             {
-                var data = new byte[processingOptions.MaxChunkSize];
-                while (true)
-                {
-                    var bytesRead = await quasiResponse.Body.ReadBytes(data, 0, data.Length);
-                    if (bytesRead == 0)
-                    {
-                        break;
-                    }
-                    await httpContext.Response.Body.WriteAsync(data, 0, bytesRead);
-                }
+                var reader = quasiResponse.Body.AsReader();
+                var httpResWrapper = new LambdaBasedCustomWriter(
+                    (data, offset, length) =>
+                        httpContext.Response.Body.WriteAsync(data, offset, length));
+                await IOUtils.CopyBytes(reader, httpResWrapper,
+                    processingOptions.MaxChunkSize);
             }
         }
 

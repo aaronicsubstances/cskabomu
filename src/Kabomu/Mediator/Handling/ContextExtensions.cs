@@ -254,7 +254,13 @@ namespace Kabomu.Mediator.Handling
                 context.Response.TrySend(() =>
                 {
                     context.Response.SetServerErrorStatusCode()
-                        .SetBody(new StringBody(msg) { ContentType = "text/plain" });
+                        .SetBody(
+                            new DefaultQuasiHttpBody
+                            {
+                                Writable = new StringCustomWritable(msg),
+                                ContentType = "text/plain" 
+                            }
+                        );
                 });
             }
             return Task.CompletedTask;

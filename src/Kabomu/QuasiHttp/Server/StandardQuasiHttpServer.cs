@@ -251,7 +251,7 @@ namespace Kabomu.QuasiHttp.Server
                 }
 
                 transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
-                    null, DefaultProcessingOptions?.MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
+                    null, DefaultProcessingOptions?.MaxChunkSize, IOUtils.DefaultMaxChunkSize);
 
                 transfer.RequestEnvironment = connectionResponse.Environment;
 

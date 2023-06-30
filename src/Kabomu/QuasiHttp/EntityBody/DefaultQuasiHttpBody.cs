@@ -2,10 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
-    public class DefaultQuasiHttpBody : IQuasiHttpBody2
+    public class DefaultQuasiHttpBody : IQuasiHttpBody
     {
         public long ContentLength { get; set; }
 
@@ -13,6 +14,20 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         public ICustomReader Reader { get; set; }
 
-        public ICustomWritable<IDictionary<string, object>> Writable { get; set; }
+        public ICustomWritable Writable { get; set; }
+
+        public async Task CustomDispose()
+        {
+            var reader = Reader;
+            if (reader != null)
+            {
+                await reader.CustomDispose();
+            }
+            var writable = Writable;
+            if (writable != null)
+            {
+                await Writable.CustomDispose();
+            }
+        }
     }
 }

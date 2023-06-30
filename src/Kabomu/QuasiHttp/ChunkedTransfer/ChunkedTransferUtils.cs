@@ -36,7 +36,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 Version = LeadChunk.Version01
             }.Serialize();
-            ChunkPrefixLength = ByteUtils.CalculateSizeOfSlices(ChunkPrefix);
+            ChunkPrefixLength = ChunkPrefix.Sum(s => s.Length);
             ReservedBytesToUse = LengthOfEncodedChunkLength + ChunkPrefixLength;
 
             EncodedChunkLengthOfDefaultInvalidValue = new byte[LengthOfEncodedChunkLength];
@@ -101,7 +101,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         public static async Task ReadAwayHeaderForBodyWithKnownLength(ICustomReader reader)
         {
             var encLengthBytes = new byte[LengthOfEncodedChunkLength];
-            await TransportUtils.ReadBytesFully(reader,
+            await IOUtils.ReadBytesFully(reader,
                 encLengthBytes, 0, encLengthBytes.Length);
             int knownContentLengthPrefix = (int)ByteUtils.DeserializeUpToInt64BigEndian(encLengthBytes, 0,
                 encLengthBytes.Length, true);
@@ -134,7 +134,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             byte[] encodedLength = new byte[LengthOfEncodedChunkLength];
             try
             {
-                await TransportUtils.ReadBytesFully(reader,
+                await IOUtils.ReadBytesFully(reader,
                     encodedLength, 0, encodedLength.Length);
             }
             catch (Exception e)
@@ -149,7 +149,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             var chunkBytes = new byte[chunkLen];
             try
             {
-                await TransportUtils.ReadBytesFully(reader,
+                await IOUtils.ReadBytesFully(reader,
                     chunkBytes, 0, chunkBytes.Length);
             }
             catch (Exception e)
@@ -176,11 +176,11 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 throw new ChunkDecodingException(
                     $"{prefix}: received negative chunk size of {chunkLen}");
             }
-            if (chunkLen > TransportUtils.DefaultMaxChunkSizeLimit && chunkLen > maxChunkSize)
+            if (chunkLen > IOUtils.DefaultMaxChunkSizeLimit && chunkLen > maxChunkSize)
             {
                 throw new ChunkDecodingException(
                     $"{prefix}: received chunk size of {chunkLen} exceeds" +
-                    $" default limit on max chunk size ({TransportUtils.DefaultMaxChunkSizeLimit})" +
+                    $" default limit on max chunk size ({IOUtils.DefaultMaxChunkSizeLimit})" +
                     $" as well as maximum configured chunk size of {maxChunkSize}");
             }
         }

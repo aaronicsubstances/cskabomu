@@ -11,24 +11,21 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <summary>
     /// Represents stream of bytes directly with an instance of the <see cref="Stream"/> class.
     /// </summary>
-    public class StreamCustomReader : ICustomReader, ICustomWritable<IDictionary<string, object>>
+    public class StreamCustomReaderWriter : ICustomReader, ICustomWriter
     {
         private readonly CancellationTokenSource _streamCancellationHandle = new CancellationTokenSource();
-        private readonly int _bufferSize;
 
         /// <summary>
         /// Creates an instance with an input stream which will supply bytes to be read
         /// </summary>
-        /// <param name="backingStream">the input stream</param>
-        /// <param name="bufferSize">size of buffer used during transfer to a writer</param>
-        public StreamCustomReader(Stream backingStream, int bufferSize)
+        /// <param name="backingStream">the input stream</param
+        public StreamCustomReaderWriter(Stream backingStream)
         {
             if (backingStream == null)
             {
                 throw new ArgumentNullException(nameof(backingStream));
             }
             BackingStream = backingStream;
-            _bufferSize = bufferSize;
         }
 
         /// <summary>
@@ -44,9 +41,9 @@ namespace Kabomu.QuasiHttp.EntityBody
             return BackingStream.ReadAsync(data, offset, length, _streamCancellationHandle.Token);
         }
 
-        public Task WriteBytesTo(ICustomWriter writer, IDictionary<string, object> context)
+        public Task WriteBytes(byte[] data, int offset, int length)
         {
-            return TransportUtils.CopyBytes(this, writer, _bufferSize);
+            return BackingStream.WriteAsync(data, offset, length, _streamCancellationHandle.Token);
         }
 
         public async Task CustomDispose()

@@ -19,8 +19,20 @@ namespace Kabomu.QuasiHttp.EntityBody
     public class MemoryPipeCustomReaderWriter : ICustomReader, ICustomWriter
     {
         private readonly object _mutex = new object();
+        private readonly ICustomDisposable _dependent;
         private ReadWriteRequest _readRequest, _writeRequest;
         private bool _endOfReadSeen, _endOfWriteSeen;
+
+        public MemoryPipeCustomReaderWriter()
+            : this(null)
+        {
+            
+        }
+
+        public MemoryPipeCustomReaderWriter(ICustomDisposable dependent)
+        {
+            _dependent = dependent;
+        }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int length)
         {
@@ -157,7 +169,7 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         public Task CustomDispose()
         {
-            return Task.CompletedTask;
+            return _dependent?.CustomDispose() ?? Task.CompletedTask;
         }
 
         class ReadWriteRequest

@@ -96,8 +96,9 @@ namespace Kabomu.Examples.Shared
                 var responseStream = await responseWrapper.Content.ReadAsStreamAsync();
                 var contentLength = responseWrapper.Content.Headers.ContentLength ?? -1;
                 var contentType = responseWrapper.Content.Headers.ContentType?.ToString();
-                response.Body = new StreamBackedBody(responseStream)
+                response.Body = new DefaultQuasiHttpBody
                 {
+                    Reader = new StreamCustomReaderWriter(responseStream),
                     ContentLength = contentLength,
                     ContentType = contentType
                 };

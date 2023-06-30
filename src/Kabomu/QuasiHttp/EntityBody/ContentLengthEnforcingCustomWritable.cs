@@ -8,44 +8,47 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// Wraps another reader to ensure a given amount of bytes are read.
-    /// Overriding content length can be -1 or any negative value, which
-    /// indicates unknown length and will lead to reading all bytes of wrapped reader. 
+    /// Wraps another reader to make it a writable, or to
+    /// ensure a given amount of bytes are read.
     /// </summary>
-    public class ContentLengthCheckCustomReader : ICustomReader
+    public class ContentLengthEnforcingCustomWritable : ICustomReader, ICustomWritable
     {
         private readonly ICustomReader _wrappedReader;
-        private readonly int _contentLength;
+        private readonly long _expectedLength;
+        private readonly int _bufferSize;
         private long _bytesAlreadyRead;
 
         /// <summary>
         /// Creates new instance.
         /// </summary>
         /// <param name="wrappedReader">the backing reader.</param>
-        /// <param name="contentLength">the expected number of bytes to guarantee.
-        /// Can be negative to indicate unknown length.</param>
+        /// <param name="expectedLength">the expected number of bytes to guarantee or assert.
+        /// Can be negative to indicate skipping assertion.</param>
+        /// <param name="bufferSize">size of buffer used during transfer to a writer.
+        /// Can pass zero to use default value</param>
         /// <exception cref="ArgumentNullException">The <paramref name="wrappedBody"/> argument is null.</exception>
-        public ContentLengthCheckCustomReader(ICustomReader wrappedReader,
-            int contentLength)
+        public ContentLengthEnforcingCustomWritable(ICustomReader wrappedReader,
+            long expectedLength, int bufferSize)
         {
             if (wrappedReader == null)
             {
                 throw new ArgumentNullException(nameof(wrappedReader));
             }
             _wrappedReader = wrappedReader;
-            _contentLength = contentLength;
+            _expectedLength = expectedLength;
+            _bufferSize = bufferSize;
         }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int length)
         {
             int bytesToRead = length;
-            if (_contentLength >= 0)
+            if (_expectedLength >= 0)
             {
                 // just in case content length is changed in between reads due
                 // if content length becomes an editable property,
                 // ensure bytesToRead will never become negative.
                 bytesToRead = (int)Math.Max(0,
-                    Math.Min(_contentLength - _bytesAlreadyRead,
+                    Math.Min(_expectedLength - _bytesAlreadyRead,
                     length));
             }
 
@@ -59,11 +62,11 @@ namespace Kabomu.QuasiHttp.EntityBody
 
             // if end of read is encountered, ensure that all
             // requested bytes have been read.
-            var remainingBytesToRead = _contentLength - _bytesAlreadyRead;
+            var remainingBytesToRead = _expectedLength - _bytesAlreadyRead;
             if (bytesJustRead == 0 && remainingBytesToRead > 0)
             {
                 throw new ContentLengthNotSatisfiedException(
-                    _contentLength,
+                    _expectedLength,
                     $"could not read remaining {remainingBytesToRead} " +
                     $"bytes before end of read", null);
             }
@@ -73,6 +76,11 @@ namespace Kabomu.QuasiHttp.EntityBody
         public Task CustomDispose()
         {
             return _wrappedReader.CustomDispose();
+        }
+
+        public Task WriteBytesTo(ICustomWriter writer)
+        {
+            return IOUtils.CopyBytes(this, writer, _bufferSize);
         }
     }
 }
