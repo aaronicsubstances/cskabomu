@@ -2,12 +2,12 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Exceptions
+namespace Kabomu.Common
 {
     /// <summary>
     /// Exception thrown when an imposed limit on data bufering is exceeded.
     /// </summary>
-    public class DataBufferLimitExceededException : Exception
+    public class DataBufferLimitExceededException : KabomuException
     {
         /// <summary>
         /// Creates new instance.

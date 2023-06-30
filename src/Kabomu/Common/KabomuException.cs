@@ -2,17 +2,17 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Exceptions
+namespace Kabomu.Common
 {
     /// <summary>
-    /// Base exception class for errors encountered during quasi http exchanges.
+    /// Base exception class for errors encountered in the library.
     /// </summary>
-    public abstract class QuasiHttpException : Exception
+    public abstract class KabomuException : Exception
     {
         /// <summary>
         /// Creates new instance.
         /// </summary>
-        public QuasiHttpException()
+        public KabomuException()
         {
 
         }
@@ -21,7 +21,7 @@ namespace Kabomu.QuasiHttp.Exceptions
         /// Creates a new instance with specified message.
         /// </summary>
         /// <param name="message">error message</param>
-        public QuasiHttpException(string message) : base(message)
+        public KabomuException(string message) : base(message)
         {
         }
 
@@ -30,7 +30,7 @@ namespace Kabomu.QuasiHttp.Exceptions
         /// </summary>
         /// <param name="message">error message</param>
         /// <param name="innerException">cause of this exception</param>
-        public QuasiHttpException(string message, Exception innerException) : base(message, innerException)
+        public KabomuException(string message, Exception innerException) : base(message, innerException)
         {
         }
     }

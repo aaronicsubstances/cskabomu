@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Kabomu.Common;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Exceptions
+namespace Kabomu.QuasiHttp
 {
     /// <summary>
     /// Error thrown by instances of <see cref="Client.StandardQuasiHttpClient"/> and
@@ -13,7 +14,7 @@ namespace Kabomu.QuasiHttp.Exceptions
     /// The reason codes in 0-9 which currently do not have an assigned meaning are reserved for use by this class. 
     /// All other numbers including negative values may be used as reason codes.
     /// </remarks>
-    public class QuasiHttpRequestProcessingException : QuasiHttpException
+    public class QuasiHttpRequestProcessingException : KabomuException
     {
         /// <summary>
         /// Indicates general error without much detail to offer aside inspecting error messages and inner exceptions.

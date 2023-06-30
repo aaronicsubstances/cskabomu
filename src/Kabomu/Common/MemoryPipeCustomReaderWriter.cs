@@ -1,11 +1,9 @@
-﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.Exceptions;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.EntityBody
+namespace Kabomu.Common
 {
     /// <summary>
     /// Implementation of quasi http body which is based on a "pipe" of bytes, where one thread writes data to one end of it,
@@ -26,7 +24,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         public MemoryPipeCustomReaderWriter()
             : this(null)
         {
-            
+
         }
 
         public MemoryPipeCustomReaderWriter(ICustomDisposable dependent)

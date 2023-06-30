@@ -1,18 +1,18 @@
 ﻿using System;
+using System.Runtime.Serialization;
 
-namespace Kabomu.QuasiHttp.Exceptions
+namespace Kabomu.Common
 {
     /// <summary>
-    /// Thrown by IQuasiHttpBody implementations which serve Read() calls from some form of write calls,
-    /// when there is some indication that the last write call has been made.
+    /// Thrown by IQuasiHttpBody implementations to cause Read() calls following EndOfRead() calls to fail.
     /// </summary>
-    public class EndOfWriteException : QuasiHttpException
+    public class EndOfReadException : KabomuException
     {
         /// <summary>
-        /// Creates an instance with default message of "end of write"
+        /// Creates an instance with default message of "end of read"
         /// </summary>
-        public EndOfWriteException() :
-            this("end of write")
+        public EndOfReadException() :
+            this("end of read")
         {
         }
 
@@ -20,7 +20,7 @@ namespace Kabomu.QuasiHttp.Exceptions
         /// Creates a new instance with given error message.
         /// </summary>
         /// <param name="message">the error message</param>
-        public EndOfWriteException(string message) : base(message)
+        public EndOfReadException(string message) : base(message)
         {
         }
 
@@ -29,7 +29,7 @@ namespace Kabomu.QuasiHttp.Exceptions
         /// </summary>
         /// <param name="message">the error message</param>
         /// <param name="innerException">any underlying cause of this exception</param>
-        public EndOfWriteException(string message, Exception innerException) : base(message, innerException)
+        public EndOfReadException(string message, Exception innerException) : base(message, innerException)
         {
         }
     }

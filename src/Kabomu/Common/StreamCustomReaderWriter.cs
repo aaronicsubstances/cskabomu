@@ -1,12 +1,11 @@
-﻿using Kabomu.Common;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.EntityBody
+namespace Kabomu.Common
 {
     /// <summary>
     /// Represents stream of bytes directly with an instance of the <see cref="Stream"/> class.

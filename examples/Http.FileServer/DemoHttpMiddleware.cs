@@ -53,9 +53,9 @@ namespace Http.FileServer
                     httpContext.Request.Headers["Transfer-Encoding"],
                     httpContext.Request.ContentLength,
                     httpContext.Request.ContentType);
-                quasiRequest.Body = new DefaultQuasiHttpBody
+                quasiRequest.Body = new CustomReaderBackedBody(
+                    new StreamCustomReaderWriter(httpContext.Request.Body))
                 {
-                    Reader = new StreamCustomReaderWriter(httpContext.Request.Body),
                     ContentLength = httpContext.Request.ContentLength ?? -1,
                     ContentType = httpContext.Request.ContentType
                 };
@@ -76,21 +76,15 @@ namespace Http.FileServer
                 LOG.Error(e, "http request processing failed");
                 quasiResponse = new DefaultQuasiHttpResponse
                 {
-                    Body = new DefaultQuasiHttpBody
-                    {
-                        Writable = new StringCustomWritable(e.Message)
-                    }
+                    Body = new StringBody(e.Message)
                 };
             }
             SetResponseStatusAndHeaders(quasiResponse, httpContext.Response);
             if (quasiResponse.Body != null)
             {
                 var reader = quasiResponse.Body.AsReader();
-                var httpResWrapper = new LambdaBasedCustomWriter(
-                    (data, offset, length) =>
-                        httpContext.Response.Body.WriteAsync(data, offset, length));
-                await IOUtils.CopyBytes(reader, httpResWrapper,
-                    processingOptions.MaxChunkSize);
+                await IOUtils.CopyBytes(reader,
+                    new StreamCustomReaderWriter(httpContext.Response.Body));
             }
         }
 

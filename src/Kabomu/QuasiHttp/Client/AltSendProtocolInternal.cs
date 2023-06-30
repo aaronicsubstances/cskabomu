@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -71,7 +70,7 @@ namespace Kabomu.QuasiHttp.Client
             try
             {
                 var originalResponseBufferingApplied = ProtocolUtilsInternal.GetEnvVarAsBoolean(
-                    response.Environment, IOUtils.ResEnvKeyResponseBufferingApplied);
+                    response.Environment, TransportUtils.ResEnvKeyResponseBufferingApplied);
 
                 var responseBody = response.Body;
                 bool responseBufferingApplied = false;
@@ -82,9 +81,9 @@ namespace Kabomu.QuasiHttp.Client
                     responseBufferingApplied = true;
 
                     // read response body into memory and create equivalent response for 
-                    // which Close() operation is redundant.
+                    // which CustomDispose() operation is redundant.
                     responseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
-                        MaxChunkSize, ResponseBodyBufferingSizeLimit);
+                        ResponseBodyBufferingSizeLimit);
                     response = ProtocolUtilsInternal.CloneQuasiHttpResponse(response, c => c.Body = responseBody);
                 }
 

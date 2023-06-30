@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Exceptions
+namespace Kabomu.Common
 {
     /// <summary>
     /// Exception thrown when the reading of a quasi http body ends and the total number of bytes read is less than
     /// its content length value.
     /// </summary>
-    public class ContentLengthNotSatisfiedException : QuasiHttpException
+    public class ContentLengthNotSatisfiedException : KabomuException
     {
         /// <summary>
         /// Creates new instance with a default error message.

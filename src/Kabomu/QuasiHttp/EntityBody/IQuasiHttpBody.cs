@@ -16,7 +16,7 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// advantage of this to optimize their code wherever possible.
     /// </para>
     /// </remarks>
-    public interface IQuasiHttpBody : ICustomDisposable
+    public interface IQuasiHttpBody : ICustomWritable, ICustomDisposable
     {
         /// <summary>
         /// Gets the number of bytes in the stream represented by this instance, or -1 (actually any negative value)
@@ -32,7 +32,5 @@ namespace Kabomu.QuasiHttp.EntityBody
         string ContentType { get; }
 
         ICustomReader Reader { get; }
-
-        ICustomWritable Writable { get; }
     }
 }

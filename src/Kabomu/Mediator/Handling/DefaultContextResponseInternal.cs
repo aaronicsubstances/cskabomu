@@ -1,9 +1,9 @@
-﻿using Kabomu.Common;
-using Kabomu.QuasiHttp;
+﻿using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.Mediator.Handling
@@ -11,7 +11,7 @@ namespace Kabomu.Mediator.Handling
     internal class DefaultContextResponseInternal : IContextResponse
     {
         private readonly TaskCompletionSource<IQuasiHttpResponse> _responseTransmitter;
-        private readonly ICancellationHandle _commitAllowanceHandle = new DefaultCancellationHandle();
+        private int _commitHappened;
 
         public DefaultContextResponseInternal(IQuasiHttpMutableResponse rawResponse,
             TaskCompletionSource<IQuasiHttpResponse> responseTransmitter)
@@ -79,7 +79,7 @@ namespace Kabomu.Mediator.Handling
 
         public bool TrySend(Action changesCb)
         {
-            if (!_commitAllowanceHandle.Cancel())
+            if (Interlocked.CompareExchange(ref _commitHappened, 1, 0) != 0)
             {
                 return false;
             }

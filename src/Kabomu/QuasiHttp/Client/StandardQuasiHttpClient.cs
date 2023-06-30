@@ -1,5 +1,5 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.Exceptions;
+using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -212,7 +212,7 @@ namespace Kabomu.QuasiHttp.Client
                 transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     options?.MaxChunkSize,
                     DefaultSendOptions?.MaxChunkSize,
-                    IOUtils.DefaultMaxChunkSize);
+                    ChunkedTransferUtils.DefaultMaxChunkSize);
 
                 transfer.ResponseBodyBufferingSizeLimit = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     options?.ResponseBodyBufferingSizeLimit,

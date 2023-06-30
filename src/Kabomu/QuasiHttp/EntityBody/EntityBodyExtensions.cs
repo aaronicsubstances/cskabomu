@@ -10,13 +10,7 @@ namespace Kabomu.QuasiHttp.EntityBody
     {
         public static ICustomReader AsReader(this IQuasiHttpBody body)
         {
-            return IOUtils.CoalesceAsReader(body.Reader, body.Writable);
-        }
-
-        public static ICustomWritable AsWritable(this IQuasiHttpBody body)
-        {
-            return IOUtils.CoaleasceAsWritable(body.Writable,
-                body.Reader, body.ContentLength, 0);
+            return IOUtils.CoalesceAsReader(body.Reader, body);
         }
     }
 }

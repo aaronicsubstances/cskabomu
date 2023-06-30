@@ -1,12 +1,11 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.EntityBody
+namespace Kabomu.QuasiHttp.ChunkedTransfer
 {
     public class ChunkEncodingCustomWriter : ICustomWriter, ITransportContext
     {

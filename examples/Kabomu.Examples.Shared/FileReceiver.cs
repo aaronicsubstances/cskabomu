@@ -56,10 +56,7 @@ namespace Kabomu.Examples.Shared
                 using (var fileStream = new FileStream(p, FileMode.Create))
                 {
                     var reader = context.Request.Body.AsReader();
-                    var fileStreamWrapper = new LambdaBasedCustomWriter(
-                        (data, offset, length) =>
-                            fileStream.WriteAsync(data, offset, length));
-                    await IOUtils.CopyBytes(reader, fileStreamWrapper, 0);
+                    await IOUtils.CopyBytes(reader, new StreamCustomReaderWriter(fileStream));
                 }
             }
             catch (Exception e)

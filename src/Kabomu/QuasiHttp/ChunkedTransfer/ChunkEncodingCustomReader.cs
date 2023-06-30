@@ -1,11 +1,10 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.ChunkedTransfer;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.EntityBody
+namespace Kabomu.QuasiHttp.ChunkedTransfer
 {
     /// <summary>
     /// The standard chunk encoder of byte streams of unknown lengths in the Kabomu library. Wraps a quasi http body

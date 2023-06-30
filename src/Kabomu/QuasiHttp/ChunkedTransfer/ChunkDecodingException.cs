@@ -1,13 +1,14 @@
-﻿using System;
+﻿using Kabomu.Common;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.Exceptions
+namespace Kabomu.QuasiHttp.ChunkedTransfer
 {
     /// <summary>
     /// Exception thrown when chunk decoding of data from transport connections and quasi http body fail.
     /// </summary>
-    public class ChunkDecodingException : QuasiHttpException
+    public class ChunkDecodingException : KabomuException
     {
         /// <summary>
         /// Creates a new instance with the specified error message.

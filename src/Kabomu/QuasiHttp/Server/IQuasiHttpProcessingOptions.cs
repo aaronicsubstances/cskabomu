@@ -20,8 +20,8 @@ namespace Kabomu.QuasiHttp.Server
         int TimeoutMillis { get; set; }
 
         /// <summary>
-        /// Gets the value that imposes a maximum size on the chunks and read buffers which will be generated during
-        /// the processing of a request.
+        /// Gets the value that imposes a maximum size on the chunks which will be generated during
+        /// the processing of a request, in accordance with the chunked transfer protocol.
         /// </summary>
         /// <remarks>
         /// Note that zero and negative values will be interpreted as unspecified, and in the absence of any overriding options

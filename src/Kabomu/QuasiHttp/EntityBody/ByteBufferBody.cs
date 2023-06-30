@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
-    public class ByteBufferCustomWritable : ICustomReader, ICustomWritable
+    public class ByteBufferBody : AbstractQuasiHttpBody, ICustomReader
     {
         private int _bytesRead = 0;
 
@@ -15,7 +15,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         /// <param name="data">backing byte array</param>
         /// <exception cref="ArgumentNullException">The <paramref name="data"/> argument is null</exception>
-        public ByteBufferCustomWritable(byte[] data) :
+        public ByteBufferBody(byte[] data) :
             this(data, 0, data?.Length ?? 0)
         {
         }
@@ -29,7 +29,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// <exception cref="ArgumentNullException">The <paramref name="data"/> argument is null</exception>
         /// <exception cref="ArgumentException">The combination of offset and length arguments generate invalid indices
         /// in data argument</exception>
-        public ByteBufferCustomWritable(byte[] data, int offset, int length)
+        public ByteBufferBody(byte[] data, int offset, int length)
         {
             if (data == null)
             {
@@ -43,6 +43,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             Buffer = data;
             Offset = offset;
             Length = length;
+            ContentLength = length;
         }
 
         /// <summary>
@@ -68,14 +69,9 @@ namespace Kabomu.QuasiHttp.EntityBody
             return Task.FromResult(length);
         }
 
-        public Task CustomDispose()
-        {
-            return Task.CompletedTask;
-        }
+        public override Task CustomDispose() => Task.CompletedTask;
 
-        public Task WriteBytesTo(ICustomWriter writer)
-        {
-            return writer.WriteBytes(Buffer, Offset, Length);
-        }
+        public override Task WriteBytesTo(ICustomWriter writer) =>
+            writer.WriteBytes(Buffer, Offset, Length);
     }
 }

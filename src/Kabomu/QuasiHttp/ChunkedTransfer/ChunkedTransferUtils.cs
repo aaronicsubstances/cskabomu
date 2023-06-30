@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,6 +9,23 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 {
     public static class ChunkedTransferUtils
     {
+        /// <summary>
+        /// The default value of max chunk size used by quasi http servers and clients. Equal to 8,192 bytes.
+        /// </summary>
+        public static readonly int DefaultMaxChunkSize = IOUtils.DefaultReadBufferSize;
+
+        /// <summary>
+        /// The maximum value of a max chunk size that can be tolerated during chunk decoding even if it
+        /// exceeds the value used for sending. Equal to 65,536 bytes.
+        /// </summary>
+        /// <remarks>
+        /// Practically this means that communicating parties can safely send chunks not exceeding 64KB without
+        /// fear of rejection and without prior negotiation. Beyond 64KB however, communicating parties must have
+        /// some prior negotiation (manual or automated) on max chunk sizes, or else chunks may be rejected
+        /// by receivers as too large.
+        /// </remarks>
+        public static readonly int DefaultMaxChunkSizeLimit = 65_536;
+
         /// <summary>
         /// Constant used internally to indicate the number of bytes used to encode the length
         /// of a lead or subsequent chunk, which is 3.
@@ -176,11 +192,11 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 throw new ChunkDecodingException(
                     $"{prefix}: received negative chunk size of {chunkLen}");
             }
-            if (chunkLen > IOUtils.DefaultMaxChunkSizeLimit && chunkLen > maxChunkSize)
+            if (chunkLen > DefaultMaxChunkSizeLimit && chunkLen > maxChunkSize)
             {
                 throw new ChunkDecodingException(
                     $"{prefix}: received chunk size of {chunkLen} exceeds" +
-                    $" default limit on max chunk size ({IOUtils.DefaultMaxChunkSizeLimit})" +
+                    $" default limit on max chunk size ({DefaultMaxChunkSizeLimit})" +
                     $" as well as maximum configured chunk size of {maxChunkSize}");
             }
         }

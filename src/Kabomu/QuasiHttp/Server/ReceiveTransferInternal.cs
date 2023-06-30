@@ -1,5 +1,4 @@
-﻿using Kabomu.QuasiHttp.Exceptions;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Threading;

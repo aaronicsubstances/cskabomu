@@ -147,31 +147,5 @@ namespace Kabomu.Common
             }
             return v;
         }
-
-        /// <summary>
-        /// Computes the total count of bytes indicated by a collection of byte buffer slices.
-        /// </summary>
-        /// <param name="slices">array of byte buffer slices. each element must be non null and have a 
-        /// non negative length.</param>
-        /// <returns>sum of all lengths indicated by slices</returns>
-        /// <exception cref="T:System.ArgumentException">The <paramref name="slices"/> argument contains null.</exception>
-        /// <exception cref="T:System.ArgumentException">The <paramref name="slices"/> argument contains a negative length.</exception>
-        public static int CalculateSizeOfSlices(ByteBufferSlice[] slices)
-        {
-            int byteCount = 0;
-            foreach (var slice in slices)
-            {
-                if (slice == null)
-                {
-                    throw new ArgumentException("encountered null slice", nameof(slices));
-                }
-                if (slice.Length < 0)
-                {
-                    throw new ArgumentException("encountered slice with negative length", nameof(slices));
-                }
-                byteCount += slice.Length;
-            }
-            return byteCount;
-        }
     }
 }

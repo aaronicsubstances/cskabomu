@@ -1,7 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -112,34 +111,6 @@ namespace Kabomu.QuasiHttp
             return null;
         }
 
-        public static async Task<IQuasiHttpBody> CreateEquivalentInMemoryBody(
-            IQuasiHttpBody body, int bufferSize, int bufferingLimit)
-        {
-            // read in entirety of body into memory and
-            // maintain content length and content type for the sake of tests.
-            var reader = IOUtils.CoalesceAsReader(body.Reader,
-                body.Writable);
-            if (reader == null)
-            {
-                return null;
-            }
-
-            if (body.ContentLength >= 0)
-            {
-                reader = new ContentLengthEnforcingCustomWritable(reader,
-                    body.ContentLength, 0);
-            }
-            var inMemBuffer = await IOUtils.ReadAllBytes(
-                reader, bufferSize, bufferingLimit);
-            reader = new ByteBufferCustomWritable(inMemBuffer);
-            return new DefaultQuasiHttpBody
-            {
-                Reader = reader,
-                ContentLength = body.ContentLength,
-                ContentType = body.ContentType
-            };
-        }
-
         public static async Task<IQuasiHttpResponse> CompleteRequestProcessing(
             Task<IQuasiHttpResponse> workTask,
             Task<IQuasiHttpResponse> cancellationTask,
@@ -202,21 +173,32 @@ namespace Kabomu.QuasiHttp
             return resClone;
         }
 
+        public static async Task<IQuasiHttpBody> CreateEquivalentInMemoryBody(
+            IQuasiHttpBody body, int bodyBufferingLimit)
+        {
+            // read in entirety of body into memory and
+            // maintain content length and content type for the sake of tests.
+            var reader = IOUtils.CoalesceAsReader(body.Reader, body);
+
+            if (body.ContentLength >= 0)
+            {
+                reader = new ContentLengthEnforcingCustomReader(reader,
+                    body.ContentLength);
+            }
+            var inMemBuffer = await IOUtils.ReadAllBytes(reader, bodyBufferingLimit);
+            return new ByteBufferBody(inMemBuffer)
+            {
+                ContentLength = body.ContentLength,
+                ContentType = body.ContentType
+            };
+        }
+
         public static async Task TransferBody(ICustomWriter writer, int maxChunkSize,
             IQuasiHttpBody body)
         {
             if (body == null || body.ContentLength == 0)
             {
                 return;
-            }
-            var writable = IOUtils.CoaleasceAsWritable(body.Writable,
-                body.Reader, body.ContentLength, maxChunkSize);
-            if (writable == null)
-            {
-                if (body.ContentLength > 0)
-                {
-                    throw new Exception("body not provided even though content length is positive");
-                }
             }
             if (body.ContentLength > 0)
             {
@@ -226,13 +208,9 @@ namespace Kabomu.QuasiHttp
             {
                 writer = new ChunkEncodingCustomWriter(writer, maxChunkSize);
             }
-            // instead of quitting when writable is null, we instead
-            // want to make it possible to use chunk encoding to
-            // write out an empty chunk.
-            if (writable != null)
-            {
-                await writable.WriteBytesTo(writer);
-            }
+            await body.WriteBytesTo(writer);
+
+            // important for chunked transfer to write out final empty chunk
             await writer.CustomDispose();
         }
 
@@ -246,13 +224,16 @@ namespace Kabomu.QuasiHttp
                 return null;
             }
 
+            // but for the need to release connection in response processing stage,
+            // as opposed to keeping connection in request processing stage,
+            // could have received the reader as a parameter.
             ICustomReader transportReader = new TransportCustomReaderWriter(
                 transport, connection, releaseConnection);
             if (contentLength > 0)
             {
                 await ChunkedTransferUtils.ReadAwayHeaderForBodyWithKnownLength(transportReader);
-                transportReader = new ContentLengthEnforcingCustomWritable(transportReader,
-                    contentLength, maxChunkSize);
+                transportReader = new ContentLengthEnforcingCustomReader(transportReader,
+                    contentLength);
             }
             else
             {
@@ -262,15 +243,21 @@ namespace Kabomu.QuasiHttp
             if (bufferingEnabled)
             {
                 var inMemBuffer = await IOUtils.ReadAllBytes(
-                    transportReader, maxChunkSize, bodyBufferingSizeLimit);
-                transportReader = new ByteBufferCustomWritable(inMemBuffer);
+                    transportReader, bodyBufferingSizeLimit);
+                return new ByteBufferBody(inMemBuffer)
+                {
+                    ContentType = contentType,
+                    ContentLength = contentLength
+                };
             }
-            return new DefaultQuasiHttpBody
+            else
             {
-                ContentType = contentType,
-                ContentLength = contentLength,
-                Reader = transportReader
-            };
+                return new CustomReaderBackedBody(transportReader)
+                {
+                    ContentType = contentType,
+                    ContentLength = contentLength
+                };
+            }
         }
     }
 }

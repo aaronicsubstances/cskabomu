@@ -1,6 +1,4 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.QuasiHttp.Exceptions;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -22,38 +20,6 @@ namespace Kabomu.Common
         /// The default read buffer size. Equal to 8,192 bytes.
         /// </summary>
         public static readonly int DefaultReadBufferSize = 8_192;
-
-        /// <summary>
-        /// The default value of max chunk size used by quasi http servers and clients. Equal to 8,192 bytes.
-        /// </summary>
-        public static readonly int DefaultMaxChunkSize = DefaultReadBufferSize;
-
-        /// <summary>
-        /// The maximum value of a max chunk size that can be tolerated during chunk decoding even if it
-        /// exceeds the value used for sending. Equal to 65,536 bytes.
-        /// </summary>
-        /// <remarks>
-        /// Practically this means that communicating parties can safely send chunks not exceeding 64KB without
-        /// fear of rejection and without prior negotiation. Beyond 64KB however, communicating parties must have
-        /// some prior negotiation (manual or automated) on max chunk sizes, or else chunks may be rejected
-        /// by receivers as too large.
-        /// </remarks>
-        public static readonly int DefaultMaxChunkSizeLimit = 65_536;
-
-        /// <summary>
-        /// Request environment variable name of "kabomu.local_peer_endpoint" for local server endpoint.
-        /// </summary>
-        public static readonly string ReqEnvKeyLocalPeerEndpoint = "kabomu.local_peer_endpoint";
-
-        /// <summary>
-        /// Request environment variable name of "kabomu.remote_peer_endpoint" for remote client endpoint.
-        /// </summary>
-        public static readonly string ReqEnvKeyRemotePeerEndpoint = "kabomu.remote_peer_endpoint";
-
-        /// <summary>
-        /// Response environment variable of "kabomu.response_buffering_enabled" for indicating whether or not response has been bufferred already.
-        /// </summary>
-        public static readonly string ResEnvKeyResponseBufferingApplied = "kabomu.response_buffering_enabled";
 
         /// <summary>
         /// Reads in data in order to completely fill in a buffer.
@@ -95,26 +61,26 @@ namespace Kabomu.Common
         /// thrown if there is more data after that limit.
         /// </remarks>
         /// <param name="body">The source of data to read.</param>
-        /// <param name="bufferSize">The size in bytes of the read buffer.
-        /// Can pass zero to use default value</param>
         /// <param name="bufferingLimit">Indicates the maximum size in bytes of the resulting buffer.
         /// Can pass zero to use default value. Can also pass a negative value which will ignore
         /// imposing a maximum size.</param>
+        /// <param name="readBufferSize">The size in bytes of the read buffer.
+        /// Can pass zero to use default value</param>
         /// <returns>A promise whose result is an in-memory buffer which has all of the remaining data in the reader.</returns>
         /// <exception cref="DataBufferLimitExceededException">If <paramref name="bufferingLimit"/> argument has a nonnegative value,
         /// and data in <paramref name="body"/> argument exceeds that value.</exception>
-        public static async Task<byte[]> ReadAllBytes(ICustomReader reader, int bufferSize = 0,
-            int bufferingLimit = 0)
+        public static async Task<byte[]> ReadAllBytes(ICustomReader reader,
+            int bufferingLimit = 0, int readBufferSize = 0)
         {
-            if (bufferSize <= 0)
+            if (readBufferSize <= 0)
             {
-                bufferSize = DefaultReadBufferSize;
+                readBufferSize = DefaultReadBufferSize;
             }
             if (bufferingLimit == 0)
             {
                 bufferingLimit = DefaultDataBufferLimit;
             }
-            var readBuffer = new byte[bufferSize];
+            var readBuffer = new byte[readBufferSize];
             var byteStream = new MemoryStream();
 
             int totalBytesRead = 0;
@@ -204,9 +170,8 @@ namespace Kabomu.Common
             return memoryPipe;
         }
 
-        public static ICustomWritable CoaleasceAsWritable(
-            ICustomWritable writable,
-            ICustomReader fallback, long contentLength, int bufferSize)
+        public static ICustomWritable CoaleasceAsWritable(ICustomWritable writable,
+            ICustomReader fallback)
         {
             if (writable != null)
             {
@@ -216,8 +181,9 @@ namespace Kabomu.Common
             {
                 return w;
             }
-            return new ContentLengthEnforcingCustomWritable(
-                fallback, contentLength, bufferSize);
+            return new LambdaBasedCustomWritable(
+                writer => CopyBytes(fallback, writer),
+                () => fallback.CustomDispose());
         }
     }
 }

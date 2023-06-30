@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using System;
@@ -96,9 +97,9 @@ namespace Kabomu.Examples.Shared
                 var responseStream = await responseWrapper.Content.ReadAsStreamAsync();
                 var contentLength = responseWrapper.Content.Headers.ContentLength ?? -1;
                 var contentType = responseWrapper.Content.Headers.ContentType?.ToString();
-                response.Body = new DefaultQuasiHttpBody
+                response.Body = new CustomReaderBackedBody(
+                    new StreamCustomReaderWriter(responseStream))
                 {
-                    Reader = new StreamCustomReaderWriter(responseStream),
                     ContentLength = contentLength,
                     ContentType = contentType
                 };

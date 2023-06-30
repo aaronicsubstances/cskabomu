@@ -1,21 +1,17 @@
-﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.Exceptions;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.EntityBody
+namespace Kabomu.Common
 {
     /// <summary>
-    /// Wraps another reader to make it a writable, or to
-    /// ensure a given amount of bytes are read.
+    /// Wraps another reader to ensure a given amount of bytes are read.
     /// </summary>
-    public class ContentLengthEnforcingCustomWritable : ICustomReader, ICustomWritable
+    public class ContentLengthEnforcingCustomReader : ICustomReader
     {
         private readonly ICustomReader _wrappedReader;
         private readonly long _expectedLength;
-        private readonly int _bufferSize;
         private long _bytesAlreadyRead;
 
         /// <summary>
@@ -24,11 +20,9 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// <param name="wrappedReader">the backing reader.</param>
         /// <param name="expectedLength">the expected number of bytes to guarantee or assert.
         /// Can be negative to indicate skipping assertion.</param>
-        /// <param name="bufferSize">size of buffer used during transfer to a writer.
-        /// Can pass zero to use default value</param>
         /// <exception cref="ArgumentNullException">The <paramref name="wrappedBody"/> argument is null.</exception>
-        public ContentLengthEnforcingCustomWritable(ICustomReader wrappedReader,
-            long expectedLength, int bufferSize)
+        public ContentLengthEnforcingCustomReader(ICustomReader wrappedReader,
+            long expectedLength)
         {
             if (wrappedReader == null)
             {
@@ -36,7 +30,6 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
             _wrappedReader = wrappedReader;
             _expectedLength = expectedLength;
-            _bufferSize = bufferSize;
         }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int length)
@@ -76,11 +69,6 @@ namespace Kabomu.QuasiHttp.EntityBody
         public Task CustomDispose()
         {
             return _wrappedReader.CustomDispose();
-        }
-
-        public Task WriteBytesTo(ICustomWriter writer)
-        {
-            return IOUtils.CopyBytes(this, writer, _bufferSize);
         }
     }
 }

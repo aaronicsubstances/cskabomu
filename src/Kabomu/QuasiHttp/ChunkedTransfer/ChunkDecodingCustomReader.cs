@@ -1,12 +1,10 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.ChunkedTransfer;
-using Kabomu.QuasiHttp.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.QuasiHttp.EntityBody
+namespace Kabomu.QuasiHttp.ChunkedTransfer
 {
     /// <summary>
     /// The standard chunk decoder of byte streams in the Kabomu library. Wraps a quasi http body and assumes it consists of
@@ -42,7 +40,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             }
             _wrappedReader = wrappedReader;
             _maxChunkSize = maxChunkSize;
-             _encodedLengthReceiver = new byte[ChunkedTransferUtils.LengthOfEncodedChunkLength];
+            _encodedLengthReceiver = new byte[ChunkedTransferUtils.LengthOfEncodedChunkLength];
         }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
