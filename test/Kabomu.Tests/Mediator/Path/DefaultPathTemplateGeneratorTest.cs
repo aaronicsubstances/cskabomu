@@ -203,7 +203,7 @@ namespace Kabomu.Tests.Mediator.Path
         {
             var instance = new DefaultPathTemplateGenerator();
 
-            Assert.Throws<PathTemplateException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
                 instance.Parse(null, null));
 
             Assert.Throws<PathTemplateException>(() =>

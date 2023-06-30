@@ -84,7 +84,15 @@ namespace Kabomu.QuasiHttp.Client
                     // which CustomDispose() operation is redundant.
                     responseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
                         ResponseBodyBufferingSizeLimit);
-                    response = ProtocolUtilsInternal.CloneQuasiHttpResponse(response, c => c.Body = responseBody);
+                    response = new DefaultQuasiHttpResponse
+                    {
+                        StatusCode = response.StatusCode,
+                        Headers = response.Headers,
+                        HttpVersion = response.HttpVersion,
+                        HttpStatusMessage = response.HttpStatusMessage,
+                        Body = responseBody,
+                        Environment = response.Environment
+                    };
                 }
 
                 if (responseBody == null || originalResponseBufferingApplied == true ||

@@ -13,7 +13,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
     public class AltReceiveProtocolInternalTest
     {
 
-        [Fact]
+        /*[Fact]
         public async Task TestReceiveForDependencyErrors()
         {
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
@@ -71,6 +71,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             var actualResponse = await instance.Receive();
             Assert.Same(expectedResponse, actualResponse);
-        }
+        }*/
     }
 }

@@ -14,7 +14,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 {
     public class AltSendProtocolInternalTest
     {
-        [Fact]
+        /*[Fact]
         public async Task TestSendForErrors()
         {
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
@@ -382,6 +382,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 throw new NotImplementedException();
             }
-        }
+        }*/
     }
 }

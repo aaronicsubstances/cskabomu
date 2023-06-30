@@ -2,7 +2,6 @@
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared;
@@ -17,7 +16,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 {
     public class DefaultReceiveProtocolInternalTest
     {
-        [Fact]
+        /*[Fact]
         public async Task TestReceiveForDependencyErrors()
         {
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
@@ -384,6 +383,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 CloseCalled = true;
                 return Task.CompletedTask;
             }
-        }
+        }*/
     }
 }

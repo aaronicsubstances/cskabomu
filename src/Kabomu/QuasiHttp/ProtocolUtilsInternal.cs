@@ -154,25 +154,6 @@ namespace Kabomu.QuasiHttp
             return await cancellationTask;
         }
 
-        public static IQuasiHttpResponse CloneQuasiHttpResponse(IQuasiHttpResponse response,
-            Action<IQuasiHttpMutableResponse> modifier)
-        {
-            var resClone = new DefaultQuasiHttpResponse
-            {
-                StatusCode = response.StatusCode,
-                Headers = response.Headers,
-                HttpVersion = response.HttpVersion,
-                HttpStatusMessage = response.HttpStatusMessage,
-                Body = response.Body,
-                Environment = response.Environment
-            };
-            if (modifier != null)
-            {
-                modifier.Invoke(resClone);
-            }
-            return resClone;
-        }
-
         public static async Task<IQuasiHttpBody> CreateEquivalentInMemoryBody(
             IQuasiHttpBody body, int bodyBufferingLimit)
         {

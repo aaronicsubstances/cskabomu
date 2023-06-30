@@ -138,13 +138,20 @@ namespace Kabomu.Mediator.Path
             IDictionary<string, DefaultPathTemplateMatchOptions> individualOptions = null;
             if (options != null)
             {
-                if (options is IDictionary<string, DefaultPathTemplateMatchOptions>)
+                try
                 {
-                    individualOptions = (IDictionary<string, DefaultPathTemplateMatchOptions>)options;
+                    if (options is IDictionary<string, DefaultPathTemplateMatchOptions>)
+                    {
+                        individualOptions = (IDictionary<string, DefaultPathTemplateMatchOptions>)options;
+                    }
+                    else
+                    {
+                        optionsForAll = (DefaultPathTemplateMatchOptions)options;
+                    }
                 }
-                else
+                catch (InvalidCastException e)
                 {
-                    optionsForAll = (DefaultPathTemplateMatchOptions)options;
+                    throw new PathTemplateException(e.Message);
                 }
             }
 

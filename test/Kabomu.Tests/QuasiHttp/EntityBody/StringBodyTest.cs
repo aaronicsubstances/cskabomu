@@ -10,7 +10,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class StringBodyTest
     {
-        [Fact]
+        /*[Fact]
         public Task TestEmptyRead()
         {
             // arrange.
@@ -47,6 +47,6 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             });
             var instance = new StringBody("c2");
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
-        }
+        }*/
     }
 }

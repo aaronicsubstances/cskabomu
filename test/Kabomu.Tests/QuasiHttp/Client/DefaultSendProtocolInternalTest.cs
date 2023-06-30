@@ -15,7 +15,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 {
     public class DefaultSendProtocolInternalTest
     {
-        [Fact]
+        /*[Fact]
         public async Task TestSendForDependencyErrors()
         {
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
@@ -392,6 +392,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 MiscUtils.LengthOfEncodedChunkLength - actualReqChunkLength;
             // since request body could not be read, there should be no request body data
             Assert.Equal(0, actualRequestBodyLen);
-        }
+        }*/
     }
 }

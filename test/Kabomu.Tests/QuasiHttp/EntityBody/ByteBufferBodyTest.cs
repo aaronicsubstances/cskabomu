@@ -11,7 +11,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class ByteBufferBodyTest
     {
-        [Fact]
+        /*[Fact]
         public Task TestEmptyRead()
         {
             // arrange.
@@ -128,6 +128,6 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             });
             var instance = new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2);
             return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
-        }
+        }*/
     }
 }

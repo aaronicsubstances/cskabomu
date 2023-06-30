@@ -1,7 +1,6 @@
 remaining (can skip if library works with all examples)
 ==========
--add integration tests for StandardQuasiHttpServer and StandardQuasiHttpClient
--remove need for VirtualTimeBasedEventLoopApi once and for all
+-integration tests for StandardQuasiHttpServer and StandardQuasiHttpClient
 
 Release
 -------

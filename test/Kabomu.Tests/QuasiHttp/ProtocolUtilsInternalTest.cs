@@ -1,7 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.QuasiHttp.Exceptions;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -306,10 +305,31 @@ namespace Kabomu.Tests.QuasiHttp
 
         [Theory]
         [MemberData(nameof(CreateTestCreateEquivalentInMemoryBodyData))]
-        public async Task TestCreateEquivalentInMemoryBody(int bufferSize,
-            int bufferingLimit, IQuasiHttpBody originalBody, byte[] expectedBodyBytes)
+        public async Task TestCreateEquivalentInMemoryBody(int bufferingLimit,
+            IQuasiHttpBody originalBody, byte[] expectedBodyBytes)
         {
             // arrange.
+            var disposed = false;
+            var originalBody1 = originalBody;
+            originalBody = new CustomReaderBackedBody(
+                new LambdaBasedCustomReader(
+                    (data, offset, length) =>
+                    {
+                        if (disposed)
+                        {
+                            throw new InvalidOperationException("disposed");
+                        }
+                        return originalBody1.AsReader().ReadBytes(data, offset, length);
+                    },
+                    () =>
+                    {
+                        disposed = true;
+                        return Task.CompletedTask;
+                    }))
+            {
+                ContentLength = originalBody1.ContentLength,
+                ContentType = originalBody1.ContentType
+            };
             IQuasiHttpBody expected = new ByteBufferBody(expectedBodyBytes)
             {
                 ContentType = originalBody.ContentType,
@@ -318,32 +338,30 @@ namespace Kabomu.Tests.QuasiHttp
 
             // act.
             var actualResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(originalBody,
-                bufferSize, bufferingLimit);
+                bufferingLimit);
             
             // assert.
             // check that original response body has been ended.
-            await Assert.ThrowsAsync<EndOfReadException>(() => originalBody.ReadBytes(new byte[1], 0, 1));
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                originalBody.AsReader().ReadBytes(new byte[1], 0, 1));
             // finally verify content.
-            await ComparisonUtils.CompareBodies(bufferSize, expected, actualResponseBody, expectedBodyBytes);
+            await ComparisonUtils.CompareBodies(expected, actualResponseBody, expectedBodyBytes);
         }
 
         public static List<object[]> CreateTestCreateEquivalentInMemoryBodyData()
         {
             var testData = new List<object[]>();
 
-            int bufferSize = 1;
             int bufferingLimit = 0;
             byte[] expectedResBodyBytes = new byte[0];
             IQuasiHttpBody responseBody = new ByteBufferBody(expectedResBodyBytes);
-            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+            testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
-            bufferSize = 1;
             bufferingLimit = 0;
             expectedResBodyBytes = new byte[0];
             responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes));
-            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+            testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
-            bufferSize = 2;
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' };
             bufferingLimit = expectedResBodyBytes.Length;
@@ -351,16 +369,14 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 ContentType = "text/plain"
             };
-            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+            testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
-            bufferSize = 10;
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' };
             bufferingLimit = expectedResBodyBytes.Length;
             responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes));
-            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+            testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
-            bufferSize = 10;
             bufferingLimit = 8;
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' };
@@ -368,11 +384,10 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 ContentType = "application/octet-stream"
             };
-            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+            testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
             // test that over abundance of data works fine.
 
-            bufferSize = 100;
             bufferingLimit = 4;
             responseBody = new ByteBufferBody(new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' })
@@ -381,7 +396,7 @@ namespace Kabomu.Tests.QuasiHttp
                 ContentLength = 3
             };
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c' };
-            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+            testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
             return testData;
         }
@@ -389,33 +404,18 @@ namespace Kabomu.Tests.QuasiHttp
         [Fact]
         public async Task TestCreateEquivalentInMemoryBodyForErrors1()
         {
-            int bufferSize = 1;
             int bufferingLimit = 3;
-            var responseBody = new StringBody("xyz!");
-            await Assert.ThrowsAnyAsync<Exception>(() =>
+            var responseBody = new ByteBufferBody(ByteUtils.StringToBytes("xyz!"));
+            await Assert.ThrowsAsync<DataBufferLimitExceededException>(() =>
             {
                 return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
-                    bufferSize, bufferingLimit);
+                    bufferingLimit);
             });
         }
 
         [Fact]
         public async Task TestCreateEquivalentInMemoryBodyForErrors2()
         {
-            int bufferSize = 1;
-            int bufferingLimit = 3;
-            var responseBody = new ByteBufferBody(ByteUtils.StringToBytes("xyz!"));
-            await Assert.ThrowsAsync<DataBufferLimitExceededException>(() =>
-            {
-                return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
-                    bufferSize, bufferingLimit);
-            });
-        }
-
-        [Fact]
-        public async Task TestCreateEquivalentInMemoryBodyForErrors3()
-        {
-            int bufferSize = 1;
             int bufferingLimit = 30;
             var responseBody = new StringBody("xyz!")
             {
@@ -424,7 +424,7 @@ namespace Kabomu.Tests.QuasiHttp
             await Assert.ThrowsAsync<ContentLengthNotSatisfiedException>(() =>
             {
                 return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
-                    bufferSize, bufferingLimit);
+                    bufferingLimit);
             });
         }
     }
