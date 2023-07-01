@@ -43,8 +43,6 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
         private static readonly ByteBufferSlice[] ChunkPrefix;
         private static readonly int ChunkPrefixLength;
-        private static readonly int DefaultValueForInvalidChunkLength = -1;
-        private static readonly byte[] EncodedChunkLengthOfDefaultInvalidValue;
 
         static ChunkedTransferUtils()
         {
@@ -54,42 +52,6 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }.Serialize();
             ChunkPrefixLength = ChunkPrefix.Sum(s => s.Length);
             ReservedBytesToUse = LengthOfEncodedChunkLength + ChunkPrefixLength;
-
-            EncodedChunkLengthOfDefaultInvalidValue = new byte[LengthOfEncodedChunkLength];
-            ByteUtils.SerializeUpToInt64BigEndian(DefaultValueForInvalidChunkLength,
-                EncodedChunkLengthOfDefaultInvalidValue, 0, LengthOfEncodedChunkLength);
-        }
-
-        public static async Task<int> ReadNextSubsequentChunk(
-            ICustomReader srcReader, int maxChunkSize,
-            byte[] data, int offset, int bytesToRead)
-        {
-            if (srcReader == null)
-            {
-                throw new ArgumentNullException(nameof(srcReader));
-            }
-
-            if (bytesToRead <= ReservedBytesToUse)
-            {
-                if (bytesToRead < 0)
-                {
-                    throw new ArgumentException("invalid bytes to read");
-                }
-                else
-                {
-                    throw new ArgumentException($"require at least {ReservedBytesToUse + 1} bytes to read");
-                }
-            }
-            bytesToRead = Math.Min(bytesToRead, maxChunkSize);
-            if (bytesToRead <= ReservedBytesToUse)
-            {
-                throw new ArgumentException("max chunk size too small to read and encode any number of bytes");
-            }
-
-            int bytesRead = await srcReader.ReadBytes(data,
-                offset + ReservedBytesToUse, bytesToRead - ReservedBytesToUse);
-            EncodeSubsequentChunkHeader(bytesRead, data, offset);
-            return bytesRead + ReservedBytesToUse;
         }
 
         internal static void EncodeSubsequentChunkHeader(
@@ -105,25 +67,6 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                     data, offset + LengthOfEncodedChunkLength + sliceBytesWritten,
                     slice.Length);
                 sliceBytesWritten += slice.Length;
-            }
-        }
-
-        public static Task WriteHeaderForBodyWithKnownLength(ICustomWriter writer)
-        {
-            return writer.WriteBytes(EncodedChunkLengthOfDefaultInvalidValue, 0,
-                EncodedChunkLengthOfDefaultInvalidValue.Length);
-        }
-
-        public static async Task ReadAwayHeaderForBodyWithKnownLength(ICustomReader reader)
-        {
-            var encLengthBytes = new byte[LengthOfEncodedChunkLength];
-            await IOUtils.ReadBytesFully(reader,
-                encLengthBytes, 0, encLengthBytes.Length);
-            int knownContentLengthPrefix = (int)ByteUtils.DeserializeUpToInt64BigEndian(encLengthBytes, 0,
-                encLengthBytes.Length, true);
-            if (knownContentLengthPrefix != DefaultValueForInvalidChunkLength)
-            {
-                throw new ChunkDecodingException("invalid prefix for known content length");
             }
         }
 

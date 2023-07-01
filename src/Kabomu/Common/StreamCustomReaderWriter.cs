@@ -13,6 +13,7 @@ namespace Kabomu.Common
     public class StreamCustomReaderWriter : ICustomReader, ICustomWriter
     {
         private readonly CancellationTokenSource _streamCancellationHandle = new CancellationTokenSource();
+        private readonly Stream _backingStream;
 
         /// <summary>
         /// Creates an instance with an input stream which will supply bytes to be read
@@ -24,25 +25,20 @@ namespace Kabomu.Common
             {
                 throw new ArgumentNullException(nameof(backingStream));
             }
-            BackingStream = backingStream;
+            _backingStream = backingStream;
         }
-
-        /// <summary>
-        /// Returns the stream backing this instance.
-        /// </summary>
-        public Stream BackingStream { get; }
 
         public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
             // supplying cancellation token is for the purpose of leveraging
             // presence of cancellation in C#'s stream interface. Outside code 
             // should not depend on ability to cancel ongoing reads.
-            return BackingStream.ReadAsync(data, offset, length, _streamCancellationHandle.Token);
+            return _backingStream.ReadAsync(data, offset, length, _streamCancellationHandle.Token);
         }
 
         public Task WriteBytes(byte[] data, int offset, int length)
         {
-            return BackingStream.WriteAsync(data, offset, length, _streamCancellationHandle.Token);
+            return _backingStream.WriteAsync(data, offset, length, _streamCancellationHandle.Token);
         }
 
         public async Task CustomDispose()
@@ -50,9 +46,9 @@ namespace Kabomu.Common
             _streamCancellationHandle.Cancel();
             // assume that a stream can be disposed concurrently with any ongoing use of it.
 #if NETCOREAPP3_1
-            await BackingStream.DisposeAsync();
+            await _backingStream.DisposeAsync();
 #else
-            BackingStream.Dispose();
+            _backingStream.Dispose();
 #endif
         }
     }

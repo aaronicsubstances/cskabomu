@@ -175,39 +175,38 @@ namespace Kabomu.Tests.Common
         public async Task TestCopyBytes(string srcData, int readBufferSize, string expected)
         {
             // arrange
-            var reader = new DemoCustomReaderWritable(Encoding.UTF8.GetBytes(srcData))
+            var reader = new DemoCustomReaderWritable(
+                Encoding.UTF8.GetBytes(srcData))
             {
                 TurnOffRandomization = true
             };
-            var actual = new StringBuilder();
-            var disposed = false;
-            var writer = new LambdaBasedCustomWriter
+
+            // act and assert
+            await TestReading(reader, null, readBufferSize, expected, null);
+        }
+
+        internal static async Task TestReading(ICustomReader reader, ICustomWriter writer,
+            int readBufferSize, string expected,
+            Func<ICustomWriter, string> actualFunc)
+        {
+            // arrange
+            if (writer == null)
             {
-                WriteFunc = (data, offset, length) =>
+                writer = new DemoSimpleCustomWriter
                 {
-                    if (disposed)
-                    {
-                        throw new ObjectDisposedException("writer");
-                    }
-                    actual.Append(Encoding.UTF8.GetString(data, offset, length));
-                    actual.Append(",");
-                    return Task.CompletedTask;
-                },
-                DisposeFunc = () =>
-                {
-                    disposed = true;
-                    return Task.CompletedTask;
-                }
-            };
+                    ChunkMarker = ","
+                };
+                actualFunc = writer => ((DemoSimpleCustomWriter)writer).Buffer.ToString();
+            }
 
             // act.
             await IOUtils.CopyBytes(reader, writer, readBufferSize);
 
             // assert
-            Assert.Equal(expected, actual.ToString());
+            Assert.Equal(expected, actualFunc.Invoke(writer));
 
             // ensure reader or writer weren't disposed.
-            await writer.WriteFunc(new byte[0], 0, 0);
+            await writer.WriteBytes(new byte[0], 0, 0);
             await reader.ReadBytes(new byte[0], 0, 0);
         }
 
@@ -277,21 +276,13 @@ namespace Kabomu.Tests.Common
             ICustomReader fallback, string expected)
         {
             writable = IOUtils.CoaleasceAsWritable(writable, fallback);
-            StringBuilder actual = null;
+            DemoSimpleCustomWriter writer = null;
             if (writable != null)
             {
-                actual = new StringBuilder();
-                ICustomWriter writer = new LambdaBasedCustomWriter
-                {
-                    WriteFunc = (data, offset, length) =>
-                    {
-                        actual.Append(Encoding.UTF8.GetString(data, offset, length));
-                        return Task.CompletedTask;
-                    }
-                };
+                writer = new DemoSimpleCustomWriter();
                 await writable.WriteBytesTo(writer);
             }
-            Assert.Equal(expected, actual?.ToString());
+            Assert.Equal(expected, writer?.Buffer.ToString());
         }
 
         public static List<object[]> CreateTestCoaleasceAsWritableData()

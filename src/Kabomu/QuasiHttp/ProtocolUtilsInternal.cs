@@ -183,11 +183,7 @@ namespace Kabomu.QuasiHttp
             {
                 return;
             }
-            if (body.ContentLength > 0)
-            {
-                await ChunkedTransferUtils.WriteHeaderForBodyWithKnownLength(writer);
-            }
-            else
+            if (body.ContentLength < 0)
             {
                 writer = new ChunkEncodingCustomWriter(writer, maxChunkSize);
             }
@@ -212,16 +208,15 @@ namespace Kabomu.QuasiHttp
             // could have received the reader as a parameter.
             ICustomReader transportReader = new TransportCustomReaderWriter(
                 transport, connection, releaseConnection);
-            if (contentLength > 0)
-            {
-                await ChunkedTransferUtils.ReadAwayHeaderForBodyWithKnownLength(transportReader);
-                transportReader = new ContentLengthEnforcingCustomReader(transportReader,
-                    contentLength);
-            }
-            else
+            if (contentLength < 0)
             {
                 transportReader = new ChunkDecodingCustomReader(transportReader,
                     maxChunkSize);
+            }
+            else
+            {
+                transportReader = new ContentLengthEnforcingCustomReader(transportReader,
+                    contentLength);
             }
             if (bufferingEnabled)
             {

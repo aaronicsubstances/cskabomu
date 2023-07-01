@@ -166,23 +166,9 @@ namespace Kabomu.Common
                 return r;
             }
             var memoryPipe = new MemoryPipeCustomReaderWriter(fallback);
-            _ = DumpToMemoryPipe(fallback, memoryPipe);
+            _ = memoryPipe.ConcludeWriting(() =>
+                    fallback.WriteBytesTo(memoryPipe));
             return memoryPipe;
-        }
-
-        private static async Task DumpToMemoryPipe(ICustomWritable writable,
-            MemoryPipeCustomReaderWriter writer)
-        {
-            try
-            {
-                await writable.WriteBytesTo(writer);
-            }
-            catch (Exception e)
-            {
-                await writer.EndWrite(e);
-                return;
-            }
-            await writer.EndWrite();
         }
 
         public static ICustomWritable CoaleasceAsWritable(ICustomWritable writable,

@@ -19,7 +19,7 @@ namespace Kabomu.Common
         private readonly object _mutex = new object();
         private readonly ICustomDisposable _dependent;
         private ReadWriteRequest _readRequest, _writeRequest;
-        private bool _endOfReadSeen, _endOfWriteSeen;
+        private bool _disposed;
         private Exception _endOfReadError, _endOfWriteError;
 
         public MemoryPipeCustomReaderWriter()
@@ -39,18 +39,12 @@ namespace Kabomu.Common
             lock (_mutex)
             {
                 // respond immediately if writes have ended
-                if (_endOfWriteSeen)
+                if (_disposed)
                 {
-                    if (_endOfWriteError != null)
+                    if (_endOfReadError != null)
                     {
-                        throw _endOfWriteError;
+                        throw _endOfReadError;
                     }
-                    return 0;
-                }
-
-                // respond immediately to any zero-byte write
-                if (length == 0)
-                {
                     return 0;
                 }
 
@@ -58,15 +52,21 @@ namespace Kabomu.Common
                 {
                     throw new InvalidOperationException("pending read exist");
                 }
+
+                // respond immediately to any zero-byte write
+                if (length == 0)
+                {
+                    return 0;
+                }
                 _readRequest = new ReadWriteRequest
                 {
                     Data = data,
                     Offset = offset,
                     Length = length,
-                    ReadCallback = new TaskCompletionSource<int>(
+                    Callback = new TaskCompletionSource<int>(
                         TaskCreationOptions.RunContinuationsAsynchronously)
                 };
-                readTask = _readRequest.ReadCallback.Task;
+                readTask = _readRequest.Callback.Task;
 
                 if (_writeRequest != null)
                 {
@@ -77,25 +77,20 @@ namespace Kabomu.Common
             return await readTask;
         }
 
-        public Task EndRead()
+        public async Task ConcludeWriting(Func<Task> writingTask)
         {
-            return EndRead(null);
-        }
-
-        public Task EndRead(Exception e)
-        {
-            lock (_mutex)
+            try
             {
-                _endOfReadSeen = true;
-                _endOfReadError = e ?? new EndOfWriteException();
-                if (_writeRequest != null && _readRequest == null)
+                if (writingTask != null)
                 {
-                    _writeRequest.WriteCallback.SetException(_endOfReadError);
-                    _writeRequest = null;
+                    await writingTask.Invoke();
                 }
+                await CustomDispose();
             }
-
-            return Task.CompletedTask;
+            catch (Exception e)
+            {
+                await CustomDispose(e);
+            }
         }
 
         public async Task WriteBytes(byte[] data, int offset, int length)
@@ -103,9 +98,14 @@ namespace Kabomu.Common
             Task writeTask;
             lock (_mutex)
             {
-                if (_endOfReadSeen)
+                if (_disposed)
                 {
-                    throw _endOfReadError;
+                    throw _endOfWriteError;
+                }
+
+                if (_writeRequest != null)
+                {
+                    throw new InvalidOperationException("pending write exist");
                 }
 
                 // respond immediately to any zero-byte write
@@ -113,21 +113,16 @@ namespace Kabomu.Common
                 {
                     return;
                 }
-
-                if (_writeRequest != null)
-                {
-                    throw new InvalidOperationException("pending write exist");
-                }
                 _writeRequest = new ReadWriteRequest
                 {
                     Data = data,
                     Offset = offset,
                     Length = length,
-                    WriteCallback = new TaskCompletionSource<object>(
+                    Callback = new TaskCompletionSource<int>(
                         TaskCreationOptions.RunContinuationsAsynchronously)
                 };
 
-                writeTask = _writeRequest.WriteCallback.Task;
+                writeTask = _writeRequest.Callback.Task;
 
                 if (_readRequest != null)
                 {
@@ -136,37 +131,6 @@ namespace Kabomu.Common
             }
 
             await writeTask;
-        }
-
-        public Task EndWrite()
-        {
-            return EndWrite(null);
-        }
-
-        public Task EndWrite(Exception e)
-        {
-            lock (_mutex)
-            {
-                if (!_endOfWriteSeen)
-                {
-                    _endOfWriteSeen = true;
-                    _endOfWriteError = e; // null allowed
-                    if (_readRequest != null && _writeRequest == null)
-                    {
-                        if (_endOfWriteError != null)
-                        {
-                            _readRequest.ReadCallback.SetException(_endOfWriteError);
-                        }
-                        else
-                        {
-                            _readRequest.ReadCallback.SetResult(0);
-                        }
-                        _readRequest = null;
-                    }
-                }
-            }
-
-            return Task.CompletedTask;
         }
 
         private void MatchPendingWriteAndRead()
@@ -189,17 +153,54 @@ namespace Kabomu.Common
             }
             else
             {
-                _writeRequest.WriteCallback.SetResult(null);
+                _writeRequest.Callback.SetResult(0);
                 _writeRequest = null;
             }
 
-            _readRequest.ReadCallback.SetResult(bytesToReturn);
+            _readRequest.Callback.SetResult(bytesToReturn);
             _readRequest = null;
         }
 
         public Task CustomDispose()
         {
-            return _dependent?.CustomDispose() ?? Task.CompletedTask;
+            return CustomDispose(null);
+        }
+
+        public async Task CustomDispose(Exception e)
+        {
+            ICustomDisposable dependent = null;
+            lock (_mutex)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+                _disposed = true;
+                _endOfReadError = e;
+                _endOfWriteError = e ?? new EndOfWriteException();
+                if (_writeRequest != null)
+                {
+                    _writeRequest.Callback.SetException(_endOfWriteError);
+                    _writeRequest = null;
+                }
+                if (_readRequest != null)
+                {
+                    if (_endOfReadError != null)
+                    {
+                        _readRequest.Callback.SetException(_endOfReadError);
+                    }
+                    else
+                    {
+                        _readRequest.Callback.SetResult(0);
+                    }
+                    _readRequest = null;
+                }
+                dependent = _dependent;
+            }
+            if (dependent != null)
+            {
+                await dependent.CustomDispose();
+            }
         }
 
         class ReadWriteRequest
@@ -207,8 +208,7 @@ namespace Kabomu.Common
             public byte[] Data { get; set; }
             public int Offset { get; set; }
             public int Length { get; set; }
-            public TaskCompletionSource<int> ReadCallback { get; set; }
-            public TaskCompletionSource<object> WriteCallback { get; set; }
+            public TaskCompletionSource<int> Callback { get; set; }
         }
     }
 }
