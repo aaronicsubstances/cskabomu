@@ -82,7 +82,7 @@ namespace Kabomu.QuasiHttp.Client
 
                     // read response body into memory and create equivalent response for 
                     // which CustomDispose() operation is redundant.
-                    responseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
+                    responseBody = await ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(responseBody,
                         ResponseBodyBufferingSizeLimit);
                     response = new DefaultQuasiHttpResponse
                     {

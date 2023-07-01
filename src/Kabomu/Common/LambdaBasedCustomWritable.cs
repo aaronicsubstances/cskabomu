@@ -5,29 +5,23 @@ namespace Kabomu.Common
 {
     public class LambdaBasedCustomWritable : ICustomWritable
     {
-        private Func<ICustomWriter, Task> _writableFunc;
-        private Func<Task> _disposeFunc;
+        public Func<ICustomWriter, Task> WritableFunc { get; set; }
 
-        public LambdaBasedCustomWritable(
-            Func<ICustomWriter, Task> writableFunc,
-            Func<Task> disposeFunc = null)
-        {
-            if (writableFunc == null)
-            {
-                throw new ArgumentNullException(nameof(writableFunc));
-            }
-            _writableFunc = writableFunc;
-            _disposeFunc = disposeFunc;
-        }
+        public Func<Task> DisposeFunc { get; set; }
 
         public Task WriteBytesTo(ICustomWriter writer)
         {
-            return _writableFunc.Invoke(writer);
+            var writableFunc = WritableFunc;
+            if (writableFunc == null)
+            {
+                throw new MissingDependencyException("WritableFunc");
+            }
+            return writableFunc.Invoke(writer);
         }
 
         public Task CustomDispose()
         {
-            return _disposeFunc?.Invoke() ?? Task.CompletedTask;
+            return DisposeFunc?.Invoke() ?? Task.CompletedTask;
         }
     }
 }

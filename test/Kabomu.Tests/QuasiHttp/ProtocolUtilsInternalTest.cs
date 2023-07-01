@@ -309,40 +309,42 @@ namespace Kabomu.Tests.QuasiHttp
             IQuasiHttpBody originalBody, byte[] expectedBodyBytes)
         {
             // arrange.
-            var disposed = false;
-            var originalBody1 = originalBody;
-            originalBody = new CustomReaderBackedBody(
-                new LambdaBasedCustomReader(
-                    (data, offset, length) =>
-                    {
-                        if (disposed)
-                        {
-                            throw new InvalidOperationException("disposed");
-                        }
-                        return originalBody1.AsReader().ReadBytes(data, offset, length);
-                    },
-                    () =>
-                    {
-                        disposed = true;
-                        return Task.CompletedTask;
-                    }))
-            {
-                ContentLength = originalBody1.ContentLength,
-                ContentType = originalBody1.ContentType
-            };
             IQuasiHttpBody expected = new ByteBufferBody(expectedBodyBytes)
             {
                 ContentType = originalBody.ContentType,
                 ContentLength = originalBody.ContentLength
             };
+            var disposed = false;
+            var originalBody1 = originalBody;
+            var reader = new LambdaBasedCustomReader
+            {
+                ReadFunc = (data, offset, length) =>
+                {
+                    if (disposed)
+                    {
+                        throw new ObjectDisposedException("reader");
+                    }
+                    return originalBody1.AsReader().ReadBytes(data, offset, length);
+                },
+                DisposeFunc = () =>
+                {
+                    disposed = true;
+                    return Task.CompletedTask;
+                }
+            };
+            originalBody = new CustomReaderBackedBody(reader)
+            {
+                ContentLength = originalBody1.ContentLength,
+                ContentType = originalBody1.ContentType
+            };
 
             // act.
-            var actualResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(originalBody,
+            var actualResponseBody = await ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(originalBody,
                 bufferingLimit);
             
             // assert.
             // check that original response body has been ended.
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
                 originalBody.AsReader().ReadBytes(new byte[1], 0, 1));
             // finally verify content.
             await ComparisonUtils.CompareBodies(expected, actualResponseBody, expectedBodyBytes);
@@ -408,7 +410,7 @@ namespace Kabomu.Tests.QuasiHttp
             var responseBody = new ByteBufferBody(ByteUtils.StringToBytes("xyz!"));
             await Assert.ThrowsAsync<DataBufferLimitExceededException>(() =>
             {
-                return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
+                return ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(responseBody,
                     bufferingLimit);
             });
         }
@@ -423,7 +425,7 @@ namespace Kabomu.Tests.QuasiHttp
             };
             await Assert.ThrowsAsync<ContentLengthNotSatisfiedException>(() =>
             {
-                return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
+                return ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(responseBody,
                     bufferingLimit);
             });
         }

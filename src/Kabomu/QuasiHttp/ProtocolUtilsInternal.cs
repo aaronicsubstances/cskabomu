@@ -154,12 +154,14 @@ namespace Kabomu.QuasiHttp
             return await cancellationTask;
         }
 
-        public static async Task<IQuasiHttpBody> CreateEquivalentInMemoryBody(
+        public static async Task<IQuasiHttpBody> CreateEquivalentOfUnknownBodyInMemory(
             IQuasiHttpBody body, int bodyBufferingLimit)
         {
+            // Assume that body is completely unknown, so has nothing
+            // to do with chunk transfer protocol
             // read in entirety of body into memory and
             // maintain content length and content type for the sake of tests.
-            var reader = IOUtils.CoalesceAsReader(body.Reader, body);
+            var reader = body.AsReader();
 
             if (body.ContentLength >= 0)
             {

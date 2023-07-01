@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using Xunit;
-using Kabomu.Common;
+using Kabomu.Tests.Shared;
 
 namespace Kabomu.Tests.QuasiHttp
 {
@@ -18,22 +18,7 @@ namespace Kabomu.Tests.QuasiHttp
             var instance = new DefaultQuasiHttpRequest();
             await instance.CustomDispose();
 
-            var disposed = false;
-            instance.Body = new CustomReaderBackedBody(
-                new LambdaBasedCustomReader(
-                    (data, offset, length) =>
-                    {
-                        if (disposed)
-                        {
-                            throw new InvalidOperationException("disposed");
-                        }
-                        return Task.FromResult(0);
-                    },
-                    () =>
-                    {
-                        disposed = true;
-                        return Task.CompletedTask;
-                    }));
+            instance.Body = new CustomReaderBackedBody(new DemoCustomReaderWritable());
             instance.CancellationTokenSource = new CancellationTokenSource();
             int result = await instance.Body.AsReader().ReadBytes(new byte[1], 0, 1);
             Assert.Equal(0, result);
@@ -41,7 +26,8 @@ namespace Kabomu.Tests.QuasiHttp
 
             await instance.CustomDispose();
             Assert.True(instance.CancellationTokenSource.IsCancellationRequested);
-            await Assert.ThrowsAsync<InvalidOperationException>(() => instance.Body.AsReader().ReadBytes(new byte[1], 0, 1));
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                instance.Body.AsReader().ReadBytes(new byte[1], 0, 1));
 
             await instance.CustomDispose();
         }

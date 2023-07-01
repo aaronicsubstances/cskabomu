@@ -5,29 +5,23 @@ namespace Kabomu.Common
 {
     public class LambdaBasedCustomReader : ICustomReader
     {
-        private Func<byte[], int, int, Task<int>> _readFunc;
-        private Func<Task> _disposeFunc;
-
-        public LambdaBasedCustomReader(
-            Func<byte[], int, int, Task<int>> readFunc,
-            Func<Task> disposeFunc = null)
-        {
-            if (readFunc == null)
-            {
-                throw new ArgumentNullException(nameof(readFunc));
-            }
-            _readFunc = readFunc;
-            _disposeFunc = disposeFunc;
-        }
+        public Func<byte[], int, int, Task<int>> ReadFunc { get; set; }
+        
+        public Func<Task> DisposeFunc { get; set; }
 
         public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
-            return _readFunc.Invoke(data, offset, length);
+            var readFunc = ReadFunc;
+            if (readFunc == null)
+            {
+                throw new MissingDependencyException("ReadFunc");
+            }
+            return readFunc.Invoke(data, offset, length);
         }
 
         public Task CustomDispose()
         {
-            return _disposeFunc?.Invoke() ?? Task.CompletedTask;
+            return DisposeFunc?.Invoke() ?? Task.CompletedTask;
         }
     }
 }

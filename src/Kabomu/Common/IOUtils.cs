@@ -27,24 +27,24 @@ namespace Kabomu.Common
         /// <param name="reader">source of bytes to read</param>
         /// <param name="data">destination buffer</param>
         /// <param name="offset">start position in buffer to fill from</param>
-        /// <param name="bytesToRead">number of bytes to read. Failure to obtain this number of bytes will
+        /// <param name="length">number of bytes to read. Failure to obtain this number of bytes will
         /// result in an error.</param>
         /// <returns>A task that represents the asynchronous read operation.</returns>
         public static async Task ReadBytesFully(ICustomReader reader,
-            byte[] data, int offset, int bytesToRead)
+            byte[] data, int offset, int length)
         {
             while (true)
             {
-                int bytesRead = await reader.ReadBytes(data, offset, bytesToRead);
+                int bytesRead = await reader.ReadBytes(data, offset, length);
 
-                if (bytesRead < bytesToRead)
+                if (bytesRead < length)
                 {
                     if (bytesRead <= 0)
                     {
                         throw new EndOfReadException("unexpected end of read");
                     }
                     offset += bytesRead;
-                    bytesToRead -= bytesRead;
+                    length -= bytesRead;
                 }
                 else
                 {
@@ -72,13 +72,13 @@ namespace Kabomu.Common
         public static async Task<byte[]> ReadAllBytes(ICustomReader reader,
             int bufferingLimit = 0, int readBufferSize = 0)
         {
-            if (readBufferSize <= 0)
-            {
-                readBufferSize = DefaultReadBufferSize;
-            }
             if (bufferingLimit == 0)
             {
                 bufferingLimit = DefaultDataBufferLimit;
+            }
+            if (readBufferSize <= 0)
+            {
+                readBufferSize = DefaultReadBufferSize;
             }
             var readBuffer = new byte[readBufferSize];
             var byteStream = new MemoryStream();
@@ -127,17 +127,17 @@ namespace Kabomu.Common
         /// </summary>
         /// <param name="reader">source of data being transferred</param>
         /// <param name="writer">destination of data being transferred</param>
-        /// <param name="bufferSize">The size in bytes of the read buffer.
+        /// <param name="readBufferSize">The size in bytes of the read buffer.
         /// Can pass zero to use default value</param>
         /// <returns>A task that represents the asynchronous read operation.</returns>
         public static async Task CopyBytes(ICustomReader reader,
-            ICustomWriter writer, int bufferSize = 0)
+            ICustomWriter writer, int readBufferSize = 0)
         {
-            if (bufferSize <= 0)
+            if (readBufferSize <= 0)
             {
-                bufferSize = DefaultReadBufferSize;
+                readBufferSize = DefaultReadBufferSize;
             }
-            byte[] readBuffer = new byte[bufferSize];
+            byte[] readBuffer = new byte[readBufferSize];
 
             while (true)
             {
@@ -157,7 +157,7 @@ namespace Kabomu.Common
         public static ICustomReader CoalesceAsReader(ICustomReader reader,
             ICustomWritable fallback)
         {
-            if (reader != null)
+            if (reader != null || fallback == null)
             {
                 return reader;
             }
@@ -166,14 +166,29 @@ namespace Kabomu.Common
                 return r;
             }
             var memoryPipe = new MemoryPipeCustomReaderWriter(fallback);
-            _ = fallback.WriteBytesTo(memoryPipe);
+            _ = DumpToMemoryPipe(fallback, memoryPipe);
             return memoryPipe;
+        }
+
+        private static async Task DumpToMemoryPipe(ICustomWritable writable,
+            MemoryPipeCustomReaderWriter writer)
+        {
+            try
+            {
+                await writable.WriteBytesTo(writer);
+            }
+            catch (Exception e)
+            {
+                await writer.EndWrite(e);
+                return;
+            }
+            await writer.EndWrite();
         }
 
         public static ICustomWritable CoaleasceAsWritable(ICustomWritable writable,
             ICustomReader fallback)
         {
-            if (writable != null)
+            if (writable != null || fallback == null)
             {
                 return writable;
             }
@@ -181,9 +196,11 @@ namespace Kabomu.Common
             {
                 return w;
             }
-            return new LambdaBasedCustomWritable(
-                writer => CopyBytes(fallback, writer),
-                () => fallback.CustomDispose());
+            return new LambdaBasedCustomWritable
+            {
+                WritableFunc = writer => CopyBytes(fallback, writer),
+                DisposeFunc = () => fallback.CustomDispose()
+            };
         }
     }
 }

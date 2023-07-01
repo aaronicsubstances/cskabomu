@@ -20,6 +20,7 @@ namespace Kabomu.Common
         private readonly ICustomDisposable _dependent;
         private ReadWriteRequest _readRequest, _writeRequest;
         private bool _endOfReadSeen, _endOfWriteSeen;
+        private Exception _endOfReadError, _endOfWriteError;
 
         public MemoryPipeCustomReaderWriter()
             : this(null)
@@ -37,9 +38,18 @@ namespace Kabomu.Common
             Task<int> readTask;
             lock (_mutex)
             {
-                // respond immediately if writes have ended,
-                // or if any zero-byte read request is seen.
-                if (_endOfWriteSeen || length == 0)
+                // respond immediately if writes have ended
+                if (_endOfWriteSeen)
+                {
+                    if (_endOfWriteError != null)
+                    {
+                        throw _endOfWriteError;
+                    }
+                    return 0;
+                }
+
+                // respond immediately to any zero-byte write
+                if (length == 0)
                 {
                     return 0;
                 }
@@ -69,12 +79,18 @@ namespace Kabomu.Common
 
         public Task EndRead()
         {
+            return EndRead(null);
+        }
+
+        public Task EndRead(Exception e)
+        {
             lock (_mutex)
             {
                 _endOfReadSeen = true;
+                _endOfReadError = e ?? new EndOfWriteException();
                 if (_writeRequest != null && _readRequest == null)
                 {
-                    _writeRequest.WriteCallback.SetException(new EndOfWriteException());
+                    _writeRequest.WriteCallback.SetException(_endOfReadError);
                     _writeRequest = null;
                 }
             }
@@ -89,7 +105,7 @@ namespace Kabomu.Common
             {
                 if (_endOfReadSeen)
                 {
-                    throw new EndOfWriteException();
+                    throw _endOfReadError;
                 }
 
                 // respond immediately to any zero-byte write
@@ -124,13 +140,29 @@ namespace Kabomu.Common
 
         public Task EndWrite()
         {
+            return EndWrite(null);
+        }
+
+        public Task EndWrite(Exception e)
+        {
             lock (_mutex)
             {
-                _endOfWriteSeen = true;
-                if (_readRequest != null && _writeRequest == null)
+                if (!_endOfWriteSeen)
                 {
-                    _readRequest.ReadCallback.SetResult(0);
-                    _readRequest = null;
+                    _endOfWriteSeen = true;
+                    _endOfWriteError = e; // null allowed
+                    if (_readRequest != null && _writeRequest == null)
+                    {
+                        if (_endOfWriteError != null)
+                        {
+                            _readRequest.ReadCallback.SetException(_endOfWriteError);
+                        }
+                        else
+                        {
+                            _readRequest.ReadCallback.SetResult(0);
+                        }
+                        _readRequest = null;
+                    }
                 }
             }
 
