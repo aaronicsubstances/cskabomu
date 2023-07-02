@@ -30,7 +30,10 @@ namespace Kabomu.Tests.Common
 
         [Theory]
         [InlineData("")]
+        [InlineData("d")]
+        [InlineData("ds")]
         [InlineData("data")]
+        [InlineData("datadriven")]
         public async Task TestWriting(string expected)
         {
             var reader = new DemoSimpleCustomReader(

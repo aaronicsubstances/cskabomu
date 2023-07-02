@@ -19,9 +19,10 @@ namespace Kabomu.QuasiHttp.EntityBody
             var reader = Reader;
             if (reader == null)
             {
-                throw new MissingDependencyException("reader");
+                throw new MissingDependencyException(
+                    "ICustomReader not implemented");
             }
-            return IOUtils.CopyBytes(reader, writer, 0);
+            return IOUtils.CopyBytes(reader, writer);
         }
 
         public abstract Task CustomDispose();
