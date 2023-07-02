@@ -77,22 +77,6 @@ namespace Kabomu.Common
             return await readTask;
         }
 
-        public async Task ConcludeWriting(Func<Task> writingTask)
-        {
-            try
-            {
-                if (writingTask != null)
-                {
-                    await writingTask.Invoke();
-                }
-                await CustomDispose();
-            }
-            catch (Exception e)
-            {
-                await CustomDispose(e);
-            }
-        }
-
         public async Task WriteBytes(byte[] data, int offset, int length)
         {
             Task writeTask;
@@ -161,6 +145,22 @@ namespace Kabomu.Common
             _readRequest = null;
         }
 
+        public async Task DeferCustomDispose(Func<Task> dependentTask)
+        {
+            try
+            {
+                if (dependentTask != null)
+                {
+                    await dependentTask.Invoke();
+                }
+                await CustomDispose();
+            }
+            catch (Exception e)
+            {
+                await CustomDispose(e);
+            }
+        }
+
         public Task CustomDispose()
         {
             return CustomDispose(null);
@@ -168,7 +168,6 @@ namespace Kabomu.Common
 
         public async Task CustomDispose(Exception e)
         {
-            ICustomDisposable dependent = null;
             lock (_mutex)
             {
                 if (_disposed)
@@ -195,11 +194,10 @@ namespace Kabomu.Common
                     }
                     _readRequest = null;
                 }
-                dependent = _dependent;
             }
-            if (dependent != null)
+            if (_dependent != null)
             {
-                await dependent.CustomDispose();
+                await _dependent.CustomDispose();
             }
         }
 

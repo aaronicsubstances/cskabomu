@@ -24,8 +24,15 @@ namespace Kabomu.Examples.Shared
         public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(IQuasiHttpRequest request,
             IConnectivityParams connectivityParams)
         {
+            return ProcessSendRequest(_ => Task.FromResult(request), connectivityParams);
+        }
+
+        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
+            IConnectivityParams connectivityParams)
+        {
             var cts = new CancellationTokenSource();
-            var resTask = ProcessSendRequestInternal(request, connectivityParams, cts);
+            var resTask = ProcessSendRequestInternal(requestFunc, connectivityParams, cts);
             object sendCancellationHandle = cts;
             return (resTask, sendCancellationHandle);
         }
@@ -38,9 +45,15 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(IQuasiHttpRequest request,
+        private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
+            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IConnectivityParams connectivityParams, CancellationTokenSource cancellationTokenSource)
         {
+            var request = await requestFunc.Invoke(null);
+            if (request == null)
+            {
+                throw new QuasiHttpRequestProcessingException("no request");
+            }
             var requestWrapper = new HttpRequestMessage
             {
                 Method = HttpMethod.Post,

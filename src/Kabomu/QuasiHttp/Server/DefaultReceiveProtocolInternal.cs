@@ -42,9 +42,7 @@ namespace Kabomu.QuasiHttp.Server
             var response = await Application.ProcessRequest(request);
             if (response == null)
             {
-                throw new QuasiHttpRequestProcessingException(
-                    QuasiHttpRequestProcessingException.ReasonCodeNoResponse,
-                    "null response");
+                throw new QuasiHttpRequestProcessingException("no response");
             }
 
             try

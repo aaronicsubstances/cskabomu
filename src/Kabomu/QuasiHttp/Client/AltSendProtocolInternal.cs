@@ -16,6 +16,7 @@ namespace Kabomu.QuasiHttp.Client
         }
 
         public IQuasiHttpRequest Request { get; set; }
+        public Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> RequestFunc { get; set; }
         public IQuasiHttpAltTransport TransportBypass { get; set; }
         public IConnectivityParams ConnectivityParams { get; set; }
         public int MaxChunkSize { get; set; }
@@ -41,14 +42,21 @@ namespace Kabomu.QuasiHttp.Client
             {
                 throw new MissingDependencyException("transport bypass");
             }
-            if (Request == null)
+            if (Request == null && RequestFunc == null)
             {
-                throw new ExpectationViolationException("request");
+                throw new ExpectationViolationException("request/requestFunc");
             }
 
-            IQuasiHttpRequest request = Request;
+            (Task<IQuasiHttpResponse>, object) cancellableResTask;
+            if (Request != null)
+            {
+                cancellableResTask = TransportBypass.ProcessSendRequest(Request, ConnectivityParams);
+            }
+            else
+            {
+                cancellableResTask = TransportBypass.ProcessSendRequest(RequestFunc, ConnectivityParams);
+            }
 
-            var cancellableResTask = TransportBypass.ProcessSendRequest(request, ConnectivityParams);
             // writing this variable is thread safe if caller calls current method within same mutex as
             // Cancel().
             _sendCancellationHandle = cancellableResTask.Item2;
@@ -60,9 +68,7 @@ namespace Kabomu.QuasiHttp.Client
 
             if (response == null)
             {
-                throw new QuasiHttpRequestProcessingException(
-                    QuasiHttpRequestProcessingException.ReasonCodeNoResponse,
-                    "null response");
+                throw new QuasiHttpRequestProcessingException("no response");
             }
             
             // save for closing later if needed.

@@ -24,7 +24,7 @@ namespace Kabomu.Tests.Common
 
             // act
             var t1 = IOUtils.ReadAllBytes(instance, 0, 2);
-            var t2 = instance.ConcludeWriting(() =>
+            var t2 = instance.DeferCustomDispose(() =>
                 IOUtils.CopyBytes(initialReader, instance, 5));
             // just in case error causes t1 or t2 to hang forever,
             // impose timeout

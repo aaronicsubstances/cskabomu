@@ -62,13 +62,16 @@ namespace Kabomu.QuasiHttp.Client
         /// Sends a quasi http request via quasi http transport and makes it posssible to cancel.
         /// </summary>
         /// <param name="remoteEndpoint">the destination endpoint of the request</param>
-        /// <param name="request">the request to send</param>
+        /// <param name="requestFunc">a callback which receives any environment
+        /// associated with the connection that may be created, and returns a promise of
+        /// the request to send</param>
         /// <param name="options">send options which override default send options and response
         /// streaming probability.</param>
         /// <returns>handles which can be used to await reply from the remote endpoint, or
         /// used to cancel the request sending.</returns>
         (Task<IQuasiHttpResponse>, object) Send2(object remoteEndpoint,
-            IQuasiHttpRequest request, IQuasiHttpSendOptions options);
+            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
+            IQuasiHttpSendOptions options);
 
         /// <summary>
         /// Cancels an ongoing send request.

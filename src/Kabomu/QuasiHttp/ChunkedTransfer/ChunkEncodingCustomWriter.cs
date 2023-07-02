@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -7,17 +6,13 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.ChunkedTransfer
 {
-    public class ChunkEncodingCustomWriter : ICustomWriter, ITransportContext
+    public class ChunkEncodingCustomWriter : ICustomWriter
     {
         private readonly ICustomWriter _wrappedWriter;
         private readonly int _maxChunkSize;
         private readonly byte[] _buffer;
         private int _usedBufferOffset;
         private bool _disposed;
-
-        public object Transport => (_wrappedWriter as ITransportContext)?.Transport;
-
-        public object Connection => (_wrappedWriter as ITransportContext)?.Connection;
 
         public ChunkEncodingCustomWriter(ICustomWriter wrappedWriter,
             int maxChunkSize)

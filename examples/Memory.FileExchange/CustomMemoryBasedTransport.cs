@@ -17,16 +17,36 @@ namespace Memory.FileExchange
             _application = new FileReceiver(endpoint, downloadDirPath);
         }
 
-        public void CancelSendRequest(object sendCancellationHandle)
-        {
-            // do nothing.
-        }
-
         public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
             IQuasiHttpRequest request, IConnectivityParams connectivityParams)
         {
-            var task = _application.ProcessRequest(request);
-            return (task, null);
+            return ProcessSendRequest(_ => Task.FromResult(request),
+                connectivityParams);
+        }
+
+        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
+            IConnectivityParams connectivityParams)
+        {
+            var resTask = ProcessSendRequestInternal(requestFunc, connectivityParams);
+            return (resTask, null);
+        }
+
+        public async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
+            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
+            IConnectivityParams connectivityParams)
+        {
+            var request = await requestFunc.Invoke(null);
+            if (request == null)
+            {
+                throw new QuasiHttpRequestProcessingException("no request");
+            }
+            return await _application.ProcessRequest(request);
+        }
+
+        public void CancelSendRequest(object sendCancellationHandle)
+        {
+            // do nothing.
         }
     }
 }

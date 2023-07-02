@@ -24,7 +24,9 @@ namespace Kabomu.QuasiHttp.Client
         public CancellationTokenSource TimeoutId { get; set; }
         public bool IsAborted { get; set; }
         public TaskCompletionSource<IQuasiHttpResponse> CancellationTcs { get; set; }
+
         public IQuasiHttpRequest Request { get; set; }
+        public Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> RequestFunc { get; set; }
         public int MaxChunkSize { get; set; }
         public IConnectivityParams ConnectivityParams { get; set; }
         public object Connection { get; set; }

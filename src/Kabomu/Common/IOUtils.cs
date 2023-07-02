@@ -166,7 +166,7 @@ namespace Kabomu.Common
                 return r;
             }
             var memoryPipe = new MemoryPipeCustomReaderWriter(fallback);
-            _ = memoryPipe.ConcludeWriting(() =>
+            _ = memoryPipe.DeferCustomDispose(() =>
                     fallback.WriteBytesTo(memoryPipe));
             return memoryPipe;
         }

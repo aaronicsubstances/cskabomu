@@ -31,9 +31,7 @@ namespace Kabomu.QuasiHttp.Server
 
             if (res == null)
             {
-                throw new QuasiHttpRequestProcessingException(
-                    QuasiHttpRequestProcessingException.ReasonCodeNoResponse,
-                    "null response");
+                throw new QuasiHttpRequestProcessingException("no response");
             }
 
             return res;

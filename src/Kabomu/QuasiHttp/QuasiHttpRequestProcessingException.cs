@@ -31,18 +31,9 @@ namespace Kabomu.QuasiHttp
         /// </summary>
         public const int ReasonCodeCancelled = 3;
 
-        /// <summary>
-        /// Indicates that connection allocation or receipt yielded a null
-        /// or non-existent connection.
-        /// </summary>
-        public const int ReasonCodeNoConnection = 4;
-
-        /// <summary>
-        /// Indicates that a null or non-existent response was received.
-        /// </summary>
-        public const int ReasonCodeNoResponse = 5;
-
         // the following codes are reserved for future use.
+        private const int ReasonCodeReserved4 = 4;
+        private const int ReasonCodeReserved5 = 5;
         private const int ReasonCodeReserved6 = 6;
         private const int ReasonCodeReserved7 = 7;
         private const int ReasonCodeReserved8 = 8;
@@ -84,6 +75,8 @@ namespace Kabomu.QuasiHttp
         {
             switch (reasonCode)
             {
+                case ReasonCodeReserved4:
+                case ReasonCodeReserved5:
                 case ReasonCodeReserved6:
                 case ReasonCodeReserved7:
                 case ReasonCodeReserved8:

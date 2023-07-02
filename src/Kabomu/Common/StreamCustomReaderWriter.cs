@@ -12,8 +12,11 @@ namespace Kabomu.Common
     /// </summary>
     public class StreamCustomReaderWriter : ICustomReader, ICustomWriter
     {
-        private readonly CancellationTokenSource _streamCancellationHandle = new CancellationTokenSource();
         private readonly Stream _backingStream;
+
+        // helps with testing, in which memory streams can be disposed
+        // such that subsequent reading or writing to them fails
+        private readonly CancellationTokenSource _streamCancellationHandle = new CancellationTokenSource();
 
         /// <summary>
         /// Creates an instance with an input stream which will supply bytes to be read
@@ -30,9 +33,6 @@ namespace Kabomu.Common
 
         public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
-            // supplying cancellation token is for the purpose of leveraging
-            // presence of cancellation in C#'s stream interface. Outside code 
-            // should not depend on ability to cancel ongoing reads.
             return _backingStream.ReadAsync(data, offset, length, _streamCancellationHandle.Token);
         }
 

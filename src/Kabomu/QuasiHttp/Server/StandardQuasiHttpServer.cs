@@ -189,9 +189,7 @@ namespace Kabomu.QuasiHttp.Server
                     var connectionAllocationResponse = await connectTask;
                     if (connectionAllocationResponse?.Connection == null)
                     {
-                        throw new QuasiHttpRequestProcessingException(
-                            QuasiHttpRequestProcessingException.ReasonCodeNoConnection,
-                            "no connection");
+                        throw new QuasiHttpRequestProcessingException("no connection");
                     }
                     // let TaskScheduler.UnobservedTaskException handle any uncaught task exceptions.
                     _ = AcceptConnection(transport, connectionAllocationResponse);
