@@ -176,13 +176,16 @@ namespace Kabomu.QuasiHttp
             };
         }
 
-        public static async Task TransferBody(ICustomWriter writer, int maxChunkSize,
+        public static async Task TransferBodyToTransport(
+            IQuasiHttpTransport transport, object connection, int maxChunkSize,
             IQuasiHttpBody body)
         {
             if (body == null || body.ContentLength == 0)
             {
                 return;
             }
+            ICustomWriter writer = new TransportCustomReaderWriter(transport,
+                connection, false);
             if (body.ContentLength < 0)
             {
                 writer = new ChunkEncodingCustomWriter(writer, maxChunkSize);

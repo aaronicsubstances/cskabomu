@@ -101,8 +101,8 @@ namespace Kabomu.QuasiHttp.Server
 
             if (response.Body != null)
             {
-                await ProtocolUtilsInternal.TransferBody(writer,
-                    MaxChunkSize, response.Body);
+                await ProtocolUtilsInternal.TransferBodyToTransport(
+                    Transport, Connection, MaxChunkSize, response.Body);
             }
 
             await response.CustomDispose();

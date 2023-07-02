@@ -50,9 +50,9 @@ namespace Kabomu.QuasiHttp.Client
             Task<ProtocolSendResult> resFetchTask = StartFetchingResponse(transportReaderWriter);
             if (Request.Body != null)
             {
-                Task reqTransferTask = ProtocolUtilsInternal.TransferBody(
-                    transportReaderWriter, MaxChunkSize, Request.Body);
-                // pass resFetchTask first so that hopefully even if both are completed, it
+                Task reqTransferTask = ProtocolUtilsInternal.TransferBodyToTransport(
+                    Transport, Connection, MaxChunkSize, Request.Body);
+                // pass resFetchTask first so that even if both are completed, it
                 //  will still win.
                 if (await Task.WhenAny(resFetchTask, reqTransferTask) == reqTransferTask)
                 {
