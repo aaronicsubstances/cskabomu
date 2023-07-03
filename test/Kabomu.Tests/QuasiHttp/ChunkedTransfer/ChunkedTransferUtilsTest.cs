@@ -14,14 +14,16 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
     {
         [Theory]
         [MemberData(nameof(CreateTestEncodeSubsequentChunkHeaderData))]
-        public void TestEncodeSubsequentChunkHeader(int chunkDataLength,
-            int dataLength, int offset, byte[] expected)
+        public async Task TestEncodeSubsequentChunkHeader(int chunkDataLength,
+            byte[] expected)
         {
-            var data = new byte[dataLength];
-            ChunkedTransferUtils.EncodeSubsequentChunkHeader(
-                chunkDataLength, data, offset);
+            var destStream = new MemoryStream();
+            var writer = new StreamCustomReaderWriter(destStream);
+            await ChunkedTransferUtils.EncodeSubsequentChunkHeader(
+                chunkDataLength, writer, new byte[50]);
+            var actual = destStream.ToArray();
             ComparisonUtils.CompareData(expected, 0, expected.Length,
-                data, offset, 5);
+                actual, 0, actual.Length);
         }
 
         public static List<object[]> CreateTestEncodeSubsequentChunkHeaderData()
@@ -29,25 +31,79 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var testData = new List<object[]>();
 
             int chunkDataLength = 0;
-            int dataLength = 5;
-            int offset = 0;
             var expected = new byte[] { 0, 0, 2, 1, 0 };
-            testData.Add(new object[] { chunkDataLength, dataLength,
-                offset, expected });
+            testData.Add(new object[] { chunkDataLength, expected });
 
             chunkDataLength = 555;
-            dataLength = 50;
-            offset = 20;
             expected = new byte[] { 0, 2, 0x2d, 1, 0 };
-            testData.Add(new object[] { chunkDataLength, dataLength,
-                offset, expected });
+            testData.Add(new object[] { chunkDataLength, expected });
 
             chunkDataLength = 511_665;
-            dataLength = 10;
-            offset = 2;
             expected = new byte[] { 7, 0xce, 0xb3, 1, 0 };
-            testData.Add(new object[] { chunkDataLength, dataLength,
-                offset, expected });
+            testData.Add(new object[] { chunkDataLength, expected });
+
+            return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestDecodeSubsequentChunkHeaderData))]
+        public async Task TestDecodeSubsequentChunkHeader(byte[] srcData,
+            int maxChunkSize, int expected)
+        {
+            var reader = new DemoSimpleCustomReader(srcData);
+            var actual = await ChunkedTransferUtils.DecodeSubsequentChunkHeader(
+                reader, new byte[50], maxChunkSize);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateTestDecodeSubsequentChunkHeaderData()
+        {
+            var testData = new List<object[]>();
+
+            var srcData = new byte[] { 0, 0, 2, 1, 0 };
+            int maxChunkSize = 40;
+            int expected = 0;
+            testData.Add(new object[] { srcData, maxChunkSize, expected });
+
+            srcData = new byte[] { 0, 2, 0x2d, 1, 0 };
+            maxChunkSize = 400; // ok because it is below hard limit
+            expected = 555;
+            testData.Add(new object[] { srcData, maxChunkSize, expected });
+
+            srcData = new byte[] { 7, 0xce, 0xb3, 1, 0 };
+            maxChunkSize = 600_000;
+            expected = 511_665;
+            testData.Add(new object[] { srcData, maxChunkSize, expected });
+
+            return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestDecodeSubsequentChunkHeaderForErrorsData))]
+        public async Task TestDecodeSubsequentChunkHeaderForErrors(byte[] srcData,
+            int maxChunkSize)
+        {
+            var reader = new DemoSimpleCustomReader(srcData);
+            await Assert.ThrowsAsync<ChunkDecodingException>(() =>
+                ChunkedTransferUtils.DecodeSubsequentChunkHeader(
+                    reader, new byte[50], maxChunkSize));
+        }
+
+        public static List<object[]> CreateTestDecodeSubsequentChunkHeaderForErrorsData()
+        {
+            var testData = new List<object[]>();
+
+            var srcData = new byte[] { 7, 0xce, 0xb3, 1, 0 }; // 511,665
+            var maxChunkSize = 65_536;
+            testData.Add(new object[] { srcData, maxChunkSize });
+
+            srcData = new byte[] { 0xf7, 2, 9, 1, 0 }; // negative
+            maxChunkSize = 65_536;
+            testData.Add(new object[] { srcData, maxChunkSize });
+
+            srcData = new byte[] { 0, 2, 9, 0, 0 }; // version not set
+            maxChunkSize = 65_536;
+            testData.Add(new object[] { srcData, maxChunkSize });
 
             return testData;
         }
@@ -147,8 +203,9 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 await ChunkedTransferUtils.ReadLeadChunk(reader, maxChunkSize);
             });
             Assert.Contains("headers", decodingError.Message);
-            Assert.Contains("exceed", decodingError.Message);
-            Assert.Contains("chunk size", decodingError.Message);
+            Assert.NotNull(decodingError.InnerException);
+            Assert.Contains("exceed", decodingError.InnerException.Message);
+            Assert.Contains("chunk size", decodingError.InnerException.Message);
         }
 
         [Fact]
@@ -167,7 +224,8 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 await ChunkedTransferUtils.ReadLeadChunk(reader, maxChunkSize);
             });
             Assert.Contains("headers", decodingError.Message);
-            Assert.Contains("chunk length", decodingError.Message);
+            Assert.NotNull(decodingError.InnerException);
+            Assert.Contains("unexpected end of read", decodingError.InnerException.Message);
         }
 
         [Fact]
@@ -229,7 +287,8 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             {
                 await ChunkedTransferUtils.ReadLeadChunk(reader, maxChunkSize);
             });
-            Assert.Contains("negative chunk size", decodingError.Message);
+            Assert.NotNull(decodingError.InnerException);
+            Assert.Contains("negative chunk size", decodingError.InnerException.Message);
         }
     }
 }

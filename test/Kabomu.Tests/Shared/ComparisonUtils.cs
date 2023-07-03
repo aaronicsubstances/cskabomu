@@ -58,14 +58,6 @@ namespace Kabomu.Tests.Shared
             Assert.Superset(expectedWrapper, actualWrapper);
         }
 
-        public static void CompareSubsequentChunks(SubsequentChunk expected, SubsequentChunk actual)
-        {
-            Assert.Equal(expected.Version, actual.Version);
-            Assert.Equal(expected.Flags, actual.Flags);
-            CompareData(expected.Data, expected.DataOffset, expected.DataLength, actual.Data,
-                actual.DataOffset, actual.DataLength);
-        }
-
         public static async Task CompareRequests(
             IQuasiHttpRequest expected, IQuasiHttpRequest actual,
             byte[] expectedReqBodyBytes)

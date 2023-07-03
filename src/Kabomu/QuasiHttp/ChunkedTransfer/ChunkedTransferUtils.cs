@@ -39,34 +39,44 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// </summary>
         public static readonly int HardMaxChunkSizeLimit = 1 << 8 * LengthOfEncodedChunkLength - 1 - 1;
 
-        internal static readonly int ReservedBytesToUse;
-
-        private static readonly ByteBufferSlice[] ChunkPrefix;
-        private static readonly int ChunkPrefixLength;
-
-        static ChunkedTransferUtils()
-        {
-            ChunkPrefix = new SubsequentChunk
-            {
-                Version = LeadChunk.Version01
-            }.Serialize();
-            ChunkPrefixLength = ChunkPrefix.Sum(s => s.Length);
-            ReservedBytesToUse = LengthOfEncodedChunkLength + ChunkPrefixLength;
-        }
-
-        internal static void EncodeSubsequentChunkHeader(
-            int chunkDataLength, byte[] data, int offset)
+        internal static Task EncodeSubsequentChunkHeader(
+            int chunkDataLength, ICustomWriter writer, byte[] bufferToUse)
         {
             ByteUtils.SerializeUpToInt64BigEndian(
-                chunkDataLength + ChunkPrefixLength, data, offset,
+                chunkDataLength + 2, bufferToUse, 0,
                 LengthOfEncodedChunkLength);
-            int sliceBytesWritten = 0;
-            foreach (var slice in ChunkPrefix)
+            bufferToUse[LengthOfEncodedChunkLength] = LeadChunk.Version01;
+            bufferToUse[LengthOfEncodedChunkLength + 1] = 0; // flags.
+            return writer.WriteBytes(bufferToUse, 0, LengthOfEncodedChunkLength + 2);
+        }
+
+        public static async Task<int> DecodeSubsequentChunkHeader(
+            ICustomReader reader, byte[] bufferToUse, int maxChunkSize)
+        {
+            try
             {
-                Array.Copy(slice.Data, slice.Offset,
-                    data, offset + LengthOfEncodedChunkLength + sliceBytesWritten,
-                    slice.Length);
-                sliceBytesWritten += slice.Length;
+                await IOUtils.ReadBytesFully(reader,
+                   bufferToUse, 0, LengthOfEncodedChunkLength + 2);
+
+                var chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(
+                    bufferToUse, 0, LengthOfEncodedChunkLength,
+                    true);
+                ValidateChunkLength(chunkLen, maxChunkSize);
+
+                int version = bufferToUse[LengthOfEncodedChunkLength];
+                //int flags = readBuffer[LengthOfEncodedChunkLength+1];
+                if (version == 0)
+                {
+                    throw new ArgumentException("version not set");
+                }
+
+                int chunkDataLen = chunkLen - 2;
+                return chunkDataLen;
+            }
+            catch (Exception e)
+            {
+                throw new ChunkDecodingException("Error encountered while " +
+                    "decoding a subsequent chunk header", e);
             }
         }
 
@@ -90,22 +100,23 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 throw new ArgumentNullException(nameof(reader));
             }
-            byte[] encodedLength = new byte[LengthOfEncodedChunkLength];
+            byte[] chunkBytes;
             try
             {
+                byte[] encodedLength = new byte[LengthOfEncodedChunkLength];
                 await IOUtils.ReadBytesFully(reader,
                     encodedLength, 0, encodedLength.Length);
+                int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
+                     encodedLength.Length, true);
+                ValidateChunkLength(chunkLen, maxChunkSize);
+                chunkBytes = new byte[chunkLen];
             }
             catch (Exception e)
             {
                 throw new ChunkDecodingException("Failed to decode quasi http headers while " +
-                    "reading a chunk length specification", e);
+                    "decoding a chunk header", e);
             }
 
-            int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
-                 encodedLength.Length, true);
-            ValidateChunkLength(chunkLen, maxChunkSize, "Failed to decode quasi http headers");
-            var chunkBytes = new byte[chunkLen];
             try
             {
                 await IOUtils.ReadBytesFully(reader,
@@ -128,17 +139,16 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
         }
 
-        internal static void ValidateChunkLength(int chunkLen, int maxChunkSize, string prefix)
+        private static void ValidateChunkLength(int chunkLen, int maxChunkSize)
         {
             if (chunkLen < 0)
             {
-                throw new ChunkDecodingException(
-                    $"{prefix}: received negative chunk size of {chunkLen}");
+                throw new ArgumentException($"received negative chunk size of {chunkLen}");
             }
             if (chunkLen > DefaultMaxChunkSizeLimit && chunkLen > maxChunkSize)
             {
-                throw new ChunkDecodingException(
-                    $"{prefix}: received chunk size of {chunkLen} exceeds" +
+                throw new ArgumentException(
+                    $"received chunk size of {chunkLen} exceeds" +
                     $" default limit on max chunk size ({DefaultMaxChunkSizeLimit})" +
                     $" as well as maximum configured chunk size of {maxChunkSize}");
             }
