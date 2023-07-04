@@ -53,7 +53,7 @@ namespace Kabomu.Common
                     throw new InvalidOperationException("pending read exist");
                 }
 
-                // respond immediately to any zero-byte write
+                // respond immediately to any zero-byte read
                 if (length == 0)
                 {
                     return 0;
@@ -62,16 +62,17 @@ namespace Kabomu.Common
                 {
                     Data = data,
                     Offset = offset,
-                    Length = length,
-                    Callback = new TaskCompletionSource<int>(
-                        TaskCreationOptions.RunContinuationsAsynchronously)
+                    Length = length
                 };
-                readTask = _readRequest.Callback.Task;
 
                 if (_writeRequest != null)
                 {
-                    MatchPendingWriteAndRead();
+                    return MatchPendingWriteAndRead();
                 }
+
+                _readRequest.Callback = new TaskCompletionSource<int>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                readTask = _readRequest.Callback.Task;
             }
 
             return await readTask;
@@ -101,23 +102,28 @@ namespace Kabomu.Common
                 {
                     Data = data,
                     Offset = offset,
-                    Length = length,
-                    Callback = new TaskCompletionSource<int>(
-                        TaskCreationOptions.RunContinuationsAsynchronously)
+                    Length = length
                 };
-
-                writeTask = _writeRequest.Callback.Task;
 
                 if (_readRequest != null)
                 {
                     MatchPendingWriteAndRead();
                 }
+
+                if (_writeRequest == null)
+                {
+                    return;
+                }
+
+                _writeRequest.Callback = new TaskCompletionSource<int>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                writeTask = _writeRequest.Callback.Task;
             }
 
             await writeTask;
         }
 
-        private void MatchPendingWriteAndRead()
+        private int MatchPendingWriteAndRead()
         {
             var bytesToReturn = Math.Min(_readRequest.Length, _writeRequest.Length);
             Array.Copy(_writeRequest.Data, _writeRequest.Offset,
@@ -137,12 +143,20 @@ namespace Kabomu.Common
             }
             else
             {
-                _writeRequest.Callback.SetResult(0);
+                if (_writeRequest.Callback != null)
+                {
+                    _writeRequest.Callback.SetResult(0);
+                }
                 _writeRequest = null;
             }
 
-            _readRequest.Callback.SetResult(bytesToReturn);
+            if (_readRequest.Callback != null)
+            {
+                _readRequest.Callback.SetResult(bytesToReturn);
+            }
             _readRequest = null;
+
+            return bytesToReturn;
         }
 
         public async Task DeferCustomDispose(Func<Task> dependentTask)

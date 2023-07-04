@@ -1,4 +1,5 @@
 ﻿using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.Tests.Common;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -10,55 +11,115 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class CsvBodyTest
     {
-        /*[Fact]
-        public Task TestEmptyRead()
+        [Fact]
+        public async Task TestReading1()
         {
-            // arrange.
-            var content = new Dictionary<string, IList<string>>();
-            var instance = new CsvBody(content)
-            {
-                ContentType = "text/csv"
-            };
+            // arrange
+            var srcData = new Dictionary<string, IList<string>>();
+            string expected = "";
+            var instance = new CsvBody(srcData);
 
-            // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(0, instance, -1, "text/csv",
-                new int[0], null, new byte[0]);
+            // act and assert
+            await IOUtilsTest.TestReading(instance, null, -1, expected, null);
+            Assert.Equal(-1, instance.ContentLength);
         }
 
         [Fact]
-        public Task TestNonEmptyRead()
+        public async Task TestReading2()
         {
-            // arrange.
-            var content = new Dictionary<string, IList<string>>
+            // arrange
+            var srcData = new Dictionary<string, IList<string>>()
             {
                 { "A", new List<string> {"b", "2"} },
                 { "B", new List<string> { "2"} },
                 { "C", new List<string>() },
                 { "D", new List<string>{ "Fire" } }
             };
-            var instance = new CsvBody(content)
-            {
-                ContentType = "text/plain"
-            };
+            string expected = "A,b,2\nB,2\nC\nD,Fire\n";
+            var instance = new CsvBody(srcData);
+            var writer = new DemoSimpleCustomWriter();
 
-            // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(16, instance, -1, "text/plain",
-                new int[] { 16, 3 }, null, Encoding.UTF8.GetBytes("A,b,2\nB,2\nC\nD,Fire\n"));
+            // act and assert
+            await IOUtilsTest.TestReading(instance, writer, 0, expected,
+                _ => writer.Buffer.ToString());
+            Assert.Equal(-1, instance.ContentLength);
         }
 
         [Fact]
-        public Task TestForArgumentErrors()
+        public async Task TestCustomDispose()
         {
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                new StringBody(null);
-            });
-            var content = new Dictionary<string, IList<string>>
+            var expected = Encoding.UTF8.GetBytes("c,2\n");
+            var srcData = new Dictionary<string, IList<string>>
             {
                 { "c", new List<string> { "2"} },
             };
-            var instance = new CsvBody(content);
-            return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
-        }*/
+            var instance = new CsvBody(srcData);
+
+            Assert.Equal(-1, instance.ContentLength);
+
+            // verify custom dispose is a no-op
+            await instance.CustomDispose();
+
+            var actual = new byte[3];
+            var actualLen = await instance.ReadBytes(actual, 0, actual.Length);
+            Assert.Equal(3, actualLen);
+            ComparisonUtils.CompareData(expected, 0, actualLen,
+                actual, 0, actualLen);
+
+            // verify custom dispose is a no-op
+            await instance.CustomDispose();
+
+            actualLen = await instance.ReadBytes(actual, 1, actual.Length);
+            Assert.Equal(1, actualLen);
+            ComparisonUtils.CompareData(expected, 3, actualLen,
+                actual, 1, actualLen);
+        }
+
+        [Fact]
+        public async Task TestWriting1()
+        {
+            // arrange
+            var srcData = new Dictionary<string, IList<string>>();
+            string expected = "";
+            var instance = new CsvBody(srcData);
+            var writer = new DemoSimpleCustomWriter();
+
+            // act
+            await instance.WriteBytesTo(writer);
+
+            // assert
+            Assert.Equal(expected, writer.Buffer.ToString());
+        }
+
+        [Fact]
+        public async Task TestWriting2()
+        {
+            // arrange
+            var srcData = new Dictionary<string, IList<string>>()
+            {
+                { "A", new List<string> {"b", "2"} },
+                { "B", new List<string> { "2"} },
+                { "C", new List<string>() },
+                { "D", new List<string>{ "Fire" } }
+            };
+            string expected = "A,b,2\nB,2\nC\nD,Fire\n";
+            var instance = new CsvBody(srcData);
+            var writer = new DemoSimpleCustomWriter();
+
+            // act
+            await instance.WriteBytesTo(writer);
+
+            // assert
+            Assert.Equal(expected, writer.Buffer.ToString());
+        }
+
+        [Fact]
+        public void TestForArgumentErrors()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+            {
+                new CsvBody(null);
+            });
+        }
     }
 }
