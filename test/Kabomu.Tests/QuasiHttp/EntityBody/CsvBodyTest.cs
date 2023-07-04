@@ -61,7 +61,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             await instance.CustomDispose();
 
             var actual = new byte[3];
-            var actualLen = await instance.ReadBytes(actual, 0, actual.Length);
+            var actualLen = await instance.ReadBytes(actual, 0, 3);
             Assert.Equal(3, actualLen);
             ComparisonUtils.CompareData(expected, 0, actualLen,
                 actual, 0, actualLen);
@@ -69,7 +69,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             // verify custom dispose is a no-op
             await instance.CustomDispose();
 
-            actualLen = await instance.ReadBytes(actual, 1, actual.Length);
+            actualLen = await instance.ReadBytes(actual, 1, 2);
             Assert.Equal(1, actualLen);
             ComparisonUtils.CompareData(expected, 3, actualLen,
                 actual, 1, actualLen);
