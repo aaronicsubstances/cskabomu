@@ -50,7 +50,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         public async Task TestDecodeSubsequentChunkHeader(byte[] srcData,
             int maxChunkSize, int expected)
         {
-            var reader = new DemoSimpleCustomReader(srcData);
+            var reader = new DemoCustomReaderWriter(srcData);
             var actual = await ChunkedTransferUtils.DecodeSubsequentChunkHeader(
                 reader, new byte[50], maxChunkSize);
             Assert.Equal(expected, actual);
@@ -83,7 +83,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         public async Task TestDecodeSubsequentChunkHeaderForErrors(byte[] srcData,
             int maxChunkSize)
         {
-            var reader = new DemoSimpleCustomReader(srcData);
+            var reader = new DemoCustomReaderWriter(srcData);
             await Assert.ThrowsAsync<ChunkDecodingException>(() =>
                 ChunkedTransferUtils.DecodeSubsequentChunkHeader(
                     reader, new byte[50], maxChunkSize));

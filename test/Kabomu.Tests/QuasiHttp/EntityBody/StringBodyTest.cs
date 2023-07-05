@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Common;
 using Kabomu.Tests.Shared;
 using System;
@@ -11,30 +12,30 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class StringBodyTest
     {
-        [InlineData("", "")]
-        [InlineData("ab", "ab,")]
-        [InlineData("abc", "ab,c,")]
-        [InlineData("abcd", "ab,cd,")]
-        [InlineData("abcde", "ab,cd,e,")]
-        [InlineData("abcdef", "ab,cd,ef,")]
+        [InlineData("", 0, "")]
+        [InlineData("ab", 2, "ab,")]
+        [InlineData("abc", 3, "ab,c,")]
+        [InlineData("abcd", 4, "ab,cd,")]
+        [InlineData("abcde", 5, "ab,cd,e,")]
+        [InlineData("abcdef", 6, "ab,cd,ef,")]
+        [InlineData("Foo \u00c0\u00ff", 8, "Fo,o ,\u00c0,\u00ff,")]
         [Theory]
-        public async Task TestReading(string srcData, string expected)
+        public async Task TestReading(string srcData, int expectedContentLength,
+            string expected)
         {
             // arrange
             var instance = new StringBody(srcData);
 
             // act and assert
+            Assert.Equal(expectedContentLength, instance.ContentLength);
             await IOUtilsTest.TestReading(instance, null, 2, expected, null);
-            Assert.Equal(srcData.Length, instance.ContentLength);
         }
 
         [Fact]
         public async Task TestCustomDispose()
         {
-            var expected = Encoding.UTF8.GetBytes("c,2\n");
+            var expected = ByteUtils.StringToBytes("c,2\n");
             var instance = new StringBody("c,2\n");
-
-            Assert.Equal(expected.Length, instance.ContentLength);
 
             // verify custom dispose is a no-op
             await instance.CustomDispose();
@@ -60,16 +61,18 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [InlineData("ds")]
         [InlineData("data")]
         [InlineData("datadriven")]
+        [InlineData("Foo \u00c0\u00ff")]
         public async Task TestWriting(string expected)
         {
             var instance = new StringBody(expected);
-            var writer = new DemoSimpleCustomWriter();
+            var writer = new DemoCustomReaderWriter();
 
             // act
             await instance.WriteBytesTo(writer);
 
             // assert
-            Assert.Equal(expected, writer.Buffer.ToString());
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                writer.BufferStream.ToArray()));
         }
 
         [Fact]

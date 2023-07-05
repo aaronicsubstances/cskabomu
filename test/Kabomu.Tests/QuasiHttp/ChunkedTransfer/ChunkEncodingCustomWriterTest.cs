@@ -24,8 +24,8 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             var srcData = "data bits and bytes";
             // get randomized read request sizes.
-            var reader = new DemoCustomReaderWritable(
-                Encoding.UTF8.GetBytes(srcData));
+            var reader = new DemoCustomReaderWriter(
+                ByteUtils.StringToBytes(srcData));
 
             var expected = new byte[] { 0 ,0, 8, 1, 0, (byte)'d',
                 (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',
@@ -59,8 +59,8 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             var srcData = "data bits and byte";
             // get randomized read request sizes.
-            var reader = new DemoCustomReaderWritable(
-                Encoding.UTF8.GetBytes(srcData));
+            var reader = new DemoCustomReaderWriter(
+                ByteUtils.StringToBytes(srcData));
 
             var expected1 = new byte[] { 0 ,0, 11, 1, 0, (byte)'d',
                 (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',

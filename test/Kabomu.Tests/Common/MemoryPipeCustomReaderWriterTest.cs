@@ -18,8 +18,8 @@ namespace Kabomu.Tests.Common
         public async Task TestReadingAndWriting(string expected)
         {
             // arrange
-            var initialReader = new DemoCustomReaderWritable(
-                Encoding.UTF8.GetBytes(expected));
+            var initialReader = new DemoCustomReaderWriter(
+                ByteUtils.StringToBytes(expected));
             var instance = new MemoryPipeCustomReaderWriter(initialReader);
 
             // act
@@ -38,7 +38,7 @@ namespace Kabomu.Tests.Common
                 // let any exceptions bubble up.
                 await t2;
                 var actualBytes = await t1;
-                actual = Encoding.UTF8.GetString(actualBytes);
+                actual = ByteUtils.BytesToString(actualBytes);
             }
             Assert.Equal(expected, actual);
 

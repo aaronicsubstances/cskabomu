@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Common;
 using Kabomu.Tests.Shared;
 using System;
@@ -37,18 +38,18 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             };
             string expected = "A,b,2\nB,2\nC\nD,Fire\n";
             var instance = new CsvBody(srcData);
-            var writer = new DemoSimpleCustomWriter();
+            var writer = new DemoCustomReaderWriter();
 
             // act and assert
             await IOUtilsTest.TestReading(instance, writer, 0, expected,
-                _ => writer.Buffer.ToString());
+                _ => ByteUtils.BytesToString(writer.BufferStream.ToArray()));
             Assert.Equal(-1, instance.ContentLength);
         }
 
         [Fact]
         public async Task TestCustomDispose()
         {
-            var expected = Encoding.UTF8.GetBytes("c,2\n");
+            var expected = ByteUtils.StringToBytes("c,2\n");
             var srcData = new Dictionary<string, IList<string>>
             {
                 { "c", new List<string> { "2"} },
@@ -82,13 +83,14 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             var srcData = new Dictionary<string, IList<string>>();
             string expected = "";
             var instance = new CsvBody(srcData);
-            var writer = new DemoSimpleCustomWriter();
+            var writer = new DemoCustomReaderWriter();
 
             // act
             await instance.WriteBytesTo(writer);
 
             // assert
-            Assert.Equal(expected, writer.Buffer.ToString());
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                writer.BufferStream.ToArray()));
         }
 
         [Fact]
@@ -104,13 +106,14 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             };
             string expected = "A,b,2\nB,2\nC\nD,Fire\n";
             var instance = new CsvBody(srcData);
-            var writer = new DemoSimpleCustomWriter();
+            var writer = new DemoCustomReaderWriter();
 
             // act
             await instance.WriteBytesTo(writer);
 
             // assert
-            Assert.Equal(expected, writer.Buffer.ToString());
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                writer.BufferStream.ToArray()));
         }
 
         [Fact]

@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Common;
 using Kabomu.Tests.Shared;
 using System;
@@ -22,7 +23,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public async Task TestReading(string srcData, string expected)
         {
             // arrange
-            var instance = new ByteBufferBody(Encoding.UTF8.GetBytes(srcData));
+            var instance = new ByteBufferBody(ByteUtils.StringToBytes(srcData));
 
             // act and assert
             await IOUtilsTest.TestReading(instance, null, 2, expected, null);
@@ -32,7 +33,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public async Task TestCustomDispose()
         {
-            var expected = Encoding.UTF8.GetBytes("c,2\n");
+            var expected = ByteUtils.StringToBytes("c,2\n");
             var instance = new ByteBufferBody(expected);
 
             Assert.Equal(expected.Length, instance.ContentLength);
@@ -60,14 +61,15 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [InlineData("datadriven")]
         public async Task TestWriting(string expected)
         {
-            var instance = new ByteBufferBody(Encoding.UTF8.GetBytes(expected));
-            var writer = new DemoSimpleCustomWriter();
+            var instance = new ByteBufferBody(ByteUtils.StringToBytes(expected));
+            var writer = new DemoCustomReaderWriter();
 
             // act
             await instance.WriteBytesTo(writer);
 
             // assert
-            Assert.Equal(expected, writer.Buffer.ToString());
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                writer.BufferStream.ToArray()));
         }
 
         [Fact]

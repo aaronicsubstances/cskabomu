@@ -24,18 +24,19 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 (byte)'s', 0, 0, 2, 1, 0
             };
             // get randomized read request sizes.
-            var backingReader = new DemoCustomReaderWritable(srcData);
+            var backingReader = new DemoCustomReaderWriter(srcData);
             int maxChunkSize = 6;
             var instance = new ChunkDecodingCustomReader(
                 backingReader, maxChunkSize);
-            var writer = new DemoSimpleCustomWriter();
+            var writer = new DemoCustomReaderWriter();
             var expected = "data bits and bytes";
 
             // act
             await IOUtils.CopyBytes(instance, writer, 2);
 
             // assert
-            Assert.Equal(expected, writer.Buffer.ToString());
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                writer.BufferStream.ToArray()));
 
             // assert disposal of backingReader
             await instance.CustomDispose();
@@ -54,18 +55,19 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 (byte)'y', (byte)'t', (byte)'e', 0, 0, 2, 1, 0
             };
             // get randomized read request sizes.
-            var backingReader = new DemoCustomReaderWritable(srcData);
+            var backingReader = new DemoCustomReaderWriter(srcData);
             int maxChunkSize = 9;
             var instance = new ChunkDecodingCustomReader(
                 backingReader, maxChunkSize);
-            var writer = new DemoSimpleCustomWriter();
+            var writer = new DemoCustomReaderWriter();
             var expected = "data bits and byte";
 
             // act
             await IOUtils.CopyBytes(instance, writer, 5);
 
             // assert
-            Assert.Equal(expected, writer.Buffer.ToString());
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                writer.BufferStream.ToArray()));
 
             // ensure subsequent reading attempts return 0
             Assert.Equal(0, await instance.ReadBytes(new byte[1], 0, 1));

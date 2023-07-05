@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -21,14 +22,15 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         {
             // arrange
             var instance = new CustomWritableBackedBody(
-                new DemoCustomReaderWritable(Encoding.UTF8.GetBytes(expected)));
-            var writer = new DemoSimpleCustomWriter();
+                new DemoSimpleCustomWritable(ByteUtils.StringToBytes(expected)));
+            var writer = new DemoCustomReaderWriter();
 
             // act
             await instance.WriteBytesTo(writer);
 
             // assert
-            Assert.Equal(expected, writer.Buffer.ToString());
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                writer.BufferStream.ToArray()));
             Assert.Equal(-1, instance.ContentLength);
         }
 
@@ -36,8 +38,8 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public async Task TestCustomDispose()
         {
             var instance = new CustomWritableBackedBody(
-                new DemoCustomReaderWritable(Encoding.UTF8.GetBytes("c,2\n")));
-            var writer = new DemoSimpleCustomWriter();
+                new DemoSimpleCustomWritable(ByteUtils.StringToBytes("c,2\n")));
+            var writer = new DemoCustomReaderWriter();
 
             // verify custom dispose is called on writable.
             await instance.CustomDispose();

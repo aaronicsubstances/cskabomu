@@ -105,70 +105,34 @@ namespace Kabomu.QuasiHttp
                 }
                 else if (value != null)
                 {
-                    return bool.Parse((string)value);
+                    if (bool.TryParse(value as string, out b))
+                    {
+                        return b;
+                    }
                 }
             }
             return null;
         }
 
-        public static async Task<IQuasiHttpResponse> CompleteRequestProcessing(
-            Task<IQuasiHttpResponse> workTask,
-            Task<IQuasiHttpResponse> cancellationTask,
-            string errorMessage,
-            Action<Exception> errorCallback)
-        {
-            try
-            {
-                if (cancellationTask != null)
-                {
-                    await await Task.WhenAny(workTask, cancellationTask);
-                }
-                else
-                {
-                    return await workTask;
-                }
-            }
-            catch (Exception e)
-            {
-                // let call to abort transfer determine whether exception is significant.
-                QuasiHttpRequestProcessingException abortError;
-                if (e is QuasiHttpRequestProcessingException quasiHttpError)
-                {
-                    abortError = quasiHttpError;
-                }
-                else
-                {
-                    abortError = new QuasiHttpRequestProcessingException(
-                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
-                        errorMessage, e);
-                }
-                errorCallback?.Invoke(abortError);
-                if (cancellationTask == null)
-                {
-                    throw abortError;
-                }
-            }
-
-            // by awaiting again for transfer cancellation, any significant error will bubble up, and
-            // any insignificant error will be swallowed.
-            return await cancellationTask;
-        }
-
         public static async Task<IQuasiHttpBody> CreateEquivalentOfUnknownBodyInMemory(
             IQuasiHttpBody body, int bodyBufferingLimit)
         {
-            // Assume that body is completely unknown, so has nothing
+            // Assume that body is completely unknown, such as having nothing
             // to do with chunk transfer protocol
-            // read in entirety of body into memory and
-            // maintain content length and content type for the sake of tests.
             var reader = body.AsReader();
 
+            // but still enforce the content length. even if zero,
+            // still pass it on in order to dispose the body.
             if (body.ContentLength >= 0)
             {
                 reader = new ContentLengthEnforcingCustomReader(reader,
                     body.ContentLength);
             }
+
+            // now read in entirety of body into memory and
             var inMemBuffer = await IOUtils.ReadAllBytes(reader, bodyBufferingLimit);
+            
+            // finally maintain content length and content type for the sake of tests.
             return new ByteBufferBody(inMemBuffer)
             {
                 ContentLength = body.ContentLength,
@@ -239,6 +203,49 @@ namespace Kabomu.QuasiHttp
                     ContentLength = contentLength
                 };
             }
+        }
+
+        public static async Task<IQuasiHttpResponse> CompleteRequestProcessing(
+            Task<IQuasiHttpResponse> workTask,
+            Task<IQuasiHttpResponse> cancellationTask,
+            string errorMessage,
+            Action<QuasiHttpRequestProcessingException> errorCallback)
+        {
+            try
+            {
+                if (cancellationTask != null)
+                {
+                    return await await Task.WhenAny(workTask, cancellationTask);
+                }
+                else
+                {
+                    return await workTask;
+                }
+            }
+            catch (Exception e)
+            {
+                // let call to abort transfer determine whether exception is significant.
+                QuasiHttpRequestProcessingException abortError;
+                if (e is QuasiHttpRequestProcessingException quasiHttpError)
+                {
+                    abortError = quasiHttpError;
+                }
+                else
+                {
+                    abortError = new QuasiHttpRequestProcessingException(
+                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                        errorMessage, e);
+                }
+                errorCallback?.Invoke(abortError);
+                if (cancellationTask == null)
+                {
+                    throw abortError;
+                }
+            }
+
+            // by awaiting again for transfer cancellation, any significant error will bubble up, and
+            // any insignificant error will be swallowed.
+            return await cancellationTask;
         }
     }
 }

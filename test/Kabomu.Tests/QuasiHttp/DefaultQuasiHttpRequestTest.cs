@@ -18,7 +18,7 @@ namespace Kabomu.Tests.QuasiHttp
             var instance = new DefaultQuasiHttpRequest();
             await instance.CustomDispose();
 
-            instance.Body = new CustomReaderBackedBody(new DemoCustomReaderWritable());
+            instance.Body = new CustomReaderBackedBody(new DemoCustomReaderWriter());
             instance.CancellationTokenSource = new CancellationTokenSource();
             int result = await instance.Body.AsReader().ReadBytes(new byte[1], 0, 1);
             Assert.Equal(0, result);

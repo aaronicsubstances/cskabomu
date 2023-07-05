@@ -24,7 +24,7 @@ namespace Kabomu.Tests.Common
             string srcData, string expected)
         {
             // arrange
-            var stream = new MemoryStream(Encoding.UTF8.GetBytes(srcData));
+            var stream = new MemoryStream(ByteUtils.StringToBytes(srcData));
             ICustomReader instance = new StreamCustomReaderWriter(stream);
             instance = new ContentLengthEnforcingCustomReader(instance, contentLength);
 
@@ -40,7 +40,7 @@ namespace Kabomu.Tests.Common
         public async Task TestReadingForErrors(long contentLength, string srcData)
         {
             // arrange
-            var stream = new MemoryStream(Encoding.UTF8.GetBytes(srcData));
+            var stream = new MemoryStream(ByteUtils.StringToBytes(srcData));
             ICustomReader instance = new StreamCustomReaderWriter(stream);
             instance = new ContentLengthEnforcingCustomReader(instance, contentLength);
 

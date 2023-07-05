@@ -24,7 +24,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         public async Task TestReading(string srcData, string expected)
         {
             // arrange
-            var stream = new MemoryStream(Encoding.UTF8.GetBytes(srcData));
+            var stream = new MemoryStream(ByteUtils.StringToBytes(srcData));
             var instance = new CustomReaderBackedBody(
                 new StreamCustomReaderWriter(stream));
 
@@ -36,7 +36,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public async Task TestCustomDispose()
         {
-            var expected = Encoding.UTF8.GetBytes("c,2\n");
+            var expected = ByteUtils.StringToBytes("c,2\n");
             var stream = new MemoryStream(expected);
             var instance = new CustomReaderBackedBody(
                 new StreamCustomReaderWriter(stream));

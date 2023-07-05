@@ -21,7 +21,7 @@ namespace Kabomu.Tests.Common
         public async Task TestReading(string srcData, string expected)
         {
             // arrange
-            var stream = new MemoryStream(Encoding.UTF8.GetBytes(srcData));
+            var stream = new MemoryStream(ByteUtils.StringToBytes(srcData));
             var instance = new StreamCustomReaderWriter(stream);
 
             // act and assert
@@ -36,14 +36,14 @@ namespace Kabomu.Tests.Common
         [InlineData("datadriven")]
         public async Task TestWriting(string expected)
         {
-            var reader = new DemoSimpleCustomReader(
-                Encoding.UTF8.GetBytes(expected));
+            var reader = new DemoCustomReaderWriter(
+                ByteUtils.StringToBytes(expected));
             var stream = new MemoryStream();
             var instance = new StreamCustomReaderWriter(stream);
 
             // act and assert
             await IOUtilsTest.TestReading(reader, instance, 2, expected,
-                _ => Encoding.UTF8.GetString(stream.ToArray()));
+                _ => ByteUtils.BytesToString(stream.ToArray()));
         }
 
         [Fact]

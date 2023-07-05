@@ -2,6 +2,7 @@
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -14,7 +15,7 @@ namespace Kabomu.Tests.Common
         public async Task TestReadBytesFully()
         {
             // arrange
-            var reader = new DemoCustomReaderWritable(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
+            var reader = new HelperCustomReaderWritable(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
             var readBuffer = new byte[6];
 
             // act
@@ -49,7 +50,7 @@ namespace Kabomu.Tests.Common
         public async Task TestReadBytesFullyForErrors()
         {
             // arrange
-            var reader = new DemoCustomReaderWritable(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
+            var reader = new HelperCustomReaderWritable(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
             var readBuffer = new byte[5];
 
             // act
@@ -74,7 +75,7 @@ namespace Kabomu.Tests.Common
             byte[] expected)
         {
             // arrange
-            var reader = new DemoCustomReaderWritable(expected);
+            var reader = new HelperCustomReaderWritable(expected);
             
             // act
             var actual = await IOUtils.ReadAllBytes(reader, bufferingLimit,
@@ -132,7 +133,7 @@ namespace Kabomu.Tests.Common
             int bufferingLimit, int readBufferSize)
         {
             // arrange
-            var reader = new DemoCustomReaderWritable(srcData);
+            var reader = new HelperCustomReaderWritable(srcData);
 
             // act
             var actualEx = await Assert.ThrowsAsync<DataBufferLimitExceededException>(() =>
@@ -175,10 +176,10 @@ namespace Kabomu.Tests.Common
         public async Task TestCopyBytes(string srcData, int readBufferSize, string expected)
         {
             // arrange
-            var reader = new DemoCustomReaderWritable(
-                Encoding.UTF8.GetBytes(srcData))
+            var reader = new HelperCustomReaderWritable(
+                ByteUtils.StringToBytes(srcData))
             {
-                TurnOffRandomization = true
+                TurnOffReadRandomization = true
             };
 
             // act and assert
@@ -192,11 +193,9 @@ namespace Kabomu.Tests.Common
             // arrange
             if (writer == null)
             {
-                writer = new DemoSimpleCustomWriter
-                {
-                    ChunkMarker = ","
-                };
-                actualFunc = writer => ((DemoSimpleCustomWriter)writer).Buffer.ToString();
+                writer = new DemoCustomReaderWriter(null, ",");
+                actualFunc = w => ByteUtils.BytesToString(
+                    ((DemoCustomReaderWriter)w).BufferStream.ToArray());
             }
 
             // act.
@@ -237,7 +236,7 @@ namespace Kabomu.Tests.Common
             var testData = new List<object[]>();
 
             var expected = new byte[] { };
-            var reader = new DemoCustomReaderWritable(expected);
+            var reader = new HelperCustomReaderWritable(expected);
             ICustomWritable fallback = null;
             testData.Add(new object[] { reader, fallback, expected });
 
@@ -247,13 +246,13 @@ namespace Kabomu.Tests.Common
             testData.Add(new object[] { reader, fallback, expected });
 
             expected = new byte[] { 0, 1, 2, 3 };
-            reader = new DemoCustomReaderWritable(expected);
+            reader = new HelperCustomReaderWritable(expected);
             fallback = new LambdaBasedCustomWritable();
             testData.Add(new object[] { reader, fallback, expected });
 
             expected = new byte[] { 0, 1, 2, 3, 4, 5 };
             reader = null;
-            fallback = new DemoCustomReaderWritable(expected);
+            fallback = new HelperCustomReaderWritable(expected);
             testData.Add(new object[] { reader, fallback, expected });
 
             expected = new byte[] { 0, 1, 2 };
@@ -276,13 +275,14 @@ namespace Kabomu.Tests.Common
             ICustomReader fallback, string expected)
         {
             writable = IOUtils.CoaleasceAsWritable(writable, fallback);
-            DemoSimpleCustomWriter writer = null;
+            string actual = null;
             if (writable != null)
             {
-                writer = new DemoSimpleCustomWriter();
+                var writer = new HelperCustomWriter();
                 await writable.WriteBytesTo(writer);
+                actual = ByteUtils.BytesToString(writer.BufferStream.ToArray());
             }
-            Assert.Equal(expected, writer?.Buffer.ToString());
+            Assert.Equal(expected, actual);
         }
 
         public static List<object[]> CreateTestCoaleasceAsWritableData()
@@ -290,8 +290,8 @@ namespace Kabomu.Tests.Common
             var testData = new List<object[]>();
 
             var expected = "";
-            var writable = new DemoCustomReaderWritable(
-                Encoding.UTF8.GetBytes(expected));
+            var writable = new HelperCustomReaderWritable(
+                ByteUtils.StringToBytes(expected));
             ICustomReader fallback = null;
             testData.Add(new object[] { writable, fallback, expected });
 
@@ -301,24 +301,87 @@ namespace Kabomu.Tests.Common
             testData.Add(new object[] { writable, fallback, expected });
 
             expected = "abcdef";
-            writable = new DemoCustomReaderWritable(
-                Encoding.UTF8.GetBytes(expected));
+            writable = new HelperCustomReaderWritable(
+                ByteUtils.StringToBytes(expected));
             fallback = new LambdaBasedCustomReader();
             testData.Add(new object[] { writable, fallback, expected });
 
             expected = "ghijklmnop";
             writable = null;
-            fallback = new DemoCustomReaderWritable(
-                Encoding.UTF8.GetBytes(expected));
+            fallback = new HelperCustomReaderWritable(
+                ByteUtils.StringToBytes(expected));
             testData.Add(new object[] { writable, fallback, expected });
 
             expected = "qrstuvwxyz";
             writable = null;
-            fallback = new DemoSimpleCustomReader(
-                Encoding.UTF8.GetBytes(expected));
+            fallback = new HelperCustomReaderWritable(
+                ByteUtils.StringToBytes(expected));
             testData.Add(new object[] { writable, fallback, expected });
 
             return testData;
+        }
+
+        class HelperCustomReaderWritable : ICustomReader, ICustomWritable
+        {
+            private readonly Random _randGen = new Random();
+            private readonly MemoryStream _stream;
+
+            public HelperCustomReaderWritable() :
+                this(null)
+            {
+            }
+
+            public HelperCustomReaderWritable(byte[] srcData)
+            {
+                _stream = new MemoryStream(srcData ?? new byte[0]);
+                _stream.Position = 0; // rewind for reading
+            }
+
+            public bool TurnOffReadRandomization { get; set; }
+
+            public Task<int> ReadBytes(byte[] data, int offset, int length)
+            {
+                var bytesToCopy = (int)Math.Min(_stream.Length - _stream.Position, length);
+                if (bytesToCopy > 0)
+                {
+                    if (!TurnOffReadRandomization)
+                    {
+                        // copy just a random quantity out of the remaining bytes
+                        bytesToCopy = _randGen.Next(bytesToCopy) + 1;
+                    }
+                }
+                return _stream.ReadAsync(data, offset, bytesToCopy);
+            }
+
+            public Task CustomDispose()
+            {
+                _stream.Dispose();
+                return Task.CompletedTask;
+            }
+
+            public Task WriteBytesTo(ICustomWriter writer)
+            {
+                var srcDataLen = (int)_stream.Length; // should trigger exception if disposed
+                return writer.WriteBytes(_stream.ToArray(), 0, srcDataLen);
+            }
+        }
+
+        class HelperCustomWriter : ICustomWriter
+        {
+            private readonly MemoryStream _stream = new MemoryStream();
+
+            public MemoryStream BufferStream => _stream;
+
+            public async Task WriteBytes(byte[] data, int offset, int length)
+            {
+                await _stream.WriteAsync(data, offset, length);
+            }
+
+            public Task CustomDispose()
+            {
+                _stream.Dispose();
+                return Task.CompletedTask;
+            }
         }
     }
 }

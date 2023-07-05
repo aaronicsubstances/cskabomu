@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Common;
 using Kabomu.Tests.Shared;
 using System;
@@ -24,8 +25,8 @@ namespace Kabomu.Tests.QuasiHttp.Transport
         {
             // arrange
             object connection = "busuti";
-            IQuasiHttpTransport transport = new DemoSimpleQuasiHttpTransport(
-                connection, Encoding.UTF8.GetBytes(srcData), ",");
+            IQuasiHttpTransport transport = new DemoQuasiHttpTransport(
+                connection, ByteUtils.StringToBytes(srcData), ",");
             var releaseConnection = false;
             var instance = new TransportCustomReaderWriter(
                 transport, connection, releaseConnection);
@@ -44,10 +45,10 @@ namespace Kabomu.Tests.QuasiHttp.Transport
         public async Task TestWriting(string expected)
         {
             // arrange
-            var reader = new DemoSimpleCustomReader(
-                Encoding.UTF8.GetBytes(expected));
+            var reader = new DemoCustomReaderWriter(
+                ByteUtils.StringToBytes(expected));
             object connection = "defuti";
-            var transport = new DemoSimpleQuasiHttpTransport(
+            var transport = new DemoQuasiHttpTransport(
                 connection, new byte[0], null);
             var releaseConnection = true;
             var instance = new TransportCustomReaderWriter(
@@ -55,7 +56,7 @@ namespace Kabomu.Tests.QuasiHttp.Transport
 
             // act and assert
             await IOUtilsTest.TestReading(reader, instance, 2, expected,
-                _ => transport.Buffer.ToString());
+                _ => ByteUtils.BytesToString(transport.BufferStream.ToArray()));
         }
 
         [Fact]
@@ -63,7 +64,7 @@ namespace Kabomu.Tests.QuasiHttp.Transport
         {
             // arrange
             object connection = "defuti";
-            var transport = new DemoSimpleQuasiHttpTransport(
+            var transport = new DemoQuasiHttpTransport(
                 connection, new byte[2], null);
             var releaseConnection = false;
             var instance = new TransportCustomReaderWriter(
@@ -85,7 +86,7 @@ namespace Kabomu.Tests.QuasiHttp.Transport
         {
             // arrange
             object connection = "futic";
-            var transport = new DemoSimpleQuasiHttpTransport(
+            var transport = new DemoQuasiHttpTransport(
                 connection, new byte[10], null);
             var releaseConnection = true;
             var instance = new TransportCustomReaderWriter(
