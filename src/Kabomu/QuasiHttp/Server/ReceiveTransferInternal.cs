@@ -87,28 +87,34 @@ namespace Kabomu.QuasiHttp.Server
 
         private async Task Abort(Exception cancellationError, IQuasiHttpResponse res)
         {
-            Task disableTask = null;
+            Task resDisposeTask = null, disableTask = null;
             lock (_mutex)
             {
                 if (IsAborted)
                 {
                     // dispose off response
-                    if (res != null)
+                    try
                     {
-                        try
-                        {
-                            // don't wait.
-                            _ = res.CustomDispose();
-                        }
-                        catch (Exception) { } // ignore.
+                        resDisposeTask = res?.CustomDispose();
                     }
+                    catch (Exception) { } // ignore.
 
                     // in any case do not proceed with disabling.
-                    return;
                 }
-                IsAborted = true;
-                disableTask = Disable(cancellationError, res,
-                    CancellationTcs, TimeoutId, _protocol, Request);
+                else
+                {
+                    IsAborted = true;
+                    disableTask = Disable(cancellationError, res,
+                        CancellationTcs, TimeoutId, _protocol, Request);
+                }
+            }
+            if (resDisposeTask != null)
+            {
+                try
+                {
+                    await resDisposeTask;
+                }
+                catch (Exception) { } // ignore.
             }
             if (disableTask != null)
             {
@@ -120,16 +126,13 @@ namespace Kabomu.QuasiHttp.Server
             TaskCompletionSource<IQuasiHttpResponse> cancellationTcs,
             CancellationTokenSource timeoutId, IReceiveProtocolInternal protocol, IQuasiHttpRequest request)
         {
-            if (cancellationTcs != null)
+            if (cancellationError != null)
             {
-                if (cancellationError != null)
-                {
-                    cancellationTcs.SetException(cancellationError);
-                }
-                else
-                {
-                    cancellationTcs.SetResult(res);
-                }
+                cancellationTcs?.TrySetException(cancellationError);
+            }
+            else
+            {
+                cancellationTcs?.TrySetResult(res);
             }
 
             timeoutId?.Cancel();

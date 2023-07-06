@@ -871,7 +871,7 @@ namespace Kabomu.Tests.QuasiHttp
             Task<IQuasiHttpResponse> workTask = Task.FromResult(
                 expected as IQuasiHttpResponse);
             Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
-                TimeSpan.FromDays(4)).ContinueWith<IQuasiHttpResponse>(_ =>
+                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
                 {
                     return null;
                 });
@@ -886,7 +886,7 @@ namespace Kabomu.Tests.QuasiHttp
         public async Task TestCompleteRequestProcessing3()
         {
             Task<IQuasiHttpResponse> workTask = Task.Delay(
-                TimeSpan.FromDays(4)).ContinueWith<IQuasiHttpResponse>(_ =>
+                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
                 {
                     return new DefaultQuasiHttpResponse();
                 });
@@ -903,7 +903,7 @@ namespace Kabomu.Tests.QuasiHttp
         public async Task TestCompleteRequestProcessing4()
         {
             Task<IQuasiHttpResponse> workTask = Task.Delay(
-                TimeSpan.FromDays(4)).ContinueWith<IQuasiHttpResponse>(_ =>
+                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
                 {
                     return new DefaultQuasiHttpResponse();
                 });
@@ -947,20 +947,19 @@ namespace Kabomu.Tests.QuasiHttp
                 new InvalidOperationException("error3a"));
             var cancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            string errorMessage = "should be ignored";
+            string errorMessage = "should not be ignored";
             Action<Exception> errorCallback = e =>
             {
-                Assert.Equal("should be ignored", e.Message);
-                Assert.NotNull(e.InnerException);
-                Assert.Equal("error3a", e.InnerException.Message);
                 cancellationTcs.SetException(new InvalidOperationException("error3b"));
             };
-            var actualEx = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
             {
                 return ProtocolUtilsInternal.CompleteRequestProcessing(
                     workTask, cancellationTcs.Task, errorMessage, errorCallback);
             });
-            Assert.Equal("error3b", actualEx.Message);
+            Assert.Equal("should not be ignored", actualEx.Message);
+            Assert.NotNull(actualEx.InnerException);
+            Assert.Equal("error3a", actualEx.InnerException.Message);
         }
     }
 }

@@ -54,7 +54,7 @@ namespace Kabomu.QuasiHttp.Server
             {
                 try
                 {
-                    _ = response.CustomDispose();
+                    await response.CustomDispose();
                 }
                 catch (Exception) { } // ignore
                 throw;

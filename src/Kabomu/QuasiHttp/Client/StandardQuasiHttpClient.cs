@@ -54,8 +54,7 @@ namespace Kabomu.QuasiHttp.Client
                     TransportBypass = TransportBypass,
                     ConnectivityParams = transfer.ConnectivityParams,
                     ResponseBufferingEnabled = transfer.ResponseBufferingEnabled,
-                    ResponseBodyBufferingSizeLimit = transfer.ResponseBodyBufferingSizeLimit,
-                    MaxChunkSize = transfer.MaxChunkSize
+                    ResponseBodyBufferingSizeLimit = transfer.ResponseBodyBufferingSizeLimit
                 };
             };
         }
@@ -218,12 +217,12 @@ namespace Kabomu.QuasiHttp.Client
                 transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     options?.MaxChunkSize,
                     DefaultSendOptions?.MaxChunkSize,
-                    ChunkedTransferUtils.DefaultMaxChunkSize);
+                    0);
 
                 transfer.ResponseBodyBufferingSizeLimit = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     options?.ResponseBodyBufferingSizeLimit,
                     DefaultSendOptions?.ResponseBodyBufferingSizeLimit,
-                    IOUtils.DefaultDataBufferLimit);
+                    0);
 
                 transfer.Request = request;
 

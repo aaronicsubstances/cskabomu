@@ -237,15 +237,8 @@ namespace Kabomu.QuasiHttp
                         errorMessage, e);
                 }
                 errorCallback?.Invoke(abortError);
-                if (cancellationTask == null)
-                {
-                    throw abortError;
-                }
+                throw abortError;
             }
-
-            // by awaiting again for transfer cancellation, any significant error will bubble up, and
-            // any insignificant error will be swallowed.
-            return await cancellationTask;
         }
     }
 }

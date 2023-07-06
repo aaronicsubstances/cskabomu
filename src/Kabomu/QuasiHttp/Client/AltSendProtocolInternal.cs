@@ -19,7 +19,6 @@ namespace Kabomu.QuasiHttp.Client
         public Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> RequestFunc { get; set; }
         public IQuasiHttpAltTransport TransportBypass { get; set; }
         public IConnectivityParams ConnectivityParams { get; set; }
-        public int MaxChunkSize { get; set; }
         public bool ResponseBufferingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
 
@@ -27,10 +26,10 @@ namespace Kabomu.QuasiHttp.Client
         {
             // reading these variables is thread safe if caller calls current method within same mutex as
             // Send().
-            if (_sendCancellationHandle != null && TransportBypass != null)
+            if (_sendCancellationHandle != null)
             {
                 // check for case in which TransportBypass was incorrectly set to null.
-                TransportBypass.CancelSendRequest(_sendCancellationHandle);
+                TransportBypass?.CancelSendRequest(_sendCancellationHandle);
             }
             return Task.CompletedTask;
         }
@@ -119,8 +118,7 @@ namespace Kabomu.QuasiHttp.Client
             {
                 try
                 {
-                    // don't wait.
-                    _ = originalResponse.CustomDispose();
+                    await originalResponse.CustomDispose();
                 }
                 catch (Exception) { } // ignore
                 throw;
