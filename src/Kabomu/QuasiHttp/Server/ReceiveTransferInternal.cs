@@ -8,45 +8,15 @@ namespace Kabomu.QuasiHttp.Server
 {
     internal class ReceiveTransferInternal
     {
-        private object _mutex;
-        private IReceiveProtocolInternal _protocol;
-
-        public object Mutex
-        {
-            set
-            {
-                _mutex = value;
-            }
-        }
-
-        public int TimeoutMillis { get; set; }
-        public CancellationTokenSource TimeoutId { get; private set; }
-        public bool IsAborted { get; private set; }
-        public TaskCompletionSource<IQuasiHttpResponse> CancellationTcs { get; set; }
+        public object Mutex { get; set; }
+        public IReceiveProtocolInternal Protocol { get; set; }
+        public CancellationTokenSource TimeoutId { get; set; }
+        public bool IsAborted { get; set; }
         public IQuasiHttpRequest Request { get; set; }
         public int MaxChunkSize { get; set; }
         public IDictionary<string, object> RequestEnvironment { get; set; }
         public object Connection { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
-
-        public void SetTimeout()
-        {
-            if (TimeoutMillis <= 0)
-            {
-                return;
-            }
-            TimeoutId = new CancellationTokenSource();
-            Task.Delay(TimeoutMillis, TimeoutId.Token)
-                .ContinueWith(t =>
-                {
-                    if (!t.IsCanceled)
-                    {
-                        var timeoutError = new QuasiHttpRequestProcessingException(
-                            QuasiHttpRequestProcessingException.ReasonCodeTimeout, "receive timeout");
-                        Abort(timeoutError);
-                    }
-                });
-        }
 
         /// <summary>
         /// Assume this call occurs under mutex.
@@ -61,9 +31,9 @@ namespace Kabomu.QuasiHttp.Server
             // factory may be holding on to some live resources.
             // NB: the code structure here is meant to mirror that of
             // SendTransferInternal. Over here, there is currently no
-            // reason why an abort will occur before protocol instance is creatd.
+            // reason why an abort will occur before protocol instance is created.
             var protocol = protocolFactory.Invoke(this);
-            _protocol = protocol;
+            Protocol = protocol;
             if (IsAborted)
             {
                 try
@@ -75,44 +45,35 @@ namespace Kabomu.QuasiHttp.Server
                 return null;
             }
             var res = await protocol.Receive();
-            await Abort(null, res);
             return res;
         }
 
-        public void Abort(Exception error)
+        public async Task Abort(IQuasiHttpResponse res)
         {
-            // don't wait
-            _ = Abort(error, null);
-        }
-
-        private async Task Abort(Exception cancellationError, IQuasiHttpResponse res)
-        {
-            Task resDisposeTask = null, disableTask = null;
-            lock (_mutex)
+            Task disableTask = null;
+            var disposeRes = false;
+            lock (Mutex)
             {
                 if (IsAborted)
                 {
-                    // dispose off response
-                    try
-                    {
-                        resDisposeTask = res?.CustomDispose();
-                    }
-                    catch (Exception) { } // ignore.
-
-                    // in any case do not proceed with disabling.
+                    disposeRes = true;
                 }
                 else
                 {
                     IsAborted = true;
-                    disableTask = Disable(cancellationError, res,
-                        CancellationTcs, TimeoutId, _protocol, Request);
+                    disableTask = Disable(TimeoutId, Protocol, Request);
                 }
             }
-            if (resDisposeTask != null)
+            if (disposeRes)
             {
+                // dispose off response
                 try
                 {
-                    await resDisposeTask;
+                    var resDisposeTask = res?.CustomDispose();
+                    if (resDisposeTask != null)
+                    {
+                        await resDisposeTask;
+                    }
                 }
                 catch (Exception) { } // ignore.
             }
@@ -122,24 +83,18 @@ namespace Kabomu.QuasiHttp.Server
             }
         }
 
-        private static async Task Disable(Exception cancellationError, IQuasiHttpResponse res,
-            TaskCompletionSource<IQuasiHttpResponse> cancellationTcs,
-            CancellationTokenSource timeoutId, IReceiveProtocolInternal protocol, IQuasiHttpRequest request)
+        private static async Task Disable(CancellationTokenSource timeoutId,
+            IReceiveProtocolInternal protocol, IQuasiHttpRequest request)
         {
-            if (cancellationError != null)
-            {
-                cancellationTcs?.TrySetException(cancellationError);
-            }
-            else
-            {
-                cancellationTcs?.TrySetResult(res);
-            }
-
             timeoutId?.Cancel();
 
             if (protocol != null)
             {
-                await protocol.Cancel();
+                try
+                {
+                    await protocol.Cancel();
+                }
+                catch (Exception) { } // ignore
             }
 
             // close body of request received for direct send to application

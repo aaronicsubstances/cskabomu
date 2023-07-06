@@ -1,6 +1,7 @@
 remaining (can skip if library works with all examples)
 ==========
 -integration tests for StandardQuasiHttpServer and StandardQuasiHttpClient
+-extracting documentation on DefaultPathTemplate into online page
 
 Release
 -------

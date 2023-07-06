@@ -1,8 +1,8 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -100,7 +100,8 @@ namespace Kabomu.QuasiHttp.Client
             {
                 var cancellationError = new QuasiHttpRequestProcessingException(
                     QuasiHttpRequestProcessingException.ReasonCodeCancelled, "send cancelled");
-                transfer.Abort(cancellationError);
+                // don't wait
+                _ = transfer.Abort(cancellationError, null);
             }
         }
 
@@ -124,8 +125,11 @@ namespace Kabomu.QuasiHttp.Client
             {
                 throw new ArgumentNullException(nameof(request));
             }
-
-            return ProcessSend(remoteEndpoint, request, null, options, null);
+            var transfer = new SendTransferInternal
+            {
+                Mutex = _mutex
+            };
+            return ProcessSendX(remoteEndpoint, request, null, options, transfer);
         }
 
         /// <summary>
@@ -155,50 +159,69 @@ namespace Kabomu.QuasiHttp.Client
 
             var transfer = new SendTransferInternal
             {
-                Mutex = _mutex
+                Mutex = _mutex,
+                CancellationTcs = new TaskCompletionSource<ProtocolSendResult>(
+                    TaskCreationOptions.RunContinuationsAsynchronously)
             };
-            var sendTask = ProcessSend(remoteEndpoint, null, requestFunc,
+            var sendTask = ProcessSendX(remoteEndpoint, null, requestFunc,
                 options, transfer);
             return (sendTask, transfer);
         }
 
-        private async Task<IQuasiHttpResponse> ProcessSend(object remoteEndpoint,
+        private async Task<IQuasiHttpResponse> ProcessSendX(
+            object remoteEndpoint, IQuasiHttpRequest request,
+            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
+            IQuasiHttpSendOptions options, SendTransferInternal transfer)
+        {
+            ProtocolSendResult res = null;
+            IQuasiHttpResponse response = null;
+            QuasiHttpRequestProcessingException abortError = null;
+            try
+            {
+                res = await ProcessSend(remoteEndpoint, request, requestFunc,
+                    options, transfer);
+                response = res?.Response;
+                if (response == null)
+                {
+                    throw new ExpectationViolationException("expected non-null response");
+                }
+            }
+            catch (Exception e)
+            {
+                if (e is QuasiHttpRequestProcessingException quasiHttpError)
+                {
+                    abortError = quasiHttpError;
+                }
+                else
+                {
+                    abortError = new QuasiHttpRequestProcessingException(
+                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                        "encountered error during send request processing", e);
+                }
+            }
+            await transfer.Abort(abortError, res);
+            if (abortError != null)
+            {
+                throw abortError;
+            }
+            return response;
+        }
+
+        private async Task<ProtocolSendResult> ProcessSend(object remoteEndpoint,
             IQuasiHttpRequest request,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
-            IQuasiHttpSendOptions options, SendTransferInternal transferSetUpForCancellation)
+            IQuasiHttpSendOptions options, SendTransferInternal transfer)
         {
-            SendTransferInternal transfer;
-            bool setUpForCancellation = true;
-            if (transferSetUpForCancellation != null)
-            {
-                transfer = transferSetUpForCancellation;
-            }
-            else
-            {
-                setUpForCancellation = false;
-                transfer = new SendTransferInternal
-                {
-                    Mutex = _mutex
-                };
-            }
-            
-            Task<IQuasiHttpResponse> workTask;
-            Task<IQuasiHttpResponse> cancellationTask = null;
+            Task<ProtocolSendResult> workTask;
+            Task<ProtocolSendResult> timeoutTask;
             lock (_mutex)
             {
                 // NB: negative value is allowed for timeout, which indicates infinite timeout.
-                transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
+                var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     options?.TimeoutMillis,
                     DefaultSendOptions?.TimeoutMillis,
                     0);
-                transfer.SetTimeout();
-
-                if (setUpForCancellation || transfer.TimeoutId != null)
-                {
-                    transfer.CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
-                        TaskCreationOptions.RunContinuationsAsynchronously);
-                    cancellationTask = transfer.CancellationTcs.Task;
-                }
+                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<ProtocolSendResult>(timeoutMillis);
 
                 var effectiveConnectivityParams = new DefaultConnectivityParams
                 {
@@ -236,11 +259,11 @@ namespace Kabomu.QuasiHttp.Client
                     workTask = AllocateConnectionAndSend(transfer, requestFunc);
                 }
             }
-            return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask, cancellationTask,
-                "encountered error during send request processing", e => transfer.Abort(e));
+            return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
+                timeoutTask, transfer.CancellationTcs.Task);
         }
 
-        private async Task<IQuasiHttpResponse> AllocateConnectionAndSend(SendTransferInternal transfer,
+        private async Task<ProtocolSendResult> AllocateConnectionAndSend(SendTransferInternal transfer,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc)
         {
             var transport = Transport;
@@ -251,7 +274,7 @@ namespace Kabomu.QuasiHttp.Client
 
             var connectionResponse = await transport.AllocateConnection(transfer.ConnectivityParams);
 
-            Task<IQuasiHttpResponse> workTask = null;
+            Task<ProtocolSendResult> workTask = null;
             lock (_mutex)
             {
                 if (connectionResponse?.Connection == null)

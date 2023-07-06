@@ -4,6 +4,8 @@ using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
@@ -205,40 +207,51 @@ namespace Kabomu.QuasiHttp
             }
         }
 
-        public static async Task<IQuasiHttpResponse> CompleteRequestProcessing(
-            Task<IQuasiHttpResponse> workTask,
-            Task<IQuasiHttpResponse> cancellationTask,
-            string errorMessage,
-            Action<QuasiHttpRequestProcessingException> errorCallback)
+        public static async Task<T> CompleteRequestProcessing<T>(
+            Task<T> workTask, Task<T> timeoutTask, Task<T> cancellationTask)
         {
-            try
+            if (workTask == null)
             {
-                if (cancellationTask != null)
+                throw new ArgumentNullException(nameof(workTask));
+            }
+
+            // ignore null tasks and successful timeout result.
+            if (timeoutTask != null)
+            {
+                var tasks = new List<Task<T>> { workTask, timeoutTask, cancellationTask };
+                var firstTask = await Task.WhenAny(tasks.Where(t => t != null));
+                var res = await firstTask;
+                if (firstTask != timeoutTask)
                 {
-                    return await await Task.WhenAny(workTask, cancellationTask);
-                }
-                else
-                {
-                    return await workTask;
+                    return res;
                 }
             }
-            catch (Exception e)
+            if (cancellationTask != null)
             {
-                // let call to abort transfer determine whether exception is significant.
-                QuasiHttpRequestProcessingException abortError;
-                if (e is QuasiHttpRequestProcessingException quasiHttpError)
-                {
-                    abortError = quasiHttpError;
-                }
-                else
-                {
-                    abortError = new QuasiHttpRequestProcessingException(
-                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
-                        errorMessage, e);
-                }
-                errorCallback?.Invoke(abortError);
-                throw abortError;
+                return await await Task.WhenAny(workTask, cancellationTask);
             }
+            return await workTask;
+        }
+
+        public static (Task<T>, CancellationTokenSource) SetTimeout<T>(int timeoutMillis)
+        {
+            if (timeoutMillis <= 0)
+            {
+                return (null, null);
+            }
+            var timeoutId = new CancellationTokenSource();
+            var timeoutTask = Task.Delay(timeoutMillis, timeoutId.Token)
+                .ContinueWith<T>(t =>
+                {
+                    if (!t.IsCanceled)
+                    {
+                        var timeoutError = new QuasiHttpRequestProcessingException(
+                            QuasiHttpRequestProcessingException.ReasonCodeTimeout, "receive timeout");
+                        throw timeoutError;
+                    }
+                    return default;
+                });
+            return (timeoutTask, timeoutId);
         }
     }
 }

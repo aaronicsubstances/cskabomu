@@ -856,11 +856,10 @@ namespace Kabomu.Tests.QuasiHttp
             var expected = new DefaultQuasiHttpResponse();
             Task<IQuasiHttpResponse> workTask = Task.FromResult(
                 expected as IQuasiHttpResponse);
+            Task<IQuasiHttpResponse> timeoutTask = null;
             Task<IQuasiHttpResponse> cancellationTask = null;
-            string errorMessage = null;
-            Action<Exception> errorCallback = null;
             var actual = await ProtocolUtilsInternal.CompleteRequestProcessing(
-                workTask, cancellationTask, errorMessage, errorCallback);
+                workTask, timeoutTask, cancellationTask);
             Assert.Same(expected, actual);
         }
 
@@ -870,96 +869,187 @@ namespace Kabomu.Tests.QuasiHttp
             var expected = new DefaultQuasiHttpResponse();
             Task<IQuasiHttpResponse> workTask = Task.FromResult(
                 expected as IQuasiHttpResponse);
+            Task<IQuasiHttpResponse> timeoutTask = null;
             Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
                 TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
                 {
                     return null;
                 });
-            string errorMessage = null;
-            Action<Exception> errorCallback = null;
             var actual = await ProtocolUtilsInternal.CompleteRequestProcessing(
-                workTask, cancellationTask, errorMessage, errorCallback);
+                workTask, timeoutTask, cancellationTask);
             Assert.Same(expected, actual);
         }
 
         [Fact]
         public async Task TestCompleteRequestProcessing3()
         {
+            var expected = new DefaultQuasiHttpResponse();
             Task<IQuasiHttpResponse> workTask = Task.Delay(
                 TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
                 {
-                    return new DefaultQuasiHttpResponse();
+                    return null;
                 });
+            Task<IQuasiHttpResponse> timeoutTask = null;
             Task<IQuasiHttpResponse> cancellationTask = Task.FromResult(
-                null as IQuasiHttpResponse);
-            string errorMessage = null;
-            Action<Exception> errorCallback = null;
+                expected as IQuasiHttpResponse);
             var actual = await ProtocolUtilsInternal.CompleteRequestProcessing(
-                workTask, cancellationTask, errorMessage, errorCallback);
-            Assert.Null(actual);
+                workTask, timeoutTask, cancellationTask);
+            Assert.Same(expected, actual);
         }
 
         [Fact]
         public async Task TestCompleteRequestProcessing4()
         {
+            DefaultQuasiHttpResponse expected = new DefaultQuasiHttpResponse(),
+                instance2 = new DefaultQuasiHttpResponse(),
+                instance3 = new DefaultQuasiHttpResponse();
             Task<IQuasiHttpResponse> workTask = Task.Delay(
+                TimeSpan.FromSeconds(0.75)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return expected;
+                });
+            Task<IQuasiHttpResponse> timeoutTask = Task.Delay(
+                TimeSpan.FromSeconds(0.5)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return instance2;
+                });
+            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
                 TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
                 {
-                    return new DefaultQuasiHttpResponse();
+                    return instance3;
                 });
-            Task<IQuasiHttpResponse> cancellationTask = Task.FromException<IQuasiHttpResponse>(
-                new QuasiHttpRequestProcessingException("error1"));
-            string errorMessage = "should be ignored";
-            Action<Exception> errorCallback = e =>
-            {
-                Assert.Equal("error1", e.Message);
-            };
-            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
-            {
-                return ProtocolUtilsInternal.CompleteRequestProcessing(
-                    workTask, cancellationTask, errorMessage, errorCallback);
-            });
-            Assert.Equal("error1", actualEx.Message);
+            var actual = await ProtocolUtilsInternal.CompleteRequestProcessing(
+                workTask, timeoutTask, cancellationTask);
+            Assert.Same(expected, actual);
         }
 
         [Fact]
         public async Task TestCompleteRequestProcessing5()
         {
-            Task<IQuasiHttpResponse> workTask = Task.FromException<IQuasiHttpResponse>(
-                new InvalidOperationException("error2"));
-            Task<IQuasiHttpResponse> cancellationTask = null;
-            string errorMessage = "should not be ignored";
-            Action<Exception> errorCallback = null;
+            Task<IQuasiHttpResponse> workTask = Task.Delay(
+                TimeSpan.FromSeconds(2)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return new DefaultQuasiHttpResponse();
+                });
+            Task<IQuasiHttpResponse> timeoutTask = Task.Delay(
+                TimeSpan.FromSeconds(0.5)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error1");
+                });
+            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
+                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return new DefaultQuasiHttpResponse();
+                });
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
             {
                 return ProtocolUtilsInternal.CompleteRequestProcessing(
-                    workTask, cancellationTask, errorMessage, errorCallback);
+                    workTask, timeoutTask, cancellationTask);
             });
-            Assert.Equal("should not be ignored", actualEx.Message);
-            Assert.NotNull(actualEx.InnerException);
-            Assert.Equal("error2", actualEx.InnerException.Message);
+            Assert.Equal("error1", actualEx.Message);
         }
 
         [Fact]
         public async Task TestCompleteRequestProcessing6()
         {
-            Task<IQuasiHttpResponse> workTask = Task.FromException<IQuasiHttpResponse>(
-                new InvalidOperationException("error3a"));
-            var cancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            string errorMessage = "should not be ignored";
-            Action<Exception> errorCallback = e =>
-            {
-                cancellationTcs.SetException(new InvalidOperationException("error3b"));
-            };
+            Task<IQuasiHttpResponse> workTask = Task.Delay(
+                TimeSpan.FromSeconds(0.5)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error1");
+                });
+            Task<IQuasiHttpResponse> timeoutTask = Task.Delay(
+                TimeSpan.FromSeconds(2)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error2");
+                });
+            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
+                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error3");
+                });
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
             {
                 return ProtocolUtilsInternal.CompleteRequestProcessing(
-                    workTask, cancellationTcs.Task, errorMessage, errorCallback);
+                    workTask, timeoutTask, cancellationTask);
             });
-            Assert.Equal("should not be ignored", actualEx.Message);
-            Assert.NotNull(actualEx.InnerException);
-            Assert.Equal("error3a", actualEx.InnerException.Message);
+            Assert.Equal("error1", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestCompleteRequestProcessing7()
+        {
+            Task<IQuasiHttpResponse> workTask = Task.Delay(
+                TimeSpan.FromSeconds(2)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error1");
+                });
+            Task<IQuasiHttpResponse> timeoutTask = Task.Delay(
+                TimeSpan.FromSeconds(2)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error2");
+                });
+            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
+                TimeSpan.FromSeconds(0.5)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error3");
+                });
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+            {
+                return ProtocolUtilsInternal.CompleteRequestProcessing(
+                    workTask, timeoutTask, cancellationTask);
+            });
+            Assert.Equal("error3", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestCompleteRequestProcessingForErrors()
+        {
+            Task<IQuasiHttpResponse> workTask = null;
+            Task<IQuasiHttpResponse> timeoutTask = Task.FromResult(
+                new DefaultQuasiHttpResponse() as IQuasiHttpResponse);
+            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
+                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return null;
+                });
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
+                ProtocolUtilsInternal.CompleteRequestProcessing(
+                    workTask, timeoutTask, cancellationTask));
+        }
+
+        [Fact]
+        public void TestSetTimeout1()
+        {
+            var actual = ProtocolUtilsInternal.SetTimeout<string>(0);
+            Assert.Equal((null, null), actual);
+        }
+
+        [Fact]
+        public void TestSetTimeout2()
+        {
+            var actual = ProtocolUtilsInternal.SetTimeout<string>(-3);
+            Assert.Equal((null, null), actual);
+        }
+
+        [Fact]
+        public async Task TestSetTimeout3()
+        {
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+            {
+                return ProtocolUtilsInternal.SetTimeout<int>(50).Item1;
+            });
+            Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeTimeout,
+                actualEx.ReasonCode);
+        }
+
+        [Fact]
+        public async Task TestSetTimeout4()
+        {
+            var (actualTask, timeoutId) = ProtocolUtilsInternal.SetTimeout<string>(500);
+            await Task.Delay(100);
+            timeoutId.Cancel();
+            var actual = await actualTask;
+            Assert.Null(actual);
         }
     }
 }

@@ -9,22 +9,11 @@ namespace Kabomu.QuasiHttp.Client
 {
     internal class SendTransferInternal
     {
-        private object _mutex;
-        private ISendProtocolInternal _protocol;
-
-        public object Mutex
-        {
-            set
-            {
-                _mutex = value;
-            }
-        }
-
-        public int TimeoutMillis { get; set; }
+        public object Mutex { get; set; }
+        public ISendProtocolInternal Protocol { get; set; }
         public CancellationTokenSource TimeoutId { get; set; }
         public bool IsAborted { get; set; }
-        public TaskCompletionSource<IQuasiHttpResponse> CancellationTcs { get; set; }
-
+        public TaskCompletionSource<ProtocolSendResult> CancellationTcs { get; set; }
         public IQuasiHttpRequest Request { get; set; }
         public Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> RequestFunc { get; set; }
         public int MaxChunkSize { get; set; }
@@ -33,38 +22,19 @@ namespace Kabomu.QuasiHttp.Client
         public bool ResponseBufferingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
 
-        public void SetTimeout()
-        {
-            if (TimeoutMillis <= 0)
-            {
-                return;
-            }
-            TimeoutId = new CancellationTokenSource();
-            Task.Delay(TimeoutMillis, TimeoutId.Token)
-                .ContinueWith(t =>
-                {
-                    if (!t.IsCanceled)
-                    {
-                        var timeoutError = new QuasiHttpRequestProcessingException(
-                            QuasiHttpRequestProcessingException.ReasonCodeTimeout, "send timeout");
-                        Abort(timeoutError);
-                    }
-                });
-        }
-
         /// <summary>
         /// Assume this call occurs under mutex.
         /// </summary>
         /// <param name="protocolFactory"></param>
         /// <returns></returns>
-        public async Task<IQuasiHttpResponse> StartProtocol(
+        public async Task<ProtocolSendResult> StartProtocol(
             Func<SendTransferInternal, ISendProtocolInternal> protocolFactory)
         {
             // even if abort has already happened, still go ahead and
             // create protocol instance and cancel it because the
             // factory may be holding on to some live resources.
             var protocol = protocolFactory.Invoke(this);
-            _protocol = protocol;
+            Protocol = protocol;
             if (IsAborted)
             {
                 // Oops...connection establishment took so long, or a cancellation happened
@@ -78,44 +48,36 @@ namespace Kabomu.QuasiHttp.Client
                 return null;
             }
             var res = await protocol.Send();
-            await Abort(null, res);
-            return res?.Response;
+            return res;
         }
 
-        public void Abort(Exception error)
+        public  async Task Abort(Exception cancellationError, ProtocolSendResult res)
         {
-            // don't wait
-            _ = Abort(error, null);
-        }
-
-        private async Task Abort(Exception cancellationError, ProtocolSendResult res)
-        {
-            Task resDisposeTask = null, disableTask = null;
-            lock (_mutex)
+            Task disableTask = null;
+            var disposeRes = false;
+            lock (Mutex)
             {
                 if (IsAborted)
                 {
-                    // dispose off response
-                    try
-                    {
-                        resDisposeTask = res?.Response?.CustomDispose();
-                    }
-                    catch (Exception) { } // ignore.
-
-                    // in any case do not proceed with disabling.
+                    disposeRes = true;
                 }
                 else
                 {
                     IsAborted = true;
                     disableTask = Disable(cancellationError, res,
-                        CancellationTcs, TimeoutId, _protocol, Request);
+                        CancellationTcs, TimeoutId, Protocol, Request);
                 }
             }
-            if (resDisposeTask != null)
+            if (disposeRes)
             {
+                // dispose off response
                 try
                 {
-                    await resDisposeTask;
+                    var resDisposeTask = res?.Response?.CustomDispose();
+                    if (resDisposeTask != null)
+                    {
+                        await resDisposeTask;
+                    }
                 }
                 catch (Exception) { } // ignore.
             }
@@ -126,19 +88,20 @@ namespace Kabomu.QuasiHttp.Client
         }
 
         private static async Task Disable(Exception cancellationError, ProtocolSendResult res,
-            TaskCompletionSource<IQuasiHttpResponse> cancellationTcs,
+            
+            TaskCompletionSource<ProtocolSendResult> cancellationTcs,
             CancellationTokenSource timeoutId, ISendProtocolInternal protocol, IQuasiHttpRequest request)
         {
+            timeoutId?.Cancel();
+
             if (cancellationError != null)
             {
-                cancellationTcs?.TrySetException(cancellationError);
+                cancellationTcs?.SetException(cancellationError);
             }
             else
             {
-                cancellationTcs?.TrySetResult(res?.Response);
+                cancellationTcs?.SetResult(res);
             }
-
-            timeoutId?.Cancel();
 
             // just in case cancellation was requested even before transfer protocol could
             // be set up...check to avoid possible null pointer error.
@@ -146,7 +109,11 @@ namespace Kabomu.QuasiHttp.Client
             {
                 if (cancellationError != null || res?.Response?.Body == null || res?.ResponseBufferingApplied == true)
                 {
-                    await protocol.Cancel();
+                    try
+                    {
+                        await protocol.Cancel();
+                    }
+                    catch (Exception) { } // ignore
                 }
             }
 
