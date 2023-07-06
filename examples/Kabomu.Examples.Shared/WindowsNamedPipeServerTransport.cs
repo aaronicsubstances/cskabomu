@@ -1,4 +1,6 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Server;
+using Kabomu.QuasiHttp.Transport;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,6 +13,7 @@ namespace Kabomu.Examples.Shared
 {
     public class WindowsNamedPipeServerTransport : IQuasiHttpServerTransport
     {
+        private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
         private readonly object _mutex = new object();
         private readonly string _path;
         private CancellationTokenSource _startCancellationHandle;
@@ -20,6 +23,8 @@ namespace Kabomu.Examples.Shared
             _path = path;
         }
 
+        public IQuasiHttpServer Server { get; set; }
+
         public Task Start()
         {
             lock (_mutex)
@@ -27,6 +32,8 @@ namespace Kabomu.Examples.Shared
                 if (_startCancellationHandle == null)
                 {
                     _startCancellationHandle = new CancellationTokenSource();
+                    _ = ServerUtils.AcceptConnections(
+                        ReceiveConnection, IsDoneRunning);
                 }
             }
             return Task.CompletedTask;
@@ -42,34 +49,37 @@ namespace Kabomu.Examples.Shared
             return Task.CompletedTask;
         }
 
-        public bool IsRunning()
+        private Task<bool> IsDoneRunning(Exception latestError)
         {
+            if (latestError != null)
+            {
+                LOG.Warn(latestError, "connection receive error");
+                return Task.FromResult(false);
+            }
             lock (_mutex)
             {
-                return _startCancellationHandle != null;
+                return Task.FromResult(_startCancellationHandle != null);
             }
         }
 
-        public async Task<IConnectionAllocationResponse> ReceiveConnection()
+        private async Task<bool> ReceiveConnection()
         {
             NamedPipeServerStream pipeServer;
             Task waitTask;
             lock (_mutex)
             {
-                if (_startCancellationHandle == null)
-                {
-                    throw new InvalidOperationException("transport not started");
-                }
                 pipeServer = new NamedPipeServerStream(_path, PipeDirection.InOut,
                     NamedPipeServerStream.MaxAllowedServerInstances,
                     PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
                 waitTask = pipeServer.WaitForConnectionAsync(_startCancellationHandle.Token);
             }
             await waitTask;
-            return new DefaultConnectionAllocationResponse
+            var c = new DefaultConnectionAllocationResponse
             {
                 Connection = pipeServer
             };
+            await Server.AcceptConnection(c);
+            return true;
         }
 
         public Task ReleaseConnection(object connection)

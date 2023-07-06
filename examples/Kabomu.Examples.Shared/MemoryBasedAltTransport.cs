@@ -1,21 +1,15 @@
-﻿using Kabomu.Examples.Shared;
-using Kabomu.QuasiHttp;
+﻿using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Memory.FileExchange
+namespace Kabomu.Examples.Shared
 {
-    public class CustomMemoryBasedTransport : IQuasiHttpAltTransport
+    public class MemoryBasedAltTransport : IQuasiHttpAltTransport
     {
-        private readonly FileReceiver _application;
-
-        public CustomMemoryBasedTransport(string endpoint, string downloadDirPath)
-        {
-            _application = new FileReceiver(endpoint, downloadDirPath);
-        }
+        public IQuasiHttpApplication Application { get; set; }
 
         public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
             IQuasiHttpRequest request, IConnectivityParams connectivityParams)
@@ -36,12 +30,12 @@ namespace Memory.FileExchange
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IConnectivityParams connectivityParams)
         {
-            var request = await requestFunc.Invoke(null);
+            var request = await requestFunc.Invoke(connectivityParams?.ExtraParams);
             if (request == null)
             {
                 throw new QuasiHttpRequestProcessingException("no request");
             }
-            return await _application.ProcessRequest(request);
+            return await Application.ProcessRequest(request);
         }
 
         public void CancelSendRequest(object sendCancellationHandle)

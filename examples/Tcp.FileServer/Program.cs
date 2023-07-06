@@ -1,5 +1,4 @@
 ﻿using CommandLine;
-using Kabomu.Common;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp.Server;
 using NLog;
@@ -34,25 +33,23 @@ namespace Tcp.FileServer
 
         static async Task RunMain(int port, string uploadDirPath)
         {
-            var transport = new LocalhostTcpServerTransport(port);
-            UncaughtErrorCallback errorHandler = (e, m) =>
-            {
-                LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
-            };
             var instance = new StandardQuasiHttpServer
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     TimeoutMillis = 5_000
-                },
-                Transport = transport,
-                ErrorHandler = errorHandler
+                }
             };
             instance.Application = new FileReceiver(port, uploadDirPath);
+            var transport = new LocalhostTcpServerTransport(port)
+            {
+                Server = instance
+            };
+            instance.Transport = transport;
 
             try
             {
-                await instance.Start();
+                await transport.Start();
                 LOG.Info("Started Tcp.FileServer at {0}", port);
 
                 Console.ReadLine();
@@ -64,7 +61,7 @@ namespace Tcp.FileServer
             finally
             {
                 LOG.Debug("Stopping Tcp.FileServer...");
-                await instance.Stop(0);
+                await transport.Stop();
             }
         }
     }

@@ -109,7 +109,30 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         }
 
         [Fact]
-        public async Task TestWriteLeadChunk()
+        public async Task TestWriteLeadChunk1()
+        {
+            // arrange.
+            var destStream = new MemoryStream();
+            var writer = new StreamCustomReaderWriter(destStream);
+            var leadChunk = new LeadChunk();
+            var leadChunkSlices = leadChunk.Serialize();
+            var lengthOfEncodedChunkLength = 3;
+            var expectedStreamContents = new byte[lengthOfEncodedChunkLength + leadChunkSlices[0].Length + leadChunkSlices[1].Length];
+            expectedStreamContents[2] = (byte)(leadChunkSlices[0].Length + leadChunkSlices[1].Length);
+            Array.Copy(leadChunkSlices[0].Data, leadChunkSlices[0].Offset, expectedStreamContents,
+                lengthOfEncodedChunkLength, leadChunkSlices[0].Length);
+            Array.Copy(leadChunkSlices[1].Data, leadChunkSlices[1].Offset, expectedStreamContents,
+                lengthOfEncodedChunkLength + leadChunkSlices[0].Length, leadChunkSlices[1].Length);
+
+            // act.
+            await ChunkedTransferUtils.WriteLeadChunk(writer, 0, leadChunk);
+
+            // assert.
+            Assert.Equal(expectedStreamContents, destStream.ToArray());
+        }
+
+        [Fact]
+        public async Task TestWriteLeadChunk2()
         {
             // arrange.
             var destStream = new MemoryStream();
@@ -137,7 +160,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             // arrange.
             var srcStream = new MemoryStream();
             var reader = new StreamCustomReaderWriter(srcStream);
-            int maxChunkSize = 100;
+            int maxChunkSize = 0;
             var expectedChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01

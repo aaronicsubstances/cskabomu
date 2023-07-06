@@ -1,5 +1,4 @@
 ﻿using CommandLine;
-using Kabomu.Common;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp.Server;
 using NLog;
@@ -34,25 +33,23 @@ namespace UnixDomainSocket.FileServer
 
         static async Task RunMain(string path, string uploadDirPath)
         {
-            var transport = new UnixDomainSocketServerTransport(path);
-            UncaughtErrorCallback errorHandler = (e, m) =>
-            {
-                LOG.Error("Quasi Http Server error! {0}: {1}", m, e);
-            };
             var instance = new StandardQuasiHttpServer
             {
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     TimeoutMillis = 5_000
-                },
-                Transport = transport,
-                ErrorHandler = errorHandler
+                }
             };
             instance.Application = new FileReceiver(path, uploadDirPath);
+            var transport = new UnixDomainSocketServerTransport(path)
+            {
+                Server = instance
+            };
+            instance.Transport = transport;
 
             try
             {
-                await instance.Start();
+                await transport.Start();
                 LOG.Info("Started UnixDomainSocket.FileServer at {0}", path);
 
                 Console.ReadLine();
@@ -64,7 +61,7 @@ namespace UnixDomainSocket.FileServer
             finally
             {
                 LOG.Debug("Stopping UnixDomainSocket.FileServer...");
-                await instance.Stop(0);
+                await transport.Stop();
             }
         }
     }

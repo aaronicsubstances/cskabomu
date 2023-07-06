@@ -26,11 +26,9 @@ namespace Kabomu.QuasiHttp.Server
     public class StandardQuasiHttpServer : IQuasiHttpServer
     {
         private readonly object _mutex = new object();
-        private bool _running;
 
         /// <summary>
-        /// Creates a new instance of the <see cref="StandardQuasiHttpServer"/> class with defaults provided
-        /// for the <see cref="MutexApi"/> and <see cref="TimerApi"/> properties.
+        /// Creates a new instance of the <see cref="StandardQuasiHttpServer"/> class.
         /// </summary>
         public StandardQuasiHttpServer()
         {
@@ -73,12 +71,6 @@ namespace Kabomu.QuasiHttp.Server
         public IQuasiHttpServerTransport Transport { get; set; }
 
         /// <summary>
-        /// Gets or sets a callback which can be used to report errors of processing requests
-        /// received from connections.
-        /// </summary>
-        public UncaughtErrorCallback ErrorHandler { get; set; }
-
-        /// <summary>
         /// Exposed for testing.
         /// </summary>
         internal Func<ReceiveTransferInternal, IReceiveProtocolInternal> DefaultProtocolFactory { get; set; }
@@ -88,136 +80,7 @@ namespace Kabomu.QuasiHttp.Server
         /// </summary>
         internal Func<ReceiveTransferInternal, IReceiveProtocolInternal> AltProtocolFactory { get; set; }
 
-        /// <summary>
-        /// Starts the instance set in the <see cref="Transport"/> property and begins
-        /// receiving connections from it.
-        /// </summary>
-        /// <remarks>
-        /// Server starting is not required to process requests directly with the <see cref="Application"/>
-        /// property and the <see cref="ProcessReceiveRequest(IQuasiHttpRequest, IQuasiHttpProcessingOptions)"/>
-        /// method.
-        /// <para></para>
-        /// A call to this method will be ignored if its instance is already started and running.
-        /// </remarks>
-        /// <returns>a task representing asynchronous operation</returns>
-        /// <exception cref="MissingDependencyException">The <see cref="Transport"/> property is null.</exception>
-        public async Task Start()
-        {
-            Task startTask;
-            lock (_mutex)
-            {
-                if (_running)
-                {
-                    return;
-                }
-                startTask = Transport?.Start();
-            }
-            if (startTask == null)
-            {
-                throw new MissingDependencyException("transport");
-            }
-            await startTask;
-            // let error handler or TaskScheduler.UnobservedTaskException handle 
-            // any uncaught task exceptions.
-            _ = StartAcceptingConnections();
-        }
-
-        /// <summary>
-        /// Stops the instance set in the <see cref="Transport"/> property and stops receiving connections from it.
-        /// </summary>
-        /// <remarks>
-        /// A call to this method will be ignored if its instance is already started and running.
-        /// </remarks>
-        /// <param name="waitTimeMillis">if nonnegative, then it indicates the delay in milliseconds
-        /// from the current time in which to wait for any ongoing processing to complete.</param>
-        /// <returns>a task representing the asynchronous operation</returns>
-        /// <exception cref="MissingDependencyException">The <see cref="Transport"/> property is null.</exception>
-        /// <exception cref="MissingDependencyException">The <paramref name="waitTimeMillis"/> argument is positive but
-        /// the <see cref="TimerApi"/> property needed is null.</exception>
-        public async Task Stop(int waitTimeMillis)
-        {
-            Task stopTask;
-            lock (_mutex)
-            {
-                if (!_running)
-                {
-                    return;
-                }
-                _running = false;
-                stopTask = Transport?.Stop();
-            }
-            if (stopTask == null)
-            {
-                throw new MissingDependencyException("transport");
-            }
-            await stopTask;
-            if (waitTimeMillis > 0)
-            {
-                await Task.Delay(waitTimeMillis);
-            }
-        }
-
-        private async Task StartAcceptingConnections()
-        {
-            lock (_mutex)
-            {
-                _running = true;
-            }
-            try
-            {
-                while (true)
-                {
-                    Task<IConnectionAllocationResponse> connectTask;
-                    lock (_mutex)
-                    {
-                        if (!_running)
-                        {
-                            break;
-                        }
-                        connectTask = Transport?.ReceiveConnection();
-                    }
-                    if (connectTask == null)
-                    {
-                        throw new MissingDependencyException("transport");
-                    }
-                    var connectionAllocationResponse = await connectTask;
-                    if (connectionAllocationResponse?.Connection == null)
-                    {
-                        throw new QuasiHttpRequestProcessingException("no connection");
-                    }
-                    // let TaskScheduler.UnobservedTaskException handle any uncaught task exceptions.
-                    _ = AcceptConnection(connectionAllocationResponse);
-                }
-            }
-            catch (Exception e)
-            {
-                var eh = ErrorHandler;
-                if (eh == null)
-                {
-                    throw;
-                }
-                eh.Invoke(e, "error encountered while accepting connections");
-            }
-        }
-
-        private async Task AcceptConnection(IConnectionAllocationResponse connectionAllocationResponse)
-        {
-            try
-            {
-                await Receive(connectionAllocationResponse);
-            }
-            catch (Exception e)
-            {
-                var eh = ErrorHandler;
-                if (eh == null)
-                {
-                    throw;
-                }
-                eh.Invoke(e, "error encountered while receiving a connection");
-            }
-        }
-
-        private async Task Receive(IConnectionAllocationResponse connectionResponse)
+        public async Task AcceptConnection(IConnectionAllocationResponse connectionAllocationResponse)
         {
             var transfer = new ReceiveTransferInternal
             {
@@ -226,7 +89,7 @@ namespace Kabomu.QuasiHttp.Server
             QuasiHttpRequestProcessingException abortError = null;
             try
             {
-                await Receive(transfer, connectionResponse);
+                await ProcessAcceptConnection(transfer, connectionAllocationResponse);
             }
             catch (Exception e)
             {
@@ -248,7 +111,7 @@ namespace Kabomu.QuasiHttp.Server
             }
         }
 
-        private async Task Receive(ReceiveTransferInternal transfer,
+        private async Task ProcessAcceptConnection(ReceiveTransferInternal transfer,
             IConnectionAllocationResponse connectionResponse)
         {
             Task<IQuasiHttpResponse> workTask;

@@ -260,7 +260,7 @@ namespace Kabomu.QuasiHttp.Client
                 }
             }
             return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
-                timeoutTask, transfer.CancellationTcs.Task);
+                timeoutTask, transfer.CancellationTcs?.Task);
         }
 
         private async Task<ProtocolSendResult> AllocateConnectionAndSend(SendTransferInternal transfer,
@@ -283,7 +283,7 @@ namespace Kabomu.QuasiHttp.Client
                 }
 
                 transfer.Connection = connectionResponse.Connection;
-                if (requestFunc != null)
+                if (requestFunc == null)
                 {
                     workTask = transfer.StartProtocol(DefaultProtocolFactory);
                 }

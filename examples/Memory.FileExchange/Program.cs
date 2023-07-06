@@ -1,8 +1,10 @@
 ﻿using CommandLine;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp.Client;
+using Kabomu.QuasiHttp.Server;
 using NLog;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Memory.FileExchange
@@ -20,6 +22,10 @@ namespace Memory.FileExchange
             [Option('s', "server-download-dir", Required = false,
                 HelpText = "Path to directory for saving uploaded files. Defaults to current directory")]
             public string ServerDownloadDirPath { get; set; }
+
+            [Option('b', "use-transport-bypass", Required = false,
+                HelpText = "Uses transport bypass instead of server/client transports. Defaults to false.")]
+            public bool? UseTransportBypass { get; set; }
         }
 
         static void Main(string[] args)
@@ -28,24 +34,51 @@ namespace Memory.FileExchange
                    .WithParsed<Options>(o =>
                    {
                        RunMain(o.ClientUploadDirPath ?? ".",
-                           o.ServerDownloadDirPath ?? ".").Wait();
+                           o.ServerDownloadDirPath ?? ".",
+                           o.UseTransportBypass ?? false).Wait();
                    });
         }
 
-        public static async Task RunMain(string uploadDirPath, string downloadDirPath)
+        public static async Task RunMain(string uploadDirPath, string downloadDirPath,
+            bool useTransportBypass)
         {
             var clientEndpoint = "takoradi";
             var serverEndpoint = "kumasi";
-            var transport = new CustomMemoryBasedTransport(clientEndpoint, downloadDirPath);
-            var defaultSendOptions = new DefaultQuasiHttpSendOptions
-            {
-                //TimeoutMillis = 5_000
-            };
             var instance = new StandardQuasiHttpClient
             {
-                DefaultSendOptions = defaultSendOptions,
-                TransportBypass = transport,
+                DefaultSendOptions = new DefaultQuasiHttpSendOptions
+                {
+                    TimeoutMillis = 5_000
+                }
             };
+            var application = new FileReceiver(clientEndpoint, downloadDirPath);
+            if (useTransportBypass)
+            {
+                instance.TransportBypass = new MemoryBasedAltTransport
+                {
+                    Application = application
+                };
+            }
+            else
+            {
+                var serverInstance = new StandardQuasiHttpServer
+                {
+                    Application = application
+                };
+                var serverTransport = new MemoryBasedServerTransport
+                {
+                    Server = serverInstance
+                };
+                serverInstance.Transport = serverTransport;
+                var clientTransport = new MemoryBasedClientTransport
+                {
+                    Servers = new Dictionary<object, MemoryBasedServerTransport>
+                    {
+                        { serverEndpoint, serverTransport }
+                    }
+                };
+                instance.Transport = clientTransport;
+            }
 
             try
             {

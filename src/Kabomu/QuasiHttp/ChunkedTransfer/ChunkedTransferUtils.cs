@@ -100,6 +100,10 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 throw new ArgumentNullException(nameof(reader));
             }
+            if (maxChunkSize <= 0)
+            {
+                maxChunkSize = DefaultMaxChunkSize;
+            }
             byte[] chunkBytes;
             try
             {
@@ -174,7 +178,10 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 throw new ArgumentNullException(nameof(writer));
             }
-
+            if (maxChunkSize <= 0)
+            {
+                maxChunkSize = DefaultMaxChunkSize;
+            }
             var slices = chunk.Serialize();
             int byteCount = slices.Sum(s => s.Length);
             if (byteCount > maxChunkSize)

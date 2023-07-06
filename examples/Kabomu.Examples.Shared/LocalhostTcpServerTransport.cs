@@ -1,4 +1,6 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Server;
+using Kabomu.QuasiHttp.Transport;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,18 +13,17 @@ namespace Kabomu.Examples.Shared
 {
     public class LocalhostTcpServerTransport : IQuasiHttpServerTransport
     {
+        private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
         private readonly object _mutex = new object();
         private readonly int _port;
         private TcpListener _tcpServer;
-
-        public LocalhostTcpServerTransport()
-        {
-        }
 
         public LocalhostTcpServerTransport(int port)
         {
             _port = port;
         }
+
+        public IQuasiHttpServer Server { get; set; }
 
         public Task Start()
         {
@@ -30,20 +31,10 @@ namespace Kabomu.Examples.Shared
             {
                 if (_tcpServer == null)
                 {
-                    try
-                    {
-                        _tcpServer = new TcpListener(IPAddress.Loopback, _port);
-                        _tcpServer.Start();
-                    }
-                    catch (Exception)
-                    {
-                        try
-                        {
-                            _tcpServer?.Stop();
-                        }
-                        catch (Exception) { }
-                        throw;
-                    }
+                    _tcpServer = new TcpListener(IPAddress.Loopback, _port);
+                    _tcpServer.Start();
+                    _ = ServerUtils.AcceptConnections(ReceiveConnection,
+                            IsDoneRunning);
                 }
             }
             return Task.CompletedTask;
@@ -65,31 +56,29 @@ namespace Kabomu.Examples.Shared
             return Task.CompletedTask;
         }
 
-        public bool IsRunning()
+        private Task<bool> IsDoneRunning(Exception latestError)
         {
+            if (latestError != null)
+            {
+                LOG.Warn(latestError, "connection receive error");
+                return Task.FromResult(false);
+            }
             lock (_mutex)
             {
-                return _tcpServer != null;
+                return Task.FromResult(_tcpServer != null);
             }
         }
 
-        public async Task<IConnectionAllocationResponse> ReceiveConnection()
+        private async Task<bool> ReceiveConnection()
         {
-            Task<TcpClient> acceptTask;
-            lock (_mutex)
-            {
-                if (_tcpServer == null)
-                {
-                    throw new InvalidOperationException("transport not started");
-                }
-                acceptTask = _tcpServer.AcceptTcpClientAsync();
-            }
-            var tcpClient = await acceptTask;
+            var tcpClient = await _tcpServer.AcceptTcpClientAsync();
             tcpClient.NoDelay = true;
-            return new DefaultConnectionAllocationResponse
+            var c = new DefaultConnectionAllocationResponse
             {
                 Connection = tcpClient
             };
+            await Server.AcceptConnection(c);
+            return true;
         }
 
         public Task ReleaseConnection(object connection)

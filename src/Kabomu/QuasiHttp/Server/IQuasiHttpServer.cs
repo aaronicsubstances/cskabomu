@@ -1,5 +1,4 @@
-﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -32,12 +31,6 @@ namespace Kabomu.QuasiHttp.Server
         IQuasiHttpProcessingOptions DefaultProcessingOptions { get; set; }
 
         /// <summary>
-        /// Gets or sets a callback which can be used to report errors of processing requests
-        /// received from connections.
-        /// </summary>
-        UncaughtErrorCallback ErrorHandler { get; set; }
-
-        /// <summary>
         /// Gets or sets the quasi web application responsible for processing requests to generate
         /// responses.
         /// </summary>
@@ -51,18 +44,11 @@ namespace Kabomu.QuasiHttp.Server
         IQuasiHttpServerTransport Transport { get; set; }
 
         /// <summary>
-        /// Starting point of implementations for receiving connections from their quasi http transports.
+        /// Used to process incoming connections from quasi http server transports.
         /// </summary>
+        /// <param name="connectionAllocationResponse">represents a connection and any associated information</param>
         /// <returns>a task representing asynchronous operation</returns>
-        Task Start();
-
-        /// <summary>
-        /// Used by implementations to stop receiving connections from their quasi http transports.
-        /// </summary>
-        /// <param name="waitTimeMillis">if nonnegative, then it indicates the delay in ms
-        /// from the current time during which ongoing processing is allowed to finish.</param>
-        /// <returns>a task representing asynchronous operations.</returns>
-        Task Stop(int waitTimeMillis);
+        Task AcceptConnection(IConnectionAllocationResponse connectionAllocationResponse);
 
         /// <summary>
         /// Hook for transports external to Kabomu for using the quasi http application of an
