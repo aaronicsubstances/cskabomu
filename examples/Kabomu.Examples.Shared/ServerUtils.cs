@@ -12,12 +12,12 @@ namespace Kabomu.Examples.Shared
             var more = true;
             while (more)
             {
+                if (await doneCheck.Invoke(prevError))
+                {
+                    break;
+                }
                 try
                 {
-                    if (await doneCheck.Invoke(prevError))
-                    {
-                        break;
-                    }
                     more = await receiveCb();
                     prevError = null;
                 }

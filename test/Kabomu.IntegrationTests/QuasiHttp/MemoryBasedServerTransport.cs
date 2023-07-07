@@ -1,20 +1,14 @@
-﻿using Kabomu.QuasiHttp.Server;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.Tests.Shared
+namespace Kabomu.IntegrationTests.QuasiHttp
 {
     public class MemoryBasedServerTransport : IQuasiHttpServerTransport
     {
-        public IQuasiHttpServer Server { get; set; }
-
-        public Task AcceptConnection(IConnectionAllocationResponse c)
-        {
-            return Server.AcceptConnection(c);
-        }
+        public Action<IConnectionAllocationResponse> AcceptConnectionFunc { get; set; }
 
         public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
         {

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.Tests.Shared
+namespace Kabomu.IntegrationTests.QuasiHttp
 {
     public class MemoryBasedClientTransport : IQuasiHttpClientTransport
     {
@@ -19,7 +19,7 @@ namespace Kabomu.Tests.Shared
                 Connection = connection,
                 Environment = connectivityParams.ExtraParams
             };
-            _ = server.AcceptConnection(c);
+            server.AcceptConnectionFunc.Invoke(c);
             return Task.FromResult(c);
         }
 
