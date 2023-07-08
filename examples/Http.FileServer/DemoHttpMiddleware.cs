@@ -19,9 +19,9 @@ namespace Http.FileServer
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
-        private readonly IQuasiHttpServer _wrapped;
+        private readonly StandardQuasiHttpServer _wrapped;
 
-        public DemoHttpMiddleware(IQuasiHttpServer wrapped)
+        public DemoHttpMiddleware(StandardQuasiHttpServer wrapped)
         {
             _wrapped = wrapped;
         }

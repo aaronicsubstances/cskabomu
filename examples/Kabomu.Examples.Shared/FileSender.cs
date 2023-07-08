@@ -16,7 +16,7 @@ namespace Kabomu.Examples.Shared
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
         private static readonly Random RandGen = new Random();
 
-        public static async Task StartTransferringFiles(IQuasiHttpClient instance, object serverEndpoint,
+        public static async Task StartTransferringFiles(StandardQuasiHttpClient instance, object serverEndpoint,
             string uploadDirPath)
         {
             var directory = new DirectoryInfo(uploadDirPath);
@@ -38,7 +38,7 @@ namespace Kabomu.Examples.Shared
                 bytesTransferred, megaBytesTransferred, count, timeTaken, rate);
         }
 
-        private static async Task TransferFile(IQuasiHttpClient instance, object serverEndpoint, FileInfo f)
+        private static async Task TransferFile(StandardQuasiHttpClient instance, object serverEndpoint, FileInfo f)
         {
             var request = new DefaultQuasiHttpRequest
             {

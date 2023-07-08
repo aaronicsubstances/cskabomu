@@ -23,13 +23,12 @@ namespace Kabomu.QuasiHttp.Client
     /// Therefore this class can be seen as the equivalent of an HTTP client that extends underlying transport beyond TCP
     /// to IPC mechanisms and even interested connectionless transports as well.
     /// </remarks>
-    public class StandardQuasiHttpClient : IQuasiHttpClient
+    public class StandardQuasiHttpClient
     {
         private readonly object _mutex = new object();
 
         /// <summary>
-        /// Creates a new instance of the <see cref="StandardQuasiHttpClient"/> class with defaults provided
-        /// for the <see cref="MutexApi"/> and <see cref="TimerApi"/> properties.
+        /// Creates a new instance.
         /// </summary>
         public StandardQuasiHttpClient()
         {
@@ -137,17 +136,16 @@ namespace Kabomu.QuasiHttp.Client
         /// </summary>
         /// <param name="remoteEndpoint">the destination endpoint of the request</param>
         /// <param name="requestFunc">a callback which receives any environment
-        /// associated with the connection that may be created, and returns a promise of
-        /// the request to send</param>
+        /// associated with the connection that may be created, or any environment
+        /// that may be supplied by the <see cref="TransportBypass"/> property.
+        /// Returns a promise of the request to send</param>
         /// <param name="options">send options which override default send options and response
         /// streaming probability.</param>
         /// <returns>pair of handles: first is a task which can be used to await quasi http response from the remote endpoint;
         /// second is an opaque cancellation handle which can be used to cancel the request sending.</returns>
-        /// <exception cref="ArgumentNullException">The <paramref name="request"/> argument is null</exception>
+        /// <exception cref="ArgumentNullException">The <paramref name="requestFunc"/> argument is null</exception>
         /// <exception cref="MissingDependencyException">The <see cref="Transport"/>
         /// property is null.</exception>
-        /// <exception cref="MissingDependencyException">The <see cref="TimerApi"/>
-        /// property is null at a point where timer functionality is needed.</exception>
         public (Task<IQuasiHttpResponse>, object) Send2(object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions options)
@@ -160,7 +158,7 @@ namespace Kabomu.QuasiHttp.Client
             var transfer = new SendTransferInternal
             {
                 Mutex = _mutex,
-                CancellationTcs = new TaskCompletionSource<ProtocolSendResult>(
+                CancellationTcs = new TaskCompletionSource<ProtocolSendResultInternal>(
                     TaskCreationOptions.RunContinuationsAsynchronously)
             };
             var sendTask = ProcessSendX(remoteEndpoint, null, requestFunc,
@@ -173,7 +171,7 @@ namespace Kabomu.QuasiHttp.Client
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions options, SendTransferInternal transfer)
         {
-            ProtocolSendResult res = null;
+            ProtocolSendResultInternal res = null;
             IQuasiHttpResponse response = null;
             QuasiHttpRequestProcessingException abortError = null;
             try
@@ -207,13 +205,13 @@ namespace Kabomu.QuasiHttp.Client
             return response;
         }
 
-        private async Task<ProtocolSendResult> ProcessSend(object remoteEndpoint,
+        private async Task<ProtocolSendResultInternal> ProcessSend(object remoteEndpoint,
             IQuasiHttpRequest request,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions options, SendTransferInternal transfer)
         {
-            Task<ProtocolSendResult> workTask;
-            Task<ProtocolSendResult> timeoutTask;
+            Task<ProtocolSendResultInternal> workTask;
+            Task<ProtocolSendResultInternal> timeoutTask;
             lock (_mutex)
             {
                 // NB: negative value is allowed for timeout, which indicates infinite timeout.
@@ -221,7 +219,7 @@ namespace Kabomu.QuasiHttp.Client
                     options?.TimeoutMillis,
                     DefaultSendOptions?.TimeoutMillis,
                     0);
-                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<ProtocolSendResult>(timeoutMillis);
+                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<ProtocolSendResultInternal>(timeoutMillis);
 
                 var effectiveConnectivityParams = new DefaultConnectivityParams
                 {
@@ -263,7 +261,7 @@ namespace Kabomu.QuasiHttp.Client
                 timeoutTask, transfer.CancellationTcs?.Task);
         }
 
-        private async Task<ProtocolSendResult> AllocateConnectionAndSend(SendTransferInternal transfer,
+        private async Task<ProtocolSendResultInternal> AllocateConnectionAndSend(SendTransferInternal transfer,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc)
         {
             var transport = Transport;
@@ -274,7 +272,7 @@ namespace Kabomu.QuasiHttp.Client
 
             var connectionResponse = await transport.AllocateConnection(transfer.ConnectivityParams);
 
-            Task<ProtocolSendResult> workTask = null;
+            Task<ProtocolSendResultInternal> workTask = null;
             lock (_mutex)
             {
                 if (connectionResponse?.Connection == null)

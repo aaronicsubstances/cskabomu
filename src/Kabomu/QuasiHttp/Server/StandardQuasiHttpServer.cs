@@ -23,12 +23,12 @@ namespace Kabomu.QuasiHttp.Server
     /// Therefore this class can be seen as the equivalent of an HTTP server in which the underlying transport of
     /// choice extends beyond TCP to include IPC mechanisms.
     /// </remarks>
-    public class StandardQuasiHttpServer : IQuasiHttpServer
+    public class StandardQuasiHttpServer
     {
         private readonly object _mutex = new object();
 
         /// <summary>
-        /// Creates a new instance of the <see cref="StandardQuasiHttpServer"/> class.
+        /// Creates a new instance.
         /// </summary>
         public StandardQuasiHttpServer()
         {
@@ -80,6 +80,11 @@ namespace Kabomu.QuasiHttp.Server
         /// </summary>
         internal Func<ReceiveTransferInternal, IReceiveProtocolInternal> AltProtocolFactory { get; set; }
 
+        /// <summary>
+        /// Used to process incoming connections from quasi http server transports.
+        /// </summary>
+        /// <param name="connectionAllocationResponse">represents a connection and any associated information</param>
+        /// <returns>a task representing asynchronous operation</returns>
         public async Task AcceptConnection(IConnectionAllocationResponse connectionAllocationResponse)
         {
             var transfer = new ReceiveTransferInternal
@@ -141,7 +146,7 @@ namespace Kabomu.QuasiHttp.Server
         /// <remarks>
         /// By this method, transport types which are not connection-oriented or implement connections
         /// differently can still make use of this class to offload some of the burdens of quasi http
-        /// request processing.
+        /// request processing, such as setting timeouts on request processing.
         /// </remarks>
         /// <param name="request">quasi http request to process </param>
         /// <param name="options">supplies request timeout and any processing options which should 

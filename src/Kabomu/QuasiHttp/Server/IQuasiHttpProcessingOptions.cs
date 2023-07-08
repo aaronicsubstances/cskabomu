@@ -5,7 +5,7 @@ using System.Text;
 namespace Kabomu.QuasiHttp.Server
 {
     /// <summary>
-    /// Used to configure request processing by <see cref="IQuasiHttpServer"/> instances.
+    /// Used to configure request processing by <see cref="StandardQuasiHttpServer"/> instances.
     /// </summary>
     public interface IQuasiHttpProcessingOptions
     {
@@ -20,7 +20,7 @@ namespace Kabomu.QuasiHttp.Server
         int TimeoutMillis { get; set; }
 
         /// <summary>
-        /// Gets the value that imposes a maximum size on the chunks which will be generated during
+        /// Gets the value that imposes a maximum size on the headers and chunks which will be generated during
         /// the processing of a request, in accordance with the chunked transfer protocol.
         /// </summary>
         /// <remarks>

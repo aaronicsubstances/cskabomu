@@ -22,7 +22,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var protocol = new HelperSendProtocol
             {
-                ExpectedSendResult = new ProtocolSendResult()
+                ExpectedSendResult = new ProtocolSendResultInternal()
             };
 
             // act
@@ -50,7 +50,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var protocol = new HelperSendProtocol
             {
-                ExpectedSendResult = new ProtocolSendResult()
+                ExpectedSendResult = new ProtocolSendResultInternal()
             };
 
             // act
@@ -112,7 +112,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             Exception cancellationError = null;
             var resCts = new CancellationTokenSource();
-            ProtocolSendResult res = new ProtocolSendResult
+            ProtocolSendResultInternal res = new ProtocolSendResultInternal
             {
                 ResponseBufferingApplied = true,
                 Response = new DefaultQuasiHttpResponse
@@ -142,7 +142,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Protocol = protocol
             };
             Exception cancellationError = null;
-            ProtocolSendResult res = new ProtocolSendResult();
+            ProtocolSendResultInternal res = new ProtocolSendResultInternal();
 
             // act
             await instance.Abort(cancellationError, res);
@@ -159,11 +159,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var instance = new SendTransferInternal
             {
                 Mutex = new object(),
-                CancellationTcs = new TaskCompletionSource<ProtocolSendResult>(),
+                CancellationTcs = new TaskCompletionSource<ProtocolSendResultInternal>(),
                 Protocol = protocol
             };
             Exception cancellationError = new InvalidOperationException();
-            ProtocolSendResult res = new ProtocolSendResult();
+            ProtocolSendResultInternal res = new ProtocolSendResultInternal();
 
             // act
             await instance.Abort(cancellationError, res);
@@ -189,13 +189,13 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 Mutex = new object(),
                 TimeoutId = new CancellationTokenSource(),
-                CancellationTcs = new TaskCompletionSource<ProtocolSendResult>(),
+                CancellationTcs = new TaskCompletionSource<ProtocolSendResultInternal>(),
                 Protocol = protocol,
                 Request = request
             };
             Exception cancellationError = null;
             var resCts = new CancellationTokenSource();
-            ProtocolSendResult res = new ProtocolSendResult
+            ProtocolSendResultInternal res = new ProtocolSendResultInternal
             {
                 Response = new DefaultQuasiHttpResponse
                 {
@@ -233,7 +233,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             Exception cancellationError = null;
             var resCts = new CancellationTokenSource();
-            ProtocolSendResult res = new ProtocolSendResult
+            ProtocolSendResultInternal res = new ProtocolSendResultInternal
             {
                 Response = new DefaultQuasiHttpResponse
                 {
@@ -268,7 +268,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             Exception cancellationError = null;
             var resCts = new CancellationTokenSource();
-            ProtocolSendResult res = new ProtocolSendResult
+            ProtocolSendResultInternal res = new ProtocolSendResultInternal
             {
                 ResponseBufferingApplied = false,
                 Response = new DefaultQuasiHttpResponse
@@ -299,10 +299,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Mutex = new object(),
                 Request = request,
                 TimeoutId = new CancellationTokenSource(),
-                CancellationTcs = new TaskCompletionSource<ProtocolSendResult>()
+                CancellationTcs = new TaskCompletionSource<ProtocolSendResultInternal>()
             };
             Exception cancellationError = null;
-            ProtocolSendResult res = new ProtocolSendResult
+            ProtocolSendResultInternal res = new ProtocolSendResultInternal
             {
                 ResponseBufferingApplied = true
             };
@@ -335,10 +335,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Protocol = protocol,
                 Request = request,
                 TimeoutId = new CancellationTokenSource(),
-                CancellationTcs = new TaskCompletionSource<ProtocolSendResult>()
+                CancellationTcs = new TaskCompletionSource<ProtocolSendResultInternal>()
             };
             var resCts = new CancellationTokenSource();
-            ProtocolSendResult res = new ProtocolSendResult
+            ProtocolSendResultInternal res = new ProtocolSendResultInternal
             {
                 Response = new DefaultQuasiHttpResponse
                 {
@@ -365,7 +365,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             public bool Cancelled { get; set; }
             public Exception ExpectedCancelError { get; set; }
             public Exception ExpectedSendError { get; set; }
-            public ProtocolSendResult ExpectedSendResult { get; set; }
+            public ProtocolSendResultInternal ExpectedSendResult { get; set; }
 
             public Task Cancel()
             {
@@ -377,11 +377,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 return Task.CompletedTask;
             }
 
-            public Task<ProtocolSendResult> Send()
+            public Task<ProtocolSendResultInternal> Send()
             {
                 if (ExpectedSendError != null)
                 {
-                    return Task.FromException<ProtocolSendResult>(ExpectedSendError);
+                    return Task.FromException<ProtocolSendResultInternal>(ExpectedSendError);
                 }
                 return Task.FromResult(ExpectedSendResult);
             }

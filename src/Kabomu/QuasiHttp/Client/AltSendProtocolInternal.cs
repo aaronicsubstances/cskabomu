@@ -34,7 +34,7 @@ namespace Kabomu.QuasiHttp.Client
             return Task.CompletedTask;
         }
 
-        public async Task<ProtocolSendResult> Send()
+        public async Task<ProtocolSendResultInternal> Send()
         {
             // assume properties are set correctly aside the transport.
             if (TransportBypass == null)
@@ -107,7 +107,7 @@ namespace Kabomu.QuasiHttp.Client
                     await originalResponse.CustomDispose();
                 }
 
-                return new ProtocolSendResult
+                return new ProtocolSendResultInternal
                 {
                     Response = response,
                     ResponseBufferingApplied = originalResponseBufferingApplied == true ||

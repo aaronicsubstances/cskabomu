@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp.Client
 {
-    public class ProtocolSendResult
+    internal class ProtocolSendResultInternal
     {
         public IQuasiHttpResponse Response { get; set; }
 

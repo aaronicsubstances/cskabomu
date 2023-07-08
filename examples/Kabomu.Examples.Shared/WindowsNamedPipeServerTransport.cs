@@ -23,7 +23,7 @@ namespace Kabomu.Examples.Shared
             _path = path;
         }
 
-        public IQuasiHttpServer Server { get; set; }
+        public StandardQuasiHttpServer Server { get; set; }
 
         public Task Start()
         {

@@ -13,7 +13,7 @@ namespace Kabomu.QuasiHttp.Client
         public ISendProtocolInternal Protocol { get; set; }
         public CancellationTokenSource TimeoutId { get; set; }
         public bool IsAborted { get; set; }
-        public TaskCompletionSource<ProtocolSendResult> CancellationTcs { get; set; }
+        public TaskCompletionSource<ProtocolSendResultInternal> CancellationTcs { get; set; }
         public IQuasiHttpRequest Request { get; set; }
         public Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> RequestFunc { get; set; }
         public int MaxChunkSize { get; set; }
@@ -27,7 +27,7 @@ namespace Kabomu.QuasiHttp.Client
         /// </summary>
         /// <param name="protocolFactory"></param>
         /// <returns></returns>
-        public async Task<ProtocolSendResult> StartProtocol(
+        public async Task<ProtocolSendResultInternal> StartProtocol(
             Func<SendTransferInternal, ISendProtocolInternal> protocolFactory)
         {
             // even if abort has already happened, still go ahead and
@@ -51,7 +51,7 @@ namespace Kabomu.QuasiHttp.Client
             return res;
         }
 
-        public  async Task Abort(Exception cancellationError, ProtocolSendResult res)
+        public  async Task Abort(Exception cancellationError, ProtocolSendResultInternal res)
         {
             Task disableTask = null;
             var disposeRes = false;
@@ -87,9 +87,9 @@ namespace Kabomu.QuasiHttp.Client
             }
         }
 
-        private static async Task Disable(Exception cancellationError, ProtocolSendResult res,
+        private static async Task Disable(Exception cancellationError, ProtocolSendResultInternal res,
             
-            TaskCompletionSource<ProtocolSendResult> cancellationTcs,
+            TaskCompletionSource<ProtocolSendResultInternal> cancellationTcs,
             CancellationTokenSource timeoutId, ISendProtocolInternal protocol, IQuasiHttpRequest request)
         {
             timeoutId?.Cancel();

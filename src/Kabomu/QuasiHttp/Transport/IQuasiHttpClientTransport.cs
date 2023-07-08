@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.Transport
 {
     /// <summary>
-    /// Equivalent of TCP client socket factory that provides <see cref="Client.IQuasiHttpClient"/> instances
+    /// Equivalent of TCP client socket factory that provides <see cref="Client.StandardQuasiHttpClient"/> instances
     /// with client operations for sending quasi http requests to servers or remote endpoints.
     /// </summary>
     public interface IQuasiHttpClientTransport : IQuasiHttpTransport

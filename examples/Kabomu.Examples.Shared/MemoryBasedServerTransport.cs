@@ -9,7 +9,7 @@ namespace Kabomu.Examples.Shared
 {
     public class MemoryBasedServerTransport : IQuasiHttpServerTransport
     {
-        public IQuasiHttpServer Server { get; set; }
+        public StandardQuasiHttpServer Server { get; set; }
 
         public Task AcceptConnection(IConnectionAllocationResponse c)
         {
