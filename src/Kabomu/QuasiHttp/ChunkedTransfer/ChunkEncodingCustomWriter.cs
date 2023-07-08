@@ -21,7 +21,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         private int _usedBufferOffset;
 
         public ChunkEncodingCustomWriter(ICustomWriter wrappedWriter,
-            int maxChunkSize)
+            int maxChunkSize = 0)
         {
             if (wrappedWriter == null)
             {

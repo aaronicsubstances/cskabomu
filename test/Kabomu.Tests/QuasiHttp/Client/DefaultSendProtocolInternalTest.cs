@@ -7,7 +7,9 @@ using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -15,7 +17,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 {
     public class DefaultSendProtocolInternalTest
     {
-        /*[Fact]
+        [Fact]
         public async Task TestSendForDependencyErrors()
         {
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
@@ -26,61 +28,46 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 };
                 return instance.Send();
             });
+            await Assert.ThrowsAsync<ExpectationViolationException>(() =>
+            {
+                var instance = new DefaultSendProtocolInternal
+                {
+                    Transport = new DemoQuasiHttpTransport(null)
+                };
+                return instance.Send();
+            });
         }
 
         [Theory]
         [MemberData(nameof(CreateTestSendData))]
-        public async Task TestSend(object connection, int maxChunkSize, bool responseBufferingEnabled,
-            IQuasiHttpRequest expectedRequest, byte[] expectedRequestBodyBytes,
-            IQuasiHttpResponse response, byte[] responseBodyBytes)
+        public async Task TestSend(
+            object connection, int maxChunkSize, bool responseBufferingEnabled,
+            IQuasiHttpMutableRequest request, byte[] expectedReqBodyBytes,
+            IQuasiHttpResponse expectedResponse, byte[] expectedResBodyBytes)
         {
-            // arrange.
-            var expectedReqChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                RequestTarget = expectedRequest.Target,
-                Headers = expectedRequest.Headers,
-                ContentLength = expectedRequest.Body?.ContentLength ?? 0,
-                ContentType = expectedRequest.Body?.ContentType,
-                HttpVersion = expectedRequest.HttpVersion,
-                Method = expectedRequest.Method
-            };
+            // prepare response for reading.
+            var linkingTcs = new TaskCompletionSource<int>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var helpingReader = await SerializeResponseToBeRead(
+                expectedResponse, expectedResBodyBytes,
+                linkingTcs.Task);
 
-            var inputStream = MiscUtils.CreateResponseInputStream(response, responseBodyBytes);
-            var outputStream = new MemoryStream();
-            int releaseCallCount = 0;
-            var transport = new ConfigurableQuasiHttpTransport
+            // prepare to receive request to be written
+            var headerReceiver = new MemoryStream();
+            var bodyReceiver = new MemoryStream();
+            var helpingWriter = SetUpReceivingOfRequestToBeWritten(
+                request, expectedReqBodyBytes, headerReceiver,
+                bodyReceiver, linkingTcs);
+
+            // set up instance
+            var transport = new DemoQuasiHttpTransport2(connection,
+                helpingReader, helpingWriter)
             {
-                ReadBytesCallback = async (actualConnection, data, offset, length) =>
-                {
-                    Assert.Same(connection, actualConnection);
-                    var bytesRead = inputStream.Read(data, offset, length);
-                    // introduce delay so that any write exceptions will not be swallowed.
-                    await Task.Delay(10);
-                    return bytesRead;
-                },
-                WriteBytesCallback = async (actualConnection, data, offset, length) =>
-                {
-                    Assert.Same(connection, actualConnection);
-                    // introduce delay so that any read exceptions will not be swallowed.
-                    await Task.Delay(10);
-                    outputStream.Write(data, offset, length);
-                },
-                ReleaseConnectionCallback = (actualConnection) =>
-                {
-                    Assert.Same(connection, actualConnection);
-                    releaseCallCount++;
-                    return Task.CompletedTask;
-                }
+                ReleaseIndicator = new CancellationTokenSource()
             };
-            var expectedReleaseCallCount = 0;
-            if (response.Body != null && responseBufferingEnabled)
-            {
-                expectedReleaseCallCount++;
-            }
             var instance = new DefaultSendProtocolInternal
             {
-                Request = expectedRequest,
+                Request = request,
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize,
@@ -88,72 +75,177 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ResponseBodyBufferingSizeLimit = 100
             };
 
+            // set up expected request headers
+            var expectedReqChunk = new LeadChunk
+            {
+                Version = LeadChunk.Version01,
+                Method = request.Method,
+                RequestTarget = request.Target,
+                HttpVersion = request.HttpVersion,
+                Headers = request.Headers,
+                ContentLength = request.Body?.ContentLength ?? 0,
+                ContentType = request.Body?.ContentType,
+            };
+
             // act.
             var actualResponse = await instance.Send();
+            var wasTransportReleased = transport.ReleaseIndicator.IsCancellationRequested;
 
-            // assert.
-            Assert.Equal(responseBufferingEnabled, actualResponse?.ResponseBufferingApplied);
+            // begin assert.
+            Assert.NotNull(actualResponse);
+            Assert.NotNull(actualResponse.Response);
+            Assert.Equal(responseBufferingEnabled, actualResponse.ResponseBufferingApplied);
 
-            // assert expected behaviour of response closure occured by trying 
-            // to determine if connection was released.
-            Assert.Equal(expectedReleaseCallCount, releaseCallCount);
+            // assert read response.
+            await ComparisonUtils.CompareResponses(expectedResponse, actualResponse.Response,
+                expectedResBodyBytes);
 
-            await ComparisonUtils.CompareResponses(maxChunkSize, response, actualResponse.Response,
-                responseBodyBytes);
-
-            // test cancellation after considering release call during comparison.
-            releaseCallCount = 0;
-            await instance.Cancel();
-            Assert.Equal(connection == null ? 0 : 1, releaseCallCount);
-
-            // finally verify contents of output stream.
-            var actualReq = outputStream.ToArray();
-            Assert.NotEmpty(actualReq);
-            int reqBytesOffset = 0; 
-            
-            var actualReqChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualReq, 0,
-                MiscUtils.LengthOfEncodedChunkLength, true);
-            reqBytesOffset += MiscUtils.LengthOfEncodedChunkLength;
-            
-            var actualReqChunk = LeadChunk.Deserialize(actualReq, reqBytesOffset,
-                actualReqChunkLength);
+            // assert written request, and work around disposed
+            // request receiving streams.
+            ICustomReader reqHeaderReader = new StreamCustomReaderWriter(
+                new MemoryStream(headerReceiver.ToArray()));
+            var actualReqChunk = await ChunkedTransferUtils.ReadLeadChunk(
+                reqHeaderReader, 0);
+            // verify all contents of headerReceiver was used
+            // before comparing lead chunks
+            Assert.Equal(0, await reqHeaderReader.ReadBytes(new byte[1], 0, 1));
             ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
-            reqBytesOffset += actualReqChunkLength;
-
-            var actualRequestBodyLen = actualReq.Length - reqBytesOffset;
-            if (expectedRequestBodyBytes == null)
+            
+            ICustomReader reqBodyReader = new StreamCustomReaderWriter(
+                new MemoryStream(bodyReceiver.ToArray()));
+            if (expectedReqChunk.ContentLength < 0)
             {
-                Assert.Equal(0, actualRequestBodyLen);
+                reqBodyReader = new ChunkDecodingCustomReader(reqBodyReader);
+            }
+            var actualReqBodyBytes = await IOUtils.ReadAllBytes(reqBodyReader);
+            if (request.Body == null)
+            {
+                Assert.Empty(actualReqBodyBytes);
             }
             else
             {
-                byte[] actualReqBodyBytes;
-                if (actualReqChunk.ContentLength < 0)
-                {
-                    actualReqBodyBytes = await MiscUtils.ReadChunkedBody(actualReq,
-                        reqBytesOffset, actualRequestBodyLen);
-                }
-                else
-                {
-                    var reqBodyPrefix = new byte[MiscUtils.LengthOfEncodedChunkLength];
-                    Array.Copy(actualReq, reqBytesOffset,
-                        reqBodyPrefix, 0, reqBodyPrefix.Length);
-                    Assert.Equal(ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue, reqBodyPrefix);
-                    reqBytesOffset += MiscUtils.LengthOfEncodedChunkLength;
-                    actualRequestBodyLen -= MiscUtils.LengthOfEncodedChunkLength;
-
-                    actualReqBodyBytes = new byte[actualRequestBodyLen];
-                    Array.Copy(actualReq, reqBytesOffset,
-                        actualReqBodyBytes, 0, actualRequestBodyLen);
-                }
-                Assert.Equal(expectedRequestBodyBytes, actualReqBodyBytes);
+                Assert.Equal(expectedReqBodyBytes, actualReqBodyBytes);
             }
+
+            // verify cancel expectations
+            if (expectedResponse.Body != null)
+            {
+                Assert.Equal(responseBufferingEnabled, wasTransportReleased);
+            }
+            else
+            {
+                Assert.False(wasTransportReleased);
+            }
+            await instance.Cancel();
+            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
+        }
+
+        private ICustomWriter SetUpReceivingOfRequestToBeWritten(
+            IQuasiHttpMutableRequest request, byte[] expectedReqBodyBytes,
+            MemoryStream headerReceiver, MemoryStream bodyReceiver,
+            TaskCompletionSource<int> linkingTcs)
+        {
+            var helpingWriter = new TeeCustomWriter
+            {
+                Writers = new List<ICustomWriter>
+                {
+                    new StreamCustomReaderWriter(headerReceiver)
+                }
+            };
+            if ((request.Body?.ContentLength ?? 0) != 0)
+            {
+                // replace DummyQuasiHttpBody with real body.
+                var writable = new LambdaBasedCustomWritable
+                {
+                    WritableFunc = async writer =>
+                    {
+                        // switch receiver of bytes to be written
+                        // by writable.
+                        helpingWriter.Writers = new List<ICustomWriter>
+                        {
+                            new StreamCustomReaderWriter(bodyReceiver)
+                        };
+                        await writer.WriteBytes(expectedReqBodyBytes, 0,
+                            expectedReqBodyBytes.Length);
+                        linkingTcs?.SetResult(0);
+                    }
+                };
+                request.Body = new CustomWritableBackedBody(writable)
+                {
+                    ContentLength = request.Body.ContentLength,
+                    ContentType = request.Body.ContentType
+                };
+            }
+            else
+            {
+                linkingTcs?.SetResult(0);
+            }
+            return helpingWriter;
+        }
+
+        private static async Task<ICustomReader> SerializeResponseToBeRead(
+            IQuasiHttpResponse res, byte[] resBodyBytes,
+            Task<int> linkingTask)
+        {
+            var resChunk = new LeadChunk
+            {
+                Version = LeadChunk.Version01,
+                HttpVersion = res.HttpVersion,
+                StatusCode = res.StatusCode,
+                HttpStatusMessage = res.HttpStatusMessage,
+                Headers = res.Headers,
+                ContentLength = res.Body?.ContentLength ?? 0,
+                ContentType = res.Body?.ContentType
+            };
+            var helpingReaders = new List<ICustomReader>();
+            if (linkingTask != null)
+            {
+                var waitingReader = new LambdaBasedCustomReader
+                {
+                    ReadFunc = async (data, offset, length) =>
+                    {
+                        async Task<int> Timeout()
+                        {
+                            await Task.Delay(2000);
+                            throw new ExpectationViolationException(
+                                "timeout while waiting to read response");
+                        }
+                        return await await Task.WhenAny(linkingTask, Timeout());
+                    }
+                };
+                helpingReaders.Add(waitingReader);
+            };
+            var headerStream = new MemoryStream();
+            var headerReader = new StreamCustomReaderWriter(headerStream);
+            await ChunkedTransferUtils.WriteLeadChunk(headerReader, 0,
+                resChunk);
+            headerStream.Position = 0; // reset for reading.
+            helpingReaders.Add(headerReader);
+            if (res.Body != null)
+            {
+                var resBodyStream = new MemoryStream();
+                ICustomWriter resBodyWriter = new StreamCustomReaderWriter(
+                    resBodyStream);
+                if (resChunk.ContentLength < 0)
+                {
+                    resBodyWriter = new ChunkEncodingCustomWriter(resBodyWriter);
+                }
+                await resBodyWriter.WriteBytes(resBodyBytes, 0, resBodyBytes.Length);
+                await resBodyWriter.CustomDispose(); // will dispose resBodyStream as well
+                helpingReaders.Add(new StreamCustomReaderWriter(
+                    new MemoryStream(resBodyStream.ToArray())));
+            }
+            return new SequenceCustomReader
+            {
+                Readers = helpingReaders
+            };
         }
 
         public static List<object[]> CreateTestSendData()
         {
             var testData = new List<object[]>();
 
+            // next...
             object connection = "vgh";
             int maxChunkSize = 115;
             bool responseBufferingEnabled = true;
@@ -167,8 +259,9 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 }
             };
             var reqBodyBytes = Encoding.UTF8.GetBytes("this is our king");
-            request.Body = new ByteBufferBody(reqBodyBytes, 0, reqBodyBytes.Length)
+            request.Body = new DummyQuasiHttpBody
             {
+                ContentLength = reqBodyBytes.Length,
                 ContentType = "text/plain"
             };
 
@@ -182,13 +275,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 },
             };
             byte[] expectedResBodyBytes = Encoding.UTF8.GetBytes("and this is our queen");
-            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes, 0, expectedResBodyBytes.Length)
+            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
                 ContentType = "image/png"
             };
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
+            // next...
             connection = 123;
             maxChunkSize = 90;
             responseBufferingEnabled = false;
@@ -207,6 +301,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
+            // next...
             connection = "sth";
             maxChunkSize = 95;
             responseBufferingEnabled = true;
@@ -216,8 +311,9 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Target = "/bread"
             };
             reqBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
-            request.Body = new StringBody("<a>this is news</a>")
+            request.Body = new DummyQuasiHttpBody
             {
+                ContentLength = -1,
                 ContentType = "application/xml"
             };
 
@@ -231,6 +327,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
+            // next...
             connection = new object();
             maxChunkSize = 100;
             responseBufferingEnabled = true;
@@ -258,34 +355,39 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 }
             };
             expectedResBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
-            expectedResponse.Body = new StringBody("<a>this is news</a>")
+            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
+                ContentLength = -1,
                 ContentType = "application/xml"
             };
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
-            // generate response data which exceed 100 bytes buffering limit
-            connection = ".";
+            // next...
+            // zero content length in request
+            connection = "..";
             maxChunkSize = 50;
             responseBufferingEnabled = false;
             request = new DefaultQuasiHttpRequest();
-            reqBodyBytes = null;
+            reqBodyBytes = new byte[0];
+            request.Body = new DummyQuasiHttpBody
+            {
+                ContentLength = 0
+            };
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
                 StatusCode = 200,
                 Headers = new Dictionary<string, IList<string>>()
             };
-            expectedResBodyBytes = new byte[110];
-            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
-            {
-                ContentType = "null"
-            };
+            expectedResBodyBytes = new byte[1];
+            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes);
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
-            connection = 79;
+            // next...
+            // exceed buffering limit of 100 specified in test method
+            connection = true;
             maxChunkSize = 40;
             responseBufferingEnabled = false;
             request = new DefaultQuasiHttpRequest();
@@ -297,8 +399,9 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Headers = new Dictionary<string, IList<string>>()
             };
             expectedResBodyBytes = Encoding.UTF8.GetBytes("dk".PadRight(120));
-            expectedResponse.Body = new StringBody("dk".PadRight(120))
+            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
+                ContentLength = -1,
                 ContentType = "text/plain"
             };
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
@@ -313,85 +416,166 @@ namespace Kabomu.Tests.QuasiHttp.Client
             // arrange.
             object connection = "drew";
             int maxChunkSize = 80;
-            IQuasiHttpRequest expectedRequest = new DefaultQuasiHttpRequest
-            {
-                Body = new StringBody("closed")
-            };
-            // cause request body read to fail later on by ending the body now.
-            await expectedRequest.Body.EndRead();
-            IQuasiHttpResponse response = new DefaultQuasiHttpResponse();
+            var request = new DefaultQuasiHttpRequest();
 
-            var expectedReqChunk = new LeadChunk
+            // prepare response for reading.
+            var helpingReader = new LambdaBasedCustomReader
             {
-                Version = LeadChunk.Version01,
-                RequestTarget = expectedRequest.Target,
-                Headers = expectedRequest.Headers,
-                ContentLength = expectedRequest.Body?.ContentLength ?? 0,
-                ContentType = expectedRequest.Body?.ContentType,
-                HttpVersion = expectedRequest.HttpVersion,
-                Method = expectedRequest.Method
-            };
-            
-            var inputStream = MiscUtils.CreateResponseInputStream(response, null);
-            var outputStream = new MemoryStream();
-            int releaseCallCount = 0;
-            var transport = new ConfigurableQuasiHttpTransport
-            {
-                ReadBytesCallback = async (actualConnection, data, offset, length) =>
+                ReadFunc = (data, offset, length) =>
                 {
-                    Assert.Equal(connection, actualConnection);
-                    var bytesRead = inputStream.Read(data, offset, length);
-                    // introduce intentional delay to force request read to finish first.
-                    await Task.Delay(1);
-                    return bytesRead;
-                },
-                WriteBytesCallback = async (actualConnection, data, offset, length) =>
-                {
-                    Assert.Equal(connection, actualConnection);
-                    outputStream.Write(data, offset, length);
-                },
-                ReleaseConnectionCallback = (actualConnection) =>
-                {
-                    Assert.Equal(connection, actualConnection);
-                    releaseCallCount++;
-                    return Task.CompletedTask;
+                    // wait forever
+                    return new TaskCompletionSource<int>().Task;
                 }
+            };
+
+            // prepare to receive request to be written
+            var headerReceiver = new MemoryStream();
+            var helpingWriter = new TeeCustomWriter
+            {
+                Writers = new List<ICustomWriter>
+                {
+                    new StreamCustomReaderWriter(headerReceiver)
+                }
+            };
+            var writable = new LambdaBasedCustomWritable
+            {
+                WritableFunc = async writer =>
+                {
+                    helpingWriter.Writers = new List<ICustomWriter>
+                    {
+                        new LambdaBasedCustomWriter
+                        {
+                            WriteFunc = async (data, offset, length) =>
+                            {
+                                throw new NotImplementedException();
+                            }
+                        }
+                    };
+                    await writer.WriteBytes(new byte[1], 0, 1);
+                }
+            };
+            request.Body = new CustomWritableBackedBody(writable)
+            {
+                ContentLength = -1
+            };
+
+            // set up instance
+            var transport = new DemoQuasiHttpTransport2(connection,
+                helpingReader, helpingWriter)
+            {
+                ReleaseIndicator = new CancellationTokenSource()
             };
             var instance = new DefaultSendProtocolInternal
             {
+                Request = request,
                 Transport = transport,
                 Connection = connection,
-                MaxChunkSize = maxChunkSize,
-                ResponseBufferingEnabled = false,
-                Request = expectedRequest
+                MaxChunkSize = maxChunkSize
+            };
+
+            // set up expected request headers
+            var expectedReqChunk = new LeadChunk
+            {
+                Version = LeadChunk.Version01,
+                Method = request.Method,
+                RequestTarget = request.Target,
+                HttpVersion = request.HttpVersion,
+                Headers = request.Headers,
+                ContentLength = request.Body?.ContentLength ?? 0,
+                ContentType = request.Body?.ContentType,
             };
 
             // act.
-            await Assert.ThrowsAnyAsync<Exception>(async () =>
-            {
-                await instance.Send();
-            });
+            await Assert.ThrowsAsync<NotImplementedException>(() =>
+                instance.Send());
 
-            // assert expected behaviour of response closure occured by trying 
-            // to determine if connection was released.
-            Assert.Equal(0, releaseCallCount);
-
-            // test cancellation
-            await instance.Cancel();
-            Assert.Equal(1, releaseCallCount);
-
-            // finally verify contents of output stream.
-            var actualReq = outputStream.ToArray();
-            Assert.NotEmpty(actualReq);
-            var actualReqChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualReq, 0,
-                MiscUtils.LengthOfEncodedChunkLength, true);
-            var actualReqChunk = LeadChunk.Deserialize(actualReq,
-                MiscUtils.LengthOfEncodedChunkLength, actualReqChunkLength);
+            // assert written request, and work around disposed
+            // request receiving streams.
+            ICustomReader reqHeaderReader = new StreamCustomReaderWriter(
+                new MemoryStream(headerReceiver.ToArray()));
+            var actualReqChunk = await ChunkedTransferUtils.ReadLeadChunk(
+                reqHeaderReader, 0);
+            // verify all contents of headerReceiver was used
+            // before comparing lead chunks
+            Assert.Equal(0, await reqHeaderReader.ReadBytes(new byte[1], 0, 1));
             ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
-            var actualRequestBodyLen = actualReq.Length -
-                MiscUtils.LengthOfEncodedChunkLength - actualReqChunkLength;
-            // since request body could not be read, there should be no request body data
-            Assert.Equal(0, actualRequestBodyLen);
-        }*/
+
+            await instance.Cancel();
+            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
+        }
+
+        [Fact]
+        public async Task TestSendForAbortOnResponseBodyReadError()
+        {
+            // arrange.
+            object connection = "drew";
+            int maxChunkSize = 80;
+            var request = new DefaultQuasiHttpRequest();
+            var responseBodyBytes = Encoding.UTF8.GetBytes("dkd".PadLeft(50));
+            var response = new DefaultQuasiHttpResponse
+            {
+                Body = new ByteBufferBody(responseBodyBytes)
+            };
+
+            // prepare response for reading.
+            var helpingReader = await SerializeResponseToBeRead(
+                response, responseBodyBytes, null);
+
+            // prepare to receive request to be written
+            var headerReceiver = new MemoryStream();
+            var helpingWriter = new TeeCustomWriter
+            {
+                Writers = new List<ICustomWriter>
+                {
+                    new StreamCustomReaderWriter(headerReceiver)
+                }
+            };
+
+            // set up instance
+            var transport = new DemoQuasiHttpTransport2(connection,
+                helpingReader, helpingWriter)
+            {
+                ReleaseIndicator = new CancellationTokenSource()
+            };
+            var instance = new DefaultSendProtocolInternal
+            {
+                Request = request,
+                Transport = transport,
+                Connection = connection,
+                MaxChunkSize = maxChunkSize,
+                ResponseBufferingEnabled = true,
+                ResponseBodyBufferingSizeLimit = 40
+            };
+
+            // set up expected request headers
+            var expectedReqChunk = new LeadChunk
+            {
+                Version = LeadChunk.Version01,
+                Method = request.Method,
+                RequestTarget = request.Target,
+                HttpVersion = request.HttpVersion,
+                Headers = request.Headers,
+                ContentLength = request.Body?.ContentLength ?? 0,
+                ContentType = request.Body?.ContentType,
+            };
+
+            // act.
+            await Assert.ThrowsAsync<DataBufferLimitExceededException>(() =>
+                instance.Send());
+
+            // assert written request, and work around disposed
+            // request receiving streams.
+            ICustomReader reqHeaderReader = new StreamCustomReaderWriter(
+                new MemoryStream(headerReceiver.ToArray()));
+            var actualReqChunk = await ChunkedTransferUtils.ReadLeadChunk(
+                reqHeaderReader, 0);
+            // verify all contents of headerReceiver was used
+            // before comparing lead chunks
+            Assert.Equal(0, await reqHeaderReader.ReadBytes(new byte[1], 0, 1));
+            ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
+
+            await instance.Cancel();
+            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
+        }
     }
 }

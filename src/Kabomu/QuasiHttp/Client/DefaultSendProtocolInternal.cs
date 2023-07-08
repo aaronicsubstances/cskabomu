@@ -47,18 +47,17 @@ namespace Kabomu.QuasiHttp.Client
                 Connection, false);
 
             await SendRequestLeadChunk(transportReaderWriter);
-            Task<ProtocolSendResultInternal> resFetchTask = StartFetchingResponse(transportReaderWriter);
-            if (Request.Body != null)
+            // NB: tests depend on request body transfer started before
+            // reading of response.
+            var reqTransferTask = ProtocolUtilsInternal.TransferBodyToTransport(
+                Transport, Connection, MaxChunkSize, Request.Body);
+            var resFetchTask = StartFetchingResponse(transportReaderWriter);
+            // pass resFetchTask first so that even if both are completed, it
+            //  will still win.
+            if (await Task.WhenAny(resFetchTask, reqTransferTask) == reqTransferTask)
             {
-                Task reqTransferTask = ProtocolUtilsInternal.TransferBodyToTransport(
-                    Transport, Connection, MaxChunkSize, Request.Body);
-                // pass resFetchTask first so that even if both are completed, it
-                //  will still win.
-                if (await Task.WhenAny(resFetchTask, reqTransferTask) == reqTransferTask)
-                {
-                    // let any request transfer exceptions terminate entire processing.
-                    await reqTransferTask;
-                }
+                // let any request transfer exceptions terminate entire processing.
+                await reqTransferTask;
             }
             return await resFetchTask;
         }

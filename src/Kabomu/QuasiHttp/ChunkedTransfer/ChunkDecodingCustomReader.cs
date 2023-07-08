@@ -27,7 +27,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// NB: values less than 64KB are always accepted, and so this parameter imposes a maximum only on chunks
         /// with lengths greater than 64KB.</param>
         /// <exception cref="ArgumentNullException">The <paramref name="wrappedReader"/> argument is null.</exception>
-        public ChunkDecodingCustomReader(ICustomReader wrappedReader, int maxChunkSize)
+        public ChunkDecodingCustomReader(ICustomReader wrappedReader, int maxChunkSize = 0)
         {
             if (wrappedReader == null)
             {

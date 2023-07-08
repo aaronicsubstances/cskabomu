@@ -45,7 +45,7 @@ namespace Kabomu.Common
         {
             _streamCancellationHandle.Cancel();
             // assume that a stream can be disposed concurrently with any ongoing use of it.
-#if NETCOREAPP3_1
+#if NETCOREAPP3_1_OR_GREATER
             await _backingStream.DisposeAsync();
 #else
             _backingStream.Dispose();

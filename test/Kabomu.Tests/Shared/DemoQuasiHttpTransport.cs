@@ -36,7 +36,7 @@ namespace Kabomu.Tests.Shared
         {
             if (connection != _expectedConnection)
             {
-                throw new Exception("unexpected connection");
+                throw new ArgumentException("unexpected connection");
             }
             return _stream.ReadAsync(data, offset, length);
         }
@@ -45,7 +45,7 @@ namespace Kabomu.Tests.Shared
         {
             if (connection != _expectedConnection)
             {
-                throw new Exception("unexpected connection");
+                throw new ArgumentException("unexpected connection");
             }
             await _stream.WriteAsync(data, offset, length);
             await _stream.WriteAsync(_chunkMarker);
@@ -55,7 +55,7 @@ namespace Kabomu.Tests.Shared
         {
             if (connection != _expectedConnection)
             {
-                throw new Exception("unexpected connection");
+                throw new ArgumentException("unexpected connection");
             }
             _stream.Dispose();
             return Task.CompletedTask;

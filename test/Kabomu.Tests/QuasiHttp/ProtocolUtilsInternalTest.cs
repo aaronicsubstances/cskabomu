@@ -622,6 +622,23 @@ namespace Kabomu.Tests.QuasiHttp
                 IOUtils.ReadAllBytes(reader));
         }
 
+        /// <summary>
+        /// Assert that no error occurs with null body.
+        /// </summary>
+        [Fact]
+        public async Task TestTransferBodyToTransport5()
+        {
+            object connection = 34;
+            int maxChunkSize = 6;
+            var transport = new DemoQuasiHttpTransport(connection,
+                null, null);
+
+            await ProtocolUtilsInternal.TransferBodyToTransport(transport, connection,
+                maxChunkSize, null);
+
+            Assert.Equal(new byte[0], transport.BufferStream.ToArray());
+        }
+
         [Fact]
         public async Task TestCreateBodyFromTransport1()
         {
@@ -765,6 +782,9 @@ namespace Kabomu.Tests.QuasiHttp
                 transport.ReadBytes(connection, new byte[1], 0, 1));
         }
 
+        /// <summary>
+        /// Test that zero content length returns null.
+        /// </summary>
         [Fact]
         public async Task TestCreateBodyFromTransport5()
         {
