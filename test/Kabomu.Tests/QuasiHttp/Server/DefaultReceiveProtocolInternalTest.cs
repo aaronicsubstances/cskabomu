@@ -3,12 +3,12 @@ using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Server;
-using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -16,14 +16,96 @@ namespace Kabomu.Tests.QuasiHttp.Server
 {
     public class DefaultReceiveProtocolInternalTest
     {
-        /*[Fact]
+        public DefaultReceiveProtocolInternalTest()
+        {
+
+        }
+
+        private ICustomWriter SetUpReceivingOfResponseToBeWritten(
+            IQuasiHttpMutableResponse response, byte[] expectedResBodyBytes,
+            MemoryStream headerReceiver, MemoryStream bodyReceiver)
+        {
+            var helpingWriter = new TeeCustomWriter
+            {
+                Writers = new List<ICustomWriter>
+                {
+                    new StreamCustomReaderWriter(headerReceiver)
+                }
+            };
+            if ((response.Body?.ContentLength ?? 0) != 0)
+            {
+                // replace DummyQuasiHttpBody with real body.
+                var writable = new LambdaBasedCustomWritable
+                {
+                    WritableFunc = async writer =>
+                    {
+                        // switch receiver of bytes to be written
+                        // by writable.
+                        helpingWriter.Writers = new List<ICustomWriter>
+                        {
+                            new StreamCustomReaderWriter(bodyReceiver)
+                        };
+                        await writer.WriteBytes(expectedResBodyBytes, 0,
+                            expectedResBodyBytes.Length);
+                    }
+                };
+                response.Body = new CustomWritableBackedBody(writable)
+                {
+                    ContentLength = response.Body.ContentLength,
+                    ContentType = response.Body.ContentType
+                };
+            }
+            return helpingWriter;
+        }
+
+        private static async Task<ICustomReader> SerializeRequestToBeRead(
+            IQuasiHttpRequest req, byte[] reqBodyBytes)
+        {
+            var reqChunk = new LeadChunk
+            {
+                Version = LeadChunk.Version01,
+                Method = req.Method,
+                RequestTarget = req.Target,
+                HttpVersion = req.HttpVersion,
+                Headers = req.Headers,
+                ContentLength = req.Body?.ContentLength ?? 0,
+                ContentType = req.Body?.ContentType
+            };
+            var helpingReaders = new List<ICustomReader>();
+            var headerStream = new MemoryStream();
+            var headerReader = new StreamCustomReaderWriter(headerStream);
+            await ChunkedTransferUtils.WriteLeadChunk(headerReader, 0,
+                reqChunk);
+            headerStream.Position = 0; // reset for reading.
+            helpingReaders.Add(headerReader);
+            if (req.Body != null)
+            {
+                var reqBodyStream = new MemoryStream();
+                ICustomWriter reqBodyWriter = new StreamCustomReaderWriter(
+                    reqBodyStream);
+                if (reqChunk.ContentLength < 0)
+                {
+                    reqBodyWriter = new ChunkEncodingCustomWriter(reqBodyWriter);
+                }
+                await reqBodyWriter.WriteBytes(reqBodyBytes, 0, reqBodyBytes.Length);
+                await reqBodyWriter.CustomDispose(); // will dispose reqBodyStream as well
+                helpingReaders.Add(new StreamCustomReaderWriter(
+                    new MemoryStream(reqBodyStream.ToArray())));
+            }
+            return new SequenceCustomReader
+            {
+                Readers = helpingReaders
+            };
+        }
+
+        [Fact]
         public async Task TestReceiveForDependencyErrors()
         {
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
             {
                 var instance = new DefaultReceiveProtocolInternal
                 {
-                    Transport = new ConfigurableQuasiHttpTransport()
+                    Transport = new DemoQuasiHttpTransport(null)
                 };
                 return instance.Receive();
             });
@@ -41,89 +123,90 @@ namespace Kabomu.Tests.QuasiHttp.Server
         [Fact]
         public async Task TestReceiveForRejectionOfNullResponses()
         {
+            var connection = "example";
             var request = new DefaultQuasiHttpRequest();
-            var inputStream = MiscUtils.CreateRequestInputStream(request, null);
+            IQuasiHttpResponse expectedResponse = null;
 
-            var transport = new ConfigurableQuasiHttpTransport
+            var helpingReader = await SerializeRequestToBeRead(
+                request, null);
+            var headerReceiver = new MemoryStream();
+            var helpingWriter = new StreamCustomReaderWriter(
+                headerReceiver);
+
+            var transport = new DemoQuasiHttpTransport2(connection, helpingReader,
+                helpingWriter)
             {
-                ReadBytesCallback = async (actualConnection, data, offset, length) =>
-                {
-                    Assert.Null(actualConnection);
-                    var bytesRead = inputStream.Read(data, offset, length);
-                    return bytesRead;
-                }
+                ReleaseIndicator = new CancellationTokenSource()
             };
-            IQuasiHttpResponse response = null;
+
             var app = new ConfigurableQuasiHttpApplication
             {
                 ProcessRequestCallback = (req) =>
                 {
-                    return Task.FromResult(response);
+                    return Task.FromResult(expectedResponse);
                 }
             };
             var instance = new DefaultReceiveProtocolInternal
             {
-                Transport = transport,
                 Application = app,
+                Transport = transport,
+                MaxChunkSize = 50,
+                Connection = connection
             };
-            var ex = await Assert.ThrowsAsync<ExpectationViolationException>(() =>
+
+            var ex = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
             {
                 return instance.Receive();
             });
             Assert.Contains("no response", ex.Message);
+            Assert.False(transport.ReleaseIndicator.IsCancellationRequested);
+
+            await instance.Cancel();
+            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
         }
 
         [Fact]
         public async Task TestReceiveEnsuresCloseOnSuccessfulResponse()
         {
+            var connection = new List<string> { "example" };
             var request = new DefaultQuasiHttpRequest();
-            var connectivityParams = new DefaultConnectivityParams();
-            var response = new QuasiHttpResponseImpl();
-
-            var inputStream = MiscUtils.CreateRequestInputStream(request, null);
-
-            var transport = new ConfigurableQuasiHttpTransport
+            var expectedResponse = new DefaultQuasiHttpResponse
             {
-                ReadBytesCallback = async (actualConnection, data, offset, length) =>
+                CancellationTokenSource = new CancellationTokenSource(),
+                Body = new DummyQuasiHttpBody
                 {
-                    Assert.Null(actualConnection);
-                    var bytesRead = inputStream.Read(data, offset, length);
-                    return bytesRead;
-                },
-                WriteBytesCallback = async (actualConnection, data, offset, length) =>
-                {
-                    throw new NotImplementedException();
-                },
+                    ContentLength = -1
+                }
+            };
+
+            var helpingReader = await SerializeRequestToBeRead(
+                request, null);
+            var headerReceiver = new MemoryStream();
+            var helpingWriter = new StreamCustomReaderWriter(
+                headerReceiver);
+
+            var transport = new DemoQuasiHttpTransport2(connection, helpingReader,
+                helpingWriter)
+            {
+                ReleaseIndicator = new CancellationTokenSource()
             };
 
             var app = new ConfigurableQuasiHttpApplication
             {
                 ProcessRequestCallback = (req) =>
                 {
-                    return Task.FromResult((IQuasiHttpResponse)response);
+                    return Task.FromResult((IQuasiHttpResponse)expectedResponse);
                 }
             };
             var instance = new DefaultReceiveProtocolInternal
             {
                 Application = app,
                 Transport = transport,
-                MaxChunkSize = 50
+                MaxChunkSize = 50,
+                Connection = connection
             };
-            await Assert.ThrowsAsync<NotImplementedException>(() =>
-            {
-                return instance.Receive();
-            });
 
-            Assert.True(response.CloseCalled);
-        }
-
-        [Theory]
-        [MemberData(nameof(CreateTestReceiveData))]
-        public async Task TestReceive(object connection, int maxChunkSize,
-            IQuasiHttpRequest request, byte[] requestBodyBytes, IDictionary<string, object> reqEnv,
-            IQuasiHttpResponse expectedResponse, byte[] expectedResponseBodyBytes)
-        {
-            // arrange.
+            // set up expected response headers
             var expectedResChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
@@ -135,109 +218,133 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 HttpVersion = expectedResponse.HttpVersion,
             };
 
-            var inputStream = MiscUtils.CreateRequestInputStream(request, requestBodyBytes);
-            var outputStream = new MemoryStream();
-            IQuasiHttpTransport transport = new ConfigurableQuasiHttpTransport
+            await Assert.ThrowsAsync<NotImplementedException>(() =>
             {
-                ReadBytesCallback = async (actualConnection, data, offset, length) =>
+                return instance.Receive();
+            });
+
+            Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
+            Assert.False(transport.ReleaseIndicator.IsCancellationRequested);
+
+            // assert written response
+            ICustomReader resHeaderReader = new StreamCustomReaderWriter(
+                new MemoryStream(headerReceiver.ToArray()));
+            var actualResChunk = await ChunkedTransferUtils.ReadLeadChunk(
+                resHeaderReader, 0);
+            // verify all contents of headerReceiver was used
+            // before comparing lead chunks
+            Assert.Equal(0, await resHeaderReader.ReadBytes(new byte[1], 0, 1));
+            ComparisonUtils.CompareLeadChunks(expectedResChunk, actualResChunk);
+
+            await instance.Cancel();
+            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestReceiveData))]
+        public async Task TestReceive(object connection, int maxChunkSize,
+            IQuasiHttpRequest request, byte[] requestBodyBytes, IDictionary<string, object> reqEnv,
+            DefaultQuasiHttpResponse expectedResponse, byte[] expectedResponseBodyBytes)
+        {
+            // prepare request for reading.
+            var helpingReader = await SerializeRequestToBeRead(
+                request, requestBodyBytes);
+
+            // prepare to receive response to be written
+            var headerReceiver = new MemoryStream();
+            var bodyReceiver = new MemoryStream();
+            var helpingWriter = SetUpReceivingOfResponseToBeWritten(
+                expectedResponse, expectedResponseBodyBytes, headerReceiver,
+                bodyReceiver);
+
+            // set up instance
+            var transport = new DemoQuasiHttpTransport2(connection,
+                helpingReader, helpingWriter)
+            {
+                ReleaseIndicator = new CancellationTokenSource()
+            };
+            IQuasiHttpRequest actualRequest = null;
+            var application = new ConfigurableQuasiHttpApplication
+            {
+                ProcessRequestCallback = req =>
                 {
-                    Assert.Same(connection, actualConnection);
-                    var bytesRead = inputStream.Read(data, offset, length);
-                    return bytesRead;
-                },
-                WriteBytesCallback = async (actualConnection, data, offset, length) =>
-                {
-                    Assert.Same(connection, actualConnection);
-                    outputStream.Write(data, offset, length);
-                },
-                ReleaseConnectionCallback = (actualConnection) =>
-                {
-                    Assert.Same(connection, actualConnection);
-                    return Task.CompletedTask;
+                    actualRequest = req;
+                    return Task.FromResult<IQuasiHttpResponse>(expectedResponse);
                 }
             };
             var instance = new DefaultReceiveProtocolInternal
             {
+                Application = application,
                 Transport = transport,
                 Connection = connection,
-                RequestEnvironment = reqEnv,
-                MaxChunkSize = maxChunkSize
+                MaxChunkSize = maxChunkSize,
+                RequestEnvironment = reqEnv
             };
 
-            IQuasiHttpRequest actualRequest = null;
-            instance.Application = new ConfigurableQuasiHttpApplication
+            // set up expected response headers
+            var expectedResChunk = new LeadChunk
             {
-                ProcessRequestCallback = async (req) =>
-                {
-                    actualRequest = req;
-                    return expectedResponse;
-                }
+                Version = LeadChunk.Version01,
+                StatusCode = expectedResponse.StatusCode,
+                HttpStatusMessage = expectedResponse.HttpStatusMessage,
+                Headers = expectedResponse.Headers,
+                ContentLength = expectedResponse.Body?.ContentLength ?? 0,
+                ContentType = expectedResponse.Body?.ContentType,
+                HttpVersion = expectedResponse.HttpVersion,
             };
+
+            expectedResponse.CancellationTokenSource = new CancellationTokenSource();
 
             // act
-            await instance.Receive();
+            var recvResult = await instance.Receive();
+ 
+            // begin assert.
+            Assert.Null(recvResult);
+            // check out dispose expectations
+            Assert.False(transport.ReleaseIndicator.IsCancellationRequested);
+            Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
 
-            // assert
-            await ComparisonUtils.CompareRequests(maxChunkSize, request, actualRequest,
+            // assert read request.
+            await ComparisonUtils.CompareRequests(request, actualRequest,
                 requestBodyBytes);
 
-            // ensure that response closure occured by trying to read response body
-            if (expectedResponse.Body != null)
-            {
-                await Assert.ThrowsAsync<EndOfReadException>(() =>
-                {
-                    return expectedResponse.Body.ReadBytes(new byte[1], 0, 1);
-                });
-            }
-
-            // finally verify contents of output stream.
-            var actualRes = outputStream.ToArray();
-            Assert.NotEmpty(actualRes);
-
-            int resBytesOffset = 0;
-            var actualResChunkLength = (int)ByteUtils.DeserializeUpToInt64BigEndian(actualRes, 0,
-                MiscUtils.LengthOfEncodedChunkLength, true);
-            resBytesOffset += MiscUtils.LengthOfEncodedChunkLength;
-
-            var actualResChunk = LeadChunk.Deserialize(actualRes, resBytesOffset,
-                actualResChunkLength);
+            // assert written response, and work around disposed
+            // response receiving streams.
+            ICustomReader resHeaderReader = new StreamCustomReaderWriter(
+                new MemoryStream(headerReceiver.ToArray()));
+            var actualResChunk = await ChunkedTransferUtils.ReadLeadChunk(
+                resHeaderReader, 0);
+            // verify all contents of headerReceiver was used
+            // before comparing lead chunks
+            Assert.Equal(0, await resHeaderReader.ReadBytes(new byte[1], 0, 1));
             ComparisonUtils.CompareLeadChunks(expectedResChunk, actualResChunk);
-            resBytesOffset += actualResChunkLength;
-            
-            var actualResponseBodyLen = actualRes.Length - resBytesOffset;
-            if (expectedResponseBodyBytes == null)
+
+            ICustomReader resBodyReader = new StreamCustomReaderWriter(
+                new MemoryStream(bodyReceiver.ToArray()));
+            if (expectedResChunk.ContentLength < 0)
             {
-                Assert.Equal(0, actualResponseBodyLen);
+                resBodyReader = new ChunkDecodingCustomReader(resBodyReader);
+            }
+            var actualResBodyBytes = await IOUtils.ReadAllBytes(resBodyReader);
+            if (expectedResponse.Body == null)
+            {
+                Assert.Empty(actualResBodyBytes);
             }
             else
             {
-                byte[] actualResBodyBytes;
-                if (actualResChunk.ContentLength < 0)
-                {
-                    actualResBodyBytes = await MiscUtils.ReadChunkedBody(actualRes,
-                        resBytesOffset, actualResponseBodyLen);
-                }
-                else
-                {
-                    var resBodyPrefix = new byte[MiscUtils.LengthOfEncodedChunkLength];
-                    Array.Copy(actualRes, resBytesOffset,
-                        resBodyPrefix, 0, resBodyPrefix.Length);
-                    Assert.Equal(ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue, resBodyPrefix);
-                    resBytesOffset += MiscUtils.LengthOfEncodedChunkLength;
-                    actualResponseBodyLen -= MiscUtils.LengthOfEncodedChunkLength;
-
-                    actualResBodyBytes = new byte[actualResponseBodyLen];
-                    Array.Copy(actualRes, resBytesOffset,
-                        actualResBodyBytes, 0, actualResponseBodyLen);
-                }
                 Assert.Equal(expectedResponseBodyBytes, actualResBodyBytes);
             }
+
+            // verify cancel expectations
+            await instance.Cancel();
+            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
         }
 
         public static List<object[]> CreateTestReceiveData()
         {
             var testData = new List<object[]>();
 
+            // next...
             object connection = "vgh";
             int maxChunkSize = 100;
             IDictionary<string, object> reqEnv = null;
@@ -252,7 +359,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Environment = reqEnv
             };
             var reqBodyBytes = Encoding.UTF8.GetBytes("this is our king");
-            request.Body = new ByteBufferBody(reqBodyBytes, 0, reqBodyBytes.Length)
+            request.Body = new ByteBufferBody(reqBodyBytes)
             {
                 ContentType = "text/plain"
             };
@@ -267,13 +374,14 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 },
             };
             byte[] expectedResBodyBytes = Encoding.UTF8.GetBytes("and this is our queen");
-            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes, 0, expectedResBodyBytes.Length)
+            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
                 ContentType = "image/png"
             };
             testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
                 expectedResponse, expectedResBodyBytes });
 
+            // next...
             connection = 123;
             maxChunkSize = 95;
             reqEnv = new Dictionary<string, object>
@@ -296,6 +404,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
                 expectedResponse, expectedResBodyBytes });
 
+            // next...
             connection = null;
             maxChunkSize = 90;
             reqEnv = new Dictionary<string, object>();
@@ -306,8 +415,9 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Environment = reqEnv
             };
             reqBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
-            request.Body = new StringBody("<a>this is news</a>")
+            request.Body = new ByteBufferBody(reqBodyBytes)
             {
+                ContentLength = -1,
                 ContentType = "application/xml"
             };
 
@@ -321,6 +431,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
                 expectedResponse, expectedResBodyBytes });
 
+            // next...
             connection = new object();
             maxChunkSize = 150;
             reqEnv = new Dictionary<string, object>
@@ -352,8 +463,9 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 }
             };
             expectedResBodyBytes =  Encoding.UTF8.GetBytes("<a>this is news</a>");
-            expectedResponse.Body = new StringBody("<a>this is news</a>")
+            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
+                ContentLength = -1,
                 ContentType = "application/xml"
             };
             testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
@@ -361,28 +473,5 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             return testData;
         }
-
-        private class QuasiHttpResponseImpl : IQuasiHttpResponse
-        {
-            public bool CloseCalled { get; set; }
-
-            public string HttpStatusMessage { get; set; }
-
-            public IDictionary<string, IList<string>> Headers { get; set; }
-
-            public IQuasiHttpBody Body { get; set; }
-
-            public int StatusCode { get; set; }
-
-            public string HttpVersion { get; set; }
-
-            public IDictionary<string, object> Environment { get; set; }
-
-            public Task Close()
-            {
-                CloseCalled = true;
-                return Task.CompletedTask;
-            }
-        }*/
     }
 }

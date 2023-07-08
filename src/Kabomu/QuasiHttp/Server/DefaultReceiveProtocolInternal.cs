@@ -1,6 +1,5 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.ChunkedTransfer;
-using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -18,9 +17,13 @@ namespace Kabomu.QuasiHttp.Server
         public int MaxChunkSize { get; set; }
         public IDictionary<string, object> RequestEnvironment { get; set; }
 
-        public Task Cancel()
+        public async Task Cancel()
         {
-            return Task.CompletedTask;
+            // just in case Transport was incorrectly set to null.
+            if (Transport != null)
+            {
+                await Transport.ReleaseConnection(Connection);
+            }
         }
 
         public async Task<IQuasiHttpResponse> Receive()
