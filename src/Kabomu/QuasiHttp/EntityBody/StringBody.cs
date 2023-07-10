@@ -36,7 +36,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         {
             if (_backingBody == null)
             {
-                _backingBody = new ByteBufferBody(Encoding.UTF8.GetBytes(Content));
+                _backingBody = new ByteBufferBody(ByteUtils.StringToBytes(Content));
             }
             return _backingBody.ReadBytes(data, offset, length);
         }
@@ -45,7 +45,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         {
             if (_backingBody == null)
             {
-                _backingBody = new ByteBufferBody(Encoding.UTF8.GetBytes(Content));
+                _backingBody = new ByteBufferBody(ByteUtils.StringToBytes(Content));
             }
             return _backingBody.WriteBytesTo(writer);
         }

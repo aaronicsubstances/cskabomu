@@ -258,7 +258,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     { "variant", new List<string>{ "sea", "drive" } }
                 }
             };
-            var reqBodyBytes = Encoding.UTF8.GetBytes("this is our king");
+            var reqBodyBytes = ByteUtils.StringToBytes("this is our king");
             request.Body = new DummyQuasiHttpBody
             {
                 ContentLength = reqBodyBytes.Length,
@@ -274,7 +274,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     { "dkt", new List<string>{ "bb" } }
                 },
             };
-            byte[] expectedResBodyBytes = Encoding.UTF8.GetBytes("and this is our queen");
+            byte[] expectedResBodyBytes = ByteUtils.StringToBytes("and this is our queen");
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
                 ContentType = "image/png"
@@ -310,7 +310,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 HttpVersion = "1.1",
                 Target = "/bread"
             };
-            reqBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
+            reqBodyBytes = ByteUtils.StringToBytes("<a>this is news</a>");
             request.Body = new DummyQuasiHttpBody
             {
                 ContentLength = -1,
@@ -354,7 +354,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     { "y", new List<string>{ "B1", "B2", "C1", "C2", "C3" } }
                 }
             };
-            expectedResBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
+            expectedResBodyBytes = ByteUtils.StringToBytes("<a>this is news</a>");
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
                 ContentLength = -1,
@@ -398,7 +398,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 StatusCode = 200,
                 Headers = new Dictionary<string, IList<string>>()
             };
-            expectedResBodyBytes = Encoding.UTF8.GetBytes("dk".PadRight(120));
+            expectedResBodyBytes = ByteUtils.StringToBytes("dk".PadRight(120));
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
                 ContentLength = -1,
@@ -511,7 +511,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             object connection = "drew";
             int maxChunkSize = 80;
             var request = new DefaultQuasiHttpRequest();
-            var responseBodyBytes = Encoding.UTF8.GetBytes("dkd".PadLeft(50));
+            var responseBodyBytes = ByteUtils.StringToBytes("dkd".PadLeft(50));
             var response = new DefaultQuasiHttpResponse
             {
                 Body = new ByteBufferBody(responseBodyBytes)

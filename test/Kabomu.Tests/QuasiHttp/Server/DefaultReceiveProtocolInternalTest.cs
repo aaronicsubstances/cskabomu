@@ -358,7 +358,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 },
                 Environment = reqEnv
             };
-            var reqBodyBytes = Encoding.UTF8.GetBytes("this is our king");
+            var reqBodyBytes = ByteUtils.StringToBytes("this is our king");
             request.Body = new ByteBufferBody(reqBodyBytes)
             {
                 ContentType = "text/plain"
@@ -373,7 +373,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                     { "dkt", new List<string>{ "bb" } }
                 },
             };
-            byte[] expectedResBodyBytes = Encoding.UTF8.GetBytes("and this is our queen");
+            byte[] expectedResBodyBytes = ByteUtils.StringToBytes("and this is our queen");
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
                 ContentType = "image/png"
@@ -414,7 +414,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Target = "/bread",
                 Environment = reqEnv
             };
-            reqBodyBytes = Encoding.UTF8.GetBytes("<a>this is news</a>");
+            reqBodyBytes = ByteUtils.StringToBytes("<a>this is news</a>");
             request.Body = new ByteBufferBody(reqBodyBytes)
             {
                 ContentLength = -1,
@@ -462,7 +462,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                     { "y", new List<string>{ "B1", "B2", "C1", "C2", "C3" } }
                 }
             };
-            expectedResBodyBytes =  Encoding.UTF8.GetBytes("<a>this is news</a>");
+            expectedResBodyBytes = ByteUtils.StringToBytes("<a>this is news</a>");
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
                 ContentLength = -1,
