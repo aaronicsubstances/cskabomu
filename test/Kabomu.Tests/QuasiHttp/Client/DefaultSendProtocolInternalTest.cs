@@ -4,6 +4,8 @@ using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.Common;
+using Kabomu.Tests.Shared.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -145,12 +147,9 @@ namespace Kabomu.Tests.QuasiHttp.Client
             MemoryStream headerReceiver, MemoryStream bodyReceiver,
             TaskCompletionSource<int> linkingTcs)
         {
-            var helpingWriter = new TeeCustomWriter
+            var helpingWriter = new DelegatingCustomWriter
             {
-                Writers = new List<ICustomWriter>
-                {
-                    new StreamCustomReaderWriter(headerReceiver)
-                }
+                BackingWriter = new StreamCustomReaderWriter(headerReceiver)
             };
             if ((request.Body?.ContentLength ?? 0) != 0)
             {
@@ -161,10 +160,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     {
                         // switch receiver of bytes to be written
                         // by writable.
-                        helpingWriter.Writers = new List<ICustomWriter>
-                        {
-                            new StreamCustomReaderWriter(bodyReceiver)
-                        };
+                        helpingWriter.BackingWriter = new StreamCustomReaderWriter(bodyReceiver);
                         await writer.WriteBytes(expectedReqBodyBytes, 0,
                             expectedReqBodyBytes.Length);
                         linkingTcs?.SetResult(0);
@@ -430,25 +426,19 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // prepare to receive request to be written
             var headerReceiver = new MemoryStream();
-            var helpingWriter = new TeeCustomWriter
+            var helpingWriter = new DelegatingCustomWriter
             {
-                Writers = new List<ICustomWriter>
-                {
-                    new StreamCustomReaderWriter(headerReceiver)
-                }
+                BackingWriter = new StreamCustomReaderWriter(headerReceiver)
             };
             var writable = new LambdaBasedCustomWritable
             {
                 WritableFunc = async writer =>
                 {
-                    helpingWriter.Writers = new List<ICustomWriter>
+                    helpingWriter.BackingWriter = new LambdaBasedCustomWriter
                     {
-                        new LambdaBasedCustomWriter
+                        WriteFunc = async (data, offset, length) =>
                         {
-                            WriteFunc = async (data, offset, length) =>
-                            {
-                                throw new NotImplementedException();
-                            }
+                            throw new NotImplementedException();
                         }
                     };
                     await writer.WriteBytes(new byte[1], 0, 1);
@@ -523,12 +513,9 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // prepare to receive request to be written
             var headerReceiver = new MemoryStream();
-            var helpingWriter = new TeeCustomWriter
+            var helpingWriter = new DelegatingCustomWriter
             {
-                Writers = new List<ICustomWriter>
-                {
-                    new StreamCustomReaderWriter(headerReceiver)
-                }
+                BackingWriter = new StreamCustomReaderWriter(headerReceiver)
             };
 
             // set up instance

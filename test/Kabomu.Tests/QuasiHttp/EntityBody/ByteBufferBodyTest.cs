@@ -2,6 +2,7 @@
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Common;
 using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;

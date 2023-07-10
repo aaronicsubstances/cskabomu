@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.Shared
+namespace Kabomu.Tests.Shared.Mediator
 {
     public class ConfigurablePathConstraint : IPathConstraint
     {

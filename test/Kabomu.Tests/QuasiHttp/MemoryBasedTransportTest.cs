@@ -1,16 +1,20 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.Transport;
+using Kabomu.Tests.Shared.QuasiHttp;
 using NLog;
-using NLog.Fluent;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
-using Xunit.Sdk;
 
-namespace Kabomu.IntegrationTests.QuasiHttp
+namespace Kabomu.Tests.QuasiHttp
 {
+    /// <summary>
+    /// Decided to have this test in this project instead of in
+    /// integration tests, so that the integration tests can have
+    /// exclusive access to log files.
+    /// </summary>
     public class MemoryBasedTransportTest
     {
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();

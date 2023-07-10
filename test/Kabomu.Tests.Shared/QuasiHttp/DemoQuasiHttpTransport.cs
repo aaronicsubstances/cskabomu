@@ -6,7 +6,7 @@ using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.Tests.Shared
+namespace Kabomu.Tests.Shared.QuasiHttp
 {
     internal class DemoQuasiHttpTransport : IQuasiHttpTransport
     {

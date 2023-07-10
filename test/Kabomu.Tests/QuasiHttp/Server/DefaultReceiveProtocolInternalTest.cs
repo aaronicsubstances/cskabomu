@@ -3,7 +3,8 @@ using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Server;
-using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.Common;
+using Kabomu.Tests.Shared.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,12 +26,9 @@ namespace Kabomu.Tests.QuasiHttp.Server
             IQuasiHttpMutableResponse response, byte[] expectedResBodyBytes,
             MemoryStream headerReceiver, MemoryStream bodyReceiver)
         {
-            var helpingWriter = new TeeCustomWriter
+            var helpingWriter = new DelegatingCustomWriter
             {
-                Writers = new List<ICustomWriter>
-                {
-                    new StreamCustomReaderWriter(headerReceiver)
-                }
+                BackingWriter = new StreamCustomReaderWriter(headerReceiver)
             };
             if ((response.Body?.ContentLength ?? 0) != 0)
             {
@@ -41,10 +39,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                     {
                         // switch receiver of bytes to be written
                         // by writable.
-                        helpingWriter.Writers = new List<ICustomWriter>
-                        {
-                            new StreamCustomReaderWriter(bodyReceiver)
-                        };
+                        helpingWriter.BackingWriter = new StreamCustomReaderWriter(bodyReceiver);
                         await writer.WriteBytes(expectedResBodyBytes, 0,
                             expectedResBodyBytes.Length);
                     }

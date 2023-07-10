@@ -6,6 +6,8 @@ using Kabomu.QuasiHttp.EntityBody;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -13,7 +15,10 @@ using Xunit;
 using Xunit.Abstractions;
 using static Kabomu.Mediator.Path.DefaultPathTemplateExampleInternal;
 
-namespace Kabomu.Tests.Shared
+[assembly: InternalsVisibleTo("Kabomu.Tests")]
+[assembly: InternalsVisibleTo("Kabomu.IntegrationTests")]
+
+namespace Kabomu.Tests.Shared.Common
 {
     public static class ComparisonUtils
     {
@@ -200,7 +205,11 @@ namespace Kabomu.Tests.Shared
             {
                 var expectedValue = expected.AllConstraints[key];
                 var actualValue = actual.AllConstraints[key];
-                Assert.Equal(expectedValue, actualValue);
+                var expandedExpectation = expectedValue.SelectMany(
+                    x => Enumerable.Repeat(x.Item1, 1).Concat(x.Item2));
+                var expandedActual = actualValue.SelectMany(
+                    x => Enumerable.Repeat(x.Item1, 1).Concat(x.Item2));
+                Assert.Equal(expandedExpectation, expandedActual);
             }
 
             Assert.Equal(expected.ParsedExamples.Count, actual.ParsedExamples.Count);

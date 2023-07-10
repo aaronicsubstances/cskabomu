@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.IntegrationTests.QuasiHttp
+namespace Kabomu.Tests.Shared.QuasiHttp
 {
     public class MemoryBasedServerTransport : IQuasiHttpServerTransport
     {

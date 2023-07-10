@@ -1,7 +1,8 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Common;
-using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.Common;
+using Kabomu.Tests.Shared.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.IO;

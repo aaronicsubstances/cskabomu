@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Kabomu.Tests.Shared
+namespace Kabomu.Tests.Shared.Common
 {
     public class DemoSimpleCustomWritable : ICustomWritable
     {

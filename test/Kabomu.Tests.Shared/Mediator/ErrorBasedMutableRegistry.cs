@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.Tests.Shared
+namespace Kabomu.Tests.Shared.Mediator
 {
     public class ErrorBasedMutableRegistry : IMutableRegistry
     {

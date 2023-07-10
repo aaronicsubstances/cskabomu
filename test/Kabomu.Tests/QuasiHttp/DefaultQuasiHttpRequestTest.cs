@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using Xunit;
-using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.Common;
 
 namespace Kabomu.Tests.QuasiHttp
 {

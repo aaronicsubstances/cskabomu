@@ -1,6 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.ChunkedTransfer;
-using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;

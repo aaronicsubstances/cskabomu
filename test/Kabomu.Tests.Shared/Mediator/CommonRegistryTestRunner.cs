@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using Xunit;
 
-namespace Kabomu.Tests.Shared
+namespace Kabomu.Tests.Shared.Mediator
 {
     public static class CommonRegistryTestRunner
     {
