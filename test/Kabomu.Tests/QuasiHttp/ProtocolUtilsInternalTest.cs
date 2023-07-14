@@ -1041,32 +1041,34 @@ namespace Kabomu.Tests.QuasiHttp
         [Fact]
         public void TestSetTimeout1()
         {
-            var actual = ProtocolUtilsInternal.SetTimeout<string>(0);
+            var actual = ProtocolUtilsInternal.SetTimeout<string>(0, null);
             Assert.Equal((null, null), actual);
         }
 
         [Fact]
         public void TestSetTimeout2()
         {
-            var actual = ProtocolUtilsInternal.SetTimeout<string>(-3);
+            var actual = ProtocolUtilsInternal.SetTimeout<string>(-3, null);
             Assert.Equal((null, null), actual);
         }
 
         [Fact]
         public async Task TestSetTimeout3()
         {
+            var expectedMsg = "sea";
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
             {
-                return ProtocolUtilsInternal.SetTimeout<int>(50).Item1;
+                return ProtocolUtilsInternal.SetTimeout<int>(50, expectedMsg).Item1;
             });
             Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeTimeout,
                 actualEx.ReasonCode);
+            Assert.Equal(expectedMsg, actualEx.Message);
         }
 
         [Fact]
         public async Task TestSetTimeout4()
         {
-            var (actualTask, timeoutId) = ProtocolUtilsInternal.SetTimeout<string>(500);
+            var (actualTask, timeoutId) = ProtocolUtilsInternal.SetTimeout<string>(500, null);
             await Task.Delay(100);
             timeoutId.Cancel();
             var actual = await actualTask;

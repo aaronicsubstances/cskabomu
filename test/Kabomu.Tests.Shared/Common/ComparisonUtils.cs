@@ -76,7 +76,7 @@ namespace Kabomu.Tests.Shared.Common
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
             Assert.Equal(expected.Target, actual.Target);
             CompareHeaders(expected.Headers, actual.Headers);
-            Assert.Same(expected.Environment, actual.Environment);
+            Assert.Equal(expected.Environment, actual.Environment);
             await CompareBodies(expected.Body, actual.Body, expectedReqBodyBytes);
         }
 
@@ -94,6 +94,7 @@ namespace Kabomu.Tests.Shared.Common
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
             Assert.Equal(expected.HttpStatusMessage, actual.HttpStatusMessage);
             CompareHeaders(expected.Headers, actual.Headers);
+            Assert.Equal(expected.Environment, actual.Environment);
             await CompareBodies(expected.Body, actual.Body, expectedResBodyBytes);
         }
 

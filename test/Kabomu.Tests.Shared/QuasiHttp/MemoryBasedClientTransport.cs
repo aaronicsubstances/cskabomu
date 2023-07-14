@@ -12,7 +12,16 @@ namespace Kabomu.Tests.Shared.QuasiHttp
 
         public Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)
         {
+            if (!Servers.ContainsKey(connectivityParams.RemoteEndpoint))
+            {
+                return Task.FromResult<IConnectionAllocationResponse>(null);
+            }
             var server = Servers[connectivityParams.RemoteEndpoint];
+            if (server == null)
+            {
+                return Task.FromResult<IConnectionAllocationResponse>(
+                    new DefaultConnectionAllocationResponse());
+            }
             var connection = new MemoryBasedTransportConnectionInternal();
             IConnectionAllocationResponse c = new DefaultConnectionAllocationResponse
             {

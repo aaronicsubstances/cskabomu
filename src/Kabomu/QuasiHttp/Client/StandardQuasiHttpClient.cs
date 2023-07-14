@@ -100,8 +100,7 @@ namespace Kabomu.QuasiHttp.Client
             {
                 var cancellationError = new QuasiHttpRequestProcessingException(
                     QuasiHttpRequestProcessingException.ReasonCodeCancelled, "send cancelled");
-                // don't wait
-                _ = transfer.Abort(cancellationError, null);
+                transfer.CancellationTcs?.TrySetException(cancellationError);
             }
         }
 
@@ -220,7 +219,8 @@ namespace Kabomu.QuasiHttp.Client
                     options?.TimeoutMillis,
                     DefaultSendOptions?.TimeoutMillis,
                     0);
-                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<ProtocolSendResultInternal>(timeoutMillis);
+                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<ProtocolSendResultInternal>(timeoutMillis,
+                    "send timeout");
 
                 var effectiveConnectivityParams = new DefaultConnectivityParams
                 {
@@ -272,23 +272,14 @@ namespace Kabomu.QuasiHttp.Client
             }
 
             var connectionResponse = await transport.AllocateConnection(transfer.ConnectivityParams);
-
-            Task<ProtocolSendResultInternal> workTask = null;
-            lock (_mutex)
+            if (connectionResponse?.Connection == null)
             {
-                if (connectionResponse?.Connection == null)
-                {
-                    throw new QuasiHttpRequestProcessingException("no connection");
-                }
-
-                transfer.Connection = connectionResponse.Connection;
-                if (requestFunc == null)
-                {
-                    workTask = transfer.StartProtocol(DefaultProtocolFactory);
-                }
+                throw new QuasiHttpRequestProcessingException("no connection");
             }
 
-            if (workTask == null)
+            transfer.Connection = connectionResponse.Connection;
+
+            if (requestFunc != null)
             {
                 var request = await requestFunc.Invoke(connectionResponse.Environment);
                 if (request == null)
@@ -296,10 +287,12 @@ namespace Kabomu.QuasiHttp.Client
                     throw new QuasiHttpRequestProcessingException("no request");
                 }
                 transfer.Request = request;
-                lock (_mutex)
-                {
-                    workTask = transfer.StartProtocol(DefaultProtocolFactory);
-                }
+            }
+
+            Task<ProtocolSendResultInternal> workTask;
+            lock (_mutex)
+            {
+                workTask = transfer.StartProtocol(DefaultProtocolFactory);
             }
             return await workTask;
         }

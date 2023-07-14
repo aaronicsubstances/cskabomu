@@ -218,8 +218,12 @@ namespace Kabomu.QuasiHttp
             // ignore null tasks and successful timeout result.
             if (timeoutTask != null)
             {
-                var tasks = new List<Task<T>> { workTask, timeoutTask, cancellationTask };
-                var firstTask = await Task.WhenAny(tasks.Where(t => t != null));
+                var tasks = new List<Task<T>> { workTask, timeoutTask };
+                if (cancellationTask != null)
+                {
+                    tasks.Add(cancellationTask);
+                }
+                var firstTask = await Task.WhenAny(tasks);
                 var res = await firstTask;
                 if (firstTask != timeoutTask)
                 {
@@ -233,7 +237,8 @@ namespace Kabomu.QuasiHttp
             return await workTask;
         }
 
-        public static (Task<T>, CancellationTokenSource) SetTimeout<T>(int timeoutMillis)
+        public static (Task<T>, CancellationTokenSource) SetTimeout<T>(int timeoutMillis,
+            string timeoutMsg)
         {
             if (timeoutMillis <= 0)
             {
@@ -246,7 +251,7 @@ namespace Kabomu.QuasiHttp
                     if (!t.IsCanceled)
                     {
                         var timeoutError = new QuasiHttpRequestProcessingException(
-                            QuasiHttpRequestProcessingException.ReasonCodeTimeout, "receive timeout");
+                            QuasiHttpRequestProcessingException.ReasonCodeTimeout, timeoutMsg);
                         throw timeoutError;
                     }
                     return default;

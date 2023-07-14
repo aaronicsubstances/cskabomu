@@ -96,11 +96,11 @@ namespace Kabomu.QuasiHttp.Client
 
             if (cancellationError != null)
             {
-                cancellationTcs?.SetException(cancellationError);
+                cancellationTcs?.TrySetException(cancellationError);
             }
             else
             {
-                cancellationTcs?.SetResult(res);
+                cancellationTcs?.TrySetResult(res);
             }
 
             // just in case cancellation was requested even before transfer protocol could

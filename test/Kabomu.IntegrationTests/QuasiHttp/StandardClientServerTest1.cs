@@ -16,7 +16,7 @@ using Xunit;
 
 namespace Kabomu.IntegrationTests.QuasiHttp
 {
-    public class StandardClientServerTest
+    public class StandardClientServerTest1
     {
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
 
@@ -39,12 +39,10 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         private static readonly string KeyMathArg2 = "math-arg-2";
         private static readonly string KeyMathResult = "math-answer";
         private static readonly string KeyMathOpAdd = "+";
-        private static readonly string KeyMathOpSub = "-";
         private static readonly string KeyMathOpMul = "*";
-        private static readonly string KeyMathOpDiv = "/";
 
         [Fact]
-        public async Task Test1()
+        public async Task TestSuccess()
         {
             var testData = CreateTest1Data();
             var servers = new Dictionary<object, MemoryBasedServerTransport>();
@@ -67,7 +65,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     TimeoutMillis = 5_000
                 }
             };
-            Log.Info("Test1 starting...\n\n");
+            Log.Info($"{nameof(TestSuccess)} starting...\n\n");
             var clientTasks = new List<Task>();
             for (int i = 0; i < testData.Count; i++)
             {
@@ -95,24 +93,24 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 }
                 catch (Exception e)
                 {
-                    Log.Error(e, "Error occured in Test1 with a server task");
+                    Log.Error(e, $"Error occured in {nameof(TestSuccess)} with a server task");
                 }
             }
             await Task.WhenAll(clientTasks.Concat(serverTasks));
-            Log.Info("Test1 completed sucessfully.\n\n");
+            Log.Info($"{nameof(TestSuccess)} completed sucessfully.\n\n");
         }
 
         private async Task RunTestDataItem(StandardQuasiHttpClient client, int index,
             Test1Data testDataItem)
         {
-            Log.Info("Starting Test1 with data#{0}...", index);
+            Log.Info($"Starting {nameof(TestSuccess)} with data#{{0}}...", index);
             var actualResponse = await client.Send(testDataItem.RemoteEndpoint,
                 testDataItem.Request, testDataItem.SendOptions);
             try
             {
                 await ComparisonUtils.CompareResponses(testDataItem.ExpectedResponse,
                     actualResponse, testDataItem.ExpectedResponseBodyBytes);
-                Log.Info("Sucessfully tested Test1 with data#{0}", index);
+                Log.Info($"Sucessfully tested {nameof(TestSuccess)} with data#{{0}}", index);
             }
             finally
             {
@@ -275,6 +273,40 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 SendOptions = sendOptions
             });
 
+            // next...
+            remoteEndpoint = EndpointPascal;
+            sendOptions = null;
+            request = new DefaultQuasiHttpRequest
+            {
+                Method = "PUT",
+                Target = "/compute",
+                Headers = new Dictionary<string, IList<string>>
+                {
+                    { KeyMathOp, new List<string>{ KeyMathOpAdd } },
+                    { KeyMathArg1, new List<string>{ "70" } },
+                    { KeyMathArg2, new List<string>{ "2" } }
+                }
+            };
+            expectedResponseBodyBytes = null;
+            expectedResponse = new DefaultQuasiHttpResponse
+            {
+                StatusCode = 200,
+                HttpStatusMessage = KeyStatusMessageOK,
+                HttpVersion = KeyHttpVersion1_0,
+                Headers = new Dictionary<string, IList<string>>
+                {
+                    { KeyMathResult, new string[]{ "72" } }
+                }
+            };
+            testData.Add(new Test1Data
+            {
+                Request = request,
+                ExpectedResponse = expectedResponse,
+                ExpectedResponseBodyBytes = expectedResponseBodyBytes,
+                RemoteEndpoint = remoteEndpoint,
+                SendOptions = sendOptions
+            });
+
             return testData;
         }
 
@@ -423,17 +455,9 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 result = arg1 + arg2;
             }
-            else if (op == KeyMathOpSub)
-            {
-                result = arg1 - arg2;
-            }
             else if (op == KeyMathOpMul)
             {
                 result = arg1 * arg2;
-            }
-            else if (op == KeyMathOpDiv)
-            {
-                result = arg1 / arg2;
             }
             else
             {

@@ -120,7 +120,8 @@ namespace Kabomu.QuasiHttp.Server
             {
                 var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     null, DefaultProcessingOptions?.TimeoutMillis, 0);
-                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis);
+                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis,
+                    "receive timeout");
 
                 transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     null, DefaultProcessingOptions?.MaxChunkSize, 0);
@@ -200,7 +201,8 @@ namespace Kabomu.QuasiHttp.Server
             {
                 var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     options?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
-                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis);
+                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis,
+                    "receive timeout");
 
                 workTask = transfer.StartProtocol(AltProtocolFactory);
             }
