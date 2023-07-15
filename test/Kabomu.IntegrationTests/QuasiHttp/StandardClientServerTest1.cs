@@ -42,6 +42,30 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         private static readonly string KeyMathOpMul = "*";
 
         [Fact]
+        public async Task TestClientArgumentErrors()
+        {
+            var instance = new StandardQuasiHttpClient();
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
+                instance.Send(3, null, new DefaultQuasiHttpSendOptions()));
+            Assert.Throws<ArgumentNullException>(() =>
+                instance.Send2(3, null, new DefaultQuasiHttpSendOptions()));
+
+            // test that Cancel doesn't complain when given invalid arguments.
+            instance.CancelSend(null);
+            instance.CancelSend(new object());
+        }
+
+        [Fact]
+        public async Task TestServerArgumentErrors()
+        {
+            var instance = new StandardQuasiHttpServer();
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
+                instance.AcceptConnection(null));
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
+                instance.AcceptRequest(null, new DefaultQuasiHttpProcessingOptions()));
+        }
+
+        [Fact]
         public async Task TestSuccess()
         {
             var testData = CreateTest1Data();

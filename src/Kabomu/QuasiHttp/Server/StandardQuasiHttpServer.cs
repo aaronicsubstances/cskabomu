@@ -82,6 +82,10 @@ namespace Kabomu.QuasiHttp.Server
         /// <returns>a task representing asynchronous operation</returns>
         public async Task AcceptConnection(IConnectionAllocationResponse connectionAllocationResponse)
         {
+            if (connectionAllocationResponse == null)
+            {
+                throw new ArgumentNullException(nameof(connectionAllocationResponse));
+            }
             var transfer = new ReceiveTransferInternal
             {
                 Mutex = _mutex

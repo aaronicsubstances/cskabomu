@@ -552,12 +552,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     TimeoutMillis = -1
                 }
             };
+            Task serverTask = null;
             server.Transport = new MemoryBasedServerTransport
             {
                 AcceptConnectionFunc = c =>
                 {
-                    // don't wait.
-                    _ = server.AcceptConnection(c);
+                    serverTask = server.AcceptConnection(c);
                 }
             };
             var clientTransport = new MemoryBasedClientTransport
@@ -585,6 +585,10 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             Log.Info(actualEx, "actual error from TestTimeout2");
             Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeTimeout,
                 actualEx.ReasonCode);
+            Assert.NotNull(serverTask);
+            actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+                serverTask);
+            Log.Info(actualEx, "actual server error from TestTimeout2");
         }
 
         [Fact]
@@ -641,6 +645,64 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
                 serverTask);
             Log.Info(actualEx, "actual server error from TestTimeout3");
+            Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeTimeout,
+                actualEx.ReasonCode);
+        }
+
+        [Fact]
+        public async Task TestTimeout4()
+        {
+            var remoteEndpoint = "127.0.0.2";
+            var server = new StandardQuasiHttpServer
+            {
+                Application = new ConfigurableQuasiHttpApplication
+                {
+                    ProcessRequestCallback = async req =>
+                    {
+                        await Task.Delay(4_000);
+                        return new DefaultQuasiHttpResponse();
+                    }
+                },
+                DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
+                {
+                    TimeoutMillis = 2_000
+                }
+            };
+            Task serverTask = null;
+            server.Transport = new MemoryBasedServerTransport
+            {
+                AcceptConnectionFunc = c =>
+                {
+                    serverTask = server.AcceptConnection(c);
+                }
+            };
+            var clientTransport = new MemoryBasedClientTransport
+            {
+                Servers = new Dictionary<object, MemoryBasedServerTransport>
+                {
+                    { remoteEndpoint, (MemoryBasedServerTransport)server.Transport }
+                }
+            };
+            var client = new StandardQuasiHttpClient
+            {
+                Transport = clientTransport,
+                DefaultSendOptions = new DefaultQuasiHttpSendOptions
+                {
+                    TimeoutMillis = 3_000
+                }
+            };
+            var sendOptions = new DefaultQuasiHttpSendOptions
+            {
+                TimeoutMillis = 6_000
+            };
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+                client.Send(remoteEndpoint, new DefaultQuasiHttpRequest(),
+                sendOptions));
+            Log.Info(actualEx, "actual client error from TestTimeout4");
+            Assert.NotNull(serverTask);
+            actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+                serverTask);
+            Log.Info(actualEx, "actual server error from TestTimeout4");
             Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeTimeout,
                 actualEx.ReasonCode);
         }

@@ -43,6 +43,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             var client = new StandardQuasiHttpClient
             {
                 TransportBypass = transportBypass,
+                Transport = new MemoryBasedClientTransport(),
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
                     ResponseBufferingEnabled = false
@@ -232,6 +233,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             var client = new StandardQuasiHttpClient
             {
                 TransportBypass = transportBypass,
+                Transport = new MemoryBasedClientTransport(),
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
                     TimeoutMillis = 300
