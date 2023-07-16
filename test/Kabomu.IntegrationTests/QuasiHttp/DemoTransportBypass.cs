@@ -25,6 +25,13 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     return _cancellationRequested;
                 }
             }
+            set
+            {
+                lock (_mutex)
+                {
+                    _cancellationRequested = value;
+                }
+            }
         }
 
         public void CancelSendRequest(object sendCancellationHandle)

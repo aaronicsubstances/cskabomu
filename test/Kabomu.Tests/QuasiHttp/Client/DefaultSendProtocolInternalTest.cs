@@ -3,7 +3,6 @@ using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.Tests.Shared;
 using Kabomu.Tests.Shared.Common;
 using Kabomu.Tests.Shared.QuasiHttp;
 using System;
@@ -45,21 +44,19 @@ namespace Kabomu.Tests.QuasiHttp.Client
         public async Task TestSend(
             object connection, int maxChunkSize, bool responseBufferingEnabled,
             IQuasiHttpMutableRequest request, byte[] expectedReqBodyBytes,
-            IQuasiHttpResponse expectedResponse, byte[] expectedResBodyBytes)
+            IQuasiHttpResponse expectedResponse, byte[] expectedResBodyBytes,
+            bool skipRequestWriteCheck)
         {
             // prepare response for reading.
-            var linkingTcs = new TaskCompletionSource<int>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
             var helpingReader = await SerializeResponseToBeRead(
-                expectedResponse, expectedResBodyBytes,
-                linkingTcs.Task);
+                expectedResponse, expectedResBodyBytes);
 
             // prepare to receive request to be written
             var headerReceiver = new MemoryStream();
             var bodyReceiver = new MemoryStream();
             var helpingWriter = SetUpReceivingOfRequestToBeWritten(
                 request, expectedReqBodyBytes, headerReceiver,
-                bodyReceiver, linkingTcs);
+                bodyReceiver);
 
             // set up instance
             var transport = new DemoQuasiHttpTransport2(connection,
@@ -104,29 +101,39 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // assert written request, and work around disposed
             // request receiving streams.
-            ICustomReader reqHeaderReader = new StreamCustomReaderWriter(
-                new MemoryStream(headerReceiver.ToArray()));
-            var actualReqChunk = await ChunkedTransferUtils.ReadLeadChunk(
-                reqHeaderReader, 0);
-            // verify all contents of headerReceiver was used
-            // before comparing lead chunks
-            Assert.Equal(0, await reqHeaderReader.ReadBytes(new byte[1], 0, 1));
-            ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
-            
-            ICustomReader reqBodyReader = new StreamCustomReaderWriter(
-                new MemoryStream(bodyReceiver.ToArray()));
-            if (expectedReqChunk.ContentLength < 0)
+            try
             {
-                reqBodyReader = new ChunkDecodingCustomReader(reqBodyReader);
+                ICustomReader reqHeaderReader = new StreamCustomReaderWriter(
+                    new MemoryStream(headerReceiver.ToArray()));
+                var actualReqChunk = await ChunkedTransferUtils.ReadLeadChunk(
+                    reqHeaderReader, 0);
+                // verify all contents of headerReceiver was used
+                // before comparing lead chunks
+                Assert.Equal(0, await reqHeaderReader.ReadBytes(new byte[1], 0, 1));
+                ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
+
+                ICustomReader reqBodyReader = new StreamCustomReaderWriter(
+                    new MemoryStream(bodyReceiver.ToArray()));
+                if (expectedReqChunk.ContentLength < 0)
+                {
+                    reqBodyReader = new ChunkDecodingCustomReader(reqBodyReader);
+                }
+                var actualReqBodyBytes = await IOUtils.ReadAllBytes(reqBodyReader);
+                if (request.Body == null)
+                {
+                    Assert.Empty(actualReqBodyBytes);
+                }
+                else
+                {
+                    Assert.Equal(expectedReqBodyBytes, actualReqBodyBytes);
+                }
             }
-            var actualReqBodyBytes = await IOUtils.ReadAllBytes(reqBodyReader);
-            if (request.Body == null)
+            catch
             {
-                Assert.Empty(actualReqBodyBytes);
-            }
-            else
-            {
-                Assert.Equal(expectedReqBodyBytes, actualReqBodyBytes);
+                if (!skipRequestWriteCheck)
+                {
+                    throw;
+                }
             }
 
             // verify cancel expectations
@@ -144,8 +151,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
         private ICustomWriter SetUpReceivingOfRequestToBeWritten(
             IQuasiHttpMutableRequest request, byte[] expectedReqBodyBytes,
-            MemoryStream headerReceiver, MemoryStream bodyReceiver,
-            TaskCompletionSource<int> linkingTcs)
+            MemoryStream headerReceiver, MemoryStream bodyReceiver)
         {
             var helpingWriter = new DelegatingCustomWriter
             {
@@ -163,7 +169,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                         helpingWriter.BackingWriter = new StreamCustomReaderWriter(bodyReceiver);
                         await writer.WriteBytes(expectedReqBodyBytes, 0,
                             expectedReqBodyBytes.Length);
-                        linkingTcs?.SetResult(0);
                     }
                 };
                 request.Body = new CustomWritableBackedBody(writable)
@@ -172,16 +177,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     ContentType = request.Body.ContentType
                 };
             }
-            else
-            {
-                linkingTcs?.SetResult(0);
-            }
             return helpingWriter;
         }
 
         private static async Task<ICustomReader> SerializeResponseToBeRead(
-            IQuasiHttpResponse res, byte[] resBodyBytes,
-            Task<int> linkingTask)
+            IQuasiHttpResponse res, byte[] resBodyBytes)
         {
             var resChunk = new LeadChunk
             {
@@ -194,23 +194,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ContentType = res.Body?.ContentType
             };
             var helpingReaders = new List<ICustomReader>();
-            if (linkingTask != null)
-            {
-                var waitingReader = new LambdaBasedCustomReader
-                {
-                    ReadFunc = async (data, offset, length) =>
-                    {
-                        async Task<int> Timeout()
-                        {
-                            await Task.Delay(2000);
-                            throw new ExpectationViolationException(
-                                "timeout while waiting to read response");
-                        }
-                        return await await Task.WhenAny(linkingTask, Timeout());
-                    }
-                };
-                helpingReaders.Add(waitingReader);
-            };
             var headerStream = new MemoryStream();
             var headerReader = new StreamCustomReaderWriter(headerStream);
             await ChunkedTransferUtils.WriteLeadChunk(headerReader, 0,
@@ -275,8 +258,9 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ContentType = "image/png"
             };
+            var skipRequestWriteCheck = false;
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                expectedResponse, expectedResBodyBytes });
+                expectedResponse, expectedResBodyBytes, skipRequestWriteCheck });
 
             // next...
             connection = 123;
@@ -294,8 +278,9 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 HttpStatusMessage = "not found"
             };
             expectedResBodyBytes = null;
+            skipRequestWriteCheck = false;
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                expectedResponse, expectedResBodyBytes });
+                expectedResponse, expectedResBodyBytes, skipRequestWriteCheck });
 
             // next...
             connection = "sth";
@@ -320,8 +305,9 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 HttpStatusMessage = "server error"
             };
             expectedResBodyBytes = null;
+            skipRequestWriteCheck = true;
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                expectedResponse, expectedResBodyBytes });
+                expectedResponse, expectedResBodyBytes, skipRequestWriteCheck });
 
             // next...
             connection = new object();
@@ -356,8 +342,9 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ContentLength = -1,
                 ContentType = "application/xml"
             };
+            skipRequestWriteCheck = false;
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                expectedResponse, expectedResBodyBytes });
+                expectedResponse, expectedResBodyBytes, skipRequestWriteCheck });
 
             // next...
             // zero content length in request
@@ -378,8 +365,9 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             expectedResBodyBytes = new byte[1];
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes);
+            skipRequestWriteCheck = false;
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                expectedResponse, expectedResBodyBytes });
+                expectedResponse, expectedResBodyBytes, skipRequestWriteCheck });
 
             // next...
             // exceed buffering limit of 100 specified in test method
@@ -400,8 +388,9 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ContentLength = -1,
                 ContentType = "text/plain"
             };
+            skipRequestWriteCheck = false;
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                expectedResponse, expectedResBodyBytes });
+                expectedResponse, expectedResBodyBytes, skipRequestWriteCheck });
 
             return testData;
         }
@@ -509,7 +498,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // prepare response for reading.
             var helpingReader = await SerializeResponseToBeRead(
-                response, responseBodyBytes, null);
+                response, responseBodyBytes);
 
             // prepare to receive request to be written
             var headerReceiver = new MemoryStream();

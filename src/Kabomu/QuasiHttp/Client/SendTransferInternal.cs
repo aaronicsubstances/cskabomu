@@ -30,24 +30,26 @@ namespace Kabomu.QuasiHttp.Client
         public async Task<ProtocolSendResultInternal> StartProtocol(
             Func<SendTransferInternal, ISendProtocolInternal> protocolFactory)
         {
-            // even if abort has already happened, still go ahead and
-            // create protocol instance and cancel it because the
-            // factory may be holding on to some live resources.
             var protocol = protocolFactory.Invoke(this);
             Protocol = protocol;
-            if (IsAborted)
-            {
-                // Oops...connection establishment took so long, or a cancellation happened
-                // during connection establishment.
-                try
-                {
-                    await protocol.Cancel();
-                }
-                catch (Exception) { } // ignore.
-
-                return null;
-            }
             var res = await protocol.Send();
+            Task cancelTask = null;
+            lock (Mutex)
+            {
+                if (IsAborted)
+                {
+                    try
+                    {
+                        cancelTask = protocol.Cancel();
+                    }
+                    catch (Exception) { } // ignore
+                }
+            }
+            if (cancelTask != null)
+            {
+                await cancelTask;
+            }
+            await Abort(null, res);
             return res;
         }
 
@@ -100,21 +102,16 @@ namespace Kabomu.QuasiHttp.Client
             }
             else
             {
-                cancellationTcs?.TrySetResult(res);
+                cancellationTcs?.TrySetResult(null);
             }
 
-            // just in case cancellation was requested even before transfer protocol could
-            // be set up...check to avoid possible null pointer error.
-            if (protocol != null)
+            if (cancellationError != null || res?.Response?.Body == null || res?.ResponseBufferingApplied == true)
             {
-                if (cancellationError != null || res?.Response?.Body == null || res?.ResponseBufferingApplied == true)
+                try
                 {
-                    try
-                    {
-                        await protocol.Cancel();
-                    }
-                    catch (Exception) { } // ignore
+                    await protocol.Cancel();
                 }
+                catch (Exception) { } // ignore
             }
 
             // close request body

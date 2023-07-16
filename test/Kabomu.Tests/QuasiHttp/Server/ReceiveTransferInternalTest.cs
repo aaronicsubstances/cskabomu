@@ -36,7 +36,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             // assert
             Assert.Same(instance, actualInstance);
             Assert.Same(protocol.ExpectedReceiveResult, actual);
-            Assert.False(protocol.Cancelled);
+            Assert.True(protocol.Cancelled);
         }
 
         [Fact]
@@ -63,7 +63,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             // assert
             Assert.Same(instance, actualInstance);
-            Assert.Null(actual);
+            Assert.Same(protocol.ExpectedReceiveResult, actual);
             Assert.True(protocol.Cancelled);
         }
 

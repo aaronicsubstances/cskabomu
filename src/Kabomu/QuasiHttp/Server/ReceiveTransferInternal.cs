@@ -26,25 +26,26 @@ namespace Kabomu.QuasiHttp.Server
         public async Task<IQuasiHttpResponse> StartProtocol(
             Func<ReceiveTransferInternal, IReceiveProtocolInternal> protocolFactory)
         {
-            // even if abort has already happened, still go ahead and
-            // create protocol instance and cancel it because the
-            // factory may be holding on to some live resources.
-            // NB: the code structure here is meant to mirror that of
-            // SendTransferInternal. Over here, there is currently no
-            // reason why an abort will occur before protocol instance is created.
             var protocol = protocolFactory.Invoke(this);
             Protocol = protocol;
-            if (IsAborted)
-            {
-                try
-                {
-                    await protocol.Cancel();
-                }
-                catch (Exception) { } // ignore.
-
-                return null;
-            }
             var res = await protocol.Receive();
+            Task cancelTask = null;
+            lock (Mutex)
+            {
+                if (IsAborted)
+                {
+                    try
+                    {
+                        cancelTask = protocol.Cancel();
+                    }
+                    catch (Exception) { } // ignore
+                }
+            }
+            if (cancelTask != null)
+            {
+                await cancelTask;
+            }
+            await Abort(res);
             return res;
         }
 
@@ -88,14 +89,11 @@ namespace Kabomu.QuasiHttp.Server
         {
             timeoutId?.Cancel();
 
-            if (protocol != null)
+            try
             {
-                try
-                {
-                    await protocol.Cancel();
-                }
-                catch (Exception) { } // ignore
+                await protocol.Cancel();
             }
+            catch (Exception) { } // ignore
 
             // close body of request received for direct send to application
             if (request != null)

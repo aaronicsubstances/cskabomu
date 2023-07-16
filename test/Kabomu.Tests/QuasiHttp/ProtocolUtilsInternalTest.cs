@@ -904,18 +904,17 @@ namespace Kabomu.Tests.QuasiHttp
         [Fact]
         public async Task TestCompleteRequestProcessing3()
         {
-            var expected = new DefaultQuasiHttpResponse();
             Task<IQuasiHttpResponse> workTask = Task.Delay(
                 TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
                 {
                     return null;
                 });
             Task<IQuasiHttpResponse> timeoutTask = null;
-            Task<IQuasiHttpResponse> cancellationTask = Task.FromResult(
-                expected as IQuasiHttpResponse);
+            Task<IQuasiHttpResponse> cancellationTask = Task.FromResult<IQuasiHttpResponse>(
+                new DefaultQuasiHttpResponse());
             var actual = await ProtocolUtilsInternal.CompleteRequestProcessing(
                 workTask, timeoutTask, cancellationTask);
-            Assert.Same(expected, actual);
+            Assert.Null(actual);
         }
 
         [Fact]

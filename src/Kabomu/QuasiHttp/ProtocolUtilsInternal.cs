@@ -215,24 +215,26 @@ namespace Kabomu.QuasiHttp
                 throw new ArgumentNullException(nameof(workTask));
             }
 
-            // ignore null tasks and successful timeout result.
+            // ignore null tasks and successful results from
+            // timeout and cancellation tasks.
+            var tasks = new List<Task<T>> { workTask };
             if (timeoutTask != null)
             {
-                var tasks = new List<Task<T>> { workTask, timeoutTask };
-                if (cancellationTask != null)
-                {
-                    tasks.Add(cancellationTask);
-                }
-                var firstTask = await Task.WhenAny(tasks);
-                var res = await firstTask;
-                if (firstTask != timeoutTask)
-                {
-                    return res;
-                }
+                tasks.Add(timeoutTask);
             }
             if (cancellationTask != null)
             {
-                return await await Task.WhenAny(workTask, cancellationTask);
+                tasks.Add(cancellationTask);
+            }
+            while (tasks.Count > 1)
+            {
+                var firstTask = await Task.WhenAny(tasks);
+                if (firstTask == workTask)
+                {
+                    break;
+                }
+                await firstTask; // let any exceptions bubble up.
+                tasks.Remove(firstTask);
             }
             return await workTask;
         }

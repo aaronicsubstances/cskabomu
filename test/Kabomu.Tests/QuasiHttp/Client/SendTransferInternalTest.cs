@@ -36,11 +36,45 @@ namespace Kabomu.Tests.QuasiHttp.Client
             // assert
             Assert.Same(instance, actualInstance);
             Assert.Same(protocol.ExpectedSendResult, actual);
-            Assert.False(protocol.Cancelled);
+            Assert.True(protocol.Cancelled);
         }
 
         [Fact]
         public async Task TestStartProtocol2()
+        {
+            // arrange
+            var instance = new SendTransferInternal
+            {
+                Mutex = new object()
+            };
+            var protocol = new HelperSendProtocol
+            {
+                ExpectedSendResult = new ProtocolSendResultInternal
+                {
+                    Response = new DefaultQuasiHttpResponse
+                    {
+                        Body = new StringBody("sth")
+                    },
+                    ResponseBufferingApplied = false
+                }
+            };
+
+            // act
+            SendTransferInternal actualInstance = null;
+            var actual = await instance.StartProtocol(t =>
+            {
+                actualInstance = t;
+                return protocol;
+            });
+
+            // assert
+            Assert.Same(instance, actualInstance);
+            Assert.Same(protocol.ExpectedSendResult, actual);
+            Assert.False(protocol.Cancelled);
+        }
+
+        [Fact]
+        public async Task TestStartProtocol3()
         {
             // arrange
             var instance = new SendTransferInternal
@@ -63,12 +97,12 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // assert
             Assert.Same(instance, actualInstance);
-            Assert.Null(actual);
+            Assert.Same(protocol.ExpectedSendResult, actual);
             Assert.True(protocol.Cancelled);
         }
 
         [Fact]
-        public async Task TestStartProtocol3()
+        public async Task TestStartProtocol4()
         {
             // arrange
             var instance = new SendTransferInternal
@@ -93,6 +127,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // assert
             Assert.Same(instance, actualInstance);
+            Assert.False(protocol.Cancelled);
         }
 
         [Fact]
@@ -212,7 +247,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             Assert.True(instance.TimeoutId.IsCancellationRequested);
             Assert.True(request.CancellationTokenSource.IsCancellationRequested);
             Assert.False(resCts.IsCancellationRequested);
-            Assert.Same(res, await instance.CancellationTcs.Task);
+            Assert.Null(await instance.CancellationTcs.Task);
         }
 
         [Fact]
@@ -314,7 +349,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             Assert.True(request.CancellationTokenSource.IsCancellationRequested);
             Assert.True(instance.TimeoutId.IsCancellationRequested);
 
-            Assert.Same(res, await instance.CancellationTcs.Task);
+            Assert.Null(await instance.CancellationTcs.Task);
         }
 
         [Fact]

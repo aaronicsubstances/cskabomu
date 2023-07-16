@@ -278,6 +278,15 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeCancelled,
                 actualEx.ReasonCode);
             Assert.True(transportBypass.IsCancellationRequested);
+
+            // test that a second cancel does not do anything.
+            transportBypass.IsCancellationRequested = false;
+            client.CancelSend(result.Item2);
+            actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+                result.Item1);
+            Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeCancelled,
+                actualEx.ReasonCode);
+            Assert.False(transportBypass.IsCancellationRequested);
         }
 
         [Fact]
@@ -318,7 +327,10 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         public async Task TestServerBypass()
         {
             var remoteEndpoint = new object();
-            var request = new DefaultQuasiHttpRequest();
+            var request = new DefaultQuasiHttpRequest
+            {
+                CancellationTokenSource = new CancellationTokenSource()
+            };
             var expectedResponse = new DefaultQuasiHttpResponse();
             IQuasiHttpRequest actualRequest = null;
             var server = new StandardQuasiHttpServer
@@ -339,6 +351,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             // test that it is not disposed.
             await ComparisonUtils.CompareResponses(expectedResponse,
                 actualResponse, null);
+            // test that transfer was aborted.
+            Assert.True(request.CancellationTokenSource.IsCancellationRequested);
         }
 
         [Fact]
@@ -399,12 +413,17 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 TimeoutMillis = 1_500
             };
+            var request = new DefaultQuasiHttpRequest
+            {
+                CancellationTokenSource = new CancellationTokenSource()
+            };
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
-                server.AcceptRequest(new DefaultQuasiHttpRequest(),
-                receiveOptions));
+                server.AcceptRequest(request, receiveOptions));
             Log.Info(actualEx, "actual error from TestServerBypassTimeout1");
             Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeTimeout,
                 actualEx.ReasonCode);
+            // test that transfer was aborted.
+            Assert.True(request.CancellationTokenSource.IsCancellationRequested);
         }
 
         [Fact]

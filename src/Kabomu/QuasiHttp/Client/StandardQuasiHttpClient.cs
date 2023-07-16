@@ -196,10 +196,7 @@ namespace Kabomu.QuasiHttp.Client
                         QuasiHttpRequestProcessingException.ReasonCodeGeneral,
                         "encountered error during send request processing", e);
                 }
-            }
-            await transfer.Abort(abortError, res);
-            if (abortError != null)
-            {
+                await transfer.Abort(abortError, res);
                 throw abortError;
             }
             return response;

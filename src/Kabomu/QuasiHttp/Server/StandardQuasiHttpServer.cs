@@ -107,10 +107,7 @@ namespace Kabomu.QuasiHttp.Server
                         QuasiHttpRequestProcessingException.ReasonCodeGeneral,
                         "encountered error during receive request processing", e);
                 }
-            }
-            await transfer.Abort(null);
-            if (abortError != null)
-            {
+                await transfer.Abort(null);
                 throw abortError;
             }
         }
@@ -187,10 +184,7 @@ namespace Kabomu.QuasiHttp.Server
                         QuasiHttpRequestProcessingException.ReasonCodeGeneral,
                         "encountered error during receive request processing", e);
                 }
-            }
-            await transfer.Abort(res);
-            if (abortError != null)
-            {
+                await transfer.Abort(res);
                 throw abortError;
             }
             return res;
