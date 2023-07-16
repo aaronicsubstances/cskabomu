@@ -8,6 +8,11 @@ namespace Kabomu.QuasiHttp.Server
 {
     internal class AltReceiveProtocolInternal: IReceiveProtocolInternal
     {
+        public AltReceiveProtocolInternal()
+        {
+            
+        }
+
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpRequest Request { get; set; }
 

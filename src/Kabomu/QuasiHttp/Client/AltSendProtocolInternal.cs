@@ -9,61 +9,38 @@ namespace Kabomu.QuasiHttp.Client
 {
     internal class AltSendProtocolInternal : ISendProtocolInternal
     {
-        private object _sendCancellationHandle;
-
         public AltSendProtocolInternal()
         {
         }
 
-        public IQuasiHttpRequest Request { get; set; }
-        public Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> RequestFunc { get; set; }
+        public object SendCancellationHandle { get; set; }
+        public Task<IQuasiHttpResponse> ResponseTask { get; set; }
         public IQuasiHttpAltTransport TransportBypass { get; set; }
-        public IConnectivityParams ConnectivityParams { get; set; }
         public bool ResponseBufferingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
 
         public Task Cancel()
         {
-            // reading these variables is thread safe if caller calls current method within same mutex as
-            // Send().
-            if (_sendCancellationHandle != null)
+            if (SendCancellationHandle != null)
             {
                 // check for case in which TransportBypass was incorrectly set to null.
-                TransportBypass?.CancelSendRequest(_sendCancellationHandle);
+                TransportBypass?.CancelSendRequest(SendCancellationHandle);
             }
             return Task.CompletedTask;
         }
 
         public async Task<ProtocolSendResultInternal> Send()
         {
-            // assume properties are set correctly aside the transport.
             if (TransportBypass == null)
             {
                 throw new MissingDependencyException("transport bypass");
             }
-            if (Request == null && RequestFunc == null)
+            if (ResponseTask == null)
             {
-                throw new ExpectationViolationException("request/requestFunc");
+                throw new ExpectationViolationException("ResponseTask");
             }
 
-            (Task<IQuasiHttpResponse>, object) cancellableResTask;
-            if (Request != null)
-            {
-                cancellableResTask = TransportBypass.ProcessSendRequest(Request, ConnectivityParams);
-            }
-            else
-            {
-                cancellableResTask = TransportBypass.ProcessSendRequest(RequestFunc, ConnectivityParams);
-            }
-
-            // writing this variable is thread safe if caller calls current method within same mutex as
-            // Cancel().
-            _sendCancellationHandle = cancellableResTask.Item2;
-
-            // it is not a problem if this call exceeds timeout before returning, since
-            // cancellation handle has already been saved within same mutex as Cancel(),
-            // and so Cancel() will definitely see the cancellation handle and make use of it.
-            var response = await cancellableResTask.Item1;
+            var response = await ResponseTask;
 
             if (response == null)
             {

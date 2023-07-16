@@ -3,6 +3,7 @@ using Kabomu.Mediator.Path;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.QuasiHttp.Transport;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -264,6 +265,18 @@ namespace Kabomu.Tests.Shared.Common
             Assert.Equal(expected.BoundPath, actual.BoundPath);
             Assert.Equal(expected.UnboundRequestTarget, actual.UnboundRequestTarget);
             Assert.Equal(expected.PathValues, actual.PathValues);
+        }
+
+        public static void CompareConnectivityParams(IConnectivityParams expected, IConnectivityParams actual)
+        {
+            if (expected == null)
+            {
+                Assert.Null(actual);
+                return;
+            }
+            Assert.NotNull(actual);
+            Assert.Equal(expected.RemoteEndpoint, actual.RemoteEndpoint);
+            Assert.Equal(expected.ExtraParams, actual.ExtraParams);
         }
     }
 }

@@ -16,25 +16,17 @@ namespace Kabomu.Tests.QuasiHttp.Server
         public async Task TestStartProtocol1()
         {
             // arrange
-            var instance = new ReceiveTransferInternal
-            {
-                Mutex = new object()
-            };
+            var instance = new ReceiveTransferInternal();
             var protocol = new HelperReceiveProtocol
             {
                 ExpectedReceiveResult = new DefaultQuasiHttpResponse()
             };
 
             // act
-            ReceiveTransferInternal actualInstance = null;
-            var actual = await instance.StartProtocol(t =>
-            {
-                actualInstance = t;
-                return protocol;
-            });
+            var actual = await instance.StartProtocol(protocol);
 
             // assert
-            Assert.Same(instance, actualInstance);
+            Assert.Same(protocol, instance.Protocol);
             Assert.Same(protocol.ExpectedReceiveResult, actual);
             Assert.True(protocol.Cancelled);
         }
@@ -45,7 +37,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             // arrange
             var instance = new ReceiveTransferInternal
             {
-                Mutex = new object(),
                 IsAborted = true
             };
             var protocol = new HelperReceiveProtocol
@@ -54,45 +45,32 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
 
             // act
-            ReceiveTransferInternal actualInstance = null;
-            var actual = await instance.StartProtocol(t =>
-            {
-                actualInstance = t;
-                return protocol;
-            });
+            var actual = await instance.StartProtocol(protocol);
 
             // assert
-            Assert.Same(instance, actualInstance);
+            Assert.Same(protocol, instance.Protocol);
             Assert.Same(protocol.ExpectedReceiveResult, actual);
-            Assert.True(protocol.Cancelled);
+            Assert.False(protocol.Cancelled);
         }
 
         [Fact]
         public async Task TestStartProtocol3()
         {
             // arrange
-            var instance = new ReceiveTransferInternal
-            {
-                Mutex = new object()
-            };
+            var instance = new ReceiveTransferInternal();
             var protocol = new HelperReceiveProtocol
             {
                 ExpectedReceiveError = new NotImplementedException()
             };
 
             // act and assert error
-            ReceiveTransferInternal actualInstance = null;
             await Assert.ThrowsAsync<NotImplementedException>(() =>
             {
-                return instance.StartProtocol(t =>
-                {
-                    actualInstance = t;
-                    return protocol;
-                });
+                return instance.StartProtocol(protocol);
             });
 
             // assert
-            Assert.Same(instance, actualInstance);
+            Assert.Same(protocol, instance.Protocol);
         }
 
         [Fact]
@@ -106,7 +84,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             var protocol = new HelperReceiveProtocol();
             var instance = new ReceiveTransferInternal
             {
-                Mutex = new object(),
                 Request = request,
                 Protocol = protocol
             };
@@ -128,10 +105,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
         public async Task TestAbort2()
         {
             // arrange
-            var instance = new ReceiveTransferInternal
-            {
-                Mutex = new object()
-            };
+            var instance = new ReceiveTransferInternal();
             var res = new DefaultQuasiHttpResponse();
 
             // act to verify no errors are raised with
@@ -150,7 +124,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             var instance = new ReceiveTransferInternal
             {
-                Mutex = new object(),
                 TimeoutId = new CancellationTokenSource(),
                 Protocol = protocol,
                 Request = request
@@ -182,7 +155,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             var instance = new ReceiveTransferInternal
             {
-                Mutex = new object(),
                 IsAborted = true,
                 TimeoutId = new CancellationTokenSource(),
                 Protocol = protocol
@@ -217,7 +189,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             var instance = new ReceiveTransferInternal
             {
-                Mutex = new object(),
                 Protocol = protocol,
                 Request = request,
                 TimeoutId = new CancellationTokenSource(),
@@ -253,7 +224,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             var instance = new ReceiveTransferInternal
             {
-                Mutex = new object(),
                 Protocol = protocol,
                 Request = request,
                 TimeoutId = new CancellationTokenSource()

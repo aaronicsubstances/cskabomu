@@ -27,25 +27,6 @@ namespace Kabomu.QuasiHttp.Server
         /// </summary>
         public StandardQuasiHttpServer()
         {
-            DefaultProtocolFactory = transfer =>
-            {
-                return new DefaultReceiveProtocolInternal
-                {
-                    MaxChunkSize = transfer.MaxChunkSize,
-                    Application = Application,
-                    Transport = Transport,
-                    Connection = transfer.Connection,
-                    RequestEnvironment = transfer.RequestEnvironment
-                };
-            };
-            AltProtocolFactory = transfer =>
-            {
-                return new AltReceiveProtocolInternal
-                {
-                    Application = Application,
-                    Request = transfer.Request
-                };
-            };
         }
 
         /// <summary>
@@ -66,16 +47,6 @@ namespace Kabomu.QuasiHttp.Server
         public IQuasiHttpServerTransport Transport { get; set; }
 
         /// <summary>
-        /// Exposed for testing.
-        /// </summary>
-        internal Func<ReceiveTransferInternal, IReceiveProtocolInternal> DefaultProtocolFactory { get; set; }
-
-        /// <summary>
-        /// Exposed for testing.
-        /// </summary>
-        internal Func<ReceiveTransferInternal, IReceiveProtocolInternal> AltProtocolFactory { get; set; }
-
-        /// <summary>
         /// Used to process incoming connections from quasi http server transports.
         /// </summary>
         /// <param name="connectionAllocationResponse">represents a connection and any associated information</param>
@@ -86,29 +57,25 @@ namespace Kabomu.QuasiHttp.Server
             {
                 throw new ArgumentNullException(nameof(connectionAllocationResponse));
             }
-            var transfer = new ReceiveTransferInternal
-            {
-                Mutex = _mutex
-            };
-            QuasiHttpRequestProcessingException abortError = null;
+            var transfer = new ReceiveTransferInternal();
             try
             {
                 await ProcessAcceptConnection(transfer, connectionAllocationResponse);
             }
             catch (Exception e)
             {
-                if (e is QuasiHttpRequestProcessingException quasiHttpError)
+                await transfer.Abort(null);
+                if (e is QuasiHttpRequestProcessingException)
                 {
-                    abortError = quasiHttpError;
+                    throw;
                 }
                 else
                 {
-                    abortError = new QuasiHttpRequestProcessingException(
+                    var abortError = new QuasiHttpRequestProcessingException(
                         QuasiHttpRequestProcessingException.ReasonCodeGeneral,
                         "encountered error during receive request processing", e);
+                    throw abortError;
                 }
-                await transfer.Abort(null);
-                throw abortError;
             }
         }
 
@@ -124,13 +91,18 @@ namespace Kabomu.QuasiHttp.Server
                 (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis,
                     "receive timeout");
 
-                transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
+                int maxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                     null, DefaultProcessingOptions?.MaxChunkSize, 0);
 
-                transfer.Connection = connectionResponse.Connection;
-                transfer.RequestEnvironment = connectionResponse.Environment;
-
-                workTask = transfer.StartProtocol(DefaultProtocolFactory);
+                var protocol = new DefaultReceiveProtocolInternal
+                {
+                    MaxChunkSize = maxChunkSize,
+                    Application = Application,
+                    Transport = Transport,
+                    Connection = connectionResponse.Connection,
+                    RequestEnvironment = connectionResponse.Environment
+                };
+                workTask = transfer.StartProtocol(protocol);
             }
             await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
                 timeoutTask, null);
@@ -159,11 +131,9 @@ namespace Kabomu.QuasiHttp.Server
             }
             var transfer = new ReceiveTransferInternal
             {
-                Mutex = _mutex,
                 Request = request,
             };
             IQuasiHttpResponse res = null;
-            QuasiHttpRequestProcessingException abortError = null;
             try
             {
                 res = await ProcessAcceptRequest(transfer, options);
@@ -174,18 +144,18 @@ namespace Kabomu.QuasiHttp.Server
             }
             catch (Exception e)
             {
-                if (e is QuasiHttpRequestProcessingException quasiHttpError)
+                await transfer.Abort(res);
+                if (e is QuasiHttpRequestProcessingException)
                 {
-                    abortError = quasiHttpError;
+                    throw;
                 }
                 else
                 {
-                    abortError = new QuasiHttpRequestProcessingException(
+                    var abortError = new QuasiHttpRequestProcessingException(
                         QuasiHttpRequestProcessingException.ReasonCodeGeneral,
                         "encountered error during receive request processing", e);
+                    throw abortError;
                 }
-                await transfer.Abort(res);
-                throw abortError;
             }
             return res;
         }
@@ -202,7 +172,12 @@ namespace Kabomu.QuasiHttp.Server
                 (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis,
                     "receive timeout");
 
-                workTask = transfer.StartProtocol(AltProtocolFactory);
+                var protocol = new AltReceiveProtocolInternal
+                {
+                    Application = Application,
+                    Request = transfer.Request
+                };
+                workTask = transfer.StartProtocol(protocol);
             }
             return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
                 timeoutTask, null);

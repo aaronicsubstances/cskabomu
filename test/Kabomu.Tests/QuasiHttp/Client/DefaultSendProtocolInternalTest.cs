@@ -5,6 +5,7 @@ using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Shared.Common;
 using Kabomu.Tests.Shared.QuasiHttp;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -18,6 +19,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
 {
     public class DefaultSendProtocolInternalTest
     {
+        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+
         [Fact]
         public async Task TestSendForDependencyErrors()
         {
@@ -25,7 +28,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 var instance = new DefaultSendProtocolInternal
                 {
-                    Request = new DefaultQuasiHttpRequest()
+                    RequestFunc =  _ => Task.FromResult<IQuasiHttpRequest>(
+                        new DefaultQuasiHttpRequest())
                 };
                 return instance.Send();
             });
@@ -64,15 +68,24 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ReleaseIndicator = new CancellationTokenSource()
             };
+            IDictionary<string, object> actualReqEnv = null;
             var instance = new DefaultSendProtocolInternal
             {
-                Request = request,
+                RequestFunc = reqEnv =>
+                {
+                    actualReqEnv = reqEnv;
+                    return Task.FromResult<IQuasiHttpRequest>(request);
+                },
+                RequestEnvironment = request.Environment,
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize,
                 ResponseBufferingEnabled = responseBufferingEnabled,
                 ResponseBodyBufferingSizeLimit = 100
             };
+
+            // remove environment since actual written request will not have it.
+            request.Environment = null;
 
             // set up expected request headers
             var expectedReqChunk = new LeadChunk
@@ -91,6 +104,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var wasTransportReleased = transport.ReleaseIndicator.IsCancellationRequested;
 
             // begin assert.
+            Assert.Same(instance.RequestEnvironment, actualReqEnv);
             Assert.NotNull(actualResponse);
             Assert.NotNull(actualResponse.Response);
             Assert.Equal(responseBufferingEnabled, actualResponse.ResponseBufferingApplied);
@@ -128,12 +142,13 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     Assert.Equal(expectedReqBodyBytes, actualReqBodyBytes);
                 }
             }
-            catch
+            catch (Exception e)
             {
                 if (!skipRequestWriteCheck)
                 {
                     throw;
                 }
+                Log.Warn(e, "possible race-induced request assert error from TestSend");
             }
 
             // verify cancel expectations
@@ -235,6 +250,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "variant", new List<string>{ "sea", "drive" } }
+                },
+                Environment = new Dictionary<string, object>
+                {
+                    { "one", new List<string>{"baako", "un", "deka" } }
                 }
             };
             var reqBodyBytes = ByteUtils.StringToBytes("this is our king");
@@ -268,7 +287,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
             responseBufferingEnabled = false;
             request = new DefaultQuasiHttpRequest
             {
-                Target = "/p"
+                Target = "/p",
+                Environment = new Dictionary<string, object>
+                {
+                    { "shoe", 67 }, { "lace", 0.5 }
+                }
             };
             reqBodyBytes = null;
 
@@ -444,9 +467,19 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ReleaseIndicator = new CancellationTokenSource()
             };
+            IDictionary<string, object> actualReqEnv = null;
+            Func<IDictionary<string, object>, Task <IQuasiHttpRequest>> requestFunc = reqEnv =>
+            {
+                actualReqEnv = reqEnv;
+                return Task.FromResult<IQuasiHttpRequest>(request);
+            };
             var instance = new DefaultSendProtocolInternal
             {
-                Request = request,
+                RequestFunc = requestFunc,
+                RequestEnvironment = new Dictionary<string, object>
+                {
+                    { "two", 2 }
+                },
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize
@@ -467,6 +500,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
             // act.
             await Assert.ThrowsAsync<NotImplementedException>(() =>
                 instance.Send());
+
+            Assert.Same(instance.RequestEnvironment, actualReqEnv);
 
             // assert written request, and work around disposed
             // request receiving streams.
@@ -513,9 +548,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ReleaseIndicator = new CancellationTokenSource()
             };
+            IDictionary<string, object> actualReqEnv = null;
             var instance = new DefaultSendProtocolInternal
             {
-                Request = request,
+                RequestFunc = reqEnv =>
+                {
+                    actualReqEnv = reqEnv;
+                    return Task.FromResult<IQuasiHttpRequest>(request);
+                },
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize,
@@ -538,6 +578,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
             // act.
             await Assert.ThrowsAsync<DataBufferLimitExceededException>(() =>
                 instance.Send());
+
+            Assert.Null(actualReqEnv);
 
             // assert written request, and work around disposed
             // request receiving streams.

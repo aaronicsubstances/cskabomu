@@ -16,25 +16,17 @@ namespace Kabomu.Tests.QuasiHttp.Client
         public async Task TestStartProtocol1()
         {
             // arrange
-            var instance = new SendTransferInternal
-            {
-                Mutex = new object()
-            };
+            var instance = new SendTransferInternal();
             var protocol = new HelperSendProtocol
             {
                 ExpectedSendResult = new ProtocolSendResultInternal()
             };
 
             // act
-            SendTransferInternal actualInstance = null;
-            var actual = await instance.StartProtocol(t =>
-            {
-                actualInstance = t;
-                return protocol;
-            });
+            var actual = await instance.StartProtocol(protocol);
 
             // assert
-            Assert.Same(instance, actualInstance);
+            Assert.Same(protocol, instance.Protocol);
             Assert.Same(protocol.ExpectedSendResult, actual);
             Assert.True(protocol.Cancelled);
         }
@@ -43,10 +35,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         public async Task TestStartProtocol2()
         {
             // arrange
-            var instance = new SendTransferInternal
-            {
-                Mutex = new object()
-            };
+            var instance = new SendTransferInternal();
             var protocol = new HelperSendProtocol
             {
                 ExpectedSendResult = new ProtocolSendResultInternal
@@ -60,15 +49,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // act
-            SendTransferInternal actualInstance = null;
-            var actual = await instance.StartProtocol(t =>
-            {
-                actualInstance = t;
-                return protocol;
-            });
+            var actual = await instance.StartProtocol(protocol);
 
             // assert
-            Assert.Same(instance, actualInstance);
+            Assert.Same(protocol, instance.Protocol);
             Assert.Same(protocol.ExpectedSendResult, actual);
             Assert.False(protocol.Cancelled);
         }
@@ -79,7 +63,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             // arrange
             var instance = new SendTransferInternal
             {
-                Mutex = new object(),
                 IsAborted = true
             };
             var protocol = new HelperSendProtocol
@@ -88,45 +71,32 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // act
-            SendTransferInternal actualInstance = null;
-            var actual = await instance.StartProtocol(t =>
-            {
-                actualInstance = t;
-                return protocol;
-            });
+            var actual = await instance.StartProtocol(protocol);
 
             // assert
-            Assert.Same(instance, actualInstance);
+            Assert.Same(protocol, instance.Protocol);
             Assert.Same(protocol.ExpectedSendResult, actual);
-            Assert.True(protocol.Cancelled);
+            Assert.False(protocol.Cancelled);
         }
 
         [Fact]
         public async Task TestStartProtocol4()
         {
             // arrange
-            var instance = new SendTransferInternal
-            {
-                Mutex = new object()
-            };
+            var instance = new SendTransferInternal();
             var protocol = new HelperSendProtocol
             {
                 ExpectedSendError = new NotImplementedException()
             };
 
             // act and assert error
-            SendTransferInternal actualInstance = null;
             await Assert.ThrowsAsync<NotImplementedException>(() =>
             {
-                return instance.StartProtocol(t =>
-                {
-                    actualInstance = t;
-                    return protocol;
-                });
+                return instance.StartProtocol(protocol);
             });
 
             // assert
-            Assert.Same(instance, actualInstance);
+            Assert.Same(protocol, instance.Protocol);
             Assert.False(protocol.Cancelled);
         }
 
@@ -141,7 +111,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var protocol = new HelperSendProtocol();
             var instance = new SendTransferInternal
             {
-                Mutex = new object(),
                 Request = request,
                 Protocol = protocol
             };
@@ -173,7 +142,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var protocol = new HelperSendProtocol();
             var instance = new SendTransferInternal
             {
-                Mutex = new object(),
                 Protocol = protocol
             };
             Exception cancellationError = null;
@@ -193,7 +161,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var protocol = new HelperSendProtocol();
             var instance = new SendTransferInternal
             {
-                Mutex = new object(),
                 CancellationTcs = new TaskCompletionSource<ProtocolSendResultInternal>(),
                 Protocol = protocol
             };
@@ -222,7 +189,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var instance = new SendTransferInternal
             {
-                Mutex = new object(),
                 TimeoutId = new CancellationTokenSource(),
                 CancellationTcs = new TaskCompletionSource<ProtocolSendResultInternal>(),
                 Protocol = protocol,
@@ -261,7 +227,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var instance = new SendTransferInternal
             {
-                Mutex = new object(),
                 IsAborted = true,
                 TimeoutId = new CancellationTokenSource(),
                 Protocol = protocol
@@ -297,7 +262,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var instance = new SendTransferInternal
             {
-                Mutex = new object(),
                 Request = request,
                 ResponseBufferingEnabled = true
             };
@@ -331,7 +295,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var instance = new SendTransferInternal
             {
-                Mutex = new object(),
                 Request = request,
                 TimeoutId = new CancellationTokenSource(),
                 CancellationTcs = new TaskCompletionSource<ProtocolSendResultInternal>()
@@ -366,7 +329,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var instance = new SendTransferInternal
             {
-                Mutex = new object(),
                 Protocol = protocol,
                 Request = request,
                 TimeoutId = new CancellationTokenSource(),

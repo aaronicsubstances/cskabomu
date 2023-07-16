@@ -22,7 +22,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 var instance = new AltSendProtocolInternal
                 {
-                    Request = new DefaultQuasiHttpRequest()
+                    ResponseTask = Task.FromResult<IQuasiHttpResponse>(
+                        new DefaultQuasiHttpResponse())
                 };
                 return instance.Send();
             });
@@ -33,7 +34,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 var instance = new AltSendProtocolInternal
                 {
                     TransportBypass = transport,
-                    Request = new DefaultQuasiHttpRequest()
+                    ResponseTask = Task.FromResult<IQuasiHttpResponse>(null)
                 };
                 return instance.Send();
             });
@@ -43,58 +44,44 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestSendEnsuresCloseOnReceivingErrorResponse1()
         {
-            var request = new DefaultQuasiHttpRequest();
-            var connectivityParams = new DefaultConnectivityParams();
             var expectedResponse = new DefaultQuasiHttpResponse
             {
                 CancellationTokenSource = new CancellationTokenSource(),
                 Body = new ErrorQuasiHttpBody()
             };
-            var transport = new HelperQuasiHttpAltTransport
-            {
-                ExpectedCancellationHandle = new object(),
-                ExpectedResponse = expectedResponse
-            };
+            var transport = new HelperQuasiHttpAltTransport();
             var instance = new AltSendProtocolInternal
             {
                 TransportBypass = transport,
-                Request = request,
-                ConnectivityParams = connectivityParams,
+                ResponseTask = Task.FromResult<IQuasiHttpResponse>(expectedResponse),
+                SendCancellationHandle = new object(),
                 ResponseBufferingEnabled = true
             };
             await Assert.ThrowsAsync<NotImplementedException>(() =>
             {
                 return instance.Send();
             });
-            Assert.Same(request, transport.ActualRequest);
-            Assert.Same(connectivityParams, transport.ActualConnectivityParams);
             Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
 
             await instance.Cancel();
-            Assert.Same(transport.ExpectedCancellationHandle,
+            Assert.Same(instance.SendCancellationHandle,
                 transport.ActualCancellationHandle);
         }
 
         [Fact]
         public async Task TestSendEnsuresCloseOnReceivingErrorResponse2()
         {
-            var request = new DefaultQuasiHttpRequest();
-            var connectivityParams = new DefaultConnectivityParams();
             var expectedResponse = new DefaultQuasiHttpResponse
             {
                 CancellationTokenSource = new CancellationTokenSource(),
                 Body = new StringBody("too much!")
             };
-            var transport = new HelperQuasiHttpAltTransport
-            {
-                ExpectedCancellationHandle = new object(),
-                ExpectedResponse = expectedResponse
-            };
+            var transport = new HelperQuasiHttpAltTransport();
             var instance = new AltSendProtocolInternal
             {
                 TransportBypass = transport,
-                Request = request,
-                ConnectivityParams = connectivityParams,
+                ResponseTask = Task.FromResult<IQuasiHttpResponse>(expectedResponse),
+                SendCancellationHandle = new object(),
                 ResponseBufferingEnabled = true,
                 ResponseBodyBufferingSizeLimit = 5
             };
@@ -102,12 +89,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 return instance.Send();
             });
-            Assert.Same(request, transport.ActualRequest);
-            Assert.Same(connectivityParams, transport.ActualConnectivityParams);
             Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
 
             await instance.Cancel();
-            Assert.Same(transport.ExpectedCancellationHandle,
+            Assert.Same(instance.SendCancellationHandle,
                 transport.ActualCancellationHandle);
         }
 
@@ -121,33 +106,26 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Body = new StringBody("tea"),
                 CancellationTokenSource = new CancellationTokenSource()
             };
-            var transport = new HelperQuasiHttpAltTransport
-            {
-                ExpectedResponse = expectedResponse
-            };
+            var transport = new HelperQuasiHttpAltTransport();
             var instance = new AltSendProtocolInternal
             {
-                Request = request,
-                ConnectivityParams = connectivityParams,
+                ResponseTask = Task.FromResult<IQuasiHttpResponse>(expectedResponse),
                 ResponseBufferingEnabled = false,
                 TransportBypass = transport
             };
             var res = await instance.Send();
-            Assert.Same(request, transport.ActualRequest);
-            Assert.Same(connectivityParams, transport.ActualConnectivityParams);
             Assert.False(expectedResponse.CancellationTokenSource.IsCancellationRequested);
             Assert.Same(expectedResponse, res?.Response);
             Assert.Equal(false, res?.ResponseBufferingApplied);
 
             // test successful cancellation due to null cancellation handle
             await instance.Cancel();
+            Assert.Null(transport.ActualCancellationHandle);
         }
 
         [Fact]
         public async Task TestSendResponseBufferingDisabledAndBodyPresent2()
         {
-            var request = new DefaultQuasiHttpRequest();
-            var connectivityParams = new DefaultConnectivityParams();
             var expectedResponse = new DefaultQuasiHttpResponse
             {
                 Body = new StringBody("tea"),
@@ -157,35 +135,27 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     { TransportUtils.ResEnvKeyResponseBufferingApplied, true }
                 }
             };
-            var transport = new HelperQuasiHttpAltTransport
-            {
-                ExpectedCancellationHandle = new object(),
-                ExpectedResponse = expectedResponse
-            };
+            var transport = new HelperQuasiHttpAltTransport();
             var instance = new AltSendProtocolInternal
             {
-                Request = request,
-                ConnectivityParams = connectivityParams,
+                ResponseTask = Task.FromResult<IQuasiHttpResponse>(expectedResponse),
+                SendCancellationHandle = new CancellationTokenSource(),
                 ResponseBufferingEnabled = false,
                 TransportBypass = transport
             };
             var res = await instance.Send();
-            Assert.Same(request, transport.ActualRequest);
-            Assert.Same(connectivityParams, transport.ActualConnectivityParams);
             Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
             Assert.Same(expectedResponse, res?.Response);
             Assert.Equal(true, res?.ResponseBufferingApplied);
 
             await instance.Cancel();
-            Assert.Same(transport.ExpectedCancellationHandle,
+            Assert.Same(instance.SendCancellationHandle,
                 transport.ActualCancellationHandle);
         }
 
         [Fact]
         public async Task TestSendResponseBufferingDisabledAndBodyAbsent()
         {
-            var request = new DefaultQuasiHttpRequest();
-            var connectivityParams = new DefaultConnectivityParams();
             var expectedResponse = new DefaultQuasiHttpResponse
             {
                 CancellationTokenSource = new CancellationTokenSource(),
@@ -194,35 +164,27 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     { TransportUtils.ResEnvKeyResponseBufferingApplied, null }
                 }
             };
-            var transport = new HelperQuasiHttpAltTransport
-            {
-                ExpectedCancellationHandle = new object(),
-                ExpectedResponse = expectedResponse
-            };
+            var transport = new HelperQuasiHttpAltTransport();
             var instance = new AltSendProtocolInternal
             {
-                Request = request,
-                ConnectivityParams = connectivityParams,
+                ResponseTask = Task.FromResult<IQuasiHttpResponse>(expectedResponse),
                 ResponseBufferingEnabled = false,
-                TransportBypass = transport
+                TransportBypass = transport,
+                SendCancellationHandle = new List<string>()
             };
             var res = await instance.Send();
-            Assert.Same(request, transport.ActualRequest);
-            Assert.Same(connectivityParams, transport.ActualConnectivityParams);
             Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
             Assert.Same(expectedResponse, res?.Response);
             Assert.Equal(false, res?.ResponseBufferingApplied);
 
             await instance.Cancel();
-            Assert.Same(transport.ExpectedCancellationHandle,
+            Assert.Same(instance.SendCancellationHandle,
                 transport.ActualCancellationHandle);
         }
 
         [Fact]
         public async Task TestSendResponseBufferingEnabledAndBodyAbsent1()
         {
-            var request = new DefaultQuasiHttpRequest();
-            var connectivityParams = new DefaultConnectivityParams();
             var expectedResponse = new DefaultQuasiHttpResponse
             {
                 CancellationTokenSource = new CancellationTokenSource(),
@@ -231,57 +193,45 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     { TransportUtils.ResEnvKeyResponseBufferingApplied, true }
                 }
             };
-            var transport = new HelperQuasiHttpAltTransport
-            {
-                ExpectedResponse = expectedResponse
-            };
+            var transport = new HelperQuasiHttpAltTransport();
             var instance = new AltSendProtocolInternal
             {
-                Request = request,
-                ConnectivityParams = connectivityParams,
+                ResponseTask = Task.FromResult<IQuasiHttpResponse>(expectedResponse),
                 ResponseBufferingEnabled = false,
                 TransportBypass = transport
             };
             var res = await instance.Send();
-            Assert.Same(request, transport.ActualRequest);
-            Assert.Same(connectivityParams, transport.ActualConnectivityParams);
             Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
             Assert.Same(expectedResponse, res?.Response);
             Assert.Equal(true, res?.ResponseBufferingApplied);
 
             // test successful cancellation due to null cancellation handle
             await instance.Cancel();
+            Assert.Null(transport.ActualCancellationHandle);
         }
 
         [Fact]
         public async Task TestSendResponseBufferingEnabledAndBodyAbsent2()
         {
-            var request = new DefaultQuasiHttpRequest();
-            var connectivityParams = new DefaultConnectivityParams();
             var expectedResponse = new DefaultQuasiHttpResponse
             {
                 CancellationTokenSource = new CancellationTokenSource()
             };
-            var transport = new HelperQuasiHttpAltTransport
-            {
-                ExpectedResponse = expectedResponse
-            };
+            var transport = new HelperQuasiHttpAltTransport();
             var instance = new AltSendProtocolInternal
             {
-                Request = request,
-                ConnectivityParams = connectivityParams,
+                ResponseTask = Task.FromResult<IQuasiHttpResponse>(expectedResponse),
                 ResponseBufferingEnabled = true,
                 TransportBypass = transport
             };
             var res = await instance.Send();
-            Assert.Same(request, transport.ActualRequest);
-            Assert.Same(connectivityParams, transport.ActualConnectivityParams);
             Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
             Assert.Same(expectedResponse, res?.Response);
             Assert.Equal(false, res?.ResponseBufferingApplied);
 
             // test successful cancellation due to null cancellation handle
             await instance.Cancel();
+            Assert.Null(transport.ActualCancellationHandle);
         }
 
         [Theory]
@@ -290,24 +240,16 @@ namespace Kabomu.Tests.QuasiHttp.Client
             int responseBodyBufferingLimit, object sendCancellationHandle,
             byte[] expectedResBodyBytes, DefaultQuasiHttpResponse expectedResponse)
         {
-            var request = new DefaultQuasiHttpRequest();
-            var connectivityParams = new DefaultConnectivityParams();
-            var transport = new HelperQuasiHttpAltTransport
-            {
-                ExpectedResponse = expectedResponse,
-                ExpectedCancellationHandle = sendCancellationHandle
-            };
+            var transport = new HelperQuasiHttpAltTransport();
             var instance = new AltSendProtocolInternal
             {
-                Request = request,
+                ResponseTask = Task.FromResult<IQuasiHttpResponse>(expectedResponse),
                 TransportBypass = transport,
-                ConnectivityParams = connectivityParams,
+                SendCancellationHandle = sendCancellationHandle,
                 ResponseBufferingEnabled = true,
                 ResponseBodyBufferingSizeLimit = responseBodyBufferingLimit,
             };
             var response = await instance.Send();
-            Assert.Same(request, transport.ActualRequest);
-            Assert.Same(connectivityParams, transport.ActualConnectivityParams);
             if (expectedResponse.CancellationTokenSource != null)
             {
                 Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
@@ -405,11 +347,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
         class HelperQuasiHttpAltTransport : IQuasiHttpAltTransport
         {
-            public object ExpectedCancellationHandle { get; set; }
-            public IQuasiHttpResponse ExpectedResponse { get; set; }
-            public Exception ExpectedSendException { get; set; }
-            public IConnectivityParams ActualConnectivityParams { get; set; }
-            public IQuasiHttpRequest ActualRequest { get; set; }
             public object ActualCancellationHandle { get; set; }
 
             public void CancelSendRequest(object sendCancellationHandle)
@@ -420,29 +357,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
             public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
                 IQuasiHttpRequest request, IConnectivityParams connectivityParams)
             {
-                return ProcessSendRequest(_ => Task.FromResult(request),
-                    connectivityParams);
+                throw new NotImplementedException();
             }
 
             public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
                 Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
                 IConnectivityParams connectivityParams)
             {
-                ActualConnectivityParams = connectivityParams;
-                Task<IQuasiHttpResponse> t = ProcessSendRequest(requestFunc);
-                return (t, ExpectedCancellationHandle);
-            }
-
-            private async Task<IQuasiHttpResponse> ProcessSendRequest(
-                Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc)
-            {
-                ActualRequest = await requestFunc.Invoke(null);
-                Task<IQuasiHttpResponse> t;
-                if (ExpectedSendException != null)
-                {
-                    throw ExpectedSendException;
-                }
-                return ExpectedResponse;
+                throw new NotImplementedException();
             }
         }
 

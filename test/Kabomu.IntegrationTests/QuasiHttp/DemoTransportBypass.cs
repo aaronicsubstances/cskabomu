@@ -34,6 +34,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             }
         }
 
+        public IConnectivityParams ActualConnectivityParams { get; set; }
+
         public void CancelSendRequest(object sendCancellationHandle)
         {
             lock (_mutex)
@@ -46,6 +48,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IConnectivityParams connectivityParams)
         {
+            ActualConnectivityParams = connectivityParams;
             var request = await requestFunc(null);
             return await SendRequestCallback(request);
         }

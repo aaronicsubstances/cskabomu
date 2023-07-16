@@ -1,5 +1,4 @@
-﻿using Kabomu.QuasiHttp.Transport;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,43 +7,18 @@ namespace Kabomu.QuasiHttp.Server
 {
     internal class ReceiveTransferInternal
     {
-        public object Mutex { get; set; }
+        private readonly object _mutex = new object();
+
         public IReceiveProtocolInternal Protocol { get; set; }
         public CancellationTokenSource TimeoutId { get; set; }
         public bool IsAborted { get; set; }
         public IQuasiHttpRequest Request { get; set; }
-        public int MaxChunkSize { get; set; }
-        public IDictionary<string, object> RequestEnvironment { get; set; }
-        public object Connection { get; set; }
-        public IQuasiHttpTransport Transport { get; set; }
 
-        /// <summary>
-        /// Assume this call occurs under mutex.
-        /// </summary>
-        /// <param name="protocolFactory"></param>
-        /// <returns></returns>
         public async Task<IQuasiHttpResponse> StartProtocol(
-            Func<ReceiveTransferInternal, IReceiveProtocolInternal> protocolFactory)
+            IReceiveProtocolInternal protocol)
         {
-            var protocol = protocolFactory.Invoke(this);
             Protocol = protocol;
             var res = await protocol.Receive();
-            Task cancelTask = null;
-            lock (Mutex)
-            {
-                if (IsAborted)
-                {
-                    try
-                    {
-                        cancelTask = protocol.Cancel();
-                    }
-                    catch (Exception) { } // ignore
-                }
-            }
-            if (cancelTask != null)
-            {
-                await cancelTask;
-            }
             await Abort(res);
             return res;
         }
@@ -53,7 +27,7 @@ namespace Kabomu.QuasiHttp.Server
         {
             Task disableTask = null;
             var disposeRes = false;
-            lock (Mutex)
+            lock (_mutex)
             {
                 if (IsAborted)
                 {

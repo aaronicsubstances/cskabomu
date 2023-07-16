@@ -11,6 +11,11 @@ namespace Kabomu.QuasiHttp.Server
 {
     internal class DefaultReceiveProtocolInternal : IReceiveProtocolInternal
     {
+        public DefaultReceiveProtocolInternal()
+        {
+            
+        }
+
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
@@ -28,7 +33,6 @@ namespace Kabomu.QuasiHttp.Server
 
         public async Task<IQuasiHttpResponse> Receive()
         {
-            // assume properties are set correctly aside the transport and application.
             if (Transport == null)
             {
                 throw new MissingDependencyException("server transport");
