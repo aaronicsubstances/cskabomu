@@ -182,8 +182,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 maxChunkSize = DefaultMaxChunkSize;
             }
-            var slices = chunk.Serialize();
-            int byteCount = slices.Sum(s => s.Length);
+            chunk.UpdateSerializedRepresentation();
+            int byteCount = chunk.CalculateSizeInBytesOfSerializedRepresentation();
             if (byteCount > maxChunkSize)
             {
                 throw new ArgumentException($"headers larger than max chunk size of {maxChunkSize}");
@@ -196,10 +196,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             ByteUtils.SerializeUpToInt64BigEndian(byteCount, encodedLength, 0,
                 encodedLength.Length);
             await writer.WriteBytes(encodedLength, 0, encodedLength.Length);
-            foreach (var slice in slices)
-            {
-                await writer.WriteBytes(slice.Data, slice.Offset, slice.Length);
-            }
+            await chunk.WriteOutSerializedRepresentation(writer);
         }
     }
 }

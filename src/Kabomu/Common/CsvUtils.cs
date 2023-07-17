@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common
 {
@@ -22,6 +23,9 @@ namespace Kabomu.Common
         private static readonly int TOKEN_CRLF = 3;
         private static readonly int TOKEN_LF = 4;
         private static readonly int TOKEN_CR = 5;
+
+        private static readonly byte[] NewlineConstant = new byte[] { (byte)'\n' };
+        private static readonly byte[] CommaConstant = new byte[] { (byte)',' };
 
         /// <summary>
         /// Acts as a lexing function during CSV parsing.
@@ -254,6 +258,27 @@ namespace Kabomu.Common
                 row + 1, column + 1, errorMessage ?? ""));
         }
 
+        internal static async Task SerializeTo(IList<IList<string>> rows,
+            ICustomWriter writer)
+        {
+            foreach (var row in rows)
+            {
+                var addCommaSeparator = false;
+                foreach (var value in row)
+                {
+                    if (addCommaSeparator)
+                    {
+                        await writer.WriteBytes(CommaConstant, 0,
+                            CommaConstant.Length);
+                    }
+                    await EscapeValueTo(value, writer);
+                    addCommaSeparator = true;
+                }
+                await writer.WriteBytes(NewlineConstant, 0,
+                    NewlineConstant.Length);
+            }
+        }
+
         /// <summary>
         /// Generates a CSV string.
         /// </summary>
@@ -278,6 +303,19 @@ namespace Kabomu.Common
                 csvBuilder.Append("\n");
             }
             return csvBuilder.ToString();
+        }
+
+        internal static async Task EscapeValueTo(string raw, ICustomWriter writer)
+        {
+            // escape empty strings with two double quotes to resolve ambiguity
+            // between an empty row and a row containing an empty string - otherwise both
+            // serialize to the same CSV output.
+            if (raw == "" || DoesValueContainSpecialCharacters(raw))
+            {
+                raw = '"' + raw.Replace("\"", "\"\"") + '"';
+            }
+            var rawBytes = ByteUtils.StringToBytes(raw);
+            await writer.WriteBytes(rawBytes, 0, rawBytes.Length);
         }
 
         /// <summary>

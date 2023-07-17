@@ -1,35 +1,47 @@
-﻿using Kabomu.QuasiHttp.ChunkedTransfer;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.Tests.Shared.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 {
     public class LeadChunkTest
     {
+        internal static async Task<int> Serialize(LeadChunk chunk,
+            MemoryStream stream)
+        {
+            chunk.UpdateSerializedRepresentation();
+            int chunkLen = chunk.CalculateSizeInBytesOfSerializedRepresentation();
+            await chunk.WriteOutSerializedRepresentation(new LambdaBasedCustomWriter
+            {
+                WriteFunc = (data, offset, length) =>
+                    stream.WriteAsync(data, offset, length)
+            });
+            return chunkLen;
+        }
+
         [Fact]
-        public void TestRecoveryWithDefaultValues()
+        public async Task TestRecoveryWithDefaultValues()
         {
             var expected = new LeadChunk
             {
                 Version = LeadChunk.Version01
             };
-            var serialized = expected.Serialize();
             var inputStream = new MemoryStream();
-            foreach (var item in serialized)
-            {
-                inputStream.Write(item.Data, item.Offset, item.Length);
-            }
+            var serializedLen = await Serialize(expected, inputStream);
             var bytes = inputStream.ToArray();
+            Assert.Equal(bytes.Length, serializedLen);
             var actual = LeadChunk.Deserialize(bytes, 0, bytes.Length);
             ComparisonUtils.CompareLeadChunks(expected, actual);
         }
 
         [Fact]
-        public void TestRecoveryForNonDefaultValues()
+        public async Task TestRecoveryForNonDefaultValues()
         {
             var expected = new LeadChunk();
             expected.Version = LeadChunk.Version01;
@@ -44,14 +56,12 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             expected.Headers = new Dictionary<string, IList<string>>();
             expected.Headers.Add("accept", new List<string> { "text/plain", "text/xml" });
             expected.Headers.Add("a", new List<string>());
+            expected.Headers.Add("b", new List<string> { "myinside\u00c6.team" });
 
-            var serialized = expected.Serialize(); ;
             var inputStream = new MemoryStream();
-            foreach (var item in serialized)
-            {
-                inputStream.Write(item.Data, item.Offset, item.Length);
-            }
+            var serializedLen = await Serialize(expected, inputStream);
             var bytes = inputStream.ToArray();
+            Assert.Equal(bytes.Length, serializedLen);
             var actual = LeadChunk.Deserialize(bytes, 0, bytes.Length);
             ComparisonUtils.CompareLeadChunks(expected, actual);
         }
