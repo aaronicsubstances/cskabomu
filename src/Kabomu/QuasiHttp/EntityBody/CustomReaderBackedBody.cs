@@ -6,10 +6,19 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Represents quasi http body based on an externally supplied reader.
+    /// </summary>
     public class CustomReaderBackedBody : AbstractQuasiHttpBody, ICustomReader
     {
         private readonly ICustomReader _backingReader;
 
+        /// <summary>
+        /// Creates new instance.
+        /// </summary>
+        /// <param name="wrappedReader">the reader which supplies bytes 
+        /// during reading</param>
+        /// <exception cref="ArgumentNullException">if reader argument is null</exception>
         public CustomReaderBackedBody(ICustomReader wrappedReader)
         {
             if (wrappedReader == null)

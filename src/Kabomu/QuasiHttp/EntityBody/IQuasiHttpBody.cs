@@ -7,20 +7,13 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// Represents a source of bytes which forms part of a quasi HTTP request or response.
+    /// Represents the body of a quasi HTTP request or response.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// This interface imposes a recommendation on its usage: values in Reader and Writable properties
-    /// should only be used from 1 thread at a time; Hence implementations can take 
-    /// advantage of this to optimize their code wherever possible.
-    /// </para>
-    /// </remarks>
     public interface IQuasiHttpBody : ICustomWritable, ICustomDisposable
     {
         /// <summary>
-        /// Gets the number of bytes in the stream represented by this instance, or -1 (actually any negative value)
-        /// to indicate an unknown number of bytes.
+        /// Gets the number of bytes in the stream represented by this instance,
+        /// or -1 (actually any negative value) to indicate an unknown number of bytes.
         /// </summary>
         long ContentLength { get; }
 
@@ -30,10 +23,5 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// in HTTP.
         /// </summary>
         string ContentType { get; }
-
-        /// <summary>
-        /// Gets a backing reader which can supply a byte representation
-        /// </summary>
-        ICustomReader Reader { get; }
     }
 }

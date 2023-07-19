@@ -668,7 +668,7 @@ namespace Kabomu.Tests.QuasiHttp
             Assert.Equal(contentType, body.ContentType);
             Assert.Equal(contentLength, body.ContentLength);
             var actualData = new byte[body.ContentLength];
-            await IOUtils.ReadBytesFully(body.Reader,
+            await IOUtils.ReadBytesFully((ICustomReader)body,
                 actualData, 0, actualData.Length);
             Assert.Equal(expectedData, actualData);
 
@@ -702,7 +702,7 @@ namespace Kabomu.Tests.QuasiHttp
             Assert.Equal(contentType, body.ContentType);
             Assert.Equal(contentLength, body.ContentLength);
             var actualData = new byte[body.ContentLength];
-            await IOUtils.ReadBytesFully(body.Reader,
+            await IOUtils.ReadBytesFully((ICustomReader)body,
                 actualData, 0, actualData.Length);
             Assert.Equal(expectedData, actualData);
 
@@ -741,7 +741,7 @@ namespace Kabomu.Tests.QuasiHttp
             // assert
             Assert.Equal(contentType, body.ContentType);
             Assert.Equal(contentLength, body.ContentLength);
-            var actualData = await IOUtils.ReadAllBytes(body.Reader);
+            var actualData = await IOUtils.ReadAllBytes((ICustomReader)body);
             Assert.Equal(expectedData, actualData);
 
             // assert that transport wasn't released.
@@ -777,7 +777,7 @@ namespace Kabomu.Tests.QuasiHttp
             // assert
             Assert.Equal(contentType, body.ContentType);
             Assert.Equal(contentLength, body.ContentLength);
-            var actualData = await IOUtils.ReadAllBytes(body.Reader);
+            var actualData = await IOUtils.ReadAllBytes((ICustomReader)body);
             Assert.Equal(expectedData, actualData);
 
             // assert that transport was released.

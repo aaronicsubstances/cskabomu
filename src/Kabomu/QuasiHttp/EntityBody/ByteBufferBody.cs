@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.EntityBody
 {
+    /// <summary>
+    /// Represents quasi http body based on a byte buffer.
+    /// </summary>
     public class ByteBufferBody : AbstractQuasiHttpBody, ICustomReader
     {
         private int _bytesRead = 0;

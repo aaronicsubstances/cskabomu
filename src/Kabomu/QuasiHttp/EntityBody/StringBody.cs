@@ -7,14 +7,15 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// Represents byte stream derived from a string's UTF-8 representation.
+    /// Represents quasi http body based on a string in UTF8 encoding.
     /// </summary>
     public class StringBody : AbstractQuasiHttpBody, ICustomReader
     {
         private ByteBufferBody _backingBody;
 
         /// <summary>
-        /// Creates a new instance with the given string.
+        /// Creates a new instance with the given string. The content length is
+        /// initialized to the byte count of the string in UTF8 encoding.
         /// </summary>
         /// <param name="content">string content</param>
         /// <exception cref="ArgumentNullException">if string argument is null</exception>
@@ -28,6 +29,9 @@ namespace Kabomu.QuasiHttp.EntityBody
             ContentLength = Encoding.UTF8.GetByteCount(content);
         }
 
+        /// <summary>
+        /// Returns the string serving as the source of bytes for the instance.
+        /// </summary>
         public string Content { get; }
 
         public override Task CustomDispose() => Task.CompletedTask;

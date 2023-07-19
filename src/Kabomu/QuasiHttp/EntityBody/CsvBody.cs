@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// Represents byte stream derived from a CSV serialized in UTF-8 encoding. This class was created
+    /// Represents quasi http body based CSV serialized in UTF8 encoding. This class was created
     /// to serve as a convenient means of representing actual HTTP forms (application/x-www-form-urlencoded),
     /// and query string portion of actual HTTP request lines/URLs. Both can be encoded as CSV rows, in which 
     /// <list type="number">
@@ -34,6 +34,9 @@ namespace Kabomu.QuasiHttp.EntityBody
             Content = content;
         }
 
+        /// <summary>
+        /// Returns the CSV rows serving as the source of bytes for the instance.
+        /// </summary>
         public IDictionary<string, IList<string>> Content { get; }
 
         public override Task CustomDispose() => Task.CompletedTask;
