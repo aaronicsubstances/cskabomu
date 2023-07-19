@@ -20,12 +20,21 @@ namespace Kabomu.Tests.Common
             // arrange
             var initialReader = new DemoCustomReaderWriter(
                 ByteUtils.StringToBytes(expected));
-            var instance = new MemoryPipeCustomReaderWriter(initialReader);
+            var instance = new MemoryPipeCustomReaderWriter();
 
             // act
             var t1 = IOUtils.ReadAllBytes(instance, 0, 2);
-            var t2 = instance.DeferCustomDispose(() =>
-                IOUtils.CopyBytes(initialReader, instance, 5));
+            var t2 = instance.DeferCustomDispose(async () =>
+            {
+                try
+                {
+                    await IOUtils.CopyBytes(initialReader, instance, 5);
+                }
+                finally
+                {
+                    await initialReader.CustomDispose();
+                }
+            });
             // just in case error causes t1 or t2 to hang forever,
             // impose timeout
             var delayTask = Task.Delay(3000);
@@ -42,7 +51,7 @@ namespace Kabomu.Tests.Common
             }
             Assert.Equal(expected, actual);
 
-            // assert that initial reader is disposed by ConcludeWriting
+            // assert that initial reader is disposed.
             await Assert.ThrowsAsync<ObjectDisposedException>(() =>
                 initialReader.ReadBytes(new byte[0], 0, 0));
         }

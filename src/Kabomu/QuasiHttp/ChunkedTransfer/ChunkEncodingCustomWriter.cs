@@ -20,6 +20,16 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         private readonly byte[] _chunkHeaderBuffer;
         private int _usedBufferOffset;
 
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
+        /// <param name="wrappedWriter">the backing writer through which
+        /// the encoded bytes will be sent</param>
+        /// <param name="maxChunkSize">maximum size of chunks. Can pass
+        /// 0 to use a default value.</param>
+        /// <exception cref="ArgumentNullException">If <paramref name="wrappedWriter"/> is null</exception>
+        /// <exception cref="ArgumentException">If <paramref name="maxChunkSize"/> exceeds
+        /// the maximum signed 24-bit integer.</exception>
         public ChunkEncodingCustomWriter(ICustomWriter wrappedWriter,
             int maxChunkSize = 0)
         {

@@ -14,10 +14,6 @@ namespace Kabomu.Common
     {
         private readonly Stream _backingStream;
 
-        // helps with testing, in which memory streams can be disposed
-        // such that subsequent reading or writing to them fails
-        private readonly CancellationTokenSource _streamCancellationHandle = new CancellationTokenSource();
-
         /// <summary>
         /// Creates an instance with an input stream which will supply bytes to be read
         /// </summary>
@@ -33,22 +29,20 @@ namespace Kabomu.Common
 
         public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
-            return _backingStream.ReadAsync(data, offset, length, _streamCancellationHandle.Token);
+            return _backingStream.ReadAsync(data, offset, length);
         }
 
         public Task WriteBytes(byte[] data, int offset, int length)
         {
-            return _backingStream.WriteAsync(data, offset, length, _streamCancellationHandle.Token);
+            return _backingStream.WriteAsync(data, offset, length);
         }
 
-        public Task CustomDispose()
+        public async Task CustomDispose()
         {
-            _streamCancellationHandle.Cancel();
 #if NETCOREAPP3_1_OR_GREATER
-            return _backingStream.DisposeAsync();
+            await _backingStream.DisposeAsync();
 #else
             _backingStream.Dispose();
-            return Task.CompletedTask;
 #endif
         }
     }

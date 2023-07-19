@@ -4,6 +4,10 @@ using System.Text;
 
 namespace Kabomu.QuasiHttp.Transport
 {
+    /// <summary>
+    /// Contains standard names for common keys which may used in
+    /// environments of quasi requests and responses.
+    /// </summary>
     public static class TransportUtils
     {
         /// <summary>

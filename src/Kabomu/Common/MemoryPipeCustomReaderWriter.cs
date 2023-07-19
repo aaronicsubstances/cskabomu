@@ -20,22 +20,28 @@ namespace Kabomu.Common
     public class MemoryPipeCustomReaderWriter : ICustomReader, ICustomWriter
     {
         private readonly object _mutex = new object();
-        private readonly ICustomDisposable _dependent;
         private ReadWriteRequest _readRequest, _writeRequest;
         private bool _disposed;
         private Exception _endOfReadError, _endOfWriteError;
 
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
         public MemoryPipeCustomReaderWriter()
-            : this(null)
-        {
+        { }
 
-        }
-
-        public MemoryPipeCustomReaderWriter(ICustomDisposable dependent)
-        {
-            _dependent = dependent;
-        }
-
+        /// <summary>
+        /// Reads bytes from the last write or waits until a write comes through. If 
+        /// instance has been disposed, then depending on how the disposal occured
+        /// an error will be thrown or just zero will be returned. It is an error
+        /// to call this method if a previous call has not returned.
+        /// </summary>
+        /// <param name="data">the destination buffer where bytes read will be stored</param>
+        /// <param name="offset">starting position in buffer for storing bytes read</param>
+        /// <param name="length">the number of bytes to read</param>
+        /// <returns>a task whose result will be the number of bytes actually read. Can
+        /// be less than the requested number of bytes if the last write had fewer
+        /// number of bytes to supply</returns>
         public async Task<int> ReadBytes(byte[] data, int offset, int length)
         {
             Task<int> readTask;
@@ -81,6 +87,17 @@ namespace Kabomu.Common
             return await readTask;
         }
 
+        /// <summary>
+        /// Writes bytes by saving for pickups by enough read calls. If 
+        /// instance has been disposed, then an error will be thrown. It is an error
+        /// to call this method if a previous call has not returned.
+        /// </summary>
+        /// <param name="data">the source buffer of the bytes to be
+        /// fetched for writing to this instance</param>
+        /// <param name="offset">the starting position in buffer for
+        /// fetching the bytes to be written</param>
+        /// <param name="length">the number of bytes to write to instance</param>
+        /// <returns>a task representing end of the asynchronous operation</returns>
         public async Task WriteBytes(byte[] data, int offset, int length)
         {
             Task writeTask;
@@ -162,34 +179,57 @@ namespace Kabomu.Common
             return bytesToReturn;
         }
 
+        /// <summary>
+        /// Executes a lambda function and then calls <see cref="CustomDispose"/>
+        /// regardless of whether function call succeeds or throws an error.
+        /// </summary>
+        /// <param name="dependentTask">function to run. If
+        /// the function throws an exception, <see cref="CustomDispose(Exception)"/>
+        /// will be called instead. If function is null, only
+        /// <see cref="CustomDispose"/> will be called.</param>
+        /// <returns>a task representing asynchronous operation</returns>
         public async Task DeferCustomDispose(Func<Task> dependentTask)
         {
-            try
+            Exception taskError = null;
+            if (dependentTask != null)
             {
-                if (dependentTask != null)
+                try
                 {
                     await dependentTask.Invoke();
                 }
-                await CustomDispose();
+                catch (Exception e)
+                {
+                    taskError = e;
+                }
             }
-            catch (Exception e)
-            {
-                await CustomDispose(e);
-            }
+            await CustomDispose(taskError);
         }
 
+        /// <summary>
+        /// Causes pending and future writes to be aborted with a default end of write error
+        /// message, and causes pending and future reads to return 0.
+        /// </summary>
+        /// <returns>a task representing asynchronous operation</returns>
         public Task CustomDispose()
         {
             return CustomDispose(null);
         }
 
-        public async Task CustomDispose(Exception e)
+        /// <summary>
+        /// Causes pending and future read and writes to be aborted with a
+        /// supplied exception instance.
+        /// </summary>
+        /// <param name="e">exception instance for ending read and writes.
+        /// If null, then a default exception will be used for writes, and
+        /// reads will simply return 0</param>
+        /// <returns>a task representing the asynchronous operation</returns>
+        public Task CustomDispose(Exception e)
         {
             lock (_mutex)
             {
                 if (_disposed)
                 {
-                    return;
+                    return Task.CompletedTask;
                 }
                 _disposed = true;
                 _endOfReadError = e;
@@ -212,10 +252,7 @@ namespace Kabomu.Common
                     _readRequest = null;
                 }
             }
-            if (_dependent != null)
-            {
-                await _dependent.CustomDispose();
-            }
+            return Task.CompletedTask;
         }
 
         class ReadWriteRequest

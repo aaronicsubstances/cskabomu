@@ -25,6 +25,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         private byte[] _csvDataPrefix;
         private IList<IList<string>> _csvData;
 
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
         public LeadChunk()
         {
 
@@ -140,6 +143,13 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
         }
 
+        /// <summary>
+        /// Gets the size of the serialized representation saved internally
+        /// by calling <see cref="UpdateSerializedRepresentation"/>.
+        /// </summary>
+        /// <returns>size of serialized representation</returns>
+        /// <exception cref="InvalidOperationException">If <see cref="UpdateSerializedRepresentation"/>
+        /// has not been called</exception>
         public int CalculateSizeInBytesOfSerializedRepresentation()
         {
             if (_csvDataPrefix == null || _csvData == null)
@@ -196,7 +206,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// </summary>
         /// <param name="writer">The destination of the bytes to be written</returns>
         /// <exception cref="InvalidOperationException">If <see cref="UpdateSerializedRepresentation"/>
-        /// method has not been called</exception>
+        /// has not been called</exception>
         public async Task WriteOutSerializedRepresentation(ICustomWriter writer)
         {
             if (_csvDataPrefix == null || _csvData == null)

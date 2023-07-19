@@ -40,7 +40,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             await instance.CustomDispose();
 
             // assert backing writer was disposed
-            await Assert.ThrowsAsync<TaskCanceledException>(() =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
                 backingWriter.WriteBytes(new byte[0], 0, 0));
 
             // assert
@@ -84,7 +84,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             // assert backing writer was disposed
             await instance.CustomDispose();
-            await Assert.ThrowsAsync<TaskCanceledException>(() =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
                 backingWriter.WriteBytes(new byte[0], 0, 0));
 
             // assert final stream contents

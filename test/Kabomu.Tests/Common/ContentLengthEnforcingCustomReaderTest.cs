@@ -63,11 +63,7 @@ namespace Kabomu.Tests.Common
 
             await instance.CustomDispose();
 
-            // memory stream may not bother reacting to
-            // Dispose() call. However thanks to cancellation
-            // handle used inside implementation, that handle
-            // is able to help detect calls to Dispose().
-            await Assert.ThrowsAsync<TaskCanceledException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => instance.ReadBytes(new byte[0], 0, 0));
         }
     }

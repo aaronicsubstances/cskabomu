@@ -31,6 +31,9 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         string ContentType { get; }
 
+        /// <summary>
+        /// Gets a backing reader which can supply a byte representation
+        /// </summary>
         ICustomReader Reader { get; }
     }
 }

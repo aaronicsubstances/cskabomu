@@ -177,9 +177,18 @@ namespace Kabomu.Common
             {
                 return r;
             }
-            var memoryPipe = new MemoryPipeCustomReaderWriter(fallback);
-            _ = memoryPipe.DeferCustomDispose(() =>
-                    fallback.WriteBytesTo(memoryPipe));
+            var memoryPipe = new MemoryPipeCustomReaderWriter();
+            _ = memoryPipe.DeferCustomDispose(async () =>
+            {
+                try
+                {
+                    await fallback.WriteBytesTo(memoryPipe);
+                }
+                finally
+                {
+                    await fallback.CustomDispose();
+                }
+            });
             return memoryPipe;
         }
 

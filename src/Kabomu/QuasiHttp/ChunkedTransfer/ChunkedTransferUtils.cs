@@ -7,6 +7,10 @@ using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.ChunkedTransfer
 {
+    /// <summary>
+    /// Contains helper functions for implementing the custom chunked transfer
+    /// protocol used by the Kabomu libary.
+    /// </summary>
     public static class ChunkedTransferUtils
     {
         /// <summary>
@@ -50,7 +54,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             return writer.WriteBytes(bufferToUse, 0, LengthOfEncodedChunkLength + 2);
         }
 
-        public static async Task<int> DecodeSubsequentChunkHeader(
+        internal static async Task<int> DecodeSubsequentChunkHeader(
             ICustomReader reader, byte[] bufferToUse, int maxChunkSize)
         {
             try

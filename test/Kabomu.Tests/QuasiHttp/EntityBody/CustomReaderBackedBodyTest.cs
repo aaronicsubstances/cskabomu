@@ -52,7 +52,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             // verify custom dispose is called on stream reader.
             await instance.CustomDispose();
 
-            await Assert.ThrowsAsync<TaskCanceledException>(() =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
                 instance.ReadBytes(actual, 1, 2));
         }
 
