@@ -489,11 +489,12 @@ namespace Kabomu.Tests.QuasiHttp
         {
             int bufferingLimit = 3;
             var responseBody = new ByteBufferBody(ByteUtils.StringToBytes("xyz!"));
-            await Assert.ThrowsAsync<DataBufferLimitExceededException>(() =>
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
             {
                 return ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(responseBody,
                     bufferingLimit);
             });
+            Assert.Contains($"limit of {bufferingLimit}", actualEx.Message);
         }
 
         [Fact]
@@ -504,11 +505,12 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 ContentLength = 5
             };
-            await Assert.ThrowsAsync<ContentLengthNotSatisfiedException>(() =>
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
             {
                 return ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(responseBody,
                     bufferingLimit);
             });
+            Assert.Contains("length of 5", actualEx.Message);
         }
 
         [Fact]
@@ -836,13 +838,14 @@ namespace Kabomu.Tests.QuasiHttp
             int bodyBufferingSizeLimit = 3;
 
             // act
-            await Assert.ThrowsAsync<DataBufferLimitExceededException>(() =>
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
             {
                 return ProtocolUtilsInternal.CreateBodyFromTransport(
                     transport, connection, releaseConnection, maxChunkSize,
                     contentType, contentLength, bufferingEnabled,
                     bodyBufferingSizeLimit);
             });
+            Assert.Contains($"limit of {bodyBufferingSizeLimit}", actualEx.Message);
         }
 
         [Fact]
@@ -862,13 +865,14 @@ namespace Kabomu.Tests.QuasiHttp
             int bodyBufferingSizeLimit = 4;
 
             // act
-            await Assert.ThrowsAsync<ContentLengthNotSatisfiedException>(() =>
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
             {
                 return ProtocolUtilsInternal.CreateBodyFromTransport(
                     transport, connection, releaseConnection, maxChunkSize,
                     contentType, contentLength, bufferingEnabled,
                     bodyBufferingSizeLimit);
             });
+            Assert.Contains($"length of {contentLength}", actualEx.Message);
         }
 
         [Fact]

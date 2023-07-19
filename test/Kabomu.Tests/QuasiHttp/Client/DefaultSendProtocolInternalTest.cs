@@ -576,8 +576,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // act.
-            await Assert.ThrowsAsync<DataBufferLimitExceededException>(() =>
-                instance.Send());
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() => instance.Send());
+            Assert.Contains("limit of", actualEx.Message);
 
             Assert.Null(actualReqEnv);
 

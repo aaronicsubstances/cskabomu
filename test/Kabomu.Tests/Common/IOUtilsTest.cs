@@ -62,8 +62,9 @@ namespace Kabomu.Tests.Common
                 readBuffer, 0, readBuffer.Length);
 
             // act and assert unexpected end of read
-            await Assert.ThrowsAsync<EndOfReadException>(() =>
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
                 IOUtils.ReadBytesFully(reader, readBuffer, 0, readBuffer.Length));
+            Assert.Contains("end of read", actualEx.Message);
 
             // assert that reader hasn't been disposed
             await reader.ReadBytes(readBuffer, 0, readBuffer.Length);
@@ -136,11 +137,11 @@ namespace Kabomu.Tests.Common
             var reader = new HelperCustomReaderWritable(srcData);
 
             // act
-            var actualEx = await Assert.ThrowsAsync<DataBufferLimitExceededException>(() =>
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
                 IOUtils.ReadAllBytes(reader, bufferingLimit, readBufferSize));
 
             // assert
-            Assert.Equal(bufferingLimit, actualEx.BufferSizeLimit);
+            Assert.Contains($"limit of {bufferingLimit}", actualEx.Message);
         }
 
         public static List<object[]> CreateTestReadAllBytesForErrorsData()

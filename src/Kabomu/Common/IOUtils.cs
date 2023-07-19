@@ -7,7 +7,8 @@ using System.Threading.Tasks;
 namespace Kabomu.Common
 {
     /// <summary>
-    /// Provides helper functions for writing and reading bytes to IO resources.
+    /// Provides helper functions for writing and reading bytes to byte sources
+    /// and destinations.
     /// </summary>
     public static class IOUtils
     {
@@ -41,7 +42,7 @@ namespace Kabomu.Common
                 {
                     if (bytesRead <= 0)
                     {
-                        throw new EndOfReadException("unexpected end of read");
+                        throw new CustomIOException("unexpected end of read");
                     }
                     offset += bytesRead;
                     length -= bytesRead;
@@ -66,8 +67,8 @@ namespace Kabomu.Common
         /// imposing a maximum size.</param>
         /// <param name="readBufferSize">The size in bytes of the read buffer.
         /// Can pass zero to use default value</param>
-        /// <returns>A promise whose result is an in-memory buffer which has all of the remaining data in the reader.</returns>
-        /// <exception cref="DataBufferLimitExceededException">If <paramref name="bufferingLimit"/> argument has a nonnegative value,
+        /// <returns>A task whose result is an in-memory buffer which has all of the remaining data in the reader.</returns>
+        /// <exception cref="DataBufferLimitExceededException">If <paramref name="bufferingLimit"/> argument indicates a positive value,
         /// and data in <paramref name="body"/> argument exceeds that value.</exception>
         public static async Task<byte[]> ReadAllBytes(ICustomReader reader,
             int bufferingLimit = 0, int readBufferSize = 0)
@@ -105,7 +106,9 @@ namespace Kabomu.Common
                 {
                     if (expectedEndOfRead)
                     {
-                        throw new DataBufferLimitExceededException(bufferingLimit);
+                        var errorMsg = CustomIOException.CreateDataBufferLimitExceededErrorMessage(
+                            bufferingLimit);
+                        throw new CustomIOException(errorMsg);
                     }
                     byteStream.Write(readBuffer, 0, bytesRead);
                     if (bufferingLimit >= 0)
@@ -129,7 +132,7 @@ namespace Kabomu.Common
         /// <param name="writer">destination of data being transferred</param>
         /// <param name="readBufferSize">The size in bytes of the read buffer.
         /// Can pass zero to use default value</param>
-        /// <returns>A task that represents the asynchronous read operation.</returns>
+        /// <returns>A task that represents the asynchronous copy operation.</returns>
         public static async Task CopyBytes(ICustomReader reader,
             ICustomWriter writer, int readBufferSize = 0)
         {
@@ -154,6 +157,15 @@ namespace Kabomu.Common
             }
         }
 
+        /// <summary>
+        /// Selects the first non-null instance representing a source of bytes and
+        /// returns an instance of <see cref="ICustomReader"/> that can be used to
+        /// read the bytes from it. 
+        /// </summary>
+        /// <param name="reader">first instance</param>
+        /// <param name="fallback">second instance</param>
+        /// <returns>custom reader representing contents of first non-null
+        /// argument, or null if both arguments are null.</returns>
         public static ICustomReader CoalesceAsReader(ICustomReader reader,
             ICustomWritable fallback)
         {
@@ -171,6 +183,15 @@ namespace Kabomu.Common
             return memoryPipe;
         }
 
+        /// <summary>
+        /// Selects the first non-null instance representing a source of bytes and
+        /// returns an instance of <see cref="ICustomWritable"/> that can be used to
+        /// transfer the bytes in it. 
+        /// </summary>
+        /// <param name="writable">first instance</param>
+        /// <param name="fallback">second instance</param>
+        /// <returns>custom writable representing contents of first non-null
+        /// argument, or null if both arguments are null.</returns>
         public static ICustomWritable CoaleasceAsWritable(ICustomWritable writable,
             ICustomReader fallback)
         {

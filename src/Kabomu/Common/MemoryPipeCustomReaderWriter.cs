@@ -6,12 +6,15 @@ using System.Threading.Tasks;
 namespace Kabomu.Common
 {
     /// <summary>
-    /// Implementation of quasi http body which is based on a "pipe" of bytes, where one thread writes data to one end of it,
-    /// and another thread reads data from the other end of it. The end of the pipe from which data is read serves
+    /// Implementation of reader and writer interfaces which is based on a "pipe"
+    /// of bytes, where one thread writes data to one end of it,
+    /// and another thread reads data from the other end of it.
+    /// The end of the pipe from which data is read serves
     /// as the byte stream to be read by clients.
     /// </summary>
     /// <remarks>
-    /// This notion of pipe is purely implemented in memory with locks, and is similar to (but not based on)
+    /// This notion of pipe is purely implemented in memory with locks,
+    /// and is similar to (but not based on)
     /// OS named pipes, OS anonymous pipes and OS shell pipes.
     /// </remarks>
     public class MemoryPipeCustomReaderWriter : ICustomReader, ICustomWriter
@@ -50,7 +53,7 @@ namespace Kabomu.Common
 
                 if (_readRequest != null)
                 {
-                    throw new InvalidOperationException("pending read exist");
+                    throw new CustomIOException("pending read exist");
                 }
 
                 // respond immediately to any zero-byte read
@@ -90,7 +93,7 @@ namespace Kabomu.Common
 
                 if (_writeRequest != null)
                 {
-                    throw new InvalidOperationException("pending write exist");
+                    throw new CustomIOException("pending write exist");
                 }
 
                 // respond immediately to any zero-byte write
@@ -190,7 +193,7 @@ namespace Kabomu.Common
                 }
                 _disposed = true;
                 _endOfReadError = e;
-                _endOfWriteError = e ?? new EndOfWriteException();
+                _endOfWriteError = e ?? new CustomIOException("end of write");
                 if (_writeRequest != null)
                 {
                     _writeRequest.Callback.SetException(_endOfWriteError);

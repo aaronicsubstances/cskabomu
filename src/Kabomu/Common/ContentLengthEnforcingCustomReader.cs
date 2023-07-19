@@ -19,7 +19,8 @@ namespace Kabomu.Common
         /// </summary>
         /// <param name="wrappedReader">the backing reader.</param>
         /// <param name="expectedLength">the expected number of bytes to guarantee or assert.
-        /// Can be negative to indicate skipping assertion.</param>
+        /// Can be negative to indicate that the all remaining bytes in the backing reader
+        /// should be returned.</param>
         /// <exception cref="ArgumentNullException">The <paramref name="wrappedBody"/> argument is null.</exception>
         public ContentLengthEnforcingCustomReader(ICustomReader wrappedReader,
             long expectedLength)
@@ -58,10 +59,12 @@ namespace Kabomu.Common
             var remainingBytesToRead = _expectedLength - _bytesAlreadyRead;
             if (bytesJustRead == 0 && remainingBytesToRead > 0)
             {
-                throw new ContentLengthNotSatisfiedException(
-                    _expectedLength,
-                    $"could not read remaining {remainingBytesToRead} " +
-                    $"bytes before end of read", null);
+                var errorMsg = CustomIOException.CreateContentLengthNotSatisfiedErrorMessage(
+                    _expectedLength) +
+                    $" (could not read remaining {remainingBytesToRead} " +
+                    "bytes before end of read)";
+
+                throw new CustomIOException(errorMsg);
             }
             return bytesJustRead;
         }

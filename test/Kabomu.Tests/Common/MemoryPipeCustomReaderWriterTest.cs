@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Tests.Shared;
 using Kabomu.Tests.Shared.Common;
 using System;
 using System.Collections.Generic;
@@ -69,11 +68,13 @@ namespace Kabomu.Tests.Common
             var writeTask = instance.WriteBytes(new byte[] { 0, 2, 4, 6, 8, 10 },
                 1, 4);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.WriteBytes(new byte[0], 0, 0));
+            Assert.Contains("pending write", actualEx.Message);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(
+            actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.WriteBytes(new byte[10], 2, 5));
+            Assert.Contains("pending write", actualEx.Message);
 
             readLen = await instance.ReadBytes(readBuffer, 0, 3);
             Assert.Equal(3, readLen);
@@ -124,11 +125,13 @@ namespace Kabomu.Tests.Common
             var writeTask = instance.WriteBytes(new byte[] { 0, 2, 4, 6, 8, 10 },
                 1, 4);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.WriteBytes(new byte[0], 0, 0));
+            Assert.Contains("pending write", actualEx.Message);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(
+            actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.WriteBytes(new byte[10], 2, 5));
+            Assert.Contains("pending write", actualEx.Message);
 
             readLen = await instance.ReadBytes(readBuffer, 0, 3);
             Assert.Equal(3, readLen);
@@ -165,11 +168,13 @@ namespace Kabomu.Tests.Common
             byte[] readBuffer = new byte[3];
             var readTask = instance.ReadBytes(readBuffer, 0, readBuffer.Length);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.ReadBytes(readBuffer, 0, readBuffer.Length));
+            Assert.Contains("pending read", actualEx.Message);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(
+            actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.ReadBytes(new byte[0], 0, 0));
+            Assert.Contains("pending read", actualEx.Message);
 
             await instance.WriteBytes(new byte[] { 4, 5, 6 }, 0, 3);
             int readLen = await readTask;
@@ -206,8 +211,9 @@ namespace Kabomu.Tests.Common
             readLen = await readTask;
             Assert.Equal(0, readLen);
 
-            await Assert.ThrowsAsync<EndOfWriteException>(
+            actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.WriteBytes(new byte[10], 0, 4));
+            Assert.Contains("end of write", actualEx.Message);
 
             readLen = await instance.ReadBytes(readBuffer, 0, readBuffer.Length);
             Assert.Equal(0, readLen);
@@ -223,11 +229,13 @@ namespace Kabomu.Tests.Common
             byte[] readBuffer = new byte[3];
             var readTask = instance.ReadBytes(readBuffer, 0, readBuffer.Length);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.ReadBytes(readBuffer, 0, readBuffer.Length));
+            Assert.Contains("pending read", actualEx.Message);
 
-            await Assert.ThrowsAsync<InvalidOperationException>(
+            actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.ReadBytes(new byte[0], 0, 0));
+            Assert.Contains("pending read", actualEx.Message);
 
             await instance.WriteBytes(new byte[] { 4, 5, 6 }, 0, 3);
             int readLen = await readTask;
@@ -259,8 +267,9 @@ namespace Kabomu.Tests.Common
             await instance.CustomDispose();
             await instance.CustomDispose(new NotSupportedException()); // should have no effect
 
-            await Assert.ThrowsAsync<EndOfWriteException>(
+            actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.WriteBytes(new byte[10], 0, 4));
+            Assert.Contains("end of write", actualEx.Message);
 
             readLen = await instance.ReadBytes(readBuffer, 0, readBuffer.Length);
             Assert.Equal(0, readLen);

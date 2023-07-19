@@ -45,10 +45,10 @@ namespace Kabomu.Tests.Common
             instance = new ContentLengthEnforcingCustomReader(instance, contentLength);
 
             // act and assert
-            var expectedEx = await Assert.ThrowsAsync<ContentLengthNotSatisfiedException>(
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => IOUtilsTest.TestReading(instance, null, 0,
                     null, null));
-            Assert.Equal(contentLength, expectedEx.ContentLength);
+            Assert.Contains($"length of {contentLength}", actualEx.Message);
         }
 
         [Fact]

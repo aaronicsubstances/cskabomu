@@ -85,10 +85,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ResponseBufferingEnabled = true,
                 ResponseBodyBufferingSizeLimit = 5
             };
-            await Assert.ThrowsAsync<DataBufferLimitExceededException>(() =>
+            var actualEx= await Assert.ThrowsAsync<CustomIOException>(() =>
             {
                 return instance.Send();
             });
+            Assert.Contains("limit of 5", actualEx.Message);
             Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
 
             await instance.Cancel();
@@ -99,8 +100,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestSendResponseBufferingDisabledAndBodyPresent1()
         {
-            var request = new DefaultQuasiHttpRequest();
-            var connectivityParams = new DefaultConnectivityParams();
             var expectedResponse = new DefaultQuasiHttpResponse
             {
                 Body = new StringBody("tea"),

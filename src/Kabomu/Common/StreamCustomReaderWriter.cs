@@ -41,14 +41,14 @@ namespace Kabomu.Common
             return _backingStream.WriteAsync(data, offset, length, _streamCancellationHandle.Token);
         }
 
-        public async Task CustomDispose()
+        public Task CustomDispose()
         {
             _streamCancellationHandle.Cancel();
-            // assume that a stream can be disposed concurrently with any ongoing use of it.
 #if NETCOREAPP3_1_OR_GREATER
-            await _backingStream.DisposeAsync();
+            return _backingStream.DisposeAsync();
 #else
             _backingStream.Dispose();
+            return Task.CompletedTask;
 #endif
         }
     }
