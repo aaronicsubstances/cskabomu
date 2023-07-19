@@ -1,14 +1,9 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using Kabomu.QuasiHttp.Transport;
 using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
-[assembly: InternalsVisibleTo("Kabomu.Tests")]
 
 namespace Kabomu.QuasiHttp.Server
 {
@@ -23,37 +18,15 @@ namespace Kabomu.QuasiHttp.Server
     /// Therefore this class can be seen as the equivalent of an HTTP server in which the underlying transport of
     /// choice extends beyond TCP to include IPC mechanisms.
     /// </remarks>
-    public class StandardQuasiHttpServer : IQuasiHttpServer
+    public class StandardQuasiHttpServer
     {
         private readonly object _mutex = new object();
-        private bool _running;
 
         /// <summary>
-        /// Creates a new instance of the <see cref="StandardQuasiHttpServer"/> class with defaults provided
-        /// for the <see cref="MutexApi"/> and <see cref="TimerApi"/> properties.
+        /// Creates a new instance.
         /// </summary>
         public StandardQuasiHttpServer()
         {
-            TimerApi = new DefaultTimerApi();
-            DefaultProtocolFactory = transfer =>
-            {
-                return new DefaultReceiveProtocolInternal
-                {
-                    MaxChunkSize = transfer.MaxChunkSize,
-                    Application = Application,
-                    Transport = transfer.Transport,
-                    Connection = transfer.Connection,
-                    RequestEnvironment = transfer.RequestEnvironment
-                };
-            };
-            AltProtocolFactory = transfer =>
-            {
-                return new AltReceiveProtocolInternal
-                {
-                    Application = Application,
-                    Request = transfer.Request
-                };
-            };
         }
 
         /// <summary>
@@ -74,212 +47,65 @@ namespace Kabomu.QuasiHttp.Server
         public IQuasiHttpServerTransport Transport { get; set; }
 
         /// <summary>
-        /// Gets or sets a callback which can be used to report errors of processing requests
-        /// received from connections.
+        /// Used to process incoming connections from quasi http server transports.
         /// </summary>
-        public UncaughtErrorCallback ErrorHandler { get; set; }
-
-        /// <summary>
-        /// Gets or sets timer api used to generate timeouts in this class.
-        /// </summary>
-        /// <remarks> 
-        /// An instance of <see cref="DefaultTimerApi"/> class is the initial value for this property,
-        /// and so there is no need to modify this property except for advanced scenarios.
-        /// </remarks>
-        public ITimerApi TimerApi { get; set; }
-
-        /// <summary>
-        /// Exposed for testing.
-        /// </summary>
-        internal Func<ReceiveTransferInternal, IReceiveProtocolInternal> DefaultProtocolFactory { get; set; }
-
-        /// <summary>
-        /// Exposed for testing.
-        /// </summary>
-        internal Func<ReceiveTransferInternal, IReceiveProtocolInternal> AltProtocolFactory { get; set; }
-
-        /// <summary>
-        /// Starts the instance set in the <see cref="Transport"/> property and begins
-        /// receiving connections from it.
-        /// </summary>
-        /// <remarks>
-        /// Server starting is not required to process requests directly with the <see cref="Application"/>
-        /// property and the <see cref="ProcessReceiveRequest(IQuasiHttpRequest, IQuasiHttpProcessingOptions)"/>
-        /// method.
-        /// <para></para>
-        /// A call to this method will be ignored if its instance is already started and running.
-        /// </remarks>
+        /// <param name="connectionAllocationResponse">represents a connection and any associated information</param>
         /// <returns>a task representing asynchronous operation</returns>
-        /// <exception cref="MissingDependencyException">The <see cref="Transport"/> property is null.</exception>
-        public async Task Start()
+        public async Task AcceptConnection(IConnectionAllocationResponse connectionAllocationResponse)
         {
-            Task startTask;
-            lock (_mutex)
+            if (connectionAllocationResponse == null)
             {
-                if (_running)
-                {
-                    return;
-                }
-                startTask = Transport?.Start();
+                throw new ArgumentNullException(nameof(connectionAllocationResponse));
             }
-            if (startTask == null)
-            {
-                throw new MissingDependencyException("transport");
-            }
-            await startTask;
-            // let error handler or TaskScheduler.UnobservedTaskException handle 
-            // any uncaught task exceptions.
-            _ = StartAcceptingConnections();
-        }
-
-        /// <summary>
-        /// Stops the instance set in the <see cref="Transport"/> property and stops receiving connections from it.
-        /// </summary>
-        /// <remarks>
-        /// A call to this method will be ignored if its instance is already started and running.
-        /// </remarks>
-        /// <param name="waitTimeMillis">if nonnegative, then it indicates the delay in milliseconds
-        /// from the current time in which to wait for any ongoing processing to complete.</param>
-        /// <returns>a task representing the asynchronous operation</returns>
-        /// <exception cref="MissingDependencyException">The <see cref="Transport"/> property is null.</exception>
-        /// <exception cref="MissingDependencyException">The <paramref name="waitTimeMillis"/> argument is positive but
-        /// the <see cref="TimerApi"/> property needed is null.</exception>
-        public async Task Stop(int waitTimeMillis)
-        {
-            ITimerApi timerApi;
-            Task stopTask;
-            lock (_mutex)
-            {
-                if (!_running)
-                {
-                    return;
-                }
-                _running = false;
-                timerApi = TimerApi;
-                stopTask = Transport?.Stop();
-            }
-            if (stopTask == null)
-            {
-                throw new MissingDependencyException("transport");
-            }
-            await stopTask;
-            if (waitTimeMillis < 0)
-            {
-                return;
-            }
-            if (waitTimeMillis > 0)
-            {
-                if (timerApi == null)
-                {
-                    throw new MissingDependencyException("timer api");
-                }
-                await timerApi.Delay(waitTimeMillis);
-            }
-        }
-
-        private async Task StartAcceptingConnections()
-        {
-            lock (_mutex)
-            {
-                _running = true;
-            }
+            var transfer = new ReceiveTransferInternal();
             try
             {
-                while (true)
-                {
-                    Task<IConnectionAllocationResponse> connectTask;
-                    IQuasiHttpServerTransport transport;
-                    lock (_mutex)
-                    {
-                        if (!_running)
-                        {
-                            break;
-                        }
-                        transport = Transport;
-                        if (transport == null)
-                        {
-                            throw new MissingDependencyException("transport");
-                        }
-                        connectTask = transport.ReceiveConnection();
-                    }
-                    var connectionAllocationResponse = await connectTask;
-                    if (connectionAllocationResponse == null)
-                    {
-                        throw new ExpectationViolationException("received null connection allocation response");
-                    }
-                    if (connectionAllocationResponse.Connection == null)
-                    {
-                        throw new ExpectationViolationException("no connection");
-                    }
-                    // let TaskScheduler.UnobservedTaskException handle any uncaught task exceptions.
-                    _ = AcceptConnection(transport, connectionAllocationResponse);
-                }
+                await ProcessAcceptConnection(transfer, connectionAllocationResponse);
             }
             catch (Exception e)
             {
-                var eh = ErrorHandler;
-                if (eh == null)
+                await transfer.Abort(null);
+                if (e is QuasiHttpRequestProcessingException)
                 {
                     throw;
                 }
-                eh.Invoke(e, "error encountered while accepting connections");
-            }
-        }
-
-        private async Task AcceptConnection(IQuasiHttpTransport transport,
-            IConnectionAllocationResponse connectionAllocationResponse)
-        {
-            try
-            {
-                await Receive(transport, connectionAllocationResponse);
-            }
-            catch (Exception e)
-            {
-                var eh = ErrorHandler;
-                if (eh == null)
+                else
                 {
-                    throw;
+                    var abortError = new QuasiHttpRequestProcessingException(
+                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                        "encountered error during receive request processing", e);
+                    throw abortError;
                 }
-                eh.Invoke(e, "error encountered while receiving a connection");
             }
         }
 
-        private async Task Receive(IQuasiHttpTransport transport, IConnectionAllocationResponse connectionResponse)
+        private async Task ProcessAcceptConnection(ReceiveTransferInternal transfer,
+            IConnectionAllocationResponse connectionResponse)
         {
-            var transfer = new ReceiveTransferInternal
-            {
-                Mutex = _mutex,
-                Transport = transport,
-                Connection = connectionResponse.Connection
-            };
-
             Task<IQuasiHttpResponse> workTask;
-            Task<IQuasiHttpResponse> cancellationTask = null;
+            Task<IQuasiHttpResponse> timeoutTask;
             lock (_mutex)
             {
-                transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
+                var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     null, DefaultProcessingOptions?.TimeoutMillis, 0);
-                transfer.TimerApi = TimerApi;
-                transfer.SetTimeout();
+                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis,
+                    "receive timeout");
 
-                if (transfer.TimeoutId != null)
+                int maxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
+                    null, DefaultProcessingOptions?.MaxChunkSize, 0);
+
+                var protocol = new DefaultReceiveProtocolInternal
                 {
-                    transfer.CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
-                        TaskCreationOptions.RunContinuationsAsynchronously);
-                    cancellationTask = transfer.CancellationTcs.Task;
-                }
-
-                transfer.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
-                    null, DefaultProcessingOptions?.MaxChunkSize, TransportUtils.DefaultMaxChunkSize);
-
-                transfer.RequestEnvironment = connectionResponse.Environment;
-
-                workTask = transfer.StartProtocol(DefaultProtocolFactory);
+                    MaxChunkSize = maxChunkSize,
+                    Application = Application,
+                    Transport = Transport,
+                    Connection = connectionResponse.Connection,
+                    RequestEnvironment = connectionResponse.Environment
+                };
+                workTask = transfer.StartProtocol(protocol);
             }
-
-            await ProtocolUtilsInternal.CompleteRequestProcessing(workTask, cancellationTask,
-                "encountered error during receive connection processing",
-                e => transfer.Abort(e));
+            await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
+                timeoutTask, null);
         }
 
         /// <summary>
@@ -289,7 +115,7 @@ namespace Kabomu.QuasiHttp.Server
         /// <remarks>
         /// By this method, transport types which are not connection-oriented or implement connections
         /// differently can still make use of this class to offload some of the burdens of quasi http
-        /// request processing.
+        /// request processing, such as setting timeouts on request processing.
         /// </remarks>
         /// <param name="request">quasi http request to process </param>
         /// <param name="options">supplies request timeout and any processing options which should 
@@ -297,7 +123,7 @@ namespace Kabomu.QuasiHttp.Server
         /// <returns>a task whose result will be the response generated by the quasi http application</returns>
         /// <exception cref="ArgumentNullException">The <paramref name="request"/> argument is null.</exception>
         /// <exception cref="MissingDependencyException">The <see cref="Application"/> property is null.</exception>
-        public async Task<IQuasiHttpResponse> ProcessReceiveRequest(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options)
+        public async Task<IQuasiHttpResponse> AcceptRequest(IQuasiHttpRequest request, IQuasiHttpProcessingOptions options)
         {
             if (request == null)
             {
@@ -305,31 +131,56 @@ namespace Kabomu.QuasiHttp.Server
             }
             var transfer = new ReceiveTransferInternal
             {
-                Mutex = _mutex,
                 Request = request,
             };
+            IQuasiHttpResponse res = null;
+            try
+            {
+                res = await ProcessAcceptRequest(transfer, options);
+                if (res == null)
+                {
+                    throw new ExpectationViolationException("expected non-null response");
+                }
+            }
+            catch (Exception e)
+            {
+                await transfer.Abort(res);
+                if (e is QuasiHttpRequestProcessingException)
+                {
+                    throw;
+                }
+                else
+                {
+                    var abortError = new QuasiHttpRequestProcessingException(
+                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                        "encountered error during receive request processing", e);
+                    throw abortError;
+                }
+            }
+            return res;
+        }
 
+        private async Task<IQuasiHttpResponse> ProcessAcceptRequest(
+            ReceiveTransferInternal transfer, IQuasiHttpProcessingOptions options)
+        {
             Task<IQuasiHttpResponse> workTask;
-            Task<IQuasiHttpResponse> cancellationTask = null;
+            Task<IQuasiHttpResponse> timeoutTask;
             lock (_mutex)
             {
-                transfer.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
+                var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                     options?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
-                transfer.TimerApi = TimerApi;
-                transfer.SetTimeout();
+                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis,
+                    "receive timeout");
 
-                if (transfer.TimeoutId != null)
+                var protocol = new AltReceiveProtocolInternal
                 {
-                    transfer.CancellationTcs = new TaskCompletionSource<IQuasiHttpResponse>(
-                        TaskCreationOptions.RunContinuationsAsynchronously);
-                    cancellationTask = transfer.CancellationTcs.Task;
-                }
-
-                workTask = transfer.StartProtocol(AltProtocolFactory);
+                    Application = Application,
+                    Request = transfer.Request
+                };
+                workTask = transfer.StartProtocol(protocol);
             }
-            return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask, cancellationTask,
-                "encountered error during receive request processing",
-                e => transfer.Abort(e));
+            return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
+                timeoutTask, null);
         }
     }
 }

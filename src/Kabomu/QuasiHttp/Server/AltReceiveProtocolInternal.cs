@@ -8,6 +8,11 @@ namespace Kabomu.QuasiHttp.Server
 {
     internal class AltReceiveProtocolInternal: IReceiveProtocolInternal
     {
+        public AltReceiveProtocolInternal()
+        {
+            
+        }
+
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpRequest Request { get; set; }
 
@@ -31,7 +36,7 @@ namespace Kabomu.QuasiHttp.Server
 
             if (res == null)
             {
-                throw new ExpectationViolationException("no response");
+                throw new QuasiHttpRequestProcessingException("no response");
             }
 
             return res;

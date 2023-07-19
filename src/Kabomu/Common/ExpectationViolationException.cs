@@ -8,7 +8,7 @@ namespace Kabomu.Common
     /// Exception thrown to indicate that the caller of a method or function didn't find the output or outcome
     /// satisfactory. E.g. the return value from a function is invalid; the function took too long to complete.
     /// </summary>
-    public class ExpectationViolationException : Exception
+    public class ExpectationViolationException : KabomuException
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ExpectationViolationException"/> class with a string

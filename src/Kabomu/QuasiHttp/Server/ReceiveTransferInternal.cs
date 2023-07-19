@@ -1,8 +1,4 @@
-﻿using Kabomu.Common;
-using Kabomu.Concurrency;
-using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.QuasiHttp.Transport;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,108 +7,50 @@ namespace Kabomu.QuasiHttp.Server
 {
     internal class ReceiveTransferInternal
     {
-        private object _mutex;
-        private IReceiveProtocolInternal _protocol;
+        private readonly object _mutex = new object();
 
-        public object Mutex
-        {
-            set
-            {
-                _mutex = value;
-            }
-        }
-
-        public ITimerApi TimerApi { get; set; }
-        public int TimeoutMillis { get; set; }
-        public object TimeoutId { get; private set; }
-        public bool IsAborted { get; private set; }
-        public TaskCompletionSource<IQuasiHttpResponse> CancellationTcs { get; set; }
+        public IReceiveProtocolInternal Protocol { get; set; }
+        public CancellationTokenSource TimeoutId { get; set; }
+        public bool IsAborted { get; set; }
         public IQuasiHttpRequest Request { get; set; }
-        public int MaxChunkSize { get; set; }
-        public IDictionary<string, object> RequestEnvironment { get; set; }
-        public object Connection { get; set; }
-        public IQuasiHttpTransport Transport { get; set; }
 
-        public void SetTimeout()
-        {
-            if (TimeoutMillis <= 0)
-            {
-                return;
-            }
-            var timer = TimerApi;
-            if (timer == null)
-            {
-                throw new MissingDependencyException("timer api");
-            }
-            TimeoutId = timer.SetTimeout(() =>
-            {
-                var timeoutError = new QuasiHttpRequestProcessingException(
-                    QuasiHttpRequestProcessingException.ReasonCodeTimeout, "receive timeout");
-                Abort(timeoutError);
-            }, TimeoutMillis);
-        }
-
-        /// <summary>
-        /// Assume this call occurs under mutex.
-        /// </summary>
-        /// <param name="protocolFactory"></param>
-        /// <returns></returns>
         public async Task<IQuasiHttpResponse> StartProtocol(
-            Func<ReceiveTransferInternal, IReceiveProtocolInternal> protocolFactory)
+            IReceiveProtocolInternal protocol)
         {
-            // even if abort has already happened, still go ahead and
-            // create protocol instance and cancel it because the
-            // factory may be holding on to some live resources.
-            // NB: the code structure here is meant to mirror that of
-            // SendTransferInternal. Over here, there is currently no
-            // reason why an abort will occur before protocol instance is creatd.
-            var protocol = protocolFactory.Invoke(this);
-            _protocol = protocol;
-            if (IsAborted)
-            {
-                try
-                {
-                    await protocol.Cancel();
-                }
-                catch { } // ignore.
-
-                return null;
-            }
+            Protocol = protocol;
             var res = await protocol.Receive();
-            await Abort(null, res);
+            await Abort(res);
             return res;
         }
 
-        public void Abort(Exception error)
-        {
-            // don't wait
-            _ = Abort(error, null);
-        }
-
-        private async Task Abort(Exception cancellationError, IQuasiHttpResponse res)
+        public async Task Abort(IQuasiHttpResponse res)
         {
             Task disableTask = null;
+            var disposeRes = false;
             lock (_mutex)
             {
                 if (IsAborted)
                 {
-                    // dispose off response
-                    if (res != null)
-                    {
-                        try
-                        {
-                            // don't wait.
-                            _ = res.Close();
-                        }
-                        catch { } // ignore.
-                    }
-
-                    // in any case do not proceed with disabling.
-                    return;
+                    disposeRes = true;
                 }
-                IsAborted = true;
-                disableTask = Disable(cancellationError, res,
-                    CancellationTcs, TimerApi, TimeoutId, _protocol, Request?.Body);
+                else
+                {
+                    IsAborted = true;
+                    disableTask = Disable(TimeoutId, Protocol, Request);
+                }
+            }
+            if (disposeRes)
+            {
+                // dispose off response
+                try
+                {
+                    var resDisposeTask = res?.CustomDispose();
+                    if (resDisposeTask != null)
+                    {
+                        await resDisposeTask;
+                    }
+                }
+                catch (Exception) { } // ignore.
             }
             if (disableTask != null)
             {
@@ -120,35 +58,23 @@ namespace Kabomu.QuasiHttp.Server
             }
         }
 
-        private static async Task Disable(Exception cancellationError, IQuasiHttpResponse res,
-            TaskCompletionSource<IQuasiHttpResponse> cancellationTcs, ITimerApi timerApi,
-            object timeoutId, IReceiveProtocolInternal protocol, IQuasiHttpBody requestBody)
+        private static async Task Disable(CancellationTokenSource timeoutId,
+            IReceiveProtocolInternal protocol, IQuasiHttpRequest request)
         {
-            if (cancellationTcs != null)
-            {
-                if (cancellationError != null)
-                {
-                    cancellationTcs.SetException(cancellationError);
-                }
-                else
-                {
-                    cancellationTcs.SetResult(res);
-                }
-            }
+            timeoutId?.Cancel();
 
-            timerApi?.ClearTimeout(timeoutId);
-
-            if (protocol != null)
+            try
             {
                 await protocol.Cancel();
             }
+            catch (Exception) { } // ignore
 
             // close body of request received for direct send to application
-            if (requestBody != null)
+            if (request != null)
             {
                 try
                 {
-                    await requestBody.EndRead();
+                    await request.CustomDispose();
                 }
                 catch (Exception) { }
             }

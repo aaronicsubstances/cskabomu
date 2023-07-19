@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.Common
 {
@@ -22,6 +23,9 @@ namespace Kabomu.Common
         private static readonly int TOKEN_CRLF = 3;
         private static readonly int TOKEN_LF = 4;
         private static readonly int TOKEN_CR = 5;
+
+        private static readonly byte[] NewlineConstant = new byte[] { (byte)'\n' };
+        private static readonly byte[] CommaConstant = new byte[] { (byte)',' };
 
         /// <summary>
         /// Acts as a lexing function during CSV parsing.
@@ -89,6 +93,7 @@ namespace Kabomu.Common
         /// <param name="csv">the csv string to parse.</param>
         /// <returns>CSV parse results as a list of rows, in which each row is represented as a list of values
         /// corresponding to the row's columns.</returns>
+        /// <exception cref="ArgumentException">If an error occurs</exception>
         public static IList<IList<string>> Deserialize(string csv)
         {
             var parsedCsv = new List<IList<string>>();
@@ -119,7 +124,7 @@ namespace Kabomu.Common
                     if (!LocateNextToken(csv, nextValueStartIdx + 1, true, tokenInfo))
                     {
                         throw CreateCsvParseError(parsedCsv.Count, currentRow.Count,
-                            "ending double quote not found", null);
+                            "ending double quote not found");
                     }
                     nextValueEndIdx = tokenInfo[1] + 1;
                 }
@@ -163,9 +168,9 @@ namespace Kabomu.Common
                         nextValue = UnescapeValue(csv.Substring(nextValueStartIdx,
                             nextValueEndIdx - nextValueStartIdx));
                     }
-                    catch (Exception ex)
+                    catch (ArgumentException ex)
                     {
-                        throw CreateCsvParseError(parsedCsv.Count, currentRow.Count, null, ex);
+                        throw CreateCsvParseError(parsedCsv.Count, currentRow.Count, ex.Message);
                     }
                     currentRow.Add(nextValue);
                 }
@@ -203,7 +208,7 @@ namespace Kabomu.Common
                         else
                         {
                             throw CreateCsvParseError(parsedCsv.Count, currentRow.Count,
-                                string.Format("unexpected character '{0}' found at beginning", c), null);
+                                string.Format("unexpected character '{0}' found at beginning", c));
                         }
                     }
                     else
@@ -228,7 +233,7 @@ namespace Kabomu.Common
                 {
                     throw CreateCsvParseError(parsedCsv.Count, currentRow.Count,
                         "algorithm bug detected as parsing didn't make an advance. Potential for infinite " +
-                        "looping.", null);
+                        "looping.");
                 }
             }
 
@@ -247,11 +252,31 @@ namespace Kabomu.Common
             return parsedCsv;
         }
 
-        private static Exception CreateCsvParseError(int row, int column, string errorMessage,
-            Exception innerException)
+        private static Exception CreateCsvParseError(int row, int column, string errorMessage)
         {
             throw new ArgumentException(string.Format("CSV parse error at row {0} column {1}: {2}",
-                row + 1, column + 1, errorMessage ?? ""), innerException);
+                row + 1, column + 1, errorMessage ?? ""));
+        }
+
+        internal static async Task SerializeTo(IList<IList<string>> rows,
+            ICustomWriter writer)
+        {
+            foreach (var row in rows)
+            {
+                var addCommaSeparator = false;
+                foreach (var value in row)
+                {
+                    if (addCommaSeparator)
+                    {
+                        await writer.WriteBytes(CommaConstant, 0,
+                            CommaConstant.Length);
+                    }
+                    await EscapeValueTo(value, writer);
+                    addCommaSeparator = true;
+                }
+                await writer.WriteBytes(NewlineConstant, 0,
+                    NewlineConstant.Length);
+            }
         }
 
         /// <summary>
@@ -278,6 +303,19 @@ namespace Kabomu.Common
                 csvBuilder.Append("\n");
             }
             return csvBuilder.ToString();
+        }
+
+        internal static async Task EscapeValueTo(string raw, ICustomWriter writer)
+        {
+            // escape empty strings with two double quotes to resolve ambiguity
+            // between an empty row and a row containing an empty string - otherwise both
+            // serialize to the same CSV output.
+            if (raw == "" || DoesValueContainSpecialCharacters(raw))
+            {
+                raw = '"' + raw.Replace("\"", "\"\"") + '"';
+            }
+            var rawBytes = ByteUtils.StringToBytes(raw);
+            await writer.WriteBytes(rawBytes, 0, rawBytes.Length);
         }
 
         /// <summary>

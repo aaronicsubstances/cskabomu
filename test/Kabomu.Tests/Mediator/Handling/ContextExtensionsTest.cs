@@ -358,9 +358,8 @@ namespace Kabomu.Tests.Mediator.Handling
             var response = await responseTransmitter.Task;
             Assert.Equal(500, response.StatusCode);
             Assert.NotNull(response.Body);
-            var actualErrorResponseBodyBytes = await TransportUtils.ReadBodyToEnd(response.Body);
-            var actualErrorResponseStr = ByteUtils.BytesToString(actualErrorResponseBodyBytes, 0,
-                actualErrorResponseBodyBytes.Length);
+            var actualErrorResponseBodyBytes = await IOUtils.ReadAllBytes(response.Body.AsReader());
+            var actualErrorResponseStr = ByteUtils.BytesToString(actualErrorResponseBodyBytes);
             Assert.Contains("test sth cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4", actualErrorResponseStr);
         }
 
@@ -378,9 +377,8 @@ namespace Kabomu.Tests.Mediator.Handling
             var response = await responseTransmitter.Task;
             Assert.Equal(500, response.StatusCode);
             Assert.NotNull(response.Body);
-            var actualErrorResponseBodyBytes = await TransportUtils.ReadBodyToEnd(response.Body);
-            var actualErrorResponseStr = ByteUtils.BytesToString(actualErrorResponseBodyBytes, 0,
-                actualErrorResponseBodyBytes.Length);
+            var actualErrorResponseBodyBytes = await IOUtils.ReadAllBytes(response.Body.AsReader());
+            var actualErrorResponseStr = ByteUtils.BytesToString(actualErrorResponseBodyBytes);
             Assert.Contains("test sth cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4", actualErrorResponseStr);
         }
 
@@ -397,9 +395,8 @@ namespace Kabomu.Tests.Mediator.Handling
             var response = await responseTransmitter.Task;
             Assert.Equal(500, response.StatusCode);
             Assert.NotNull(response.Body);
-            var actualErrorResponseBodyBytes = await TransportUtils.ReadBodyToEnd(response.Body);
-            var actualErrorResponseStr = ByteUtils.BytesToString(actualErrorResponseBodyBytes, 0,
-                actualErrorResponseBodyBytes.Length);
+            var actualErrorResponseBodyBytes = await IOUtils.ReadAllBytes(response.Body.AsReader());
+            var actualErrorResponseStr = ByteUtils.BytesToString(actualErrorResponseBodyBytes);
             Assert.Contains("test sth", actualErrorResponseStr);
         }
 
@@ -422,9 +419,8 @@ namespace Kabomu.Tests.Mediator.Handling
             var response = await responseTransmitter.Task;
             Assert.Equal(299, response.StatusCode);
             Assert.NotNull(response.Body);
-            var actualErrorResponseBodyBytes = await TransportUtils.ReadBodyToEnd(response.Body);
-            var actualErrorResponseStr = ByteUtils.BytesToString(actualErrorResponseBodyBytes, 0,
-                actualErrorResponseBodyBytes.Length);
+            var actualErrorResponseBodyBytes = await IOUtils.ReadAllBytes(response.Body.AsReader());
+            var actualErrorResponseStr = ByteUtils.BytesToString(actualErrorResponseBodyBytes);
             Assert.Contains("cc9f0acf-c5a9-45c9-a22d-32ff4cf362e4", actualErrorResponseStr);
             Assert.DoesNotContain("test sth", actualErrorResponseStr);
         }

@@ -3,7 +3,7 @@
 namespace Kabomu.QuasiHttp.Client
 {
     /// <summary>
-    /// Used to configure send requests to <see cref="IQuasiHttpClient"/> instances.
+    /// Used to configure send requests to <see cref="StandardQuasiHttpClient"/> instances.
     /// </summary>
     public interface IQuasiHttpSendOptions
     {
@@ -26,8 +26,8 @@ namespace Kabomu.QuasiHttp.Client
         int TimeoutMillis { get; }
 
         /// <summary>
-        /// Gets the value that imposes a maximum size on the chunks and read buffers which will be generated during
-        /// a send request.
+        /// Gets the value that imposes a maximum size on the headers and chunks which will be generated during
+        /// a send request, according to the chunked transfer protocol.
         /// </summary>
         /// <remarks>
         /// Note that zero and negative values will be interpreted as unspecified, and in the absence of any overriding options

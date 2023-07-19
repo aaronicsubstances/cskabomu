@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp.ChunkedTransfer
 {
@@ -20,6 +21,18 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// Current version of standard chunk serialization format.
         /// </summary>
         public const byte Version01 = 1;
+
+        private byte[] _csvDataPrefix;
+        private IList<IList<string>> _csvData;
+
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
+        public LeadChunk()
+        {
+
+        }
+
 
         /// <summary>
         /// Gets or sets the serialization format version.
@@ -93,22 +106,14 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         public IDictionary<string, IList<string>> Headers { get; set; }
 
         /// <summary>
-        /// Serializes the structure into bytes. The serialization format version must be set, or
+        /// Serializes the structure into an internal representation. The serialization format version must be set, or
         /// else deserialization will fail later on. Also headers without values will be skipped.
         /// </summary>
-        /// <returns>serialized chunk as a list of byte buffer slices.</returns>
-        public ByteBufferSlice[] Serialize()
+        public void UpdateSerializedRepresentation()
         {
-            var serialized = new ByteBufferSlice[2];
+            _csvDataPrefix = new byte[] { Version, Flags };
 
-            var csvDataPrefix = new byte[] { Version, Flags };
-            serialized[0] = new ByteBufferSlice
-            {
-                Data = csvDataPrefix,
-                Length = csvDataPrefix.Length
-            };
-
-            var csvData = new List<IList<string>>();
+            _csvData = new List<IList<string>>();
             var specialHeaderRow = new List<string>();
             specialHeaderRow.Add((RequestTarget != null ? 1 : 0).ToString());
             specialHeaderRow.Add(RequestTarget ?? "");
@@ -122,7 +127,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             specialHeaderRow.Add(HttpVersion ?? "");
             specialHeaderRow.Add((HttpStatusMessage != null ? 1 : 0).ToString());
             specialHeaderRow.Add(HttpStatusMessage ?? "");
-            csvData.Add(specialHeaderRow);
+            _csvData.Add(specialHeaderRow);
             if (Headers != null)
             {
                 foreach (var header in Headers)
@@ -133,17 +138,83 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                     }
                     var headerRow = new List<string> { header.Key };
                     headerRow.AddRange(header.Value);
-                    csvData.Add(headerRow);
+                    _csvData.Add(headerRow);
                 }
             }
-            var csv = CsvUtils.Serialize(csvData);
-            var csvBytes = ByteUtils.StringToBytes(csv);
-            serialized[1] = new ByteBufferSlice
+        }
+
+        /// <summary>
+        /// Gets the size of the serialized representation saved internally
+        /// by calling <see cref="UpdateSerializedRepresentation"/>.
+        /// </summary>
+        /// <returns>size of serialized representation</returns>
+        /// <exception cref="InvalidOperationException">If <see cref="UpdateSerializedRepresentation"/>
+        /// has not been called</exception>
+        public int CalculateSizeInBytesOfSerializedRepresentation()
+        {
+            if (_csvDataPrefix == null || _csvData == null)
             {
-                Data = csvBytes,
-                Length = csvBytes.Length
-            };
-            return serialized;
+                throw new InvalidOperationException("missing serialized representation");
+            }
+            int desiredSize = _csvDataPrefix.Length;
+            foreach (var row in _csvData)
+            {
+                var addCommaSeparator = false;
+                foreach (var value in row)
+                {
+                    if (addCommaSeparator)
+                    {
+                        desiredSize++;
+                    }
+                    desiredSize += CalculateSizeInBytesOfEscapedValue(value);
+                    addCommaSeparator = true;
+                }
+                desiredSize++; // for newline
+            }
+            return desiredSize;
+        }
+
+        private static int CalculateSizeInBytesOfEscapedValue(string raw)
+        {
+            var valueContainsSpecialCharacters = false;
+            int doubleQuoteCount = 0;
+            foreach (var c in raw)
+            {
+                if (c == ',' || c == '"' || c == '\r' || c == '\n')
+                {
+                    valueContainsSpecialCharacters = true;
+                    if (c == '"')
+                    {
+                        doubleQuoteCount++;
+                    }
+                }
+            }
+            // escape empty strings with two double quotes to resolve ambiguity
+            // between an empty row and a row containing an empty string - otherwise both
+            // serialize to the same CSV output.
+            int desiredSize = Encoding.UTF8.GetByteCount(raw);
+            if (raw == "" || valueContainsSpecialCharacters)
+            {
+                desiredSize += doubleQuoteCount + 2; // for quoting and surrounding double quotes.
+            }
+            return desiredSize;
+        }
+
+        /// <summary>
+        /// Writes out the serialized representation generated internally by 
+        /// calling <see cref="UpdateSerializedRepresentation"/> as bytes.
+        /// </summary>
+        /// <param name="writer">The destination of the bytes to be written</returns>
+        /// <exception cref="InvalidOperationException">If <see cref="UpdateSerializedRepresentation"/>
+        /// has not been called</exception>
+        public async Task WriteOutSerializedRepresentation(ICustomWriter writer)
+        {
+            if (_csvDataPrefix == null || _csvData == null)
+            {
+                throw new InvalidOperationException("missing serialized representation");
+            }
+            await writer.WriteBytes(_csvDataPrefix, 0, _csvDataPrefix.Length);
+            await CsvUtils.SerializeTo(_csvData, writer);
         }
 
         /// <summary>

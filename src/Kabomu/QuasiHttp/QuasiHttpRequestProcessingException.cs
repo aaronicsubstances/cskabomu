@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.Common;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -13,7 +14,7 @@ namespace Kabomu.QuasiHttp
     /// The reason codes in 0-9 which currently do not have an assigned meaning are reserved for use by this class. 
     /// All other numbers including negative values may be used as reason codes.
     /// </remarks>
-    public class QuasiHttpRequestProcessingException : QuasiHttpException
+    public class QuasiHttpRequestProcessingException : KabomuException
     {
         /// <summary>
         /// Indicates general error without much detail to offer aside inspecting error messages and inner exceptions.
@@ -55,7 +56,7 @@ namespace Kabomu.QuasiHttp
         /// <param name="message">error message</param>
         /// <exception cref="ArgumentException">The <paramref name="reasonCode"/> argument is reserved for future use
         /// by this class</exception>
-        public QuasiHttpRequestProcessingException(int reasonCode, string message) : 
+        public QuasiHttpRequestProcessingException(int reasonCode, string message) :
             this(reasonCode, message, null)
         {
         }

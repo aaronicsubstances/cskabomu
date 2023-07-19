@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -10,7 +11,7 @@ namespace Kabomu.QuasiHttp
     /// Represents the equivalent of an HTTP response entity: response status line,
     /// response headers, and response body.
     /// </summary>
-    public interface IQuasiHttpResponse
+    public interface IQuasiHttpResponse : ICustomDisposable
     {
         /// <summary>
         /// Gets the equivalent of HTTP response status code.
@@ -43,15 +44,5 @@ namespace Kabomu.QuasiHttp
 
         /// Gets any objects which may be of interest during response processing.
         IDictionary<string, object> Environment { get; }
-
-        /// <summary>
-        /// Ends reading on the Body property, and releases any resources held by the quasi http response
-        /// implementation.
-        /// </summary>
-        /// <remarks>
-        /// Must be called when response streaming is enabled in <see cref="Client.IQuasiHttpClient"/> to prevent memory leaks.
-        /// </remarks>
-        /// <returns>a task representing the asynchronous close operation</returns>
-        Task Close();
     }
 }

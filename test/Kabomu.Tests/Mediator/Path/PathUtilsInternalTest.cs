@@ -1,6 +1,6 @@
 ﻿using Kabomu.Mediator.Handling;
 using Kabomu.Mediator.Path;
-using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.Mediator;
 using System;
 using System.Collections.Generic;
 using System.Text;

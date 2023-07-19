@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
@@ -89,5 +90,22 @@ namespace Kabomu.QuasiHttp
         /// Gets or sets any objects which may be of interest to code
         /// which will process this request instance.
         public IDictionary<string, object> Environment { get; set; }
+
+        /// <summary>
+        /// Gets or sets a native cancellation handle that will be cancelled when
+        /// <see cref="CustomDispose"/> is called.
+        /// </summary>
+        public CancellationTokenSource CancellationTokenSource { get; set; }
+
+        /// <summary>
+        /// Cancels the CancellationTokenSource property and ends reading on the Body property.
+        /// </summary>
+        /// <returns>a task representing the asynchronous close operation</returns>
+        public Task CustomDispose()
+        {
+            CancellationTokenSource?.Cancel();
+            var endReadTask = Body?.CustomDispose();
+            return endReadTask ?? Task.CompletedTask;
+        }
     }
 }

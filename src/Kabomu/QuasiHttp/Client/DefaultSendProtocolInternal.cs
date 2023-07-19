@@ -15,7 +15,8 @@ namespace Kabomu.QuasiHttp.Client
         {
         }
 
-        public IQuasiHttpRequest Request { get; set; }
+        public Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> RequestFunc { get; set; }
+        public IDictionary<string, object> RequestEnvironment { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
         public int MaxChunkSize { get; set; }
@@ -31,57 +32,65 @@ namespace Kabomu.QuasiHttp.Client
             }
         }
 
-        public async Task<ProtocolSendResult> Send()
+        public async Task<ProtocolSendResultInternal> Send()
         {
-            // assume properties are set correctly aside the transport.
             if (Transport == null)
             {
                 throw new MissingDependencyException("client transport");
             }
-            if (Request == null)
+            if (RequestFunc == null)
             {
-                throw new ExpectationViolationException("request");
+                throw new ExpectationViolationException("request func");
             }
 
-            await SendRequestLeadChunk();
-            Task<ProtocolSendResult> resFetchTask = StartFetchingResponse();
-            if (Request.Body != null)
+            var request = await RequestFunc.Invoke(RequestEnvironment);
+            if (request == null)
             {
-                Task reqTransferTask = ProtocolUtilsInternal.TransferBodyToTransport(
-                    Transport, Connection, MaxChunkSize, Request.Body);
-                // pass resFetchTask first so that hopefully even if both are completed, it
-                //  will still win.
-                if (await Task.WhenAny(resFetchTask, reqTransferTask) == reqTransferTask)
-                {
-                    // let any request transfer exceptions terminate entire processing.
-                    await reqTransferTask;
-                }
+                throw new QuasiHttpRequestProcessingException("no request");
+            }
+
+            var transportReaderWriter = new TransportCustomReaderWriter(Transport,
+                Connection, false);
+
+            await SendRequestLeadChunk(request, transportReaderWriter);
+            // NB: tests depend on request body transfer started before
+            // reading of response.
+            var reqTransferTask = ProtocolUtilsInternal.TransferBodyToTransport(
+                Transport, Connection, MaxChunkSize, request.Body);
+            var resFetchTask = StartFetchingResponse(transportReaderWriter);
+            // pass resFetchTask first so that even if both are completed, it
+            //  will still win.
+            if (await Task.WhenAny(resFetchTask, reqTransferTask) == reqTransferTask)
+            {
+                // let any request transfer exceptions terminate entire processing.
+                await reqTransferTask;
             }
             return await resFetchTask;
         }
 
-        private async Task SendRequestLeadChunk()
+        private async Task SendRequestLeadChunk(IQuasiHttpRequest request,
+            ICustomWriter writer)
         {
             var chunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
-                RequestTarget = Request.Target,
-                Headers = Request.Headers,
-                HttpVersion = Request.HttpVersion,
-                Method = Request.Method
+                RequestTarget = request.Target,
+                Headers = request.Headers,
+                HttpVersion = request.HttpVersion,
+                Method = request.Method
             };
 
-            if (Request.Body != null)
+            if (request.Body != null)
             {
-                chunk.ContentLength = Request.Body.ContentLength;
-                chunk.ContentType = Request.Body.ContentType;
+                chunk.ContentLength = request.Body.ContentLength;
+                chunk.ContentType = request.Body.ContentType;
             }
-            await ChunkEncodingBody.WriteLeadChunk(Transport, Connection, chunk, MaxChunkSize);
+            await ChunkedTransferUtils.WriteLeadChunk(writer, MaxChunkSize, chunk);
         }
 
-        private async Task<ProtocolSendResult> StartFetchingResponse()
+        private async Task<ProtocolSendResultInternal> StartFetchingResponse(ICustomReader reader)
         {
-            var chunk = await ChunkDecodingBody.ReadLeadChunk(Transport, Connection,
+            var chunk = await ChunkedTransferUtils.ReadLeadChunk(reader,
                 MaxChunkSize);
             var response = new DefaultQuasiHttpResponse
             {
@@ -91,27 +100,12 @@ namespace Kabomu.QuasiHttp.Client
                 HttpVersion = chunk.HttpVersion,
             };
 
-            if (chunk.ContentLength != 0)
-            {
-                await ProtocolUtilsInternal.StartDeserializingBody(
-                    Transport, Connection, chunk.ContentLength);
-                response.Body = new TransportBackedBody(Transport, Connection,
-                    chunk.ContentLength, true)
-                {
-                    ContentType = chunk.ContentType
-                };
-                if (chunk.ContentLength < 0)
-                {
-                    response.Body = new ChunkDecodingBody(response.Body, MaxChunkSize);
-                }
-                if (ResponseBufferingEnabled)
-                {
-                    response.Body = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(
-                        response.Body, MaxChunkSize, ResponseBodyBufferingSizeLimit);
-                }
-            }
+            response.Body = await ProtocolUtilsInternal.CreateBodyFromTransport(Transport,
+                Connection, true, MaxChunkSize, chunk.ContentType,
+                chunk.ContentLength, ResponseBufferingEnabled,
+                ResponseBodyBufferingSizeLimit);
 
-            return new ProtocolSendResult
+            return new ProtocolSendResultInternal
             {
                 Response = response,
                 ResponseBufferingApplied = ResponseBufferingEnabled

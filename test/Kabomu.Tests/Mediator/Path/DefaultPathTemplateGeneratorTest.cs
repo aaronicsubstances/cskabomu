@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.Mediator.Path;
-using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.Common;
+using Kabomu.Tests.Shared.Mediator;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -203,7 +204,7 @@ namespace Kabomu.Tests.Mediator.Path
         {
             var instance = new DefaultPathTemplateGenerator();
 
-            Assert.Throws<PathTemplateException>(() =>
+            Assert.Throws<ArgumentNullException>(() =>
                 instance.Parse(null, null));
 
             Assert.Throws<PathTemplateException>(() =>

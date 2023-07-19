@@ -9,83 +9,10 @@ using static Kabomu.Mediator.Path.DefaultPathTemplateExampleInternal;
 namespace Kabomu.Mediator.Path
 {
     /// <summary>
-    /// Provides the default path template generation algorithm used in the Kabomu.Mediator framework. Inspired by
-    /// <a href="https://learn.microsoft.com/en-us/aspnet/core/fundamentals/routing?view=aspnetcore-6.0">Routing in ASP.NET Core</a>,
-    /// it contains concepts similar to ASP.NET Core routing concepts of templates, catch-all parameters,
-    /// default values, and constraints.
+    /// Provides the default path template generation algorithm used in the Kabomu.Mediator framework.
     /// </summary>
     /// <remarks>
     /// This class generates path templates out of CSV specifications.
-    /// <br/>
-    /// One notable difference between those specs and ASP.NET Core routing templates is that
-    /// path segments with default values are treated almost like optional path segments.
-    /// They can be only be specified indirectly by
-    /// generating all possible routing templates with and without segments which can be optional or have a default values,
-    /// from shortest to longest.
-    /// Default values are then specified separately for storage in a dictionary.
-    /// <para>
-    /// <example>
-    /// As an example, an ASP.NET Core routing template of "{controller=Home}/{action=Index}/{id?}" corresponds to the CSV below:
-    /// <code>
-    /// "/,//controller,//controller//action,//controller//action//id\n
-    /// defaults:,controller,Home,action,Index"
-    /// </code>
-    /// </example>
-    /// </para>
-    /// <example>
-    /// Another ASP.NET Core routing template of "blog/{article:minlength(10)}/**path" corresponds to:
-    /// <code>
-    /// "/blog//article///path\n
-    /// check:article,minlength,10"
-    /// </code>
-    /// </example>
-    /// <para>
-    /// Another difference is that the CSV specs do not allow for separators between path segment expressions other
-    /// than forward slashes. So the ASP.NET Core routing template of "{country}-{region}" does not have a direct translation.
-    /// </para>
-    /// <para>
-    /// Each CSV row is of one of these formats:
-    /// <br/>
-    /// - an empty row. Useful for visually sectioning parts of a CSV spec.
-    /// <br/>
-    /// - first column starts with forward slash ("/") or slash for short. each column including the first
-    /// must be a path matching expression containing zero or more path variables.
-    /// <br/>
-    /// - first column starts with "name:". the suffix after "name:" becomes the non-unique label for the remaining columns as a group.
-    /// such a group can be targetted if the label is present as a key in any dictionary of match options available.
-    /// the second and remaining columns must be path matching expressions.
-    /// <br/>
-    /// - first column starts with "defaults:". the second and remaining columns are interpreted as a list of alternating 
-    /// key value pairs, which will be used to populate a map of default values. the keys correspond to path variables
-    /// which may be present in path matching expressions.
-    /// <br/>
-    /// - first column starts with "check:". then the suffix after "check:" will be taken as a path variable which may
-    /// be present in path matching expressions. the second column must be a key mapped to a constraint function in a dictionary of
-    /// such functions. the third and remaining columns are interpreted as a list of arguments which should be stored and passed to 
-    /// the constraint function every time path matching or interpolation is requested later on.
-    /// <br/>
-    /// - first column is empty. then current row must not be the first row, and the
-    /// previous row must not be an empty row. in this case the first column will be treated as if its value equals that of the
-    /// nearest non-empty first column above current row. the rest of the columns will be processed accordingly.
-    /// </para>
-    /// A path matching expression is either a single slash, or a concatenation of at least one of the following
-    /// segment expressions:
-    /// <list type="bullet">
-    /// <item>single slash followed by one or more non-slash characters. indicates a literal path segment expression</item>
-    /// <item>double slash followed by one or more non-slash characters. indicates a single path segment expression.
-    /// The non-slash characters become a path variable key</item>
-    /// <item>triple slash followed by one or more non-slash characters, and is a wild card segment expression for matching zero
-    /// or more path segments. The non-slash characters become a path variable key</item>
-    /// </list>
-    /// Within a path matching expression,
-    /// <list type="bullet">
-    /// <item>all non-slash characters for a literal, single or wild card segment expressions will be trimmed of
-    /// surrounding whitespace.</item>
-    /// <item>path variables must be unique</item>
-    /// <item>at most only 1 wild card segment expression may be present</item>
-    /// <item>empty path segments are not matched by single path segment expressions by default.
-    /// </item>
-    /// </list>
     /// Check online references (e.g. project github repo) for examples of using this class to generate path templates,
     /// for further documentation on the CSV specification, and how the generated path templates match and interpolate request paths.
     /// </remarks>
@@ -130,42 +57,40 @@ namespace Kabomu.Mediator.Path
         /// <exception cref="PathTemplateException">If an error occurs due to invalid arguments</exception>
         public IPathTemplate Parse(string spec, object options)
         {
-            try
-            {
-                return ParseInternal(spec, options);
-            }
-            catch (Exception e)
-            {
-                if (e is PathTemplateException)
-                {
-                    throw;
-                }
-                throw new PathTemplateException(null, e);
-            }
-        }
-
-        private IPathTemplate ParseInternal(string spec, object options)
-        {
             if (spec == null)
             {
                 throw new ArgumentNullException(nameof(spec));
             }
-
             DefaultPathTemplateMatchOptions optionsForAll = null;
             IDictionary<string, DefaultPathTemplateMatchOptions> individualOptions = null;
             if (options != null)
             {
-                if (options is IDictionary<string, DefaultPathTemplateMatchOptions>)
+                try
                 {
-                    individualOptions = (IDictionary<string, DefaultPathTemplateMatchOptions>)options;
+                    if (options is IDictionary<string, DefaultPathTemplateMatchOptions>)
+                    {
+                        individualOptions = (IDictionary<string, DefaultPathTemplateMatchOptions>)options;
+                    }
+                    else
+                    {
+                        optionsForAll = (DefaultPathTemplateMatchOptions)options;
+                    }
                 }
-                else
+                catch (InvalidCastException e)
                 {
-                    optionsForAll = (DefaultPathTemplateMatchOptions)options;
+                    throw new PathTemplateException(e.Message);
                 }
             }
 
-            var parsedCsv = CsvUtils.Deserialize(spec);
+            IList<IList<string>> parsedCsv;
+            try
+            {
+                parsedCsv = CsvUtils.Deserialize(spec);
+            }
+            catch (ArgumentException e)
+            {
+                throw new PathTemplateException(e.Message);
+            }
 
             var parsedExamples = new List<DefaultPathTemplateExampleInternal>();
             var defaultValues = new Dictionary<string, string>();
@@ -255,7 +180,7 @@ namespace Kabomu.Mediator.Path
                     }
                     else
                     {
-                        throw new ExpectationViolationException($"unexpected reference key: {referenceKey}");
+                        throw AbortParse(rowNum, 1, $"unexpected reference key: {referenceKey}");
                     }
                 }
                 else

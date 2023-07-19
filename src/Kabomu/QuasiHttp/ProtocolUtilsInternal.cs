@@ -1,10 +1,11 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.ChunkedTransfer;
-using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.QuasiHttp
@@ -94,123 +95,7 @@ namespace Kabomu.QuasiHttp
             return fallback1 ?? defaultValue;
         }
 
-        public static async Task<IQuasiHttpBody> CreateEquivalentInMemoryBody(
-            IQuasiHttpBody body, int bufferSize, int bufferingLimit)
-        {
-            // read in entirety of body into memory and
-            // maintain content length and content type for the sake of tests.
-            if (body.ContentLength < 0)
-            {
-                var inMemStream = await TransportUtils.ReadBodyToMemoryStream(body, bufferSize,
-                    bufferingLimit);
-                return new StreamBackedBody(inMemStream, body.ContentLength)
-                {
-                    ContentType = body.ContentType
-                };
-            }
-            else
-            {
-                if (body.ContentLength > bufferingLimit)
-                {
-                    throw new BodySizeLimitExceededException(bufferingLimit,
-                        $"content length larger than buffering limit of " +
-                        $"{bufferingLimit} bytes", null);
-                }
-                var inMemBuffer = new byte[body.ContentLength];
-                await TransportUtils.ReadBodyBytesFully(body, inMemBuffer, 0,
-                    inMemBuffer.Length);
-                // for identical behaviour with unknown length case, close the body.
-                await body.EndRead();
-
-                return new ByteBufferBody(inMemBuffer)
-                {
-                    ContentType = body.ContentType
-                };
-            }
-        }
-
-        public static async Task<IQuasiHttpResponse> CompleteRequestProcessing(
-            Task<IQuasiHttpResponse> workTask,
-            Task<IQuasiHttpResponse> cancellationTask,
-            string errorMessage,
-            Action<Exception> errorCallback)
-        {
-            try
-            {
-                if (cancellationTask != null)
-                {
-                    await await Task.WhenAny(workTask, cancellationTask);
-                }
-                else
-                {
-                    return await workTask;
-                }
-            }
-            catch (Exception e)
-            {
-                // let call to abort transfer determine whether exception is significant.
-                QuasiHttpRequestProcessingException abortError;
-                if (e is QuasiHttpRequestProcessingException quasiHttpError)
-                {
-                    abortError = quasiHttpError;
-                }
-                else
-                {
-                    abortError = new QuasiHttpRequestProcessingException(
-                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
-                        errorMessage, e);
-                }
-                errorCallback?.Invoke(abortError);
-                if (cancellationTask == null)
-                {
-                    throw abortError;
-                }
-            }
-
-            // by awaiting again for transfer cancellation, any significant error will bubble up, and
-            // any insignificant error will be swallowed.
-            return await cancellationTask;
-        }
-
-        public static IQuasiHttpRequest CloneQuasiHttpRequest(IQuasiHttpRequest request,
-            Action<IQuasiHttpMutableRequest> modifier)
-        {
-            var reqClone = new DefaultQuasiHttpRequest
-            {
-                HttpVersion = request.HttpVersion,
-                Method = request.Method,
-                Target = request.Target,
-                Headers = request.Headers,
-                Body = request.Body,
-                Environment = request.Environment
-            };
-            if (modifier != null)
-            {
-                modifier.Invoke(reqClone);
-            }
-            return reqClone;
-        }
-
-        public static IQuasiHttpResponse CloneQuasiHttpResponse(IQuasiHttpResponse response,
-            Action<IQuasiHttpMutableResponse> modifier)
-        {
-            var resClone = new DefaultQuasiHttpResponse
-            {
-                StatusCode = response.StatusCode,
-                Headers = response.Headers,
-                HttpVersion = response.HttpVersion,
-                HttpStatusMessage = response.HttpStatusMessage,
-                Body = response.Body,
-                Environment = response.Environment
-            };
-            if (modifier != null)
-            {
-                modifier.Invoke(resClone);
-            }
-            return resClone;
-        }
-
-        public static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment, 
+        public static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment,
             string key)
         {
             if (environment != null && environment.ContainsKey(key))
@@ -222,43 +107,158 @@ namespace Kabomu.QuasiHttp
                 }
                 else if (value != null)
                 {
-                    return bool.Parse((string)value);
+                    if (bool.TryParse(value as string, out b))
+                    {
+                        return b;
+                    }
                 }
             }
             return null;
         }
 
-        public static async Task StartDeserializingBody(IQuasiHttpTransport transport,
-            object connection, long contentLength)
+        public static async Task<IQuasiHttpBody> CreateEquivalentOfUnknownBodyInMemory(
+            IQuasiHttpBody body, int bodyBufferingLimit)
         {
-            if (contentLength > 0)
+            // Assume that body is completely unknown, such as having nothing
+            // to do with chunk transfer protocol
+            var reader = body.AsReader();
+
+            // but still enforce the content length. even if zero,
+            // still pass it on in order to dispose the body.
+            if (body.ContentLength >= 0)
             {
-                var encLengthBytes = new byte[ChunkEncodingBody.LengthOfEncodedChunkLength];
-                await TransportUtils.ReadTransportBytesFully(transport, connection,
-                    encLengthBytes, 0, encLengthBytes.Length);
-                int knownContentLengthPrefix = (int)ByteUtils.DeserializeUpToInt64BigEndian(encLengthBytes, 0,
-                    encLengthBytes.Length, true);
-                if (knownContentLengthPrefix != ChunkEncodingBody.DefaultValueForInvalidChunkLength)
+                reader = new ContentLengthEnforcingCustomReader(reader,
+                    body.ContentLength);
+            }
+
+            // now read in entirety of body into memory and
+            var inMemBuffer = await IOUtils.ReadAllBytes(reader, bodyBufferingLimit);
+            
+            // finally maintain content length and content type for the sake of tests.
+            return new ByteBufferBody(inMemBuffer)
+            {
+                ContentLength = body.ContentLength,
+                ContentType = body.ContentType
+            };
+        }
+
+        public static async Task TransferBodyToTransport(
+            IQuasiHttpTransport transport, object connection, int maxChunkSize,
+            IQuasiHttpBody body)
+        {
+            if (body == null || body.ContentLength == 0)
+            {
+                return;
+            }
+            ICustomWriter writer = new TransportCustomReaderWriter(transport,
+                connection, false);
+            if (body.ContentLength < 0)
+            {
+                writer = new ChunkEncodingCustomWriter(writer, maxChunkSize);
+            }
+            await body.WriteBytesTo(writer);
+
+            // important for chunked transfer to write out final empty chunk
+            await writer.CustomDispose();
+        }
+
+        public static async Task<IQuasiHttpBody> CreateBodyFromTransport(
+            IQuasiHttpTransport transport, object connection, bool releaseConnection, int maxChunkSize,
+            string contentType, long contentLength, bool bufferingEnabled,
+            int bodyBufferingSizeLimit)
+        {
+            if (contentLength == 0)
+            {
+                return null;
+            }
+
+            // but for the need to release connection in response processing stage,
+            // as opposed to keeping connection in request processing stage,
+            // could have received the reader as a parameter.
+            ICustomReader transportReader = new TransportCustomReaderWriter(
+                transport, connection, releaseConnection);
+            if (contentLength < 0)
+            {
+                transportReader = new ChunkDecodingCustomReader(transportReader,
+                    maxChunkSize);
+            }
+            else
+            {
+                transportReader = new ContentLengthEnforcingCustomReader(transportReader,
+                    contentLength);
+            }
+            if (bufferingEnabled)
+            {
+                var inMemBuffer = await IOUtils.ReadAllBytes(
+                    transportReader, bodyBufferingSizeLimit);
+                return new ByteBufferBody(inMemBuffer)
                 {
-                    throw new Exception("invalid prefix for known content length");
-                }
+                    ContentType = contentType,
+                    ContentLength = contentLength
+                };
+            }
+            else
+            {
+                return new CustomReaderBackedBody(transportReader)
+                {
+                    ContentType = contentType,
+                    ContentLength = contentLength
+                };
             }
         }
 
-        public static async Task TransferBodyToTransport(IQuasiHttpTransport transport, 
-            object connection, int maxChunkSize, IQuasiHttpBody body)
+        public static async Task<T> CompleteRequestProcessing<T>(
+            Task<T> workTask, Task<T> timeoutTask, Task<T> cancellationTask)
         {
-            if (body.ContentLength < 0)
+            if (workTask == null)
             {
-                body = new ChunkEncodingBody(body, maxChunkSize);
+                throw new ArgumentNullException(nameof(workTask));
             }
-            else if (body.ContentLength > 0)
+
+            // ignore null tasks and successful results from
+            // timeout and cancellation tasks.
+            var tasks = new List<Task<T>> { workTask };
+            if (timeoutTask != null)
             {
-                var defaultPrefixForKnownContentLength = ChunkEncodingBody.EncodedChunkLengthOfDefaultInvalidValue;
-                await transport.WriteBytes(connection, defaultPrefixForKnownContentLength, 0,
-                    defaultPrefixForKnownContentLength.Length);
+                tasks.Add(timeoutTask);
             }
-            await TransportUtils.TransferBodyToTransport(transport, connection, body, maxChunkSize);
+            if (cancellationTask != null)
+            {
+                tasks.Add(cancellationTask);
+            }
+            while (tasks.Count > 1)
+            {
+                var firstTask = await Task.WhenAny(tasks);
+                if (firstTask == workTask)
+                {
+                    break;
+                }
+                await firstTask; // let any exceptions bubble up.
+                tasks.Remove(firstTask);
+            }
+            return await workTask;
+        }
+
+        public static (Task<T>, CancellationTokenSource) SetTimeout<T>(int timeoutMillis,
+            string timeoutMsg)
+        {
+            if (timeoutMillis <= 0)
+            {
+                return (null, null);
+            }
+            var timeoutId = new CancellationTokenSource();
+            var timeoutTask = Task.Delay(timeoutMillis, timeoutId.Token)
+                .ContinueWith<T>(t =>
+                {
+                    if (!t.IsCanceled)
+                    {
+                        var timeoutError = new QuasiHttpRequestProcessingException(
+                            QuasiHttpRequestProcessingException.ReasonCodeTimeout, timeoutMsg);
+                        throw timeoutError;
+                    }
+                    return default;
+                });
+            return (timeoutTask, timeoutId);
         }
     }
 }

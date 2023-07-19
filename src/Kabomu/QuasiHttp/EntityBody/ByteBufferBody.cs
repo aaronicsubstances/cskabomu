@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.Concurrency;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -8,19 +7,18 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// Represents byte stream directly with in-memory byte array.
+    /// Represents quasi http body based on a byte buffer.
     /// </summary>
-    public class ByteBufferBody : IQuasiHttpBody
+    public class ByteBufferBody : AbstractQuasiHttpBody, ICustomReader
     {
-        private readonly ICancellationHandle _readCancellationHandle = new DefaultCancellationHandle();
-        private int _bytesRead;
+        private int _bytesRead = 0;
 
         /// <summary>
         /// Creates a new instance.
         /// </summary>
         /// <param name="data">backing byte array</param>
         /// <exception cref="ArgumentNullException">The <paramref name="data"/> argument is null</exception>
-        public ByteBufferBody(byte[] data):
+        public ByteBufferBody(byte[] data) :
             this(data, 0, data?.Length ?? 0)
         {
         }
@@ -48,6 +46,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             Buffer = data;
             Offset = offset;
             Length = length;
+            ContentLength = length;
         }
 
         /// <summary>
@@ -65,32 +64,17 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         public int Length { get; }
 
-        /// <summary>
-        /// Same as the total number of bytes available for read requests. It is never negative.
-        /// </summary>
-        public long ContentLength => Length;
-
-        public string ContentType { get; set; }
-
         public Task<int> ReadBytes(byte[] data, int offset, int length)
         {
-            if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
-            {
-                throw new ArgumentException("invalid destination buffer");
-            }
-
-            EntityBodyUtilsInternal.ThrowIfReadCancelled(_readCancellationHandle);
-
-            var lengthToUse = Math.Min(Length - _bytesRead, length);
-            Array.Copy(Buffer, Offset + _bytesRead, data, offset, lengthToUse);
-            _bytesRead += lengthToUse;
-            return Task.FromResult(lengthToUse);
+            length = Math.Max(0, Math.Min(Length - _bytesRead, length));
+            Array.Copy(Buffer, Offset + _bytesRead, data, offset, length);
+            _bytesRead += length;
+            return Task.FromResult(length);
         }
 
-        public Task EndRead()
-        {
-            _readCancellationHandle.Cancel();
-            return Task.CompletedTask;
-        }
+        public override Task CustomDispose() => Task.CompletedTask;
+
+        public override Task WriteBytesTo(ICustomWriter writer) =>
+            writer.WriteBytes(Buffer, Offset, Length);
     }
 }

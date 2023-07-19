@@ -1,7 +1,8 @@
 ﻿using Kabomu.Mediator.Handling;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.Common;
+using Kabomu.Tests.Shared.Mediator;
 using System;
 using System.Collections.Generic;
 using System.Text;

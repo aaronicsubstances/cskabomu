@@ -1,7 +1,11 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.Tests.Common;
 using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -10,36 +14,67 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class ByteBufferBodyTest
     {
-        [Fact]
-        public Task TestEmptyRead()
+        [InlineData("", "")]
+        [InlineData("ab", "ab,")]
+        [InlineData("abc", "ab,c,")]
+        [InlineData("abcd", "ab,cd,")]
+        [InlineData("abcde", "ab,cd,e,")]
+        [InlineData("abcdef", "ab,cd,ef,")]
+        [Theory]
+        public async Task TestReading(string srcData, string expected)
         {
-            // arrange.
-            var instance = new ByteBufferBody(new byte[0])
-            {
-                ContentType = "text/plain"
-            };
+            // arrange
+            var instance = new ByteBufferBody(ByteUtils.StringToBytes(srcData));
 
-            // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(0, instance, 0, "text/plain",
-                new int[0], null, new byte[0]);
+            // act and assert
+            await IOUtilsTest.TestReading(instance, null, 2, expected, null);
+            Assert.Equal(srcData.Length, instance.ContentLength);
         }
 
         [Fact]
-        public Task TestNonEmptyRead()
+        public async Task TestCustomDispose()
         {
-            // arrange.
-            var instance = new ByteBufferBody(new byte[] { (byte)'A', (byte)'b', (byte)'2' }, 0, 3)
-            {
-                ContentType = "application/octet-stream"
-            };
+            var expected = ByteUtils.StringToBytes("c,2\n");
+            var instance = new ByteBufferBody(expected);
 
-            // act and assert.
-            return CommonBodyTestRunner.RunCommonBodyTest(2, instance, 3, "application/octet-stream",
-                new int[] { 2, 1 }, null, instance.Buffer);
+            Assert.Equal(expected.Length, instance.ContentLength);
+
+            var actual = new byte[3];
+            var actualLen = await instance.ReadBytes(actual, 0, actual.Length);
+            Assert.Equal(3, actualLen);
+            ComparisonUtils.CompareData(expected, 0, actualLen,
+                actual, 0, actualLen);
+
+            // verify custom dispose is a no-op
+            await instance.CustomDispose();
+
+            actualLen = await instance.ReadBytes(actual, 1, actual.Length);
+            Assert.Equal(1, actualLen);
+            ComparisonUtils.CompareData(expected, 3, actualLen,
+                actual, 1, actualLen);
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("d")]
+        [InlineData("ds")]
+        [InlineData("data")]
+        [InlineData("datadriven")]
+        public async Task TestWriting(string expected)
+        {
+            var instance = new ByteBufferBody(ByteUtils.StringToBytes(expected));
+            var writer = new DemoCustomReaderWriter();
+
+            // act
+            await instance.WriteBytesTo(writer);
+
+            // assert
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                writer.BufferStream.ToArray()));
         }
 
         [Fact]
-        public Task TestForArgumentErrors()
+        public void TestForArgumentErrors()
         {
             Assert.Throws<ArgumentNullException>(() =>
             {
@@ -49,8 +84,6 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             {
                 new ByteBufferBody(new byte[] { 0, 0 }, 1, 2);
             });
-            var instance = new ByteBufferBody(new byte[] { 0, 0, 0 }, 1, 2);
-            return CommonBodyTestRunner.RunCommonBodyTestForArgumentErrors(instance);
         }
     }
 }

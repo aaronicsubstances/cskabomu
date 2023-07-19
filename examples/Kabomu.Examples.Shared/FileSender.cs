@@ -16,7 +16,7 @@ namespace Kabomu.Examples.Shared
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
         private static readonly Random RandGen = new Random();
 
-        public static async Task StartTransferringFiles(IQuasiHttpClient instance, object serverEndpoint,
+        public static async Task StartTransferringFiles(StandardQuasiHttpClient instance, object serverEndpoint,
             string uploadDirPath)
         {
             var directory = new DirectoryInfo(uploadDirPath);
@@ -38,7 +38,7 @@ namespace Kabomu.Examples.Shared
                 bytesTransferred, megaBytesTransferred, count, timeTaken, rate);
         }
 
-        private static async Task TransferFile(IQuasiHttpClient instance, object serverEndpoint, FileInfo f)
+        private static async Task TransferFile(StandardQuasiHttpClient instance, object serverEndpoint, FileInfo f)
         {
             var request = new DefaultQuasiHttpRequest
             {
@@ -48,7 +48,11 @@ namespace Kabomu.Examples.Shared
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
             long fLen = RandGen.NextDouble() < 0.5 ? -1 : f.Length;
-            request.Body = new StreamBackedBody(fileStream, fLen);
+            request.Body = new CustomReaderBackedBody(
+                new StreamCustomReaderWriter(fileStream))
+            {
+                ContentLength = fLen
+            };
             IQuasiHttpResponse res;
             try
             {
@@ -70,8 +74,8 @@ namespace Kabomu.Examples.Shared
                 {
                     try
                     {
-                        var responseMsgBytes = await TransportUtils.ReadBodyToEnd(res.Body, 100);
-                        responseMsg = ByteUtils.BytesToString(responseMsgBytes, 0, responseMsgBytes.Length);
+                        var responseMsgBytes = await IOUtils.ReadAllBytes(res.Body.AsReader());
+                        responseMsg = ByteUtils.BytesToString(responseMsgBytes);
                     }
                     catch (Exception)
                     {

@@ -20,7 +20,7 @@ namespace Kabomu.QuasiHttp.Client
         public int TimeoutMillis { get; set; }
 
         /// <summary>
-        /// Gets or sets the value that imposes a maximum size on the chunks and read buffers which will be generated during
+        /// Gets or sets the value that imposes a maximum size on the headers and chunks which will be generated during
         /// a send request.
         /// </summary>
         public int MaxChunkSize { get; set; }

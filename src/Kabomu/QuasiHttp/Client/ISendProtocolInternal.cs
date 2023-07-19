@@ -8,6 +8,6 @@ namespace Kabomu.QuasiHttp.Client
     interface ISendProtocolInternal
     {
         Task Cancel();
-        Task<ProtocolSendResult> Send();
+        Task<ProtocolSendResultInternal> Send();
     }
 }

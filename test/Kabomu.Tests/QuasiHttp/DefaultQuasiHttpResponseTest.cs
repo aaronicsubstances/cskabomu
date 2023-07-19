@@ -1,5 +1,6 @@
 ﻿using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.Tests.Shared.Common;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -12,20 +13,23 @@ namespace Kabomu.Tests.QuasiHttp
     public class DefaultQuasiHttpResponseTest
     {
         [Fact]
-        public async Task TestClose()
+        public async Task TestCustomDispose()
         {
             var instance = new DefaultQuasiHttpResponse();
-            await instance.Close();
+            await instance.CustomDispose();
 
-            instance.Body = new ByteBufferBody(new byte[0]);
+            instance.Body = new CustomReaderBackedBody(new DemoCustomReaderWriter());
             instance.CancellationTokenSource = new CancellationTokenSource();
-            int result = await instance.Body.ReadBytes(new byte[1], 0, 1);
+            int result = await instance.Body.AsReader().ReadBytes(new byte[1], 0, 1);
             Assert.Equal(0, result);
+            Assert.False(instance.CancellationTokenSource.IsCancellationRequested);
 
-            await instance.Close();
-            await Assert.ThrowsAsync<EndOfReadException>(() => instance.Body.ReadBytes(new byte[1], 0, 1));
+            await instance.CustomDispose();
+            Assert.True(instance.CancellationTokenSource.IsCancellationRequested);
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                instance.Body.AsReader().ReadBytes(new byte[1], 0, 1));
 
-            await instance.Close();
+            await instance.CustomDispose();
         }
 
         [Fact]

@@ -11,20 +11,28 @@ namespace Kabomu.QuasiHttp.Server
 {
     internal class DefaultReceiveProtocolInternal : IReceiveProtocolInternal
     {
+        public DefaultReceiveProtocolInternal()
+        {
+            
+        }
+
         public IQuasiHttpApplication Application { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
         public int MaxChunkSize { get; set; }
         public IDictionary<string, object> RequestEnvironment { get; set; }
 
-        public Task Cancel()
+        public async Task Cancel()
         {
-            return Task.CompletedTask;
+            // just in case Transport was incorrectly set to null.
+            if (Transport != null)
+            {
+                await Transport.ReleaseConnection(Connection);
+            }
         }
 
         public async Task<IQuasiHttpResponse> Receive()
         {
-            // assume properties are set correctly aside the transport and application.
             if (Transport == null)
             {
                 throw new MissingDependencyException("server transport");
@@ -34,33 +42,35 @@ namespace Kabomu.QuasiHttp.Server
                 throw new MissingDependencyException("server application");
             }
 
-            var request = await ReadRequestLeadChunk();
+            var transportReaderWriter = new TransportCustomReaderWriter(Transport,
+                Connection, false);
+            var request = await ReadRequestLeadChunk(transportReaderWriter);
 
             var response = await Application.ProcessRequest(request);
             if (response == null)
             {
-                throw new ExpectationViolationException("no response");
+                throw new QuasiHttpRequestProcessingException("no response");
             }
 
             try
             {
-                await TransferResponseToTransport(response);
+                await TransferResponseToTransport(transportReaderWriter, response);
                 return null;
             }
             catch
             {
                 try
                 {
-                    _ = response.Close();
+                    await response.CustomDispose();
                 }
-                catch { } // ignore
+                catch (Exception) { } // ignore
                 throw;
             }
         }
 
-        private async Task<IQuasiHttpRequest> ReadRequestLeadChunk()
+        private async Task<IQuasiHttpRequest> ReadRequestLeadChunk(ICustomReader reader)
         {
-            var chunk = await ChunkDecodingBody.ReadLeadChunk(Transport, Connection, MaxChunkSize);
+            var chunk = await ChunkedTransferUtils.ReadLeadChunk(reader, MaxChunkSize);
 
             var request = new DefaultQuasiHttpRequest
             {
@@ -70,24 +80,14 @@ namespace Kabomu.QuasiHttp.Server
                 Method = chunk.Method,
                 Environment = RequestEnvironment
             };
-            if (chunk.ContentLength != 0)
-            {
-                await ProtocolUtilsInternal.StartDeserializingBody(Transport,
-                    Connection, chunk.ContentLength);
-                request.Body = new TransportBackedBody(Transport, Connection,
-                    chunk.ContentLength, false)
-                {
-                    ContentType = chunk.ContentType
-                };
-                if (chunk.ContentLength < 0)
-                {
-                    request.Body = new ChunkDecodingBody(request.Body, MaxChunkSize);
-                }
-            }
+            request.Body = await ProtocolUtilsInternal.CreateBodyFromTransport(Transport,
+                Connection, false, MaxChunkSize, chunk.ContentType,
+                chunk.ContentLength, false, 0);
             return request;
         }
 
-        private async Task TransferResponseToTransport(IQuasiHttpResponse response)
+        private async Task TransferResponseToTransport(ICustomWriter writer,
+            IQuasiHttpResponse response)
         {
             var chunk = new LeadChunk
             {
@@ -103,16 +103,16 @@ namespace Kabomu.QuasiHttp.Server
                 chunk.ContentLength = response.Body.ContentLength;
                 chunk.ContentType = response.Body.ContentType;
             }
-
-            await ChunkEncodingBody.WriteLeadChunk(Transport, Connection, chunk, MaxChunkSize);
+            
+            await ChunkedTransferUtils.WriteLeadChunk(writer, MaxChunkSize, chunk);
 
             if (response.Body != null)
             {
-                await ProtocolUtilsInternal.TransferBodyToTransport(Transport, Connection,
-                    MaxChunkSize, response.Body);
+                await ProtocolUtilsInternal.TransferBodyToTransport(
+                    Transport, Connection, MaxChunkSize, response.Body);
             }
 
-            await response.Close();
+            await response.CustomDispose();
         }
     }
 }

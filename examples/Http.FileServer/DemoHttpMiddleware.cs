@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Kabomu.Common;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Server;
@@ -18,9 +19,9 @@ namespace Http.FileServer
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
-        private readonly IQuasiHttpServer _wrapped;
+        private readonly StandardQuasiHttpServer _wrapped;
 
-        public DemoHttpMiddleware(IQuasiHttpServer wrapped)
+        public DemoHttpMiddleware(StandardQuasiHttpServer wrapped)
         {
             _wrapped = wrapped;
         }
@@ -52,9 +53,10 @@ namespace Http.FileServer
                     httpContext.Request.Headers["Transfer-Encoding"],
                     httpContext.Request.ContentLength,
                     httpContext.Request.ContentType);
-                quasiRequest.Body = new StreamBackedBody(httpContext.Request.Body,
-                    httpContext.Request.ContentLength ?? -1)
+                quasiRequest.Body = new CustomReaderBackedBody(
+                    new StreamCustomReaderWriter(httpContext.Request.Body))
                 {
+                    ContentLength = httpContext.Request.ContentLength ?? -1,
                     ContentType = httpContext.Request.ContentType
                 };
             }
@@ -66,7 +68,7 @@ namespace Http.FileServer
             IQuasiHttpResponse quasiResponse;
             try
             {
-                quasiResponse = await _wrapped.ProcessReceiveRequest(quasiRequest,
+                quasiResponse = await _wrapped.AcceptRequest(quasiRequest,
                     processingOptions);
             }
             catch (Exception e)
@@ -80,16 +82,9 @@ namespace Http.FileServer
             SetResponseStatusAndHeaders(quasiResponse, httpContext.Response);
             if (quasiResponse.Body != null)
             {
-                var data = new byte[processingOptions.MaxChunkSize];
-                while (true)
-                {
-                    var bytesRead = await quasiResponse.Body.ReadBytes(data, 0, data.Length);
-                    if (bytesRead == 0)
-                    {
-                        break;
-                    }
-                    await httpContext.Response.Body.WriteAsync(data, 0, bytesRead);
-                }
+                var reader = quasiResponse.Body.AsReader();
+                await IOUtils.CopyBytes(reader,
+                    new StreamCustomReaderWriter(httpContext.Response.Body));
             }
         }
 

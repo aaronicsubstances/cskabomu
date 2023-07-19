@@ -1,0 +1,7 @@
+- generalization of OS shell jobs. Alternatively, generalized unix init mechanism, which no child process cannot outlive.
+- system administration function for monitoring process group
+- ACID transaction orchestrator
+- in-memory cache with time-to-live and eviction notification support
+- database accesible over network with serializable commands
+- in-memory database to serve shared serializable memory needs
+- precursor to log-based message broker which resides in a single process to support deferred request processing

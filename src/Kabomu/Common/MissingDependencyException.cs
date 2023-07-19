@@ -6,10 +6,10 @@ using System.Text;
 namespace Kabomu.Common
 {
     /// <summary>
-    /// Exception that is thrown by clients to indicate that a required dependency (often a property of the client)
-    /// has not been set up properly for use (often because the property is null).
+    /// Exception that is thrown by clients to indicate that a required dependency (e.g. a property of the client)
+    /// has not been set up properly for use (e.g. the property is null).
     /// </summary>
-    public class MissingDependencyException : Exception
+    public class MissingDependencyException : KabomuException
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="MissingDependencyException"/> class with a string

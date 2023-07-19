@@ -7,12 +7,12 @@ namespace Kabomu.QuasiHttp.Transport
 {
     /// <summary>
     /// Alternative interface to <see cref="IQuasiHttpTransport"/> which provides another way for
-    /// <see cref="Client.IQuasiHttpClient"/> instances to send quasi http requests
+    /// <see cref="Client.StandardQuasiHttpClient"/> instances to send quasi http requests
     /// to servers or remote endpoints.
     /// </summary>
     /// <remarks>
-    /// The initial goal of this interface was to provide a way for memory-based and actual HTTP-based transports
-    /// to be used for sending quasi http requests within their constraints:
+    /// The goal of this interface is to provide an alternative for situations in which <see cref="IQuasiHttpTransport"/>
+    /// is unsuitable for sending quasi http requests. For example,
     /// <list type="bullet">
     /// <item>Memory-based transports can reduce some of the performance hit
     /// of serialization by sending requests directly to their communication endpoints,
@@ -21,13 +21,11 @@ namespace Kabomu.QuasiHttp.Transport
     /// already have a way to send requests thanks to the myriad of HTTP client libraries out there, and so it will be
     /// unnecessary or impractical to re-invent the wheel and allocate and releasee TCP connections.</item>
     /// </list>
-    /// Effectively this interface is an escape hatch for situations in which <see cref="IQuasiHttpTransport"/>
-    /// is unsuitable for sending quasi http requests.
     /// </remarks>
     public interface IQuasiHttpAltTransport
     {
         /// <summary>
-        /// Makes a direct send request on behalf of an instance of <see cref="Client.IQuasiHttpClient"/>.
+        /// Makes a direct send request on behalf of an instance of <see cref="Client.StandardQuasiHttpClient"/>.
         /// Implementations which want to support cancellation of send requests can supply a cancellation
         /// handle in the return value; otherwise they should return null cancellation handle.
         /// </summary>
@@ -37,6 +35,22 @@ namespace Kabomu.QuasiHttp.Transport
         /// processed by this tranport instance; and whose second task is handle that can be used
         /// to attempt cancelling the send request.</returns>
         (Task<IQuasiHttpResponse>, object) ProcessSendRequest(IQuasiHttpRequest request,
+               IConnectivityParams connectivityParams);
+
+        /// <summary>
+        /// Makes a direct send request on behalf of an instance of <see cref="Client.StandardQuasiHttpClient"/>.
+        /// Implementations which want to support cancellation of send requests can supply a cancellation
+        /// handle in the return value; otherwise they should return null cancellation handle.
+        /// </summary>
+        /// <param name="requestFunc">a callback which receives any environment
+        /// associated with how the request is to be created, and returns a promise of
+        /// the request to send</param>
+        /// <param name="connectivityParams">communication endpoint information</param>
+        /// <returns>a pair whose first item is a task whose result will be the quasi http response
+        /// processed by this tranport instance; and whose second task is handle that can be used
+        /// to attempt cancelling the send request.</returns>
+        (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+               Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
                IConnectivityParams connectivityParams);
 
         /// <summary>

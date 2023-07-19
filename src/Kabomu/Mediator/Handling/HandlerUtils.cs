@@ -1,5 +1,4 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.Mediator.Path;
+﻿using Kabomu.Mediator.Path;
 using Kabomu.Mediator.Registry;
 using Kabomu.QuasiHttp;
 using System;

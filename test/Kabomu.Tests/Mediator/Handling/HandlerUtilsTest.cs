@@ -1,9 +1,8 @@
-﻿using Kabomu.Concurrency;
-using Kabomu.Mediator.Handling;
+﻿using Kabomu.Mediator.Handling;
 using Kabomu.Mediator.Path;
 using Kabomu.Mediator.Registry;
 using Kabomu.QuasiHttp;
-using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.Mediator;
 using System;
 using System.Collections.Generic;
 using System.Text;

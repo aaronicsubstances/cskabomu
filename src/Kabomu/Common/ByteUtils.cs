@@ -73,45 +73,6 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Creates a string from its hexadecimal encoding in a byte buffer slice.
-        /// </summary>
-        /// <remarks>
-        /// The resulting string has an even length and uses the hexadecimal digits a-f instead of
-        /// the uppercase A-F, for similarity with other platforms (NodeJS, Java, Python, etc).
-        /// </remarks>
-        /// <param name="data">backing byte array of slice containing hexadecimal encoding</param>
-        /// <param name="offset">offset of slice in data</param>
-        /// <param name="len">length of slice in data</param>
-        /// <returns>string equivalent of byte buffer slice containing hexadecimal encoding</returns>
-        public static string ConvertBytesToHex(byte[] data, int offset, int len)
-        {
-            // send out lower case and ensure even length.
-            return BitConverter.ToString(data, offset, len).Replace("-", "").ToLower();
-        }
-
-        /// <summary>
-        /// Converts a hexadecimal string to its equivalent byte representation.
-        /// </summary>
-        /// <param name="hex">the hexadecimal string to convert.</param>
-        /// <returns>byte array equivalent of hexadecimal string.</returns>
-        public static byte[] ConvertHexToBytes(string hex)
-        {
-            // ensure even number of characters.
-            if (hex.Length % 2 != 0)
-            {
-                hex = "0" + hex;
-            }
-            int charCount = hex.Length;
-            byte[] rawBytes = new byte[charCount / 2];
-            for (int i = 0; i < charCount; i += 2)
-            {
-                // accept both upper and lower case hex chars.
-                rawBytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
-            }
-            return rawBytes;
-        }
-
-        /// <summary>
         /// Converts a 64-bit signed integer to its big-endian representation and stores any specified number of
         /// the least significant bytes of the representation in a byte array.
         /// </summary>
@@ -142,42 +103,6 @@ namespace Kabomu.Common
                 rawBytes[nextIndex--] = (byte)(0xff & (v >> shiftCount));
                 shiftCount += 8;
             }
-        }
-
-        /// <summary>
-        /// Converts a 16-bit signed integer to its big-endian representation.
-        /// </summary>
-        /// <param name="v">16-bit signed integer to convert.</param>
-        /// <returns>a byte array containing big-endian representation of integer argument</returns>
-        public static byte[] SerializeInt16BigEndian(short v)
-        {
-            byte[] rawBytes = new byte[2];
-            SerializeUpToInt64BigEndian(v, rawBytes, 0, rawBytes.Length);
-            return rawBytes;
-        }
-
-        /// <summary>
-        /// Converts a 32-bit signed integer to its big-endian representation.
-        /// </summary>
-        /// <param name="v">32-bit signed integer to convert.</param>
-        /// <returns>a byte array containing big-endian representation of integer argument</returns>
-        public static byte[] SerializeInt32BigEndian(int v)
-        {
-            byte[] rawBytes = new byte[4];
-            SerializeUpToInt64BigEndian(v, rawBytes, 0, rawBytes.Length);
-            return rawBytes;
-        }
-
-        /// <summary>
-        /// Converts a 64-bit signed integer to its big-endian representation.
-        /// </summary>
-        /// <param name="v">64-bit signed integer to convert.</param>
-        /// <returns>a byte array containing big-endian representation of integer argument</returns>
-        public static byte[] SerializeInt64BigEndian(long v)
-        {
-            byte[] rawBytes = new byte[8];
-            SerializeUpToInt64BigEndian(v, rawBytes, 0, rawBytes.Length);
-            return rawBytes;
         }
 
         /// <summary>
@@ -221,65 +146,6 @@ namespace Kabomu.Common
                 v = v | inverter;
             }
             return v;
-        }
-
-        /// <summary>
-        /// Creates a 16-bit signed integer from its big-endian representation.
-        /// </summary>
-        /// <param name="rawBytes">source buffer containing big-endian representation.</param>
-        /// <param name="offset">the start of the data for the integer in the source buffer</param>
-        /// <returns>16-bit integer equivalent of big-endian representation in source buffer</returns>
-        public static short DeserializeInt16BigEndian(byte[] rawBytes, int offset)
-        {
-            return (short)DeserializeUpToInt64BigEndian(rawBytes, offset, 2, false);
-        }
-
-        /// <summary>
-        /// Creates a 32-bit signed integer from its big-endian representation.
-        /// </summary>
-        /// <param name="rawBytes">source buffer containing big-endian representation.</param>
-        /// <param name="offset">the start of the data for the integer in the source buffer</param>
-        /// <returns>32-bit integer equivalent of big-endian representation in source buffer</returns>
-        public static int DeserializeInt32BigEndian(byte[] rawBytes, int offset)
-        {
-            return (int)DeserializeUpToInt64BigEndian(rawBytes, offset, 4, false);
-        }
-
-        /// <summary>
-        /// Creates a 64-bit signed integer from its big-endian representation.
-        /// </summary>
-        /// <param name="rawBytes">source buffer containing big-endian representation.</param>
-        /// <param name="offset">the start of the data for the integer in the source buffer</param>
-        /// <returns>64-bit integer equivalent of big-endian representation in source buffer</returns>
-        public static long DeserializeInt64BigEndian(byte[] rawBytes, int offset)
-        {
-            return DeserializeUpToInt64BigEndian(rawBytes, offset, 8, false);
-        }
-
-        /// <summary>
-        /// Computes the total count of bytes indicated by a collection of byte buffer slices.
-        /// </summary>
-        /// <param name="slices">array of byte buffer slices. each element must be non null and have a 
-        /// non negative length.</param>
-        /// <returns>sum of all lengths indicated by slices</returns>
-        /// <exception cref="T:System.ArgumentException">The <paramref name="slices"/> argument contains null.</exception>
-        /// <exception cref="T:System.ArgumentException">The <paramref name="slices"/> argument contains a negative length.</exception>
-        public static int CalculateSizeOfSlices(ByteBufferSlice[] slices)
-        {
-            int byteCount = 0;
-            foreach (var slice in slices)
-            {
-                if (slice == null)
-                {
-                    throw new ArgumentException("encountered null slice", nameof(slices));
-                }
-                if (slice.Length < 0)
-                {
-                    throw new ArgumentException("encountered slice with negative length", nameof(slices));
-                }
-                byteCount += slice.Length;
-            }
-            return byteCount;
         }
     }
 }

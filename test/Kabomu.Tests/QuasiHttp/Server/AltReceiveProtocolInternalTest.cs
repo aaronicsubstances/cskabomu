@@ -1,7 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Server;
-using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -12,9 +12,8 @@ namespace Kabomu.Tests.QuasiHttp.Server
 {
     public class AltReceiveProtocolInternalTest
     {
-
         [Fact]
-        public async Task TestReceiveForDependencyErrors()
+        public async Task TestReceiveForErrors()
         {
             await Assert.ThrowsAsync<MissingDependencyException>(() =>
             {
@@ -24,20 +23,16 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 };
                 return instance.Receive();
             });
-        }
 
-        [Fact]
-        public async Task TestReceiveForRejectionOfNullResponses()
-        {
-            var app = new ConfigurableQuasiHttpApplication
+            var ex = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
             {
-                ProcessRequestCallback = async (req) =>
+                var app = new ConfigurableQuasiHttpApplication
                 {
-                    return null;
-                }
-            };
-            await Assert.ThrowsAsync<ExpectationViolationException>(() =>
-            {
+                    ProcessRequestCallback = async (req) =>
+                    {
+                        return null;
+                    }
+                };
                 var instance = new AltReceiveProtocolInternal
                 {
                     Application = app,
@@ -45,6 +40,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 };
                 return instance.Receive();
             });
+            Assert.Contains("no response", ex.Message);
         }
 
         [Fact]
@@ -56,11 +52,12 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 { "shared", true }
             };
             var expectedResponse = new DefaultQuasiHttpResponse();
+            IQuasiHttpRequest actualRequest = null;
             var app = new ConfigurableQuasiHttpApplication
             {
-                ProcessRequestCallback = async (actualRequest) =>
+                ProcessRequestCallback = async (req) =>
                 {
-                    Assert.Same(request, actualRequest);
+                    actualRequest = req;
                     return expectedResponse;
                 }
             };
@@ -71,6 +68,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             var actualResponse = await instance.Receive();
             Assert.Same(expectedResponse, actualResponse);
+            Assert.Same(request, actualRequest);
         }
     }
 }

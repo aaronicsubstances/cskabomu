@@ -1,7 +1,8 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.Tests.Shared;
+using Kabomu.Tests.Shared.Common;
+using Kabomu.Tests.Shared.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -304,86 +305,181 @@ namespace Kabomu.Tests.QuasiHttp
         }
 
         [Theory]
+        [MemberData(nameof(CreateTestGetEnvVarAsBooleanData))]
+        public void TestGetEnvVarAsBoolean(IDictionary<string, object> environment,
+            string key, bool? expected)
+        {
+            var actual = ProtocolUtilsInternal.GetEnvVarAsBoolean(environment,
+                key);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateTestGetEnvVarAsBooleanData()
+        {
+            var testData = new List<object[]>();
+
+            var environment = new Dictionary<string, object>
+            {
+                { "d", "de" },
+                { "2", false }
+            };
+            string key = "2";
+            testData.Add(new object[] { environment, key, false });
+
+            environment = null;
+            key = "k1";
+            testData.Add(new object[] { environment, key, null });
+
+            environment = new Dictionary<string, object>
+            {
+                { "d2", "TRUE" }, { "e", "ghana" }
+            };
+            key = "f";
+            testData.Add(new object[] { environment, key, null });
+
+            environment = new Dictionary<string, object>
+            {
+                { "d2", "TRUE" }, { "e", "ghana" }
+            };
+            key = "e";
+            testData.Add(new object[] { environment, key, null });
+
+            environment = new Dictionary<string, object>
+            {
+                { "d2", "TRUE" }, { "e", new List<string>() }
+            };
+            key = "e";
+            testData.Add(new object[] { environment, key, null });
+
+            environment = new Dictionary<string, object>
+            {
+                { "d2", "TRUE" }, { "e", "ghana" }
+            };
+            key = "d2";
+            testData.Add(new object[] { environment, key, true });
+
+            environment = new Dictionary<string, object>
+            {
+                { "d2", "true" }, { "e", "ghana" }
+            };
+            key = "d2";
+            testData.Add(new object[] { environment, key, true });
+
+            environment = new Dictionary<string, object>
+            {
+                { "d2", "TRUE" }, { "e", "ghana" }
+            };
+            key = "d2";
+            testData.Add(new object[] { environment, key, true });
+
+            environment = new Dictionary<string, object>
+            {
+                { "d", "FALSE" }, { "e", "ghana" }
+            };
+            key = "d";
+            testData.Add(new object[] { environment, key, false });
+
+            return testData;
+        }
+
+        [Theory]
         [MemberData(nameof(CreateTestCreateEquivalentInMemoryBodyData))]
-        public async Task TestCreateEquivalentInMemoryBody(int bufferSize,
-            int bufferingLimit, IQuasiHttpBody originalBody, byte[] expectedBodyBytes)
+        public async Task TestCreateEquivalentInMemoryBody(int bufferingLimit,
+            IQuasiHttpBody originalBody, byte[] expectedBodyBytes)
         {
             // arrange.
             IQuasiHttpBody expected = new ByteBufferBody(expectedBodyBytes)
             {
-                ContentType = originalBody.ContentType
+                ContentType = originalBody.ContentType,
+                ContentLength = originalBody.ContentLength
             };
-            expected = new ContentLengthOverrideBody(expected, originalBody.ContentLength);
+            var disposed = false;
+            var originalBody1 = originalBody;
+            var reader = new LambdaBasedCustomReader
+            {
+                ReadFunc = (data, offset, length) =>
+                {
+                    if (disposed)
+                    {
+                        throw new ObjectDisposedException("reader");
+                    }
+                    return originalBody1.AsReader().ReadBytes(data, offset, length);
+                },
+                DisposeFunc = () =>
+                {
+                    disposed = true;
+                    return Task.CompletedTask;
+                }
+            };
+            originalBody = new CustomReaderBackedBody(reader)
+            {
+                ContentLength = originalBody1.ContentLength,
+                ContentType = originalBody1.ContentType
+            };
 
             // act.
-            var actualResponseBody = await ProtocolUtilsInternal.CreateEquivalentInMemoryBody(originalBody,
-                bufferSize, bufferingLimit);
+            var actualResponseBody = await ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(originalBody,
+                bufferingLimit);
             
             // assert.
             // check that original response body has been ended.
-            await Assert.ThrowsAsync<EndOfReadException>(() => originalBody.ReadBytes(new byte[1], 0, 1));
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                originalBody.AsReader().ReadBytes(new byte[1], 0, 1));
             // finally verify content.
-            await ComparisonUtils.CompareBodies(bufferSize, expected, actualResponseBody, expectedBodyBytes);
+            await ComparisonUtils.CompareBodies(expected, actualResponseBody, expectedBodyBytes);
         }
 
         public static List<object[]> CreateTestCreateEquivalentInMemoryBodyData()
         {
             var testData = new List<object[]>();
 
-            int bufferSize = 1;
             int bufferingLimit = 0;
             byte[] expectedResBodyBytes = new byte[0];
             IQuasiHttpBody responseBody = new ByteBufferBody(expectedResBodyBytes);
-            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+            testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
-            bufferSize = 1;
             bufferingLimit = 0;
             expectedResBodyBytes = new byte[0];
-            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
-                expectedResBodyBytes.Length));
-            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes));
+            testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
-            bufferSize = 2;
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' };
             bufferingLimit = expectedResBodyBytes.Length;
-            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
-                expectedResBodyBytes.Length))
+            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes))
             {
+                ContentLength = -10,
                 ContentType = "text/plain"
             };
-            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+            testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
-            bufferSize = 10;
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' };
             bufferingLimit = expectedResBodyBytes.Length;
-            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes, 0,
-                expectedResBodyBytes.Length));
-            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes));
+            testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
-            bufferSize = 10;
             bufferingLimit = 8;
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' };
             responseBody = new ByteBufferBody(expectedResBodyBytes)
             {
+                ContentLength = -1,
                 ContentType = "application/octet-stream"
             };
-            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+            testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
             // test that over abundance of data works fine.
 
-            bufferSize = 100;
             bufferingLimit = 4;
             responseBody = new ByteBufferBody(new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' })
             {
-                ContentType = "application/json"
+                ContentType = "application/json",
+                ContentLength = 3
             };
-            responseBody = new ContentLengthOverrideBody(responseBody, 3);
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c' };
-            testData.Add(new object[] { bufferSize, bufferingLimit, responseBody, expectedResBodyBytes });
+            testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
             return testData;
         }
@@ -391,40 +487,595 @@ namespace Kabomu.Tests.QuasiHttp
         [Fact]
         public async Task TestCreateEquivalentInMemoryBodyForErrors1()
         {
-            int bufferSize = 1;
             int bufferingLimit = 3;
-            var responseBody = new StringBody("xyz!");
-            await Assert.ThrowsAnyAsync<Exception>(() =>
+            var responseBody = new ByteBufferBody(ByteUtils.StringToBytes("xyz!"));
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
             {
-                return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
-                    bufferSize, bufferingLimit);
+                return ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(responseBody,
+                    bufferingLimit);
             });
+            Assert.Contains($"limit of {bufferingLimit}", actualEx.Message);
         }
 
         [Fact]
         public async Task TestCreateEquivalentInMemoryBodyForErrors2()
         {
-            int bufferSize = 1;
-            int bufferingLimit = 3;
-            var responseBody = new ByteBufferBody(ByteUtils.StringToBytes("xyz!"));
-            await Assert.ThrowsAsync<BodySizeLimitExceededException>(() =>
+            int bufferingLimit = 30;
+            var responseBody = new StringBody("xyz!")
             {
-                return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
-                    bufferSize, bufferingLimit);
+                ContentLength = 5
+            };
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
+            {
+                return ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(responseBody,
+                    bufferingLimit);
             });
+            Assert.Contains("length of 5", actualEx.Message);
         }
 
         [Fact]
-        public async Task TestCreateEquivalentInMemoryBodyForErrors3()
+        public async Task TestTransferBodyToTransport1()
         {
-            int bufferSize = 1;
-            int bufferingLimit = 30;
-            var responseBody = new ContentLengthOverrideBody(new StringBody("xyz!"), 5);
-            await Assert.ThrowsAsync<ContentLengthNotSatisfiedException>(() =>
+            object connection = "davi";
+            int maxChunkSize = 6;
+            var transport = new DemoQuasiHttpTransport(connection,
+                null, null);
+
+            var srcData = "data bits and bytes";
+            var reader = new DemoCustomReaderWriter(
+                ByteUtils.StringToBytes(srcData));
+
+            var expected = new byte[] { 0 ,0, 8, 1, 0, (byte)'d',
+                (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',
+                0, 0, 8, 1, 0, (byte)'i', (byte)'t', (byte)'s', (byte)' ',
+                (byte)'a', (byte)'n', 0, 0, 8, 1, 0, (byte)'d', (byte)' ',
+                (byte)'b', (byte)'y', (byte)'t', (byte)'e', 0, 0, 3, 1, 0,
+                (byte)'s', 0, 0, 2, 1, 0
+            };
+            var body = new CustomReaderBackedBody(reader)
             {
-                return ProtocolUtilsInternal.CreateEquivalentInMemoryBody(responseBody,
-                    bufferSize, bufferingLimit);
+                ContentLength = -1
+            };
+            await ProtocolUtilsInternal.TransferBodyToTransport(transport, connection,
+                maxChunkSize, body);
+
+            Assert.Equal(expected, transport.BufferStream.ToArray());
+        }
+
+        [Fact]
+        public async Task TestTransferBodyToTransport2()
+        {
+            object connection = "david";
+            int maxChunkSize = 6;
+            var transport = new DemoQuasiHttpTransport(connection,
+                null, null);
+
+            var expected = "camouflage";
+            var reader = new DemoCustomReaderWriter(
+                ByteUtils.StringToBytes(expected));
+
+            var body = new CustomReaderBackedBody(reader)
+            {
+                ContentLength = expected.Length
+            };
+            await ProtocolUtilsInternal.TransferBodyToTransport(transport, connection,
+                maxChunkSize, body);
+
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                transport.BufferStream.ToArray()));
+        }
+
+        // 
+        /// <summary>
+        /// Assert that positive content length is not enforced
+        /// </summary>
+        [Fact]
+        public async Task TestTransferBodyToTransport4()
+        {
+            object connection = new object();
+            int maxChunkSize = -1;
+            var transport = new DemoQuasiHttpTransport(connection,
+                null, null);
+
+            var expected = "frutis and pils";
+            var reader = new DemoCustomReaderWriter(
+                ByteUtils.StringToBytes(expected));
+
+            var body = new CustomReaderBackedBody(reader)
+            {
+                ContentLength = 456
+            };
+            await ProtocolUtilsInternal.TransferBodyToTransport(transport, connection,
+                maxChunkSize, body);
+
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                transport.BufferStream.ToArray()));
+        }
+
+        /// <summary>
+        /// Assert that body with zero content length is not processed,
+        /// and check that dispose is not called.
+        /// </summary>
+        [Fact]
+        public async Task TestTransferBodyToTransport3()
+        {
+            object connection = 34;
+            int maxChunkSize = 6;
+            var transport = new DemoQuasiHttpTransport(connection,
+                null, null);
+
+            var srcData = "ice";
+            var reader = new DemoCustomReaderWriter(
+                ByteUtils.StringToBytes(srcData));
+
+            var body = new CustomReaderBackedBody(reader)
+            {
+                ContentLength = 0
+            };
+            await ProtocolUtilsInternal.TransferBodyToTransport(transport, connection,
+                maxChunkSize, body);
+
+            Assert.Equal(new byte[0], transport.BufferStream.ToArray());
+
+            // check that dispose is not called on body during transfer.
+            var actual = await IOUtils.ReadAllBytes(reader);
+            Assert.Equal(srcData, ByteUtils.BytesToString(actual));
+
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                IOUtils.ReadAllBytes(reader));
+        }
+
+        /// <summary>
+        /// Assert that no error occurs with null body.
+        /// </summary>
+        [Fact]
+        public async Task TestTransferBodyToTransport5()
+        {
+            object connection = 34;
+            int maxChunkSize = 6;
+            var transport = new DemoQuasiHttpTransport(connection,
+                null, null);
+
+            await ProtocolUtilsInternal.TransferBodyToTransport(transport, connection,
+                maxChunkSize, null);
+
+            Assert.Equal(new byte[0], transport.BufferStream.ToArray());
+        }
+
+        [Fact]
+        public async Task TestCreateBodyFromTransport1()
+        {
+            // arrange
+            object connection = 34;
+            int maxChunkSize = 6;
+            var srcData = "ice";
+            var expectedData = ByteUtils.StringToBytes(srcData);
+            var transport = new DemoQuasiHttpTransport(connection,
+                expectedData, null);
+            bool releaseConnection = false;
+            string contentType = "text/plain";
+            long contentLength = srcData.Length;
+            bool bufferingEnabled = false;
+            int bodyBufferingSizeLimit = 2;
+
+            // act
+            var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
+                transport, connection, releaseConnection, maxChunkSize,
+                contentType, contentLength, bufferingEnabled,
+                bodyBufferingSizeLimit);
+
+            // assert
+            Assert.Equal(contentType, body.ContentType);
+            Assert.Equal(contentLength, body.ContentLength);
+            var actualData = new byte[body.ContentLength];
+            await IOUtils.ReadBytesFully((ICustomReader)body,
+                actualData, 0, actualData.Length);
+            Assert.Equal(expectedData, actualData);
+
+            // assert that transport wasn't released.
+            Assert.Equal(0, await transport.ReadBytes(connection, new byte[1], 0, 1));
+        }
+
+        [Fact]
+        public async Task TestCreateBodyFromTransport2()
+        {
+            // arrange
+            object connection = 34;
+            int maxChunkSize = 6;
+            var srcData = "ice";
+            var expectedData = ByteUtils.StringToBytes(srcData);
+            var transport = new DemoQuasiHttpTransport(connection,
+                expectedData, null);
+            bool releaseConnection = true;
+            string contentType = "text/plain";
+            long contentLength = srcData.Length;
+            bool bufferingEnabled = true;
+            int bodyBufferingSizeLimit = 4;
+
+            // act
+            var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
+                transport, connection, releaseConnection, maxChunkSize,
+                contentType, contentLength, bufferingEnabled,
+                bodyBufferingSizeLimit);
+
+            // assert
+            Assert.Equal(contentType, body.ContentType);
+            Assert.Equal(contentLength, body.ContentLength);
+            var actualData = new byte[body.ContentLength];
+            await IOUtils.ReadBytesFully((ICustomReader)body,
+                actualData, 0, actualData.Length);
+            Assert.Equal(expectedData, actualData);
+
+            // assert that transport was released.
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                transport.ReadBytes(connection, new byte[1], 0, 1));
+        }
+
+        [Fact]
+        public async Task TestCreateBodyFromTransport3()
+        {
+            // arrange
+            object connection = "34d";
+            int maxChunkSize = 6;
+            var srcData = new byte[] { 0 ,0, 11, 1, 0, (byte)'d',
+                (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',
+                (byte)'i', (byte)'t', (byte)'s', 0, 0, 11, 1, 0, (byte)' ',
+                (byte)'a', (byte)'n', (byte)'d', (byte)' ', (byte)'b',
+                (byte)'y', (byte)'t', (byte)'e', 0, 0, 2, 1, 0
+            };
+            var expectedData = ByteUtils.StringToBytes("data bits and byte");
+            var transport = new DemoQuasiHttpTransport(connection,
+                srcData, null);
+            bool releaseConnection = false;
+            string contentType = "application/xml";
+            long contentLength = -1;
+            bool bufferingEnabled = true;
+            int bodyBufferingSizeLimit = 30;
+
+            // act
+            var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
+                transport, connection, releaseConnection, maxChunkSize,
+                contentType, contentLength, bufferingEnabled,
+                bodyBufferingSizeLimit);
+
+            // assert
+            Assert.Equal(contentType, body.ContentType);
+            Assert.Equal(contentLength, body.ContentLength);
+            var actualData = await IOUtils.ReadAllBytes((ICustomReader)body);
+            Assert.Equal(expectedData, actualData);
+
+            // assert that transport wasn't released.
+            Assert.Equal(0, await transport.ReadBytes(connection, new byte[1], 0, 1));
+        }
+
+        [Fact]
+        public async Task TestCreateBodyFromTransport4()
+        {
+            // arrange
+            object connection = "tea";
+            int maxChunkSize = 60;
+            var srcData = new byte[] { 0 ,0, 16, 1, 0, (byte)'b',
+                (byte)'i', (byte)'t', (byte)'s', (byte)' ',
+                (byte)'a', (byte)'n', (byte)'d', (byte)' ', (byte)'b',
+                (byte)'y', (byte)'t', (byte)'e', (byte)'s', 0, 0, 2, 1, 0
+            };
+            var expectedData = ByteUtils.StringToBytes("bits and bytes");
+            var transport = new DemoQuasiHttpTransport(connection,
+                srcData, null);
+            bool releaseConnection = true;
+            string contentType = null;
+            long contentLength = -1;
+            bool bufferingEnabled = false;
+            int bodyBufferingSizeLimit = 3;
+
+            // act
+            var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
+                transport, connection, releaseConnection, maxChunkSize,
+                contentType, contentLength, bufferingEnabled,
+                bodyBufferingSizeLimit);
+
+            // assert
+            Assert.Equal(contentType, body.ContentType);
+            Assert.Equal(contentLength, body.ContentLength);
+            var actualData = await IOUtils.ReadAllBytes((ICustomReader)body);
+            Assert.Equal(expectedData, actualData);
+
+            // assert that transport was released.
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                transport.ReadBytes(connection, new byte[1], 0, 1));
+        }
+
+        /// <summary>
+        /// Test that zero content length returns null.
+        /// </summary>
+        [Fact]
+        public async Task TestCreateBodyFromTransport5()
+        {
+            // arrange
+            object connection = new object();
+            int maxChunkSize = 6;
+            var srcData = "ice";
+            var expectedData = ByteUtils.StringToBytes(srcData);
+            var transport = new DemoQuasiHttpTransport(connection,
+                expectedData, null);
+            bool releaseConnection = true;
+            string contentType = "text/csv";
+            long contentLength = 0;
+            bool bufferingEnabled = true;
+            int bodyBufferingSizeLimit = 4;
+
+            // act
+            var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
+                transport, connection, releaseConnection, maxChunkSize,
+                contentType, contentLength, bufferingEnabled,
+                bodyBufferingSizeLimit);
+
+            // assert
+            Assert.Null(body);
+
+            // assert that transport wasn't released.
+            Assert.Equal(1, await transport.ReadBytes(connection, new byte[1], 0, 1));
+        }
+
+        [Fact]
+        public async Task TestCreateBodyFromTransportForErrors1()
+        {
+            // arrange
+            object connection = "tea";
+            int maxChunkSize = 60;
+            var srcData = new byte[] { 0 ,0, 16, 1, 0, (byte)'b',
+                (byte)'i', (byte)'t', (byte)'s', (byte)' ',
+                (byte)'a', (byte)'n', (byte)'d', (byte)' ', (byte)'b',
+                (byte)'y', (byte)'t', (byte)'e', (byte)'s', 0, 0, 2, 1, 0
+            };
+            var expectedData = ByteUtils.StringToBytes("bits and bytes");
+            var transport = new DemoQuasiHttpTransport(connection,
+                srcData, null);
+            bool releaseConnection = false;
+            string contentType = null;
+            long contentLength = -1;
+            bool bufferingEnabled = true;
+            int bodyBufferingSizeLimit = 3;
+
+            // act
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
+            {
+                return ProtocolUtilsInternal.CreateBodyFromTransport(
+                    transport, connection, releaseConnection, maxChunkSize,
+                    contentType, contentLength, bufferingEnabled,
+                    bodyBufferingSizeLimit);
             });
+            Assert.Contains($"limit of {bodyBufferingSizeLimit}", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestCreateBodyFromTransportForErrors2()
+        {
+            // arrange
+            object connection = 34;
+            int maxChunkSize = 6;
+            var srcData = "ice";
+            var expectedData = ByteUtils.StringToBytes(srcData);
+            var transport = new DemoQuasiHttpTransport(connection,
+                expectedData, null);
+            bool releaseConnection = true;
+            string contentType = "text/plain";
+            long contentLength = 10;
+            bool bufferingEnabled = true;
+            int bodyBufferingSizeLimit = 4;
+
+            // act
+            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
+            {
+                return ProtocolUtilsInternal.CreateBodyFromTransport(
+                    transport, connection, releaseConnection, maxChunkSize,
+                    contentType, contentLength, bufferingEnabled,
+                    bodyBufferingSizeLimit);
+            });
+            Assert.Contains($"length of {contentLength}", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestCompleteRequestProcessing1()
+        {
+            var expected = new DefaultQuasiHttpResponse();
+            Task<IQuasiHttpResponse> workTask = Task.FromResult(
+                expected as IQuasiHttpResponse);
+            Task<IQuasiHttpResponse> timeoutTask = null;
+            Task<IQuasiHttpResponse> cancellationTask = null;
+            var actual = await ProtocolUtilsInternal.CompleteRequestProcessing(
+                workTask, timeoutTask, cancellationTask);
+            Assert.Same(expected, actual);
+        }
+
+        [Fact]
+        public async Task TestCompleteRequestProcessing2()
+        {
+            var expected = new DefaultQuasiHttpResponse();
+            Task<IQuasiHttpResponse> workTask = Task.FromResult(
+                expected as IQuasiHttpResponse);
+            Task<IQuasiHttpResponse> timeoutTask = null;
+            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
+                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return null;
+                });
+            var actual = await ProtocolUtilsInternal.CompleteRequestProcessing(
+                workTask, timeoutTask, cancellationTask);
+            Assert.Same(expected, actual);
+        }
+
+        [Fact]
+        public async Task TestCompleteRequestProcessing3()
+        {
+            Task<IQuasiHttpResponse> workTask = Task.Delay(
+                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return null;
+                });
+            Task<IQuasiHttpResponse> timeoutTask = null;
+            Task<IQuasiHttpResponse> cancellationTask = Task.FromResult<IQuasiHttpResponse>(
+                new DefaultQuasiHttpResponse());
+            var actual = await ProtocolUtilsInternal.CompleteRequestProcessing(
+                workTask, timeoutTask, cancellationTask);
+            Assert.Null(actual);
+        }
+
+        [Fact]
+        public async Task TestCompleteRequestProcessing4()
+        {
+            DefaultQuasiHttpResponse expected = new DefaultQuasiHttpResponse(),
+                instance2 = new DefaultQuasiHttpResponse(),
+                instance3 = new DefaultQuasiHttpResponse();
+            Task<IQuasiHttpResponse> workTask = Task.Delay(
+                TimeSpan.FromSeconds(0.75)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return expected;
+                });
+            Task<IQuasiHttpResponse> timeoutTask = Task.Delay(
+                TimeSpan.FromSeconds(0.5)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return instance2;
+                });
+            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
+                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return instance3;
+                });
+            var actual = await ProtocolUtilsInternal.CompleteRequestProcessing(
+                workTask, timeoutTask, cancellationTask);
+            Assert.Same(expected, actual);
+        }
+
+        [Fact]
+        public async Task TestCompleteRequestProcessing5()
+        {
+            Task<IQuasiHttpResponse> workTask = Task.Delay(
+                TimeSpan.FromSeconds(2)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return new DefaultQuasiHttpResponse();
+                });
+            Task<IQuasiHttpResponse> timeoutTask = Task.Delay(
+                TimeSpan.FromSeconds(0.5)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error1");
+                });
+            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
+                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return new DefaultQuasiHttpResponse();
+                });
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+            {
+                return ProtocolUtilsInternal.CompleteRequestProcessing(
+                    workTask, timeoutTask, cancellationTask);
+            });
+            Assert.Equal("error1", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestCompleteRequestProcessing6()
+        {
+            Task<IQuasiHttpResponse> workTask = Task.Delay(
+                TimeSpan.FromSeconds(0.5)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error1");
+                });
+            Task<IQuasiHttpResponse> timeoutTask = Task.Delay(
+                TimeSpan.FromSeconds(2)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error2");
+                });
+            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
+                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error3");
+                });
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+            {
+                return ProtocolUtilsInternal.CompleteRequestProcessing(
+                    workTask, timeoutTask, cancellationTask);
+            });
+            Assert.Equal("error1", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestCompleteRequestProcessing7()
+        {
+            Task<IQuasiHttpResponse> workTask = Task.Delay(
+                TimeSpan.FromSeconds(2)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error1");
+                });
+            Task<IQuasiHttpResponse> timeoutTask = Task.Delay(
+                TimeSpan.FromSeconds(2)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error2");
+                });
+            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
+                TimeSpan.FromSeconds(0.5)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    throw new QuasiHttpRequestProcessingException("error3");
+                });
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+            {
+                return ProtocolUtilsInternal.CompleteRequestProcessing(
+                    workTask, timeoutTask, cancellationTask);
+            });
+            Assert.Equal("error3", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestCompleteRequestProcessingForErrors()
+        {
+            Task<IQuasiHttpResponse> workTask = null;
+            Task<IQuasiHttpResponse> timeoutTask = Task.FromResult(
+                new DefaultQuasiHttpResponse() as IQuasiHttpResponse);
+            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
+                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
+                {
+                    return null;
+                });
+            await Assert.ThrowsAsync<ArgumentNullException>(() =>
+                ProtocolUtilsInternal.CompleteRequestProcessing(
+                    workTask, timeoutTask, cancellationTask));
+        }
+
+        [Fact]
+        public void TestSetTimeout1()
+        {
+            var actual = ProtocolUtilsInternal.SetTimeout<string>(0, null);
+            Assert.Equal((null, null), actual);
+        }
+
+        [Fact]
+        public void TestSetTimeout2()
+        {
+            var actual = ProtocolUtilsInternal.SetTimeout<string>(-3, null);
+            Assert.Equal((null, null), actual);
+        }
+
+        [Fact]
+        public async Task TestSetTimeout3()
+        {
+            var expectedMsg = "sea";
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+            {
+                return ProtocolUtilsInternal.SetTimeout<int>(50, expectedMsg).Item1;
+            });
+            Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeTimeout,
+                actualEx.ReasonCode);
+            Assert.Equal(expectedMsg, actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestSetTimeout4()
+        {
+            var (actualTask, timeoutId) = ProtocolUtilsInternal.SetTimeout<string>(500, null);
+            await Task.Delay(100);
+            timeoutId.Cancel();
+            var actual = await actualTask;
+            Assert.Null(actual);
         }
     }
 }
