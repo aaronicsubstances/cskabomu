@@ -79,22 +79,35 @@ namespace Kabomu.Examples.Shared
             if (latestError != null)
             {
                 LOG.Warn(latestError, "connection receive error");
-                return Task.FromResult(false);
+                return Task.FromResult(true);
             }
             lock (_mutex)
             {
-                return Task.FromResult(_serverSocket != null);
+                return Task.FromResult(_serverSocket == null);
             }
         }
 
         private async Task<bool> ReceiveConnection()
         {
+            LOG.Info("accepting...");
             var socket = await _serverSocket.AcceptAsync();
             var connectionAllocRes = new DefaultConnectionAllocationResponse
             {
                 Connection = socket
             };
-            await Server.AcceptConnection(connectionAllocRes);
+            async Task ForwardConnection()
+            {
+
+                try
+                {
+                    await Server.AcceptConnection(connectionAllocRes);
+                }
+                catch (Exception ex)
+                {
+                    LOG.Warn(ex, "connection processing error");
+                }
+            }
+            _ = ForwardConnection();
             return true;
         }
 

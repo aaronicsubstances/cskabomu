@@ -54,11 +54,11 @@ namespace Kabomu.Examples.Shared
             if (latestError != null)
             {
                 LOG.Warn(latestError, "connection receive error");
-                return Task.FromResult(false);
+                return Task.FromResult(true);
             }
             lock (_mutex)
             {
-                return Task.FromResult(_startCancellationHandle != null);
+                return Task.FromResult(_startCancellationHandle == null);
             }
         }
 
@@ -78,7 +78,19 @@ namespace Kabomu.Examples.Shared
             {
                 Connection = pipeServer
             };
-            await Server.AcceptConnection(c);
+            async Task ForwardConnection()
+            {
+
+                try
+                {
+                    await Server.AcceptConnection(c);
+                }
+                catch (Exception ex)
+                {
+                    LOG.Warn(ex, "connection processing error");
+                }
+            }
+            _ = ForwardConnection();
             return true;
         }
 

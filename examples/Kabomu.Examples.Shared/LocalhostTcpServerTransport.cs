@@ -61,23 +61,36 @@ namespace Kabomu.Examples.Shared
             if (latestError != null)
             {
                 LOG.Warn(latestError, "connection receive error");
-                return Task.FromResult(false);
+                return Task.FromResult(true);
             }
             lock (_mutex)
             {
-                return Task.FromResult(_tcpServer != null);
+                return Task.FromResult(_tcpServer == null);
             }
         }
 
         private async Task<bool> ReceiveConnection()
         {
+            LOG.Info("accepting...");
             var tcpClient = await _tcpServer.AcceptTcpClientAsync();
             tcpClient.NoDelay = true;
             var c = new DefaultConnectionAllocationResponse
             {
                 Connection = tcpClient
             };
-            await Server.AcceptConnection(c);
+            async Task ForwardConnection()
+            {
+
+                try
+                {
+                    await Server.AcceptConnection(c);
+                }
+                catch (Exception ex)
+                {
+                    LOG.Warn(ex, "connection processing error");
+                }
+            }
+            _ = ForwardConnection();
             return true;
         }
 
