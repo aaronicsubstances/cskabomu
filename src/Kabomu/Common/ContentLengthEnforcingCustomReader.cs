@@ -12,6 +12,7 @@ namespace Kabomu.Common
     {
         private readonly ICustomReader _wrappedReader;
         private readonly long _expectedLength;
+        private readonly bool _answerZeroByteReadsFromBackingReader;
         private long _bytesAlreadyRead;
 
         /// <summary>
@@ -21,9 +22,12 @@ namespace Kabomu.Common
         /// <param name="expectedLength">the expected number of bytes to guarantee or assert.
         /// Can be negative to indicate that the all remaining bytes in the backing reader
         /// should be returned.</param>
+        /// <param name="answerZeroByteReadsFromBackingReader">pass true
+        /// if a request to read zero bytes should be passed onto backing reader;
+        /// or pass false to immediately return zero which is the default.</param>
         /// <exception cref="ArgumentNullException">The <paramref name="wrappedBody"/> argument is null.</exception>
         public ContentLengthEnforcingCustomReader(ICustomReader wrappedReader,
-            long expectedLength)
+            long expectedLength, bool answerZeroByteReadsFromBackingReader = false)
         {
             if (wrappedReader == null)
             {
@@ -31,6 +35,7 @@ namespace Kabomu.Common
             }
             _wrappedReader = wrappedReader;
             _expectedLength = expectedLength;
+            _answerZeroByteReadsFromBackingReader = answerZeroByteReadsFromBackingReader;
         }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int length)
@@ -46,10 +51,14 @@ namespace Kabomu.Common
                     length));
             }
 
-            // even if bytes to read is zero at this stage, still go ahead and call
-            // wrapped body instead of trying to optimize by returning zero, so that
-            // any error can be thrown.
-            int bytesJustRead = await _wrappedReader.ReadBytes(data, offset, bytesToRead);
+            // if bytes to read is zero at this stage, decide on whether or
+            // not to go ahead and call backing reader
+            // so that any error in backing reader can be thrown.
+            int bytesJustRead = 0;
+            if (bytesToRead > 0 || _answerZeroByteReadsFromBackingReader)
+            {
+                bytesJustRead = await _wrappedReader.ReadBytes(data, offset, bytesToRead);
+            }
 
             // update record of number of bytes read.
             _bytesAlreadyRead += bytesJustRead;
@@ -57,7 +66,7 @@ namespace Kabomu.Common
             // if end of read is encountered, ensure that all
             // requested bytes have been read.
             var remainingBytesToRead = _expectedLength - _bytesAlreadyRead;
-            if (bytesJustRead == 0 && remainingBytesToRead > 0)
+            if (bytesToRead > 0 && bytesJustRead == 0 && remainingBytesToRead > 0)
             {
                 var errorMsg = CustomIOException.CreateContentLengthNotSatisfiedErrorMessage(
                     _expectedLength) +

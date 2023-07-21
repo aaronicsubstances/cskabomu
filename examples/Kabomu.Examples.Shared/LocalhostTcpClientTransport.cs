@@ -14,12 +14,12 @@ namespace Kabomu.Examples.Shared
         public async Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)
         {
             int port = (int)connectivityParams.RemoteEndpoint;
-            var tcpClient = new TcpClient();
-            tcpClient.NoDelay = true;
-            await tcpClient.ConnectAsync("localhost", port);
+            var clientSocket = new Socket(IPAddress.Loopback.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            //clientSocket.NoDelay = true;
+            await clientSocket.ConnectAsync(IPAddress.Loopback, port);
             var response = new DefaultConnectionAllocationResponse
             {
-                Connection = tcpClient
+                Connection = clientSocket
             };
             return response;
         }

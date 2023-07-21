@@ -14,84 +14,73 @@ namespace Kabomu.Examples.Shared
     public class WindowsNamedPipeServerTransport : IQuasiHttpServerTransport
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
-        private readonly object _mutex = new object();
+        //private readonly object _mutex = new object();
         private readonly string _path;
-        private CancellationTokenSource _startCancellationHandle;
+        private readonly CancellationTokenSource _startCancellationHandle;
 
         public WindowsNamedPipeServerTransport(string path)
         {
             _path = path;
+            _startCancellationHandle = new CancellationTokenSource();
         }
 
         public StandardQuasiHttpServer Server { get; set; }
 
         public Task Start()
         {
-            lock (_mutex)
-            {
-                if (_startCancellationHandle == null)
-                {
-                    _startCancellationHandle = new CancellationTokenSource();
-                    _ = ServerUtils.AcceptConnections(
-                        ReceiveConnection, IsDoneRunning);
-                }
-            }
+            // don't wait.
+            _ = AcceptConnections();
             return Task.CompletedTask;
         }
 
-        public Task Stop()
+        public async Task Stop()
         {
-            lock (_mutex)
-            {
-                _startCancellationHandle?.Cancel();
-                _startCancellationHandle = null;
-            }
-            return Task.CompletedTask;
+            _startCancellationHandle.Cancel();
+            await Task.Delay(1_000);
         }
 
-        private Task<bool> IsDoneRunning(Exception latestError)
+        private async Task AcceptConnections()
         {
-            if (latestError != null)
+            try
             {
-                LOG.Warn(latestError, "connection receive error");
-                return Task.FromResult(true);
+                while (true)
+                {
+                    var pipeServer = new NamedPipeServerStream(_path, PipeDirection.InOut,
+                        NamedPipeServerStream.MaxAllowedServerInstances,
+                        PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                    await pipeServer.WaitForConnectionAsync(_startCancellationHandle.Token);
+                    // don't wait.
+                    _ = ReceiveConnection(pipeServer);
+                }
             }
-            lock (_mutex)
+            catch (Exception e)
             {
-                return Task.FromResult(_startCancellationHandle == null);
+                if (_startCancellationHandle.IsCancellationRequested)
+                {
+                    LOG.Info("connection accept ended");
+                }
+                else
+                {
+                    LOG.Warn(e, "connection accept error");
+                }
             }
         }
 
-        private async Task<bool> ReceiveConnection()
+        private async Task ReceiveConnection(NamedPipeServerStream pipeServer)
         {
-            NamedPipeServerStream pipeServer;
-            Task waitTask;
-            lock (_mutex)
+            try
             {
-                pipeServer = new NamedPipeServerStream(_path, PipeDirection.InOut,
-                    NamedPipeServerStream.MaxAllowedServerInstances,
-                    PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-                waitTask = pipeServer.WaitForConnectionAsync(_startCancellationHandle.Token);
+                await Server.AcceptConnection(
+                    new DefaultConnectionAllocationResponse
+                    {
+                        Connection = pipeServer
+                    }
+                );
             }
-            await waitTask;
-            var c = new DefaultConnectionAllocationResponse
+            catch (Exception ex)
             {
-                Connection = pipeServer
-            };
-            async Task ForwardConnection()
-            {
-
-                try
-                {
-                    await Server.AcceptConnection(c);
-                }
-                catch (Exception ex)
-                {
-                    LOG.Warn(ex, "connection processing error");
-                }
+                LOG.Warn(ex, "connection processing error");
             }
-            _ = ForwardConnection();
-            return true;
         }
 
         public Task ReleaseConnection(object connection)

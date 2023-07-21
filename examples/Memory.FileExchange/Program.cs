@@ -23,9 +23,9 @@ namespace Memory.FileExchange
                 HelpText = "Path to directory for saving uploaded files. Defaults to current directory")]
             public string ServerDownloadDirPath { get; set; }
 
-            [Option('b', "use-transport-bypass", Required = false,
+            [Option('b', "use-transport-bypass", Required = false, Default = false,
                 HelpText = "Uses transport bypass instead of server/client transports. Defaults to false.")]
-            public bool? UseTransportBypass { get; set; }
+            public bool UseTransportBypass { get; set; }
         }
 
         static void Main(string[] args)
@@ -35,7 +35,7 @@ namespace Memory.FileExchange
                    {
                        RunMain(o.ClientUploadDirPath ?? ".",
                            o.ServerDownloadDirPath ?? ".",
-                           o.UseTransportBypass ?? false).Wait();
+                           o.UseTransportBypass).Wait();
                    });
         }
 

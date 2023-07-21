@@ -1,10 +1,8 @@
 ﻿using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
 using NLog;
-using NLog.Fluent;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.Net.Sockets;
 using System.Text;
@@ -15,9 +13,8 @@ namespace Kabomu.Examples.Shared
     public class UnixDomainSocketServerTransport : IQuasiHttpServerTransport
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
-        private readonly object _mutex = new object();
-        private readonly string _path;
-        private Socket _serverSocket;
+        //private readonly object _mutex = new object();
+        private readonly Socket _serverSocket;
 
         public UnixDomainSocketServerTransport(string path)
         {
@@ -25,90 +22,66 @@ namespace Kabomu.Examples.Shared
             File.Delete(path); // recommended way of avoiding error
             // System.Net.Sockets.SocketException(10048): Only one usage of each socket 
             // address(protocol / network address / port) is normally permitted.
-            _path = path;
+            _serverSocket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            _serverSocket.Bind(new UnixDomainSocketEndPoint(path));
         }
 
         public StandardQuasiHttpServer Server { get; set; }
 
         public Task Start()
         {
-            lock (_mutex)
-            {
-                if (_serverSocket == null)
-                {
-                    try
-                    {
-                        _serverSocket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-                        _serverSocket.Bind(new UnixDomainSocketEndPoint(_path));
-                        _serverSocket.Listen(5);
-                        _ = ServerUtils.AcceptConnections(ReceiveConnection,
-                                IsDoneRunning);
-                    }
-                    catch (Exception)
-                    {
-                        try
-                        {
-                            _serverSocket?.Dispose();
-                        }
-                        catch (Exception) { }
-                        throw;
-                    }
-                }
-            }
+            _serverSocket.Listen();
+            // don't wait.
+            _ = AcceptConnections();
             return Task.CompletedTask;
         }
 
-        public Task Stop()
+        public async Task Stop()
         {
-            lock (_mutex)
-            {
-                try
-                {
-                    _serverSocket?.Dispose();
-                }
-                finally
-                {
-                    _serverSocket = null;
-                }
-            }
-            return Task.CompletedTask;
+            _serverSocket.Dispose();
+            await Task.Delay(1_000);
         }
 
-        private Task<bool> IsDoneRunning(Exception latestError)
+        private async Task AcceptConnections()
         {
-            if (latestError != null)
+            try
             {
-                LOG.Warn(latestError, "connection receive error");
-                return Task.FromResult(true);
+                while (true)
+                {
+                    var socket = await _serverSocket.AcceptAsync();
+                    // don't wait.
+                    _ = ReceiveConnection(socket);
+                }
             }
-            lock (_mutex)
+            catch (Exception e)
             {
-                return Task.FromResult(_serverSocket == null);
+                if (e is SocketException s &&
+                    s.SocketErrorCode == SocketError.OperationAborted)
+                {
+                    LOG.Info("connection accept ended");
+                }
+                else
+                {
+                    LOG.Warn(e, "connection accept error");
+                }
             }
         }
 
-        private async Task<bool> ReceiveConnection()
+        private async Task ReceiveConnection(Socket socket)
         {
-            LOG.Info("accepting...");
-            var socket = await _serverSocket.AcceptAsync();
-            var connectionAllocRes = new DefaultConnectionAllocationResponse
+            try
             {
-                Connection = socket
-            };
-            async Task ForwardConnection()
-            {
-
-                try
-                {
-                    await Server.AcceptConnection(connectionAllocRes);
-                }
-                catch (Exception ex)
-                {
-                    LOG.Warn(ex, "connection processing error");
-                }
+                await Server.AcceptConnection(
+                    new DefaultConnectionAllocationResponse
+                    {
+                        Connection = socket
+                    }
+                );
             }
-            _ = ForwardConnection();
-            return true;
+            catch (Exception ex)
+            {
+                LOG.Warn(ex, "connection processing error");
+            }
         }
 
         public Task ReleaseConnection(object connection)
@@ -128,10 +101,10 @@ namespace Kabomu.Examples.Shared
             return ReadBytesInternal(connection, data, offset, length);
         }
 
-        internal static Task<int> ReadBytesInternal(object connection, byte[] data, int offset, int length)
+        internal static async Task<int> ReadBytesInternal(object connection, byte[] data, int offset, int length)
         {
             var networkStream = (Socket)connection;
-            return networkStream.ReceiveAsync(new Memory<byte>(data, offset, length), SocketFlags.None).AsTask();
+            return await networkStream.ReceiveAsync(new Memory<byte>(data, offset, length), SocketFlags.None);
         }
 
         public Task WriteBytes(object connection, byte[] data, int offset, int length)

@@ -20,15 +20,21 @@ namespace Kabomu.Common
     public class MemoryPipeCustomReaderWriter : ICustomReader, ICustomWriter
     {
         private readonly object _mutex = new object();
+        private readonly bool _answerZeroByteReadsFromPipe;
         private ReadWriteRequest _readRequest, _writeRequest;
         private bool _disposed;
         private Exception _endOfReadError, _endOfWriteError;
 
         /// <summary>
         /// Creates a new instance.
+        /// <paramref name="answerZeroByteReadsFromPipe">pass true
+        /// if a request to read zero bytes should use or wait on a pending write;
+        /// or pass false to immediately return zero which is the default.</paramref>
         /// </summary>
-        public MemoryPipeCustomReaderWriter()
-        { }
+        public MemoryPipeCustomReaderWriter(bool answerZeroByteReadsFromPipe = false)
+        {
+            _answerZeroByteReadsFromPipe = answerZeroByteReadsFromPipe;
+        }
 
         /// <summary>
         /// Reads bytes from the last write or waits until a write comes through. If 
@@ -62,8 +68,10 @@ namespace Kabomu.Common
                     throw new CustomIOException("pending read exist");
                 }
 
-                // respond immediately to any zero-byte read
-                if (length == 0)
+                // respond immediately to any zero-byte read, unless
+                // instance was set up to wait for writes even if
+                // zero bytes were requested.
+                if (length == 0 && !_answerZeroByteReadsFromPipe)
                 {
                     return 0;
                 }

@@ -14,84 +14,73 @@ namespace Kabomu.Examples.Shared
     public class LocalhostTcpServerTransport : IQuasiHttpServerTransport
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
-        private readonly object _mutex = new object();
-        private readonly int _port;
-        private TcpListener _tcpServer;
+        //private readonly object _mutex = new object();
+        private readonly Socket _tcpServer;
 
         public LocalhostTcpServerTransport(int port)
         {
-            _port = port;
+            _tcpServer = new Socket(IPAddress.Loopback.AddressFamily,
+                SocketType.Stream, ProtocolType.Tcp);
+            _tcpServer.Bind(new IPEndPoint(IPAddress.Loopback, port));
         }
 
         public StandardQuasiHttpServer Server { get; set; }
 
         public Task Start()
         {
-            lock (_mutex)
-            {
-                if (_tcpServer == null)
-                {
-                    _tcpServer = new TcpListener(IPAddress.Loopback, _port);
-                    _tcpServer.Start();
-                    _ = ServerUtils.AcceptConnections(ReceiveConnection,
-                            IsDoneRunning);
-                }
-            }
+            _tcpServer.Listen();
+            // don't wait.
+            _ = AcceptConnections();
             return Task.CompletedTask;
         }
 
-        public Task Stop()
+        public async Task Stop()
         {
-            lock (_mutex)
-            {
-                try
-                {
-                    _tcpServer?.Stop();
-                }
-                finally
-                {
-                    _tcpServer = null;
-                }
-            }
-            return Task.CompletedTask;
+            _tcpServer.Dispose();
+            await Task.Delay(1_000);
         }
 
-        private Task<bool> IsDoneRunning(Exception latestError)
+        private async Task AcceptConnections()
         {
-            if (latestError != null)
+            try
             {
-                LOG.Warn(latestError, "connection receive error");
-                return Task.FromResult(true);
+                while (true)
+                {
+                    var socket = await _tcpServer.AcceptAsync();
+                    // don't wait.
+                    _ = ReceiveConnection(socket);
+                }
             }
-            lock (_mutex)
+            catch (Exception e)
             {
-                return Task.FromResult(_tcpServer == null);
+                if (e is SocketException s &&
+                    s.SocketErrorCode == SocketError.OperationAborted)
+                {
+                    LOG.Info("connection accept ended");
+                }
+                else
+                {
+                    LOG.Warn(e, "connection accept error");
+                }
             }
         }
 
-        private async Task<bool> ReceiveConnection()
+        private async Task ReceiveConnection(Socket socket)
         {
-            LOG.Info("accepting...");
-            var tcpClient = await _tcpServer.AcceptTcpClientAsync();
-            tcpClient.NoDelay = true;
-            var c = new DefaultConnectionAllocationResponse
+            try
             {
-                Connection = tcpClient
-            };
-            async Task ForwardConnection()
-            {
-
-                try
-                {
-                    await Server.AcceptConnection(c);
-                }
-                catch (Exception ex)
-                {
-                    LOG.Warn(ex, "connection processing error");
-                }
+                //socket.NoDelay = true;
+                await Server.AcceptConnection(
+                    new DefaultConnectionAllocationResponse
+                    {
+                        Connection = socket
+                    }
+                );
             }
-            _ = ForwardConnection();
-            return true;
+            catch (Exception ex)
+            {
+                LOG.Warn(ex, "connection processing error");
+            }
         }
 
         public Task ReleaseConnection(object connection)
@@ -101,8 +90,8 @@ namespace Kabomu.Examples.Shared
 
         internal static Task ReleaseConnectionInternal(object connection)
         {
-            var tcpClient = (TcpClient)connection;
-            tcpClient.Dispose();
+            var networkStream = (Socket)connection;
+            networkStream.Dispose();
             return Task.CompletedTask;
         }
 
@@ -111,11 +100,10 @@ namespace Kabomu.Examples.Shared
             return ReadBytesInternal(connection, data, offset, length);
         }
 
-        internal static Task<int> ReadBytesInternal(object connection, byte[] data, int offset, int length)
+        internal static async Task<int> ReadBytesInternal(object connection, byte[] data, int offset, int length)
         {
-            var tcpClient = (TcpClient)connection;
-            Stream networkStream = tcpClient.GetStream();
-            return networkStream.ReadAsync(data, offset, length);
+            var networkStream = (Socket)connection;
+            return await networkStream.ReceiveAsync(new Memory<byte>(data, offset, length), SocketFlags.None);
         }
 
         public Task WriteBytes(object connection, byte[] data, int offset, int length)
@@ -123,11 +111,16 @@ namespace Kabomu.Examples.Shared
             return WriteBytesInternal(connection, data, offset, length);
         }
 
-        internal static Task WriteBytesInternal(object connection, byte[] data, int offset, int length)
+        internal static async Task WriteBytesInternal(object connection, byte[] data, int offset, int length)
         {
-            var tcpClient = (TcpClient)connection;
-            Stream networkStream = tcpClient.GetStream();
-            return networkStream.WriteAsync(data, offset, length);
+            var networkStream = (Socket)connection;
+            int totalBytesSent = 0;
+            while (totalBytesSent < length)
+            {
+                int bytesSent = await networkStream.SendAsync(
+                    new ReadOnlyMemory<byte>(data, offset + totalBytesSent, length - totalBytesSent), SocketFlags.None);
+                totalBytesSent += bytesSent;
+            }
         }
     }
 }
