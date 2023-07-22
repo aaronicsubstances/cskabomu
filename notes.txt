@@ -3,22 +3,21 @@ Release
 copyright
 author
 version update
-git branch commit update in nuspec
+git branch commit update in nuspec?
 git tag
 readme
 xml documentation
-release config
+pack nuspec with release config
 https://docs.microsoft.com/en-us/nuget/create-packages/creating-a-package#the-role-and-structure-of-the-nuspec-file
 
-default transports - keep in examples, later migrate to Kabomu.StandardAddons
+default transports - keep in examples, later can migrate to Kabomu.StandardAddons
 ------------------
-LocalhostTcpTransport - making it async may require use of third party library. 
--consider connect/read timeout usage - https://www.baeldung.com/java-socket-connection-read-timeout
-UnixSocketDomainTransport - availability and making it async may require use of third party library
-WindowsNamedPipeTransport - availability and making it async may require use of third party library
+LocalhostTcpTransport
+-consider demonstrating connect/read timeout usage
+UnixSocketDomainTransport
+WindowsNamedPipeTransport
 HttpTransport
 MemoryTransport
-ZeroMQTransport?
 
 Optimize?
 --------
