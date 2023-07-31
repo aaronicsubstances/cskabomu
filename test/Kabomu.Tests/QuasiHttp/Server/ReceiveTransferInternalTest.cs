@@ -35,10 +35,8 @@ namespace Kabomu.Tests.QuasiHttp.Server
         public async Task TestStartProtocol2()
         {
             // arrange
-            var instance = new ReceiveTransferInternal
-            {
-                IsAborted = true
-            };
+            var instance = new ReceiveTransferInternal();
+            instance.TrySetAborted();
             var protocol = new HelperReceiveProtocol
             {
                 ExpectedReceiveResult = new DefaultQuasiHttpResponse()
@@ -155,10 +153,10 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             var instance = new ReceiveTransferInternal
             {
-                IsAborted = true,
                 TimeoutId = new CancellationTokenSource(),
                 Protocol = protocol
             };
+            instance.TrySetAborted();
             var response = new DefaultQuasiHttpResponse
             {
                 Body = new StringBody("unbuffered"),

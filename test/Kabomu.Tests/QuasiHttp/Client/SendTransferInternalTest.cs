@@ -61,10 +61,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
         public async Task TestStartProtocol3()
         {
             // arrange
-            var instance = new SendTransferInternal
-            {
-                IsAborted = true
-            };
+            var instance = new SendTransferInternal();
+            instance.TrySetAborted();
             var protocol = new HelperSendProtocol
             {
                 ExpectedSendResult = new ProtocolSendResultInternal()
@@ -227,10 +225,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var instance = new SendTransferInternal
             {
-                IsAborted = true,
                 TimeoutId = new CancellationTokenSource(),
                 Protocol = protocol
             };
+            instance.TrySetAborted();
             Exception cancellationError = null;
             var resCts = new CancellationTokenSource();
             ProtocolSendResultInternal res = new ProtocolSendResultInternal

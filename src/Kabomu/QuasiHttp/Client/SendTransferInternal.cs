@@ -8,16 +8,21 @@ namespace Kabomu.QuasiHttp.Client
 {
     internal class SendTransferInternal
     {
-        private readonly object _mutex = new object();
+        private int _abortCalled;
 
         public ISendProtocolInternal Protocol { get; set; }
         public CancellationTokenSource TimeoutId { get; set; }
-        public bool IsAborted { get; set; }
+        public bool IsAborted => _abortCalled != 0;
         public TaskCompletionSource<ProtocolSendResultInternal> CancellationTcs { get; set; }
         public IQuasiHttpRequest Request { get; set; }
         public int MaxChunkSize { get; set; }
         public bool ResponseBufferingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
+
+        public bool TrySetAborted()
+        {
+            return Interlocked.CompareExchange(ref _abortCalled, 1, 0) == 0;
+        }
 
         public async Task<ProtocolSendResultInternal> StartProtocol(ISendProtocolInternal protocol)
         {
@@ -27,24 +32,41 @@ namespace Kabomu.QuasiHttp.Client
             return res;
         }
 
-        public  async Task Abort(Exception cancellationError, ProtocolSendResultInternal res)
+        public async Task Abort(Exception cancellationError, ProtocolSendResultInternal res)
         {
-            Task disableTask = null;
-            var disposeRes = false;
-            lock (_mutex)
+            if (TrySetAborted())
             {
-                if (IsAborted)
+                TimeoutId?.Cancel();
+
+                if (cancellationError != null)
                 {
-                    disposeRes = true;
+                    CancellationTcs?.TrySetException(cancellationError);
                 }
                 else
                 {
-                    IsAborted = true;
-                    disableTask = Disable(cancellationError, res,
-                        CancellationTcs, TimeoutId, Protocol, Request);
+                    CancellationTcs?.TrySetResult(null);
+                }
+
+                if (cancellationError != null || res?.Response?.Body == null || res?.ResponseBufferingApplied == true)
+                {
+                    try
+                    {
+                        await Protocol.Cancel();
+                    }
+                    catch (Exception) { } // ignore
+                }
+
+                // close request body
+                if (Request != null)
+                {
+                    try
+                    {
+                        await Request.CustomDispose();
+                    }
+                    catch (Exception) { } // ignore
                 }
             }
-            if (disposeRes)
+            else
             {
                 // dispose off response
                 try
@@ -56,46 +78,6 @@ namespace Kabomu.QuasiHttp.Client
                     }
                 }
                 catch (Exception) { } // ignore.
-            }
-            if (disableTask != null)
-            {
-                await disableTask;
-            }
-        }
-
-        private static async Task Disable(Exception cancellationError, ProtocolSendResultInternal res,
-            
-            TaskCompletionSource<ProtocolSendResultInternal> cancellationTcs,
-            CancellationTokenSource timeoutId, ISendProtocolInternal protocol, IQuasiHttpRequest request)
-        {
-            timeoutId?.Cancel();
-
-            if (cancellationError != null)
-            {
-                cancellationTcs?.TrySetException(cancellationError);
-            }
-            else
-            {
-                cancellationTcs?.TrySetResult(null);
-            }
-
-            if (cancellationError != null || res?.Response?.Body == null || res?.ResponseBufferingApplied == true)
-            {
-                try
-                {
-                    await protocol.Cancel();
-                }
-                catch (Exception) { } // ignore
-            }
-
-            // close request body
-            if (request != null)
-            {
-                try
-                {
-                    await request.CustomDispose();
-                }
-                catch (Exception) { } // ignore
             }
         }
     }

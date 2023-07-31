@@ -7,12 +7,17 @@ namespace Kabomu.QuasiHttp.Server
 {
     internal class ReceiveTransferInternal
     {
-        private readonly object _mutex = new object();
+        private int _abortCalled;
 
         public IReceiveProtocolInternal Protocol { get; set; }
         public CancellationTokenSource TimeoutId { get; set; }
-        public bool IsAborted { get; set; }
+        public bool IsAborted => _abortCalled != 0;
         public IQuasiHttpRequest Request { get; set; }
+
+        public bool TrySetAborted()
+        {
+            return Interlocked.CompareExchange(ref _abortCalled, 1, 0) == 0;
+        }
 
         public async Task<IQuasiHttpResponse> StartProtocol(
             IReceiveProtocolInternal protocol)
@@ -25,21 +30,27 @@ namespace Kabomu.QuasiHttp.Server
 
         public async Task Abort(IQuasiHttpResponse res)
         {
-            Task disableTask = null;
-            var disposeRes = false;
-            lock (_mutex)
+            if (TrySetAborted())
             {
-                if (IsAborted)
+                TimeoutId?.Cancel();
+
+                try
                 {
-                    disposeRes = true;
+                    await Protocol.Cancel();
                 }
-                else
+                catch (Exception) { } // ignore
+
+                // close body of request received for direct send to application
+                if (Request != null)
                 {
-                    IsAborted = true;
-                    disableTask = Disable(TimeoutId, Protocol, Request);
+                    try
+                    {
+                        await Request.CustomDispose();
+                    }
+                    catch (Exception) { }
                 }
             }
-            if (disposeRes)
+            else
             {
                 // dispose off response
                 try
@@ -51,32 +62,6 @@ namespace Kabomu.QuasiHttp.Server
                     }
                 }
                 catch (Exception) { } // ignore.
-            }
-            if (disableTask != null)
-            {
-                await disableTask;
-            }
-        }
-
-        private static async Task Disable(CancellationTokenSource timeoutId,
-            IReceiveProtocolInternal protocol, IQuasiHttpRequest request)
-        {
-            timeoutId?.Cancel();
-
-            try
-            {
-                await protocol.Cancel();
-            }
-            catch (Exception) { } // ignore
-
-            // close body of request received for direct send to application
-            if (request != null)
-            {
-                try
-                {
-                    await request.CustomDispose();
-                }
-                catch (Exception) { }
             }
         }
     }
