@@ -27,18 +27,19 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 };
                 return instance.Send();
             });
+        }
 
-            var ex = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+        [Fact]
+        public async Task TestSendForNoResponse()
+        {
+            var transport = new HelperQuasiHttpAltTransport();
+            var instance = new AltSendProtocolInternal
             {
-                var transport = new HelperQuasiHttpAltTransport();
-                var instance = new AltSendProtocolInternal
-                {
-                    TransportBypass = transport,
-                    ResponseTask = Task.FromResult<IQuasiHttpResponse>(null)
-                };
-                return instance.Send();
-            });
-            Assert.Contains("no response", ex.Message);
+                TransportBypass = transport,
+                ResponseTask = Task.FromResult<IQuasiHttpResponse>(null)
+            };
+            var actual = await instance.Send();
+            Assert.Null(actual);
         }
 
         [Fact]

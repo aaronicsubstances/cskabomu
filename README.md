@@ -36,6 +36,8 @@ Kabomu seeks to demonstrate the following:
 
 ## Usage
 
+The entry classes of the libary are [StandardQuasiHttpClient](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/QuasiHttp/Client/StandardQuasiHttpClient.cs), [StandardQuasiHttpServer](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/QuasiHttp/Server/StandardQuasiHttpServer.cs) and [MediatorQuasiWebApplication](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/Mediator/MediatorQuasiWebApplication.cs).
+
 See [Examples](https://github.com/aaronicsubstances/cskabomu/tree/main/examples) folder for sample file serving programs based on each default quasi web transport.
 
 The sample programs come in pairs (with the exception of the memory-based one):  a client program and corresponding server program. The server program must be started first. By default a client program uploads all files from its current directory to a folder created in the server program's current directory.

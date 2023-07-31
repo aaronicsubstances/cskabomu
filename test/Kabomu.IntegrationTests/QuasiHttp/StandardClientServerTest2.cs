@@ -116,7 +116,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 }
             };
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
-                client.Send2(remoteEndpoint, requestFunc, options).Item1);
+                client.Send(remoteEndpoint, requestFunc, options).Item1);
             Log.Info(actualEx, "actual error from TestRequestFuncYieldNoRequest1");
             Assert.Contains("no request", actualEx.Message);
 
@@ -168,7 +168,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 }
             };
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
-                client.Send2(remoteEndpoint, requestFunc, options).Item1);
+                client.Send(remoteEndpoint, requestFunc, options).Item1);
             Log.Info(actualEx, "actual error from TestRequestFuncYieldNoRequest2");
             Assert.Contains("send request processing", actualEx.Message);
             Assert.Equal("error from req func", actualEx.InnerException?.Message);
@@ -229,7 +229,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 actualReqEnv = reqEnv;
                 return Task.FromResult<IQuasiHttpRequest>(expectedRequest);
             };
-            var result = client.Send2(remoteEndpoint, requestFunc, null);
+            var result = client.Send(remoteEndpoint, requestFunc, null);
             var actualResponse = await result.Item1;
             Assert.NotNull(serverTask);
             await serverTask;
@@ -298,7 +298,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 return expectedRequest;
             };
             var sendOptions = new DefaultQuasiHttpSendOptions();
-            var result = client.Send2(remoteEndpoint, requestFunc, sendOptions);
+            var result = client.Send(remoteEndpoint, requestFunc, sendOptions);
             var actualResponse = await result.Item1;
             Assert.NotNull(serverTask);
             await serverTask;
@@ -354,7 +354,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 await Task.Delay(1000);
                 return expectedRequest;
             };
-            var result = client.Send2(remoteEndpoint, requestFunc, null);
+            var result = client.Send(remoteEndpoint, requestFunc, null);
             var actualResponse = await result.Item1;
             Assert.NotNull(serverTask);
             await serverTask;
@@ -409,7 +409,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 return new DefaultQuasiHttpRequest();
             };
             var sendOptions = new DefaultQuasiHttpSendOptions();
-            var result = client.Send2(remoteEndpoint, requestFunc, sendOptions);
+            var result = client.Send(remoteEndpoint, requestFunc, sendOptions);
             await Task.Delay(1000);
             client.CancelSend(result.Item2);
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
@@ -474,7 +474,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 return new DefaultQuasiHttpRequest();
             };
             var sendOptions = new DefaultQuasiHttpSendOptions();
-            var result = client.Send2(remoteEndpoint, requestFunc, sendOptions);
+            var result = client.Send(remoteEndpoint, requestFunc, sendOptions);
             await Task.Delay(1000);
             client.CancelSend(result.Item2);
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
@@ -532,7 +532,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 return new DefaultQuasiHttpRequest();
             };
             var sendOptions = new DefaultQuasiHttpSendOptions();
-            var result = client.Send2(remoteEndpoint, requestFunc, sendOptions);
+            var result = client.Send(remoteEndpoint, requestFunc, sendOptions);
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
                 result.Item1);
             Log.Info(actualEx, "actual error from TestTimeout1");

@@ -51,7 +51,7 @@ namespace Memory.FileExchange
                     TimeoutMillis = 5_000
                 }
             };
-            var application = new FileReceiver(clientEndpoint, downloadDirPath);
+            var application = FileReceiver.Create(clientEndpoint, downloadDirPath);
             if (useTransportBypass)
             {
                 instance.TransportBypass = new MemoryBasedAltTransport

@@ -59,7 +59,7 @@ namespace Http.FileServer
                 }
             };
             var serverUrl = new Uri($"http://127.0.0.1:{port}");
-            instance.Application = new FileReceiver(serverUrl, uploadDirPath);
+            instance.Application = FileReceiver.Create(serverUrl, uploadDirPath);
             using (var server = new KestrelServer(new OptionsWrapper<KestrelServerOptions>(serverOptions),
                 transportFactory, loggerFactory))
             {

@@ -40,7 +40,7 @@ namespace WindowsNamedPipe.FileServer
                     TimeoutMillis = 5_000
                 }
             };
-            instance.Application = new FileReceiver(path, uploadDirPath);
+            instance.Application = FileReceiver.Create(path, uploadDirPath);
             var transport = new WindowsNamedPipeServerTransport(path)
             {
                 Server = instance

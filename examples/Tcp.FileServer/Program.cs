@@ -40,7 +40,7 @@ namespace Tcp.FileServer
                     TimeoutMillis = 5_000
                 }
             };
-            instance.Application = new FileReceiver(port, uploadDirPath);
+            instance.Application = FileReceiver.Create(port, uploadDirPath);
             var transport = new LocalhostTcpServerTransport(port)
             {
                 Server = instance

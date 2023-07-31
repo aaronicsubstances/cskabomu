@@ -20,8 +20,6 @@ namespace Kabomu.QuasiHttp.Server
     /// </remarks>
     public class StandardQuasiHttpServer
     {
-        private readonly object _mutex = new object();
-
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -32,19 +30,19 @@ namespace Kabomu.QuasiHttp.Server
         /// <summary>
         /// Gets or sets the default options used to process receive requests.
         /// </summary>
-        public IQuasiHttpProcessingOptions DefaultProcessingOptions { get; set; }
+        public virtual IQuasiHttpProcessingOptions DefaultProcessingOptions { get; set; }
 
         /// <summary>
         /// Gets or sets an instance of the <see cref="IQuasiHttpApplication"/> type which is
         /// responsible for processing requests to generate responses.
         /// </summary>
-        public IQuasiHttpApplication Application { get; set; }
+        public virtual IQuasiHttpApplication Application { get; set; }
 
         /// <summary>
         /// Gets or sets the underlying transport (TCP or IPC) for retrieving requests
         /// for quasi web applications, and for sending responses generated from quasi web applications.
         /// </summary>
-        public IQuasiHttpServerTransport Transport { get; set; }
+        public virtual IQuasiHttpServerTransport Transport { get; set; }
 
         /// <summary>
         /// Used to process incoming connections from quasi http server transports.
@@ -82,28 +80,29 @@ namespace Kabomu.QuasiHttp.Server
         private async Task ProcessAcceptConnection(ReceiveTransferInternal transfer,
             IConnectionAllocationResponse connectionResponse)
         {
-            Task<IQuasiHttpResponse> workTask;
+            // access fields for use per processing call, in order to cooperate with
+            // any implementation of field accessors which supports
+            // concurrent modifications.
+            var defaultProcessingOptions = DefaultProcessingOptions;
+
             Task<IQuasiHttpResponse> timeoutTask;
-            lock (_mutex)
+            var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
+                null, defaultProcessingOptions?.TimeoutMillis, 0);
+            (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis,
+                "receive timeout");
+
+            int maxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
+                null, defaultProcessingOptions?.MaxChunkSize, 0);
+
+            var protocol = new DefaultReceiveProtocolInternal
             {
-                var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
-                    null, DefaultProcessingOptions?.TimeoutMillis, 0);
-                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis,
-                    "receive timeout");
-
-                int maxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
-                    null, DefaultProcessingOptions?.MaxChunkSize, 0);
-
-                var protocol = new DefaultReceiveProtocolInternal
-                {
-                    MaxChunkSize = maxChunkSize,
-                    Application = Application,
-                    Transport = Transport,
-                    Connection = connectionResponse.Connection,
-                    RequestEnvironment = connectionResponse.Environment
-                };
-                workTask = transfer.StartProtocol(protocol);
-            }
+                MaxChunkSize = maxChunkSize,
+                Application = Application,
+                Transport = Transport,
+                Connection = connectionResponse.Connection,
+                RequestEnvironment = connectionResponse.Environment
+            };
+            var workTask = transfer.StartProtocol(protocol);
             await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
                 timeoutTask, null);
         }
@@ -137,10 +136,6 @@ namespace Kabomu.QuasiHttp.Server
             try
             {
                 res = await ProcessAcceptRequest(transfer, options);
-                if (res == null)
-                {
-                    throw new ExpectationViolationException("expected non-null response");
-                }
             }
             catch (Exception e)
             {
@@ -163,22 +158,18 @@ namespace Kabomu.QuasiHttp.Server
         private async Task<IQuasiHttpResponse> ProcessAcceptRequest(
             ReceiveTransferInternal transfer, IQuasiHttpProcessingOptions options)
         {
-            Task<IQuasiHttpResponse> workTask;
             Task<IQuasiHttpResponse> timeoutTask;
-            lock (_mutex)
-            {
-                var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
-                    options?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
-                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis,
-                    "receive timeout");
+            var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
+                options?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
+            (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis,
+                "receive timeout");
 
-                var protocol = new AltReceiveProtocolInternal
-                {
-                    Application = Application,
-                    Request = transfer.Request
-                };
-                workTask = transfer.StartProtocol(protocol);
-            }
+            var protocol = new AltReceiveProtocolInternal
+            {
+                Application = Application,
+                Request = transfer.Request
+            };
+            var workTask = transfer.StartProtocol(protocol);
             return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
                 timeoutTask, null);
         }

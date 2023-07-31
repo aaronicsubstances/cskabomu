@@ -44,7 +44,7 @@ namespace Kabomu.QuasiHttp.Client
 
             if (response == null)
             {
-                throw new QuasiHttpRequestProcessingException("no response");
+                return null;
             }
             
             // save for closing later if needed.

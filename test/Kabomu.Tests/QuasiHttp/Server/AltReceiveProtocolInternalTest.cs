@@ -23,24 +23,25 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 };
                 return instance.Receive();
             });
+        }
 
-            var ex = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+        [Fact]
+        public async Task TestReceiveForNoResponse()
+        {
+            var app = new ConfigurableQuasiHttpApplication
             {
-                var app = new ConfigurableQuasiHttpApplication
+                ProcessRequestCallback = async (req) =>
                 {
-                    ProcessRequestCallback = async (req) =>
-                    {
-                        return null;
-                    }
-                };
-                var instance = new AltReceiveProtocolInternal
-                {
-                    Application = app,
-                    Request = new DefaultQuasiHttpRequest()
-                };
-                return instance.Receive();
-            });
-            Assert.Contains("no response", ex.Message);
+                    return null;
+                }
+            };
+            var instance = new AltReceiveProtocolInternal
+            {
+                Application = app,
+                Request = new DefaultQuasiHttpRequest()
+            };
+            var actual = await instance.Receive();
+            Assert.Null(actual);
         }
 
         [Fact]

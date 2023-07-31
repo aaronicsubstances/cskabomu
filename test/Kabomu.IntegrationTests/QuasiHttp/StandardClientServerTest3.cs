@@ -119,7 +119,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
 
             // act
-            var result = client.Send2(remoteEndpoint, requestFunc, null);
+            var result = client.Send(remoteEndpoint, requestFunc, null);
             var actualResponse = await result.Item1;
 
             // assert
@@ -184,7 +184,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
 
             // act
-            var result = client.Send2(remoteEndpoint, requestFunc, sendOptions);
+            var result = client.Send(remoteEndpoint, requestFunc, sendOptions);
             var actualResponse = await result.Item1;
 
             // assert
@@ -385,6 +385,135 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         }
 
         [Fact]
+        public async Task TestClientBypass7()
+        {
+            // arrange
+            var remoteEndpoint = new object();
+            var request = new DefaultQuasiHttpRequest();
+            IQuasiHttpRequest actualRequest = null;
+            var transportBypass = new DemoTransportBypass
+            {
+                SendRequestCallback = async (req) =>
+                {
+                    actualRequest = req;
+                    await Task.Delay(500);
+                    return null;
+                }
+            };
+            var client = new StandardQuasiHttpClient
+            {
+                TransportBypass = transportBypass,
+                DefaultSendOptions = new DefaultQuasiHttpSendOptions
+                {
+                    TimeoutMillis = 3_000,
+                    ExtraConnectivityParams = new Dictionary<string, object>
+                    {
+                        { "1", "1" },
+                        { "2", "2,2" },
+                        { "3", "3,3,3" }
+                    }
+                }
+            };
+            var sendOptions = new DefaultQuasiHttpSendOptions
+            {
+                ExtraConnectivityParams = new Dictionary<string, object>
+                {
+                    { "1", "one" },
+                    { "2", "two" },
+                    { "4", "four" }
+                }
+            };
+            var expectedConnectivityParams = new DefaultConnectivityParams
+            {
+                RemoteEndpoint = remoteEndpoint,
+                ExtraParams = new Dictionary<string, object>
+                {
+                    { "1", "one" },
+                    { "2", "two" },
+                    { "3", "3,3,3" },
+                    { "4", "four" }
+                }
+            };
+
+            // act
+            var actualResponse = await client.Send(remoteEndpoint, request, sendOptions);
+
+            // assert
+            Assert.Same(request, actualRequest);
+            ComparisonUtils.CompareConnectivityParams(expectedConnectivityParams,
+                transportBypass.ActualConnectivityParams);
+            Assert.Null(actualResponse);
+            Assert.False(transportBypass.IsCancellationRequested);
+        }
+
+        [Fact]
+        public async Task TestClientBypass8()
+        {
+            // arrange
+            var remoteEndpoint = new object();
+            var request = new DefaultQuasiHttpRequest();
+            IQuasiHttpRequest actualRequest = null;
+            var transportBypass = new DemoTransportBypass
+            {
+                CreateCancellationHandles = true,
+                SendRequestCallback = async (req) =>
+                {
+                    actualRequest = req;
+                    await Task.Delay(500);
+                    return null;
+                }
+            };
+            var client = new StandardQuasiHttpClient
+            {
+                TransportBypass = transportBypass,
+                DefaultSendOptions = new DefaultQuasiHttpSendOptions
+                {
+                    TimeoutMillis = 3_000,
+                    ExtraConnectivityParams = new Dictionary<string, object>
+                    {
+                        { "1", "1" },
+                        { "2", "2,2" },
+                        { "3", "3,3,3" }
+                    }
+                }
+            };
+            var sendOptions = new DefaultQuasiHttpSendOptions
+            {
+                ExtraConnectivityParams = new Dictionary<string, object>
+                {
+                    { "11", "eleven" },
+                    { "12", "twelve" },
+                    { "4", "four" }
+                }
+            };
+            var expectedConnectivityParams = new DefaultConnectivityParams
+            {
+                RemoteEndpoint = remoteEndpoint,
+                ExtraParams = new Dictionary<string, object>
+                {
+                    { "1", "1" },
+                    { "2", "2,2" },
+                    { "3", "3,3,3" },
+                    { "4", "four" },
+                    { "11", "eleven" },
+                    { "12", "twelve" }
+                }
+            };
+
+            // act
+            var result = client.Send(remoteEndpoint,
+                _ => Task.FromResult<IQuasiHttpRequest>(request), sendOptions);
+            var actualResponse = await result.Item1;
+
+            // assert
+            Assert.Same(request, actualRequest);
+            ComparisonUtils.CompareConnectivityParams(expectedConnectivityParams,
+                transportBypass.ActualConnectivityParams);
+            Assert.Null(actualResponse);
+            Assert.True(transportBypass.IsCancellationRequested);
+        }
+
+        [Fact]
         public async Task TestClientBypassTimeout1()
         {
             // act
@@ -496,7 +625,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
 
             // act
-            var result = client.Send2(remoteEndpoint, _ =>
+            var result = client.Send(remoteEndpoint, _ =>
                 Task.FromResult<IQuasiHttpRequest>(null), null);
             await Task.Delay(1_000);
             Assert.False(transportBypass.IsCancellationRequested);
@@ -551,7 +680,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
 
             // act
-            var result = client.Send2(remoteEndpoint, _ =>
+            var result = client.Send(remoteEndpoint, _ =>
                 Task.FromResult<IQuasiHttpRequest>(null), null);
             await Task.Delay(1_000);
             Assert.False(transportBypass.IsCancellationRequested);
@@ -569,7 +698,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         }
 
         [Fact]
-        public async Task TestServerBypass()
+        public async Task TestServerBypass1()
         {
             var remoteEndpoint = new object();
             var request = new DefaultQuasiHttpRequest
@@ -596,6 +725,34 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             // test that it is not disposed.
             await ComparisonUtils.CompareResponses(expectedResponse,
                 actualResponse, null);
+            // test that transfer was aborted.
+            Assert.True(request.CancellationTokenSource.IsCancellationRequested);
+        }
+
+        [Fact]
+        public async Task TestServerBypass2()
+        {
+            var remoteEndpoint = new object();
+            var request = new DefaultQuasiHttpRequest
+            {
+                CancellationTokenSource = new CancellationTokenSource()
+            };
+            IQuasiHttpRequest actualRequest = null;
+            var server = new StandardQuasiHttpServer
+            {
+                Application = new ConfigurableQuasiHttpApplication
+                {
+                    ProcessRequestCallback = async req =>
+                    {
+                        actualRequest = req;
+                        await Task.Delay(1_200);
+                        return null;
+                    }
+                }
+            };
+            var actualResponse = await server.AcceptRequest(request, null);
+            Assert.Same(request, actualRequest);
+            Assert.Null(actualResponse);
             // test that transfer was aborted.
             Assert.True(request.CancellationTokenSource.IsCancellationRequested);
         }

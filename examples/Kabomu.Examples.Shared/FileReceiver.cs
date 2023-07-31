@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.Mediator;
 using Kabomu.Mediator.Handling;
+using Kabomu.Mediator.Registry;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
 using NLog;
@@ -13,44 +14,43 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Examples.Shared
 {
-    public class FileReceiver : IQuasiHttpApplication
+    public class FileReceiver
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
-        private readonly object _remoteEndpoint;
-        private readonly string _downloadDirPath;
+        private FileReceiver() { }
 
-        public FileReceiver(object remoteEndpoint, string downloadDirPath)
+        public static IQuasiHttpApplication Create(object remoteEndpoint, string downloadDirPath)
         {
-            _remoteEndpoint = remoteEndpoint;
-            _downloadDirPath = downloadDirPath;
-        }
-
-        public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request)
-        {
+            var appConstants = new DefaultMutableRegistry();
+            appConstants.Add("remoteEndpoint", remoteEndpoint);
+            appConstants.Add("downloadDirPath", downloadDirPath);
             var initialHandlers = new Handler[]
             {
                 context => ReceiveFileTransfer(context)
             };
-            var delegateApp = new MediatorQuasiWebApplication
+            var app = new MediatorQuasiWebApplication
             {
-                InitialHandlers = initialHandlers
+                InitialHandlers = initialHandlers,
+                HandlerConstants = appConstants
             };
-            return delegateApp.ProcessRequest(request);
+            return app;
         }
 
-        private async Task ReceiveFileTransfer(IContext context)
+        private static async Task ReceiveFileTransfer(IContext context)
         {
+            var remoteEndpoint = context.Get("remoteEndpoint");
+            var downloadDirPath = (string)context.Get("downloadDirPath");
             var fileName = context.Request.Headers.Get("f");
-            LOG.Debug("Starting receipt of file {0} from {1}...", fileName, _remoteEndpoint);
+            LOG.Debug("Starting receipt of file {0} from {1}...", fileName, remoteEndpoint);
 
             Exception transferError = null;
             try
             {
                 // ensure directory exists.
                 // just in case remote endpoint contains invalid file path characters...
-                var pathForRemoteEndpoint = Regex.Replace(_remoteEndpoint.ToString(), @"\W", "_");
-                var directory = new DirectoryInfo(Path.Combine(_downloadDirPath, pathForRemoteEndpoint));
+                var pathForRemoteEndpoint = Regex.Replace(remoteEndpoint.ToString(), @"\W", "_");
+                var directory = new DirectoryInfo(Path.Combine(downloadDirPath, pathForRemoteEndpoint));
                 directory.Create();
                 string p = Path.Combine(directory.Name, fileName);
                 using (var fileStream = new FileStream(p, FileMode.Create))

@@ -21,7 +21,7 @@ namespace Kabomu.QuasiHttp.Server
             return Task.CompletedTask;
         }
 
-        public async Task<IQuasiHttpResponse> Receive()
+        public Task<IQuasiHttpResponse> Receive()
         {
             if (Application == null)
             {
@@ -32,14 +32,7 @@ namespace Kabomu.QuasiHttp.Server
                 throw new ExpectationViolationException("request");
             }
 
-            var res = await Application.ProcessRequest(Request);
-
-            if (res == null)
-            {
-                throw new QuasiHttpRequestProcessingException("no response");
-            }
-
-            return res;
+            return Application.ProcessRequest(Request);
         }
     }
 }
