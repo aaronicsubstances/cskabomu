@@ -141,6 +141,10 @@ namespace Kabomu.QuasiHttp.Client
                 res = await ProcessSend(remoteEndpoint, requestFunc,
                     options, transfer);
                 response = res?.Response;
+                if (response == null && transfer.EnsureNonNullResponse)
+                {
+                    throw new QuasiHttpRequestProcessingException("no response");
+                }
             }
             catch (Exception e)
             {
@@ -202,6 +206,19 @@ namespace Kabomu.QuasiHttp.Client
                 defaultSendOptions?.ResponseBodyBufferingSizeLimit,
                 0);
 
+            var connectivityParamFireAndForget = ProtocolUtilsInternal.GetEnvVarAsBoolean(
+                effectiveConnectivityParams.ExtraParams,
+                TransportUtils.ConnectivityParamFireAndForget);
+            var defaultForEnsureNonNullResponse = true;
+            if (connectivityParamFireAndForget == true)
+            {
+                defaultForEnsureNonNullResponse = false;
+            }
+            transfer.EnsureNonNullResponse = ProtocolUtilsInternal.DetermineEffectiveBooleanOption(
+                options?.EnsureNonNullResponse,
+                defaultSendOptions?.EnsureNonNullResponse,
+                defaultForEnsureNonNullResponse);
+
             Task<ProtocolSendResultInternal> workTask;
             if (transportBypass != null)
             {
@@ -221,24 +238,27 @@ namespace Kabomu.QuasiHttp.Client
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IConnectivityParams connectivityParams, IQuasiHttpAltTransport transportBypass)
         {
-            var protocol = new AltSendProtocolInternal
-            {
-                TransportBypass = transportBypass,
-                ResponseBufferingEnabled = transfer.ResponseBufferingEnabled,
-                ResponseBodyBufferingSizeLimit = transfer.ResponseBodyBufferingSizeLimit
-            };
+            Task<IQuasiHttpResponse> responseTask;
+            object sendCancellationHandle;
             if (requestFunc != null)
             {
-                (protocol.ResponseTask, protocol.SendCancellationHandle) =
+                (responseTask, sendCancellationHandle) =
                     transportBypass.ProcessSendRequest(requestFunc, connectivityParams);
             }
             else
             {
-                (protocol.ResponseTask, protocol.SendCancellationHandle) =
+                (responseTask, sendCancellationHandle) =
                     transportBypass.ProcessSendRequest(transfer.Request, connectivityParams);
             }
-
-            return await transfer.StartProtocol(protocol);
+            transfer.Protocol = new AltSendProtocolInternal
+            {
+                TransportBypass = transportBypass,
+                ResponseBufferingEnabled = transfer.ResponseBufferingEnabled,
+                ResponseBodyBufferingSizeLimit = transfer.ResponseBodyBufferingSizeLimit,
+                ResponseTask = responseTask,
+                SendCancellationHandle = sendCancellationHandle
+            };
+            return await transfer.StartProtocol();
         }
 
         private static async Task<ProtocolSendResultInternal> AllocateConnectionAndSend(SendTransferInternal transfer,
@@ -260,7 +280,7 @@ namespace Kabomu.QuasiHttp.Client
             {
                 requestFunc = _ => Task.FromResult(transfer.Request);
             }
-            var protocol = new DefaultSendProtocolInternal
+            transfer.Protocol = new DefaultSendProtocolInternal
             {
                 RequestFunc = requestFunc,
                 RequestEnvironment = connectionResponse.Environment,
@@ -270,7 +290,7 @@ namespace Kabomu.QuasiHttp.Client
                 ResponseBodyBufferingSizeLimit = transfer.ResponseBodyBufferingSizeLimit,
                 MaxChunkSize = transfer.MaxChunkSize,
             };
-            return await transfer.StartProtocol(protocol);
+            return await transfer.StartProtocol();
         }
     }
 }

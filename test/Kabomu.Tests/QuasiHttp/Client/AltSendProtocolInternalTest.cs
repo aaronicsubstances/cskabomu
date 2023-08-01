@@ -258,6 +258,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             await ComparisonUtils.CompareResponses(
                 expectedResponse, response?.Response, expectedResBodyBytes);
+            Assert.Equal(expectedResponse.Environment,
+                response.Response.Environment);
 
             await instance.Cancel();
             Assert.Same(sendCancellationHandle, transport.ActualCancellationHandle);
@@ -316,6 +318,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Body = new ByteBufferBody(expectedResBodyBytes)
                 {
                     ContentLength = -1
+                },
+                Environment = new Dictionary<string, object>
+                {
+                    { "scheme", "shivers" }
                 }
             };
             testData.Add(new object[] { responseBodyBufferingLimit, sendCancellationHandle,
@@ -337,7 +343,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     { "three", new List<string>{ "3", "3", "3" } },
                     { "four", new List<string>{ "4", "4", "4", "4" } },
                 },
-                Body = new ByteBufferBody(expectedResBodyBytes)
+                Body = new ByteBufferBody(expectedResBodyBytes),
+                Environment = new Dictionary<string, object>()
             };
             testData.Add(new object[] { responseBodyBufferingLimit, sendCancellationHandle,
                 expectedResBodyBytes, expectedResponse });

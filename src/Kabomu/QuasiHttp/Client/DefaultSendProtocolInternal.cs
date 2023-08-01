@@ -53,14 +53,10 @@ namespace Kabomu.QuasiHttp.Client
                 Connection, false);
 
             await SendRequestLeadChunk(request, transportReaderWriter);
-            // NB: tests depend on request body transfer started before
-            // reading of response.
             var reqTransferTask = ProtocolUtilsInternal.TransferBodyToTransport(
                 Transport, Connection, MaxChunkSize, request.Body);
             var resFetchTask = StartFetchingResponse(transportReaderWriter);
-            // pass resFetchTask first so that even if both are completed, it
-            //  will still win.
-            if (await Task.WhenAny(resFetchTask, reqTransferTask) == reqTransferTask)
+            if (await Task.WhenAny(reqTransferTask, resFetchTask) == reqTransferTask)
             {
                 // let any request transfer exceptions terminate entire processing.
                 await reqTransferTask;
@@ -92,6 +88,10 @@ namespace Kabomu.QuasiHttp.Client
         {
             var chunk = await ChunkedTransferUtils.ReadLeadChunk(reader,
                 MaxChunkSize);
+            if (chunk == null)
+            {
+                return null;
+            }
             var response = new DefaultQuasiHttpResponse
             {
                 StatusCode = chunk.StatusCode,

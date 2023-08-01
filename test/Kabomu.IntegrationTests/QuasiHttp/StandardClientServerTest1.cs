@@ -66,6 +66,71 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         }
 
         [Fact]
+        public async Task TestFireAndForget()
+        {
+            Task serverTask = null;
+            IQuasiHttpRequest actualRequestClone = null;
+            var server = new StandardQuasiHttpServer
+            {
+                Application = new ConfigurableQuasiHttpApplication
+                {
+                    ProcessRequestCallback = async (req) =>
+                    {
+                        actualRequestClone = req;
+                        await Task.Delay(1700);
+                        return new DefaultQuasiHttpResponse
+                        {
+                            Environment = new Dictionary<string, object>
+                            {
+                                { TransportUtils.ResEnvKeySkipResponseSending, true }
+                            }
+                        };
+                    }
+                }
+            };
+            var serverTransport = new MemoryBasedServerTransport
+            {
+                AcceptConnectionFunc = c =>
+                {
+                    serverTask = ProcessAcceptConnection(c, server);
+                }
+            };
+            server.Transport = serverTransport;
+
+            object endpoint = "m1";
+            var servers = new Dictionary<object, MemoryBasedServerTransport>
+            {
+                {  endpoint, serverTransport }
+            };
+            var clientTransport = new MemoryBasedClientTransport
+            {
+                Servers = servers
+            };
+            var client = new StandardQuasiHttpClient
+            {
+                Transport = clientTransport
+            };
+            var sendOptions = new DefaultQuasiHttpSendOptions
+            {
+                ExtraConnectivityParams = new Dictionary<string, object>
+                {
+                    { TransportUtils.ConnectivityParamFireAndForget, true }
+                }
+            };
+            var expectedRequest = new DefaultQuasiHttpRequest();
+
+            // act
+            var res = await client.Send(endpoint, expectedRequest, sendOptions);
+            Assert.NotNull(serverTask);
+            await serverTask;
+
+            // assert
+            Assert.Null(res);
+            await ComparisonUtils.CompareRequests(expectedRequest, actualRequestClone,
+                null);
+        }
+
+        [Fact]
         public async Task TestSuccess()
         {
             var testData = CreateTest1Data();

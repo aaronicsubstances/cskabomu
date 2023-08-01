@@ -112,8 +112,12 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             try
             {
                 byte[] encodedLength = new byte[LengthOfEncodedChunkLength];
+                if (await reader.ReadBytes(encodedLength, 0, 1) <= 0)
+                {
+                    return null;
+                }
                 await IOUtils.ReadBytesFully(reader,
-                    encodedLength, 0, encodedLength.Length);
+                    encodedLength, 1, encodedLength.Length - 1);
                 int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
                      encodedLength.Length, true);
                 ValidateChunkLength(chunkLen, maxChunkSize);

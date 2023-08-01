@@ -16,17 +16,19 @@ namespace Kabomu.Tests.QuasiHttp.Server
         public async Task TestStartProtocol1()
         {
             // arrange
-            var instance = new ReceiveTransferInternal();
             var protocol = new HelperReceiveProtocol
             {
                 ExpectedReceiveResult = new DefaultQuasiHttpResponse()
             };
+            var instance = new ReceiveTransferInternal
+            {
+                Protocol = protocol
+            };
 
             // act
-            var actual = await instance.StartProtocol(protocol);
+            var actual = await instance.StartProtocol();
 
             // assert
-            Assert.Same(protocol, instance.Protocol);
             Assert.Same(protocol.ExpectedReceiveResult, actual);
             Assert.True(protocol.Cancelled);
         }
@@ -35,18 +37,20 @@ namespace Kabomu.Tests.QuasiHttp.Server
         public async Task TestStartProtocol2()
         {
             // arrange
-            var instance = new ReceiveTransferInternal();
-            instance.TrySetAborted();
             var protocol = new HelperReceiveProtocol
             {
                 ExpectedReceiveResult = new DefaultQuasiHttpResponse()
             };
+            var instance = new ReceiveTransferInternal
+            {
+                Protocol = protocol
+            };
+            instance.TrySetAborted();
 
             // act
-            var actual = await instance.StartProtocol(protocol);
+            var actual = await instance.StartProtocol();
 
             // assert
-            Assert.Same(protocol, instance.Protocol);
             Assert.Same(protocol.ExpectedReceiveResult, actual);
             Assert.False(protocol.Cancelled);
         }
@@ -55,16 +59,19 @@ namespace Kabomu.Tests.QuasiHttp.Server
         public async Task TestStartProtocol3()
         {
             // arrange
-            var instance = new ReceiveTransferInternal();
             var protocol = new HelperReceiveProtocol
             {
                 ExpectedReceiveError = new NotImplementedException()
+            };
+            var instance = new ReceiveTransferInternal
+            {
+                Protocol = protocol
             };
 
             // act and assert error
             await Assert.ThrowsAsync<NotImplementedException>(() =>
             {
-                return instance.StartProtocol(protocol);
+                return instance.StartProtocol();
             });
 
             // assert

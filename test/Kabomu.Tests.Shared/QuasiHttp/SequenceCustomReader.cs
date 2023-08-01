@@ -17,7 +17,6 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             int bytesRead = 0;
             foreach (var reader in readers)
             {
-                if (reader == null) continue;
                 bytesRead = await reader.ReadBytes(data, offset, length);
                 if (bytesRead > 0)
                 {
@@ -33,7 +32,6 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             if (readers == null) return;
             foreach (var reader in readers)
             {
-                if (reader == null) continue;
                 await reader.CustomDispose();
             }
         }

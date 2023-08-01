@@ -2,5 +2,5 @@
 - system administration function for monitoring process group
 - networked database which allows ACID transaction management by one process, for the rest of the processes in a process group
 - in-memory cache with time-to-live and eviction notification support, to host non-serializable global variables
-- precursor to networked memory database like redis, to host serializable global variables
-- precursor to log-based message broker like kafka, to support deferred request processing
+- precursor to networked memory database like redis, to host serializable global variables (e.g. SQLite in-memory mode managed by one process, for the rest of the processes in a process group)
+- precursor to log-based message broker like kafka, to support deferred request processing (e.g. Hangfire, Resque, custom message broker based on Kabomu)

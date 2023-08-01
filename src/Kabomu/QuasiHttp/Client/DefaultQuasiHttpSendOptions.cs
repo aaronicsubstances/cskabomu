@@ -35,5 +35,11 @@ namespace Kabomu.QuasiHttp.Client
         /// where response streaming is disabled.
         /// </summary>
         public int ResponseBodyBufferingSizeLimit { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether null responses received from sending requests
+        /// should result in an error, or should simply be returned as is.
+        /// </summary>
+        public bool? EnsureNonNullResponse { get; set; }
     }
 }

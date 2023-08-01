@@ -19,11 +19,9 @@ namespace Kabomu.QuasiHttp.Server
             return Interlocked.CompareExchange(ref _abortCalled, 1, 0) == 0;
         }
 
-        public async Task<IQuasiHttpResponse> StartProtocol(
-            IReceiveProtocolInternal protocol)
+        public async Task<IQuasiHttpResponse> StartProtocol()
         {
-            Protocol = protocol;
-            var res = await protocol.Receive();
+            var res = await Protocol.Receive();
             await Abort(res);
             return res;
         }

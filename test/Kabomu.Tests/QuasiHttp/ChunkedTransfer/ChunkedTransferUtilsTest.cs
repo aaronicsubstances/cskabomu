@@ -175,6 +175,21 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         }
 
         [Fact]
+        public async Task TestReadNullLeadChunk()
+        {
+            // arrange.
+            var srcStream = new MemoryStream();
+            var reader = new StreamCustomReaderWriter(srcStream);
+            int maxChunkSize = 0;
+
+            // act
+            var actualChunk = await ChunkedTransferUtils.ReadLeadChunk(reader, maxChunkSize);
+
+            // assert
+            Assert.Null(actualChunk);
+        }
+
+        [Fact]
         public async Task TestReadLeadChunkForLaxityInChunkSizeCheck()
         {
             // arrange.

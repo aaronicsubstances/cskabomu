@@ -18,16 +18,16 @@ namespace Kabomu.QuasiHttp.Client
         public int MaxChunkSize { get; set; }
         public bool ResponseBufferingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
+        public bool EnsureNonNullResponse { get; set; }
 
         public bool TrySetAborted()
         {
             return Interlocked.CompareExchange(ref _abortCalled, 1, 0) == 0;
         }
 
-        public async Task<ProtocolSendResultInternal> StartProtocol(ISendProtocolInternal protocol)
+        public async Task<ProtocolSendResultInternal> StartProtocol()
         {
-            Protocol = protocol;
-            var res = await protocol.Send();
+            var res = await Protocol.Send();
             await Abort(null, res);
             return res;
         }

@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -22,7 +23,10 @@ namespace Kabomu.Tests.Shared.QuasiHttp
                 return Task.FromResult<IConnectionAllocationResponse>(
                     new DefaultConnectionAllocationResponse());
             }
-            var connection = new MemoryBasedTransportConnectionInternal();
+            var connection = new MemoryBasedTransportConnectionInternal(
+                ProtocolUtilsInternal.GetEnvVarAsBoolean(
+                    connectivityParams.ExtraParams,
+                    TransportUtils.ConnectivityParamFireAndForget));
             IConnectionAllocationResponse c = new DefaultConnectionAllocationResponse
             {
                 Connection = connection,

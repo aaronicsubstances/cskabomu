@@ -57,5 +57,11 @@ namespace Kabomu.QuasiHttp.Client
         /// a client-specific default value will be used.
         /// </remarks>
         int ResponseBodyBufferingSizeLimit { get; }
+
+        /// <summary>
+        /// Indicates whether null responses received from sending requests
+        /// should result in an error, or should simply be returned as is.
+        /// </summary>
+        bool? EnsureNonNullResponse { get; }
     }
 }

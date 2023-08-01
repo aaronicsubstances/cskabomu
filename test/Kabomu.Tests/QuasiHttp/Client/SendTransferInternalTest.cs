@@ -16,17 +16,19 @@ namespace Kabomu.Tests.QuasiHttp.Client
         public async Task TestStartProtocol1()
         {
             // arrange
-            var instance = new SendTransferInternal();
             var protocol = new HelperSendProtocol
             {
                 ExpectedSendResult = new ProtocolSendResultInternal()
             };
+            var instance = new SendTransferInternal
+            {
+                Protocol = protocol
+            };
 
             // act
-            var actual = await instance.StartProtocol(protocol);
+            var actual = await instance.StartProtocol();
 
             // assert
-            Assert.Same(protocol, instance.Protocol);
             Assert.Same(protocol.ExpectedSendResult, actual);
             Assert.True(protocol.Cancelled);
         }
@@ -35,7 +37,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
         public async Task TestStartProtocol2()
         {
             // arrange
-            var instance = new SendTransferInternal();
             var protocol = new HelperSendProtocol
             {
                 ExpectedSendResult = new ProtocolSendResultInternal
@@ -47,12 +48,15 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     ResponseBufferingApplied = false
                 }
             };
+            var instance = new SendTransferInternal
+            {
+                Protocol = protocol
+            };
 
             // act
-            var actual = await instance.StartProtocol(protocol);
+            var actual = await instance.StartProtocol();
 
             // assert
-            Assert.Same(protocol, instance.Protocol);
             Assert.Same(protocol.ExpectedSendResult, actual);
             Assert.False(protocol.Cancelled);
         }
@@ -61,18 +65,20 @@ namespace Kabomu.Tests.QuasiHttp.Client
         public async Task TestStartProtocol3()
         {
             // arrange
-            var instance = new SendTransferInternal();
-            instance.TrySetAborted();
             var protocol = new HelperSendProtocol
             {
                 ExpectedSendResult = new ProtocolSendResultInternal()
             };
+            var instance = new SendTransferInternal
+            {
+                Protocol = protocol
+            };
+            instance.TrySetAborted();
 
             // act
-            var actual = await instance.StartProtocol(protocol);
+            var actual = await instance.StartProtocol();
 
             // assert
-            Assert.Same(protocol, instance.Protocol);
             Assert.Same(protocol.ExpectedSendResult, actual);
             Assert.False(protocol.Cancelled);
         }
@@ -81,20 +87,22 @@ namespace Kabomu.Tests.QuasiHttp.Client
         public async Task TestStartProtocol4()
         {
             // arrange
-            var instance = new SendTransferInternal();
             var protocol = new HelperSendProtocol
             {
                 ExpectedSendError = new NotImplementedException()
+            };
+            var instance = new SendTransferInternal
+            {
+                Protocol = protocol
             };
 
             // act and assert error
             await Assert.ThrowsAsync<NotImplementedException>(() =>
             {
-                return instance.StartProtocol(protocol);
+                return instance.StartProtocol();
             });
 
             // assert
-            Assert.Same(protocol, instance.Protocol);
             Assert.False(protocol.Cancelled);
         }
 

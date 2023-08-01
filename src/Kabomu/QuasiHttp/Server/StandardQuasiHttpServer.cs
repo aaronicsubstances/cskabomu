@@ -94,7 +94,7 @@ namespace Kabomu.QuasiHttp.Server
             int maxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
                 null, defaultProcessingOptions?.MaxChunkSize, 0);
 
-            var protocol = new DefaultReceiveProtocolInternal
+            transfer.Protocol = new DefaultReceiveProtocolInternal
             {
                 MaxChunkSize = maxChunkSize,
                 Application = Application,
@@ -102,7 +102,7 @@ namespace Kabomu.QuasiHttp.Server
                 Connection = connectionResponse.Connection,
                 RequestEnvironment = connectionResponse.Environment
             };
-            var workTask = transfer.StartProtocol(protocol);
+            var workTask = transfer.StartProtocol();
             await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
                 timeoutTask, null);
         }
@@ -164,12 +164,12 @@ namespace Kabomu.QuasiHttp.Server
             (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<IQuasiHttpResponse>(timeoutMillis,
                 "receive timeout");
 
-            var protocol = new AltReceiveProtocolInternal
+            transfer.Protocol = new AltReceiveProtocolInternal
             {
                 Application = Application,
                 Request = transfer.Request
             };
-            var workTask = transfer.StartProtocol(protocol);
+            var workTask = transfer.StartProtocol();
             return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
                 timeoutTask, null);
         }
