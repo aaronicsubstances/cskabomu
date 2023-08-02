@@ -71,7 +71,7 @@ namespace ZeroMQ.FileClient
             {
                 requestBodyBytes = await IOUtils.ReadAllBytes(
                     request.Body.AsReader());
-                leadChunk.ContentLength = requestBodyBytes.Length;
+                leadChunk.ContentLength = requestBody.ContentLength;
                 leadChunk.ContentType = requestBody.ContentType;
             }
             var headerStream = new MemoryStream();
@@ -80,14 +80,34 @@ namespace ZeroMQ.FileClient
 
             if (requestBodyBytes == null)
             {
-                _socket.SendFrame(headerStream.ToArray());
+                await SendFrame(headerStream.ToArray(), false);
             }
             else
             {
-                _socket.SendMoreFrame(headerStream.ToArray());
-                _socket.SendFrame(requestBodyBytes);
+                await SendFrame(headerStream.ToArray(), true);
+                await SendFrame(requestBodyBytes, false);
             }
             return null;
+        }
+
+        /// <summary>
+        /// Push-type sockets block main thread if sending without attached
+        /// pull-type socket. Hence the need for testing for blocking.
+        /// </summary>
+        /// <param name="data"></param>
+        /// <param name="more"></param>
+        /// <returns></returns>
+        private async Task SendFrame(byte[] data, bool more)
+        {
+            while (true)
+            {
+                if (_socket.TrySendFrame(TimeSpan.FromSeconds(1), data, more))
+                {
+                    break;
+                }
+                // give chance for StandardQuasiHttpClient's timeout logic to kick in.
+                await Task.Yield();
+            }
         }
     }
 }

@@ -364,6 +364,67 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         }
 
         [Fact]
+        public async Task TestNoTimeoutDueToIgnoreTimeoutSettings()
+        {
+            var remoteEndpoint = new List<string>();
+            var expectedResponse = new DefaultQuasiHttpResponse();
+            IQuasiHttpRequest actualRequest = null;
+            var server = new StandardQuasiHttpServer
+            {
+                Application = new ConfigurableQuasiHttpApplication
+                {
+                    ProcessRequestCallback = async req =>
+                    {
+                        actualRequest = req;
+                        await Task.Delay(2000);
+                        return expectedResponse;
+                    }
+                }
+            };
+            Task serverTask = null;
+            server.Transport = new MemoryBasedServerTransport
+            {
+                AcceptConnectionFunc = c =>
+                {
+                    serverTask = server.AcceptConnection(c);
+                }
+            };
+            var clientTransport = new MemoryBasedClientTransport
+            {
+                Servers = new Dictionary<object, MemoryBasedServerTransport>
+                {
+                    { remoteEndpoint, (MemoryBasedServerTransport)server.Transport }
+                }
+            };
+            var client = new StandardQuasiHttpClient
+            {
+                Transport = clientTransport,
+                IgnoreTimeoutSettings = true
+            };
+            var expectedRequest = new DefaultQuasiHttpRequest
+            {
+                Environment = new Dictionary<string, object>()
+            };
+            IDictionary<string, object> actualReqEnv = null;
+            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc = async reqEnv =>
+            {
+                actualReqEnv = reqEnv;
+                await Task.Delay(1000);
+                return expectedRequest;
+            };
+            var sendOptions = new DefaultQuasiHttpSendOptions
+            {
+                TimeoutMillis = 700
+            };
+            var result = client.Send(remoteEndpoint, requestFunc, sendOptions);
+            var actualResponse = await result.Item1;
+            Assert.NotNull(serverTask);
+            await serverTask;
+            await ComparisonUtils.CompareRequests(expectedRequest, actualRequest, null);
+            await ComparisonUtils.CompareResponses(expectedResponse, actualResponse, null);
+        }
+
+        [Fact]
         public async Task TestCancellation()
         {
             var remoteEndpoint = new object();

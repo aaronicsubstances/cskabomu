@@ -641,7 +641,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 MaxChunkSize = maxChunkSize,
                 ResponseBufferingEnabled = true,
                 ResponseBodyBufferingSizeLimit = 40,
-                EnsureNonNullResponse = false
+                EnsureNonNullResponse = true
             };
 
             // set up expected request headers

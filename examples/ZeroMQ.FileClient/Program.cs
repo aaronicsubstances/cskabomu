@@ -25,6 +25,10 @@ namespace ZeroMQ.FileClient
             [Option('d', "upload-dir", Required = false,
                 HelpText = "Path to directory of files to upload. Defaults to current directory")]
             public string UploadDirPath { get; set; }
+
+            [Option('b', "use-publish-pattern", Required = false, Default = false,
+                HelpText = "Uses publish pattern instead of pipeline pattern. Defaults to false.")]
+            public bool UsePublishPattern { get; set; }
         }
 
         static void Main(string[] args)
@@ -33,20 +37,23 @@ namespace ZeroMQ.FileClient
                    .WithParsed<Options>(o =>
                    {
                        RunMain(o.ServerPort ?? 5001,
-                           o.UploadDirPath ?? ".").Wait();
+                           o.UploadDirPath ?? ".", o.UsePublishPattern).Wait();
                    });
         }
 
-        static async Task RunMain(int serverPort, string uploadDirPath)
+        static async Task RunMain(int serverPort, string uploadDirPath,
+            bool usePublishPattern)
         {
             try
             {
-                using (var socket = CreateClientSocket(serverPort))
+                using (var socket = await CreateClientSocket(serverPort,
+                    usePublishPattern))
                 {
                     LOG.Info("Created ZeroMQ.FileClient to {0}", serverPort);
                     var transport = new ZeroMQClientTransport(socket);
                     var defaultSendOptions = new DefaultQuasiHttpSendOptions
                     {
+                        TimeoutMillis = 5000,
                         EnsureNonNullResponse = false
                     };
                     var instance = new StandardQuasiHttpClient
@@ -54,9 +61,6 @@ namespace ZeroMQ.FileClient
                         DefaultSendOptions = defaultSendOptions,
                         TransportBypass = transport
                     };
-                    // give time for subscriber to subscribe.
-                    Console.WriteLine("Hit ENTER when subscriber is ready...");
-                    Console.ReadLine();
 
                     await FileSender.StartTransferringFiles(instance, serverPort, uploadDirPath);
                     LOG.Debug("Stopping ZeroMQ.FileClient...");
@@ -68,11 +72,23 @@ namespace ZeroMQ.FileClient
             }
         }
 
-        private static NetMQSocket CreateClientSocket(int port)
+        private static async Task<NetMQSocket> CreateClientSocket(int port,
+            bool usePublishPattern)
         {
-            var socket = new PublisherSocket();
-            socket.Bind("tcp://*:" + port);
-            return socket;
+            if (usePublishPattern)
+            {
+                var socket = new PublisherSocket();
+                socket.Bind("tcp://*:" + port);
+                Console.WriteLine("Pausing for 2s for subscriber to subscribe...");
+                await Task.Delay(2000);
+                return socket;
+            }
+            else
+            {
+                var socket = new PushSocket();
+                socket.Bind("tcp://*:" + port);
+                return socket;
+            }
         }
     }
 }

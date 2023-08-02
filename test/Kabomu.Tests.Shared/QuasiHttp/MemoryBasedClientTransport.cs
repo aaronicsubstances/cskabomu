@@ -26,12 +26,12 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             }
             var connection = new MemoryBasedTransportConnectionInternal(
                 ProtocolUtilsInternal.GetEnvVarAsBoolean(
-                    sendOptions.ExtraConnectivityParams,
+                    sendOptions?.ExtraConnectivityParams,
                     TransportUtils.ConnectivityParamFireAndForget));
             IConnectionAllocationResponse c = new DefaultConnectionAllocationResponse
             {
                 Connection = connection,
-                Environment = sendOptions.ExtraConnectivityParams
+                Environment = sendOptions?.ExtraConnectivityParams
             };
             server.AcceptConnectionFunc.Invoke(c);
             return Task.FromResult(c);

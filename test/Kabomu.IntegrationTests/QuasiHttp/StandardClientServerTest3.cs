@@ -61,7 +61,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 {
                     { "1", "1" },
                     { "2", "2,2" }
-                }
+                },
+                TimeoutMillis = 0,
+                MaxChunkSize = 0,
+                ResponseBufferingEnabled = false,
+                ResponseBodyBufferingSizeLimit = 0,
+                EnsureNonNullResponse = true
             };
 
             // act
@@ -106,7 +111,9 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 TransportBypass = transportBypass,
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    ResponseBufferingEnabled = false
+                    ResponseBufferingEnabled = false,
+                    ResponseBodyBufferingSizeLimit = 2,
+                    EnsureNonNullResponse = false
                 }
             };
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc = (reqEnv) =>
@@ -115,7 +122,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
             var expectedConnectivityParams = new DefaultQuasiHttpSendOptions
             {
-                ExtraConnectivityParams = new Dictionary<string, object>()
+                ExtraConnectivityParams = new Dictionary<string, object>(),
+                TimeoutMillis = 0,
+                MaxChunkSize = 0,
+                ResponseBufferingEnabled = false,
+                ResponseBodyBufferingSizeLimit = 2,
+                EnsureNonNullResponse = false
             };
 
             // act
@@ -168,6 +180,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             var sendOptions = new DefaultQuasiHttpSendOptions
             {
                 TimeoutMillis = 3_000,
+                MaxChunkSize = 20,
                 ExtraConnectivityParams = new Dictionary<string, object>
                 {
                     { "1", "one" },
@@ -180,7 +193,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 {
                     { "1", "one" },
                     { "2", "two" }
-                }
+                },
+                TimeoutMillis = 3_000,
+                MaxChunkSize = 20,
+                ResponseBufferingEnabled = true,
+                ResponseBodyBufferingSizeLimit = 0,
+                EnsureNonNullResponse = true
             };
 
             // act
@@ -247,7 +265,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { "1", "one" },
                     { "2", "two" },
                     { "3", "3,3,3" }
-                }
+                },
+                TimeoutMillis = 3_000,
+                MaxChunkSize = 0,
+                ResponseBufferingEnabled = true,
+                ResponseBodyBufferingSizeLimit = 0,
+                EnsureNonNullResponse = true
             };
 
             // act
@@ -296,16 +319,26 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 TransportBypass = transportBypass,
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    TimeoutMillis = 300
+                    TimeoutMillis = 300,
+                    ResponseBodyBufferingSizeLimit = 800,
+                    ResponseBufferingEnabled = true
                 }
             };
             var sendOptions = new DefaultQuasiHttpSendOptions
             {
-                TimeoutMillis = -1
+                TimeoutMillis = -1,
+                ResponseBufferingEnabled = false,
+                EnsureNonNullResponse = false,
+                ResponseBodyBufferingSizeLimit = 500
             };
             var expectedConnectivityParams = new DefaultQuasiHttpSendOptions
             {
-                ExtraConnectivityParams = new Dictionary<string, object>()
+                ExtraConnectivityParams = new Dictionary<string, object>(),
+                TimeoutMillis = -1,
+                MaxChunkSize = 0,
+                ResponseBufferingEnabled = false,
+                ResponseBodyBufferingSizeLimit = 500,
+                EnsureNonNullResponse = false
             };
 
             // act
@@ -358,16 +391,26 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 TransportBypass = transportBypass,
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    TimeoutMillis = 300
+                    TimeoutMillis = 300,
+                    ResponseBufferingEnabled = false,
+                    EnsureNonNullResponse = true
                 }
             };
             var sendOptions = new DefaultQuasiHttpSendOptions
             {
-                TimeoutMillis = -1
+                TimeoutMillis = -1,
+                ResponseBufferingEnabled = false,
+                ResponseBodyBufferingSizeLimit = 500,
+                EnsureNonNullResponse = false
             };
             var expectedConnectivityParams = new DefaultQuasiHttpSendOptions
             {
-                ExtraConnectivityParams = new Dictionary<string, object>()
+                ExtraConnectivityParams = new Dictionary<string, object>(),
+                TimeoutMillis = -1,
+                MaxChunkSize = 0,
+                ResponseBufferingEnabled = false,
+                ResponseBodyBufferingSizeLimit = 500,
+                EnsureNonNullResponse = false
             };
 
             // act
@@ -435,7 +478,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { "3", "3,3,3" },
                     { "4", "four" },
                     { TransportUtils.ConnectivityParamFireAndForget, true }
-                }
+                },
+                TimeoutMillis = 3_000,
+                MaxChunkSize = 0,
+                ResponseBufferingEnabled = true,
+                ResponseBodyBufferingSizeLimit = 0,
+                EnsureNonNullResponse = true
             };
 
             // act
@@ -503,7 +551,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { "11", "eleven" },
                     { "12", "twelve" },
                     { TransportUtils.ConnectivityParamFireAndForget, true }
-                }
+                },
+                TimeoutMillis = 3_000,
+                MaxChunkSize = 0,
+                ResponseBufferingEnabled = true,
+                ResponseBodyBufferingSizeLimit = 0,
+                EnsureNonNullResponse = false
             };
 
             // act
@@ -542,7 +595,9 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 TransportBypass = transportBypass,
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    TimeoutMillis = 3_000,
+                    TimeoutMillis = 3_100,
+                    MaxChunkSize = 4_000,
+                    ResponseBufferingEnabled = false,
                     ExtraConnectivityParams = new Dictionary<string, object>
                     {
                         { "1", "1" },
@@ -558,7 +613,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { "11", "eleven" },
                     { "12", "twelve" },
                     { "4", "four" }
-                }
+                },
+                MaxChunkSize = 1500,
             };
             var expectedConnectivityParams = new DefaultQuasiHttpSendOptions
             {
@@ -570,7 +626,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { "4", "four" },
                     { "11", "eleven" },
                     { "12", "twelve" }
-                }
+                },
+                TimeoutMillis = 3_100,
+                MaxChunkSize = 1500,
+                ResponseBufferingEnabled = false,
+                ResponseBodyBufferingSizeLimit = 0,
+                EnsureNonNullResponse = true
             };
 
             // act
@@ -608,14 +669,15 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 TransportBypass = transportBypass,
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    TimeoutMillis = 3_000,
+                    TimeoutMillis = 3_200,
                     ExtraConnectivityParams = new Dictionary<string, object>
                     {
                         { "1", "1" },
                         { "2", "2,2" },
                         { "3", "3,3,3" }
                     },
-                    EnsureNonNullResponse = true
+                    EnsureNonNullResponse = true,
+                    ResponseBodyBufferingSizeLimit = 4_300,
                 }
             };
             var sendOptions = new DefaultQuasiHttpSendOptions
@@ -626,7 +688,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { "2", "two" },
                     { "4", "four" }
                 },
-                EnsureNonNullResponse = false
+                EnsureNonNullResponse = false,
+                ResponseBodyBufferingSizeLimit = 700,
             };
             var expectedConnectivityParams = new DefaultQuasiHttpSendOptions
             {
@@ -636,7 +699,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { "2", "two" },
                     { "3", "3,3,3" },
                     { "4", "four" }
-                }
+                },
+                TimeoutMillis = 3_200,
+                MaxChunkSize = 0,
+                ResponseBufferingEnabled = true,
+                ResponseBodyBufferingSizeLimit = 700,
+                EnsureNonNullResponse = false
             };
 
             // act
@@ -675,7 +743,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
             var expectedConnectivityParams = new DefaultQuasiHttpSendOptions
             {
-                ExtraConnectivityParams = new Dictionary<string, object>()
+                ExtraConnectivityParams = new Dictionary<string, object>(),
+                TimeoutMillis = 300,
+                MaxChunkSize = 0,
+                ResponseBufferingEnabled = true,
+                ResponseBodyBufferingSizeLimit = 0,
+                EnsureNonNullResponse = true
             };
 
             // act and begin asserting
@@ -712,12 +785,18 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 Transport = new MemoryBasedClientTransport(),
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    TimeoutMillis = 300
+                    TimeoutMillis = 300,
+                    ResponseBufferingEnabled = false
                 }
             };
             var expectedConnectivityParams = new DefaultQuasiHttpSendOptions
             {
-                ExtraConnectivityParams = new Dictionary<string, object>()
+                ExtraConnectivityParams = new Dictionary<string, object>(),
+                TimeoutMillis = 300,
+                MaxChunkSize = 0,
+                ResponseBufferingEnabled = false,
+                ResponseBodyBufferingSizeLimit = 0,
+                EnsureNonNullResponse = true
             };
 
             // act and begin asserting
@@ -758,7 +837,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
             var expectedConnectivityParams = new DefaultQuasiHttpSendOptions
             {
-                ExtraConnectivityParams = new Dictionary<string, object>()
+                ExtraConnectivityParams = new Dictionary<string, object>(),
+                TimeoutMillis = -1,
+                MaxChunkSize = 0,
+                ResponseBufferingEnabled = true,
+                ResponseBodyBufferingSizeLimit = 0,
+                EnsureNonNullResponse = true
             };
 
             // act
@@ -808,12 +892,18 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 TransportBypass = transportBypass,
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    TimeoutMillis = 4_000
+                    TimeoutMillis = 4_000,
+                    EnsureNonNullResponse = false
                 }
             };
             var expectedConnectivityParams = new DefaultQuasiHttpSendOptions
             {
-                ExtraConnectivityParams = new Dictionary<string, object>()
+                ExtraConnectivityParams = new Dictionary<string, object>(),
+                TimeoutMillis = 4_000,
+                MaxChunkSize = 0,
+                ResponseBufferingEnabled = true,
+                ResponseBodyBufferingSizeLimit = 0,
+                EnsureNonNullResponse = false
             };
 
             // act

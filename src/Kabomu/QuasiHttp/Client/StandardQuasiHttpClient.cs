@@ -55,6 +55,13 @@ namespace Kabomu.QuasiHttp.Client
         public virtual IQuasiHttpAltTransport TransportBypass { get; set; }
 
         /// <summary>
+        /// Can be used by transports which want to take charge of timeout
+        /// settings, to avoid the need for an instance of this class to
+        /// skip setting timeouts.
+        /// </summary>
+        public virtual bool IgnoreTimeoutSettings { get; set; }
+
+        /// <summary>
         /// Cancels a send request if it is still ongoing. Invalid cancellation handles are simply ignored.
         /// </summary>
         /// <param name="sendCancellationHandle">cancellation handle received from <see cref="Send"/></param>
@@ -167,17 +174,21 @@ namespace Kabomu.QuasiHttp.Client
             // concurrent modifications.
             var defaultSendOptions = DefaultSendOptions;
             var transportBypass = TransportBypass;
+            var skipSettingTimeouts = IgnoreTimeoutSettings;
 
             // NB: negative value is allowed for timeout, which indicates infinite timeout.
-            var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
+            var mergedSendOptions = new DefaultQuasiHttpSendOptions();
+            mergedSendOptions.TimeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                 options?.TimeoutMillis,
                 defaultSendOptions?.TimeoutMillis,
                 0);
-            Task<ProtocolSendResultInternal> timeoutTask;
-            (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<ProtocolSendResultInternal>(timeoutMillis,
-                "send timeout");
+            Task<ProtocolSendResultInternal> timeoutTask = null;
+            if (!skipSettingTimeouts)
+            {
+                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<ProtocolSendResultInternal>(
+                    mergedSendOptions.TimeoutMillis, "send timeout");
+            }
 
-            var mergedSendOptions = new DefaultQuasiHttpSendOptions();
             mergedSendOptions.ExtraConnectivityParams = ProtocolUtilsInternal.DetermineEffectiveOptions(
                 options?.ExtraConnectivityParams,
                 defaultSendOptions?.ExtraConnectivityParams);
@@ -249,11 +260,11 @@ namespace Kabomu.QuasiHttp.Client
             transfer.Protocol = new AltSendProtocolInternal
             {
                 TransportBypass = transportBypass,
-                ResponseBufferingEnabled = mergedSendOptions.ResponseBufferingEnabled ?? true,
+                ResponseBufferingEnabled = mergedSendOptions.ResponseBufferingEnabled.Value,
                 ResponseBodyBufferingSizeLimit = mergedSendOptions.ResponseBodyBufferingSizeLimit,
                 ResponseTask = responseTask,
                 SendCancellationHandle = sendCancellationHandle,
-                EnsureNonNullResponse = mergedSendOptions.EnsureNonNullResponse ?? true,
+                EnsureNonNullResponse = mergedSendOptions.EnsureNonNullResponse.Value,
             };
             return await transfer.StartProtocol();
         }
@@ -292,10 +303,10 @@ namespace Kabomu.QuasiHttp.Client
                 Request = transfer.Request,
                 Transport = transport,
                 Connection = connectionResponse.Connection,
-                ResponseBufferingEnabled = mergedSendOptions.ResponseBufferingEnabled ?? true,
+                ResponseBufferingEnabled = mergedSendOptions.ResponseBufferingEnabled.Value,
                 ResponseBodyBufferingSizeLimit = mergedSendOptions.ResponseBodyBufferingSizeLimit,
                 MaxChunkSize = mergedSendOptions.MaxChunkSize,
-                EnsureNonNullResponse = mergedSendOptions.EnsureNonNullResponse ?? true,
+                EnsureNonNullResponse = mergedSendOptions.EnsureNonNullResponse.Value,
             };
             return await transfer.StartProtocol();
         }
