@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -6,13 +6,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommandLineParser" Version="2.8.0" />
+    <PackageReference Include="CommandLineParser" Version="2.9.1" />
+    <PackageReference Include="NetMQ" Version="4.0.1.12" />
     <PackageReference Include="NLog" Version="5.2.2" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Kabomu\Kabomu.csproj" />
     <ProjectReference Include="..\Kabomu.Examples.Shared\Kabomu.Examples.Shared.csproj" />
+    <ProjectReference Include="..\..\src\Kabomu\Kabomu.csproj" />
   </ItemGroup>
 
   <ItemGroup>

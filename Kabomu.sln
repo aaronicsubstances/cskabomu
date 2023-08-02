@@ -35,7 +35,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Http.FileClient", "examples
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Kabomu.IntegrationTests", "test\Kabomu.IntegrationTests\Kabomu.IntegrationTests.csproj", "{85BF2770-14EB-4AA0-9A60-1A0195C60745}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kabomu.Tests.Shared", "test\Kabomu.Tests.Shared\Kabomu.Tests.Shared.csproj", "{016BCE73-9CB0-4C1A-B1FA-FEB8E54CA394}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Kabomu.Tests.Shared", "test\Kabomu.Tests.Shared\Kabomu.Tests.Shared.csproj", "{016BCE73-9CB0-4C1A-B1FA-FEB8E54CA394}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZeroMQ.FileClient", "examples\ZeroMQ.FileClient\ZeroMQ.FileClient.csproj", "{ECC97AAE-FC0C-4593-84B2-FB4162078082}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZeroMQ.FileServer", "examples\ZeroMQ.FileServer\ZeroMQ.FileServer.csproj", "{551F5630-F8D7-4DEB-9E83-461100F6D160}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -99,6 +103,14 @@ Global
 		{016BCE73-9CB0-4C1A-B1FA-FEB8E54CA394}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{016BCE73-9CB0-4C1A-B1FA-FEB8E54CA394}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{016BCE73-9CB0-4C1A-B1FA-FEB8E54CA394}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ECC97AAE-FC0C-4593-84B2-FB4162078082}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ECC97AAE-FC0C-4593-84B2-FB4162078082}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ECC97AAE-FC0C-4593-84B2-FB4162078082}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ECC97AAE-FC0C-4593-84B2-FB4162078082}.Release|Any CPU.Build.0 = Release|Any CPU
+		{551F5630-F8D7-4DEB-9E83-461100F6D160}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{551F5630-F8D7-4DEB-9E83-461100F6D160}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{551F5630-F8D7-4DEB-9E83-461100F6D160}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{551F5630-F8D7-4DEB-9E83-461100F6D160}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -118,6 +130,8 @@ Global
 		{604E7258-9250-43A9-A59E-D06303FA3994} = {2639FC39-6A20-4143-AF38-FF27E1446806}
 		{85BF2770-14EB-4AA0-9A60-1A0195C60745} = {B69F6133-0D77-404D-8F23-66C029989C80}
 		{016BCE73-9CB0-4C1A-B1FA-FEB8E54CA394} = {B69F6133-0D77-404D-8F23-66C029989C80}
+		{ECC97AAE-FC0C-4593-84B2-FB4162078082} = {2639FC39-6A20-4143-AF38-FF27E1446806}
+		{551F5630-F8D7-4DEB-9E83-461100F6D160} = {2639FC39-6A20-4143-AF38-FF27E1446806}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8A1F9C5B-AAF0-473E-BB59-1979B0F53384}

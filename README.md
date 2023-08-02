@@ -14,12 +14,14 @@ Kabomu seeks to demonstrate the following:
 
 3. *Cross-platform quasi web framework*, i.e. offers a web framework pattern which can be shared across programming languages, and does not assume the use of actual HTTP.
 
+4. *Abstraction of message queues*, by modelling them as fire and forget requests to email address groups or multicast addresses.
+
 
 ## Design
 
 1. Deployment enviroment: mainly localhost, but can be extended to the Internet via HTTP.
 
-1. Quasi web transports demonstrated: memory, localhost TCP, unix domain socket, windows named pipe, HTTP.
+1. Quasi web transports demonstrated: HTTP, memory, localhost TCP, unix domain socket, windows named pipe, zeromq.
    1. *Support for HTTP makes it possible to use Kabomu with any HTTP client library.*
    2. Interfaces are provided for the creation of any custom quasi web transport.
 
@@ -38,7 +40,7 @@ Kabomu seeks to demonstrate the following:
 
 The entry classes of the libary are [StandardQuasiHttpClient](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/QuasiHttp/Client/StandardQuasiHttpClient.cs), [StandardQuasiHttpServer](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/QuasiHttp/Server/StandardQuasiHttpServer.cs) and [MediatorQuasiWebApplication](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/Mediator/MediatorQuasiWebApplication.cs).
 
-See [Examples](https://github.com/aaronicsubstances/cskabomu/tree/main/examples) folder for sample file serving programs based on each default quasi web transport.
+See [Examples](https://github.com/aaronicsubstances/cskabomu/tree/main/examples) folder for sample file serving programs based on each example quasi web transport.
 
 The sample programs come in pairs (with the exception of the memory-based one):  a client program and corresponding server program. The server program must be started first. By default a client program uploads all files from its current directory to a folder created in the server program's current directory.
 
