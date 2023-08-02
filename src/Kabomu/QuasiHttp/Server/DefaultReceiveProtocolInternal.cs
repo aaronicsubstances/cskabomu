@@ -111,7 +111,7 @@ namespace Kabomu.QuasiHttp.Server
                 chunk.ContentType = response.Body.ContentType;
             }
 
-            await ChunkedTransferUtils.WriteLeadChunk(writer, MaxChunkSize, chunk);
+            await ChunkedTransferUtils.WriteLeadChunk(writer, chunk, MaxChunkSize);
 
             if (response.Body != null)
             {

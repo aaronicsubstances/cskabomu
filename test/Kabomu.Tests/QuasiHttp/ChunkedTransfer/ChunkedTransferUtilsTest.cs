@@ -123,7 +123,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var writer = new StreamCustomReaderWriter(destStream);
 
             // act.
-            await ChunkedTransferUtils.WriteLeadChunk(writer, 0, leadChunk);
+            await ChunkedTransferUtils.WriteLeadChunk(writer, leadChunk, -1);
 
             // assert.
             Assert.Equal(expectedStreamContents, destStream.ToArray());
@@ -144,7 +144,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var writer = new StreamCustomReaderWriter(destStream);
 
             // act.
-            await ChunkedTransferUtils.WriteLeadChunk(writer, 1000, leadChunk);
+            await ChunkedTransferUtils.WriteLeadChunk(writer, leadChunk, 1000);
 
             // assert.
             Assert.Equal(expectedStreamContents, destStream.ToArray());

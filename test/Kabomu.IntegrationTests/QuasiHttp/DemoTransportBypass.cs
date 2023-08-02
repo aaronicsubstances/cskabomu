@@ -34,7 +34,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             }
         }
 
-        public IConnectivityParams ActualConnectivityParams { get; set; }
+        public IQuasiHttpSendOptions ActualSendOptions { get; set; }
+        public object ActualRemoteEndpoint { get; set; }
 
         public void CancelSendRequest(object sendCancellationHandle)
         {
@@ -44,27 +45,33 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             }
         }
 
-        private async Task<IQuasiHttpResponse> ProcessSendRequestX(
+        private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
+            object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
-            IConnectivityParams connectivityParams)
+            IQuasiHttpSendOptions sendOptions)
         {
-            ActualConnectivityParams = connectivityParams;
+            ActualRemoteEndpoint = remoteEndpoint;
+            ActualSendOptions = sendOptions;
             var request = await requestFunc(null);
             return await SendRequestCallback(request);
         }
 
         public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
-            IQuasiHttpRequest request, IConnectivityParams connectivityParams)
+            object remoteEndpoint,
+            IQuasiHttpRequest request,
+            IQuasiHttpSendOptions sendOptions)
         {
-            return ProcessSendRequest(_ => Task.FromResult(request),
-                connectivityParams);
+            return ProcessSendRequest(remoteEndpoint,
+                _ => Task.FromResult(request),
+                sendOptions);
         }
 
         public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+            object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
-            IConnectivityParams connectivityParams)
+            IQuasiHttpSendOptions sendOptions)
         {
-            var task = ProcessSendRequestX(requestFunc, connectivityParams);
+            var task = ProcessSendRequestInternal(remoteEndpoint, requestFunc, sendOptions);
             return (task, CreateCancellationHandles ?
                 new object() : null);
         }

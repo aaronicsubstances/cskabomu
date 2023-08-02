@@ -15,10 +15,6 @@ namespace Kabomu.QuasiHttp.Client
         public bool IsAborted => _abortCalled != 0;
         public TaskCompletionSource<ProtocolSendResultInternal> CancellationTcs { get; set; }
         public IQuasiHttpRequest Request { get; set; }
-        public int MaxChunkSize { get; set; }
-        public bool ResponseBufferingEnabled { get; set; }
-        public int ResponseBodyBufferingSizeLimit { get; set; }
-        public bool EnsureNonNullResponse { get; set; }
 
         public bool TrySetAborted()
         {
@@ -47,7 +43,8 @@ namespace Kabomu.QuasiHttp.Client
                     CancellationTcs?.TrySetResult(null);
                 }
 
-                if (cancellationError != null || res?.Response?.Body == null || res?.ResponseBufferingApplied == true)
+                if (cancellationError != null || res?.Response?.Body == null
+                    || res?.ResponseBufferingApplied == true)
                 {
                     try
                     {

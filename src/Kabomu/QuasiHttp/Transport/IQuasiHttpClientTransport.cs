@@ -12,12 +12,14 @@ namespace Kabomu.QuasiHttp.Transport
     public interface IQuasiHttpClientTransport : IQuasiHttpTransport
     {
         /// <summary>
-        /// Creates a connection to a server or remote endpoint.
+        /// Creates a connection to a remote endpoint.
         /// </summary>
-        /// <param name="connectivityParams">communication endpoint information required to connect to a server or
-        /// remote endpoint</param>
+        /// <param name="remoteEndpoint">the target endpoint of the connection
+        /// allocation request</param>
+        /// <param name="sendOptions">communication endpoint information</param>
         /// <returns>a task whose result will contain a connection ready for use as a duplex
         /// stream of data for reading and writing</returns>
-        Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams);
+        Task<IConnectionAllocationResponse> AllocateConnection(
+            object remoteEndpoint, IQuasiHttpSendOptions sendOptions);
     }
 }

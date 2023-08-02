@@ -21,18 +21,25 @@ namespace Kabomu.Examples.Shared
             _httpClient = httpClient;
         }
 
-        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(IQuasiHttpRequest request,
-            IConnectivityParams connectivityParams)
+        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+            object remoteEndpoint,
+            IQuasiHttpRequest request,
+            IQuasiHttpSendOptions sendOptions)
         {
-            return ProcessSendRequest(_ => Task.FromResult(request), connectivityParams);
+            return ProcessSendRequest(
+                remoteEndpoint,
+                _ => Task.FromResult(request),
+                sendOptions);
         }
 
         public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+            object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
-            IConnectivityParams connectivityParams)
+            IQuasiHttpSendOptions sendOptions)
         {
             var cts = new CancellationTokenSource();
-            var resTask = ProcessSendRequestInternal(requestFunc, connectivityParams, cts);
+            var resTask = ProcessSendRequestInternal(remoteEndpoint,
+                requestFunc, sendOptions, cts);
             object sendCancellationHandle = cts;
             return (resTask, sendCancellationHandle);
         }
@@ -46,14 +53,18 @@ namespace Kabomu.Examples.Shared
         }
 
         private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
+            object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
-            IConnectivityParams connectivityParams, CancellationTokenSource cancellationTokenSource)
+            IQuasiHttpSendOptions sendOptions,
+            CancellationTokenSource cancellationTokenSource)
         {
             var request = await requestFunc.Invoke(null);
             if (request == null)
             {
                 throw new QuasiHttpRequestProcessingException("no request");
             }
+            // todo: ensure disposal of request if it was retrieved
+            // from externally supplied request func.
             var requestWrapper = new HttpRequestMessage
             {
                 Method = HttpMethod.Post,
@@ -66,7 +77,7 @@ namespace Kabomu.Examples.Shared
             {
                 requestWrapper.Version = Version.Parse(request.HttpVersion);
             }
-            requestWrapper.RequestUri = (Uri)connectivityParams.RemoteEndpoint;
+            requestWrapper.RequestUri = (Uri)remoteEndpoint;
             if (request.Target != null)
             {
                 requestWrapper.RequestUri = new Uri(requestWrapper.RequestUri, request.Target);

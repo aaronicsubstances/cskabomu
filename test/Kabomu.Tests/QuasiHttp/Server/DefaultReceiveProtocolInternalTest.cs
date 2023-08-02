@@ -71,7 +71,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             var helpingReaders = new List<ICustomReader>();
             var headerStream = new MemoryStream();
             var headerReader = new StreamCustomReaderWriter(headerStream);
-            await ChunkedTransferUtils.WriteLeadChunk(headerReader, 0,
+            await ChunkedTransferUtils.WriteLeadChunk(headerReader,
                 reqChunk);
             headerStream.Position = 0; // reset for reading.
             helpingReaders.Add(headerReader);

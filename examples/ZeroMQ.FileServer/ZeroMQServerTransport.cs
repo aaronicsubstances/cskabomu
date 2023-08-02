@@ -17,11 +17,11 @@ namespace ZeroMQ.FileServer
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
 
-        private readonly SubscriberSocket _subscriber;
+        private readonly NetMQSocket _socket;
 
-        public ZeroMQServerTransport(SubscriberSocket subscriber)
+        public ZeroMQServerTransport(NetMQSocket socket)
         {
-            _subscriber = subscriber;
+            _socket = socket;
         }
 
         public StandardQuasiHttpServer Server { get; set; }
@@ -49,9 +49,9 @@ namespace ZeroMQ.FileServer
         {
             while (true)
             {
-                var (data, more) = await _subscriber.ReceiveFrameBytesAsync();
+                var (data, more) = await _socket.ReceiveFrameBytesAsync();
                 var headerReader = new StreamCustomReaderWriter(new MemoryStream(data));
-                var leadChunk = await ChunkedTransferUtils.ReadLeadChunk(headerReader, 0);
+                var leadChunk = await ChunkedTransferUtils.ReadLeadChunk(headerReader);
                 var request = new DefaultQuasiHttpRequest
                 {
                     Target = leadChunk.RequestTarget,
@@ -61,7 +61,7 @@ namespace ZeroMQ.FileServer
                 };
                 if (more)
                 {
-                    (data, more) = await _subscriber.ReceiveFrameBytesAsync();
+                    (data, more) = await _socket.ReceiveFrameBytesAsync();
                     if (more)
                     {
                         throw new Exception("more frames not expected here");

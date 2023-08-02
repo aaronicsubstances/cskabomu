@@ -6,7 +6,7 @@
     <PackageProjectUrl>https://github.com/aaronicsubstances/cskabomu</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/aaronicsubstances/cskabomu.git</RepositoryUrl>
-    <PackageTags>quasi,http,networking,ipc,monolith,web,application</PackageTags>
+    <PackageTags>quasi,http,networking,ipc,monolith,web,application,message queue</PackageTags>
     <PackageId>AaronicSubstances.Kabomu</PackageId>
     <Authors>Aaron Baffour-Awuah</Authors>
     <Company>Aaronic Substances</Company>
@@ -16,8 +16,8 @@ This enables programming the same HTTP semantics at the level of web application
 
 This library has the goal of letting the software community have their cake and eat it, by enforcing monolithic architectures with serializable inter module communications, so that monolithic architectures remain simple to manage, and at the same time become straightforward to evolve into distributed systems.</Description>
     <Copyright>Copyright ©2022 Aaronic Substances</Copyright>
-    <Version>2.3.0</Version>
-    <PackageReleaseNotes>-Added support for fire and forget message transfer</PackageReleaseNotes>
+    <Version>3.0.0</Version>
+    <PackageReleaseNotes>-Improved support for fire and forget message transfer, by upgrading transport interfaces to accept request send options.</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

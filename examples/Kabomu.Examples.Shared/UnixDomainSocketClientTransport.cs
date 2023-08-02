@@ -10,9 +10,10 @@ namespace Kabomu.Examples.Shared
 {
     public class UnixDomainSocketClientTransport : IQuasiHttpClientTransport
     {
-        public async Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)
+        public async Task<IConnectionAllocationResponse> AllocateConnection(
+            object remoteEndpoint, IQuasiHttpSendOptions sendOptions)
         {
-            var path = (string)connectivityParams.RemoteEndpoint;
+            var path = (string)remoteEndpoint;
             var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
             path = Path.Combine(Path.GetTempPath(), path);
             await socket.ConnectAsync(new UnixDomainSocketEndPoint(path));

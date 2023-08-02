@@ -16,11 +16,11 @@ namespace ZeroMQ.FileClient
 {
     public class ZeroMQClientTransport : IQuasiHttpAltTransport
     {
-        private readonly PublisherSocket _publisher;
+        private readonly NetMQSocket _socket;
 
-        public ZeroMQClientTransport(PublisherSocket publisher)
+        public ZeroMQClientTransport(NetMQSocket socket)
         {
-            _publisher = publisher;
+            _socket = socket;
         }
 
         public void CancelSendRequest(object sendCancellationHandle)
@@ -29,26 +29,34 @@ namespace ZeroMQ.FileClient
         }
 
         public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
-            IQuasiHttpRequest request, IConnectivityParams connectivityParams)
+            object remoteEndpoint,
+            IQuasiHttpRequest request,
+            IQuasiHttpSendOptions sendOptions)
         {
-            var task = ProcessSendRequestInternal(_ => Task.FromResult(request),
-                connectivityParams);
+            var task = ProcessSendRequestInternal(
+                remoteEndpoint,
+                _ => Task.FromResult(request),
+                sendOptions);
             return (task, null);
         }
 
         public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+            object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
-            IConnectivityParams connectivityParams)
+            IQuasiHttpSendOptions sendOptions)
         {
-            var task = ProcessSendRequestInternal(requestFunc, connectivityParams);
+            var task = ProcessSendRequestInternal(remoteEndpoint, requestFunc, sendOptions);
             return (task, null);
         }
 
         private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
+            object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
-            IConnectivityParams connectivityParams)
+            IQuasiHttpSendOptions sendOptions)
         {
             var request = await requestFunc.Invoke(null);
+            // todo: ensure disposal of request if it was retrieved
+            // from externally supplied request func.
             var leadChunk = new LeadChunk
             {
                 Version = LeadChunk.Version01,
@@ -68,16 +76,16 @@ namespace ZeroMQ.FileClient
             }
             var headerStream = new MemoryStream();
             var writer = new StreamCustomReaderWriter(headerStream);
-            await ChunkedTransferUtils.WriteLeadChunk(writer, 0, leadChunk);
+            await ChunkedTransferUtils.WriteLeadChunk(writer, leadChunk);
 
             if (requestBodyBytes == null)
             {
-                _publisher.SendFrame(headerStream.ToArray());
+                _socket.SendFrame(headerStream.ToArray());
             }
             else
             {
-                _publisher.SendMoreFrame(headerStream.ToArray());
-                _publisher.SendFrame(requestBodyBytes);
+                _socket.SendMoreFrame(headerStream.ToArray());
+                _socket.SendFrame(requestBodyBytes);
             }
             return null;
         }

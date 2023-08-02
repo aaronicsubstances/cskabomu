@@ -68,10 +68,8 @@ namespace ZeroMQ.FileServer
         {
             using (var runtime = new NetMQRuntime())
             {
-                using (var subscriber = new SubscriberSocket())
+                using (var subscriber = CreateServerSocket(port))
                 {
-                    subscriber.Connect("tcp://127.0.0.1:" + port);
-                    subscriber.Subscribe("");
                     LOG.Info("Started ZeroMQ.FileServer at {0}", port);
                     var transport = new ZeroMQServerTransport(subscriber)
                     {
@@ -81,6 +79,14 @@ namespace ZeroMQ.FileServer
                         transport.AcceptRequests());
                 }
             }
+        }
+
+        private static NetMQSocket CreateServerSocket(int port)
+        {
+            var socket = new SubscriberSocket();
+            socket.Connect("tcp://127.0.0.1:" + port);
+            socket.Subscribe("");
+            return socket;
         }
     }
 }

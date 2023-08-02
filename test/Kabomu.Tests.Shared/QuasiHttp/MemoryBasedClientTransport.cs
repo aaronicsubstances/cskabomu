@@ -11,13 +11,14 @@ namespace Kabomu.Tests.Shared.QuasiHttp
     {
         public IDictionary<object, MemoryBasedServerTransport> Servers { get; set; }
 
-        public Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)
+        public Task<IConnectionAllocationResponse> AllocateConnection(
+            object remoteEndpoint, IQuasiHttpSendOptions sendOptions)
         {
-            if (!Servers.ContainsKey(connectivityParams.RemoteEndpoint))
+            if (!Servers.ContainsKey(remoteEndpoint))
             {
                 return Task.FromResult<IConnectionAllocationResponse>(null);
             }
-            var server = Servers[connectivityParams.RemoteEndpoint];
+            var server = Servers[remoteEndpoint];
             if (server == null)
             {
                 return Task.FromResult<IConnectionAllocationResponse>(
@@ -25,12 +26,12 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             }
             var connection = new MemoryBasedTransportConnectionInternal(
                 ProtocolUtilsInternal.GetEnvVarAsBoolean(
-                    connectivityParams.ExtraParams,
+                    sendOptions.ExtraConnectivityParams,
                     TransportUtils.ConnectivityParamFireAndForget));
             IConnectionAllocationResponse c = new DefaultConnectionAllocationResponse
             {
                 Connection = connection,
-                Environment = connectivityParams.ExtraParams
+                Environment = sendOptions.ExtraConnectivityParams
             };
             server.AcceptConnectionFunc.Invoke(c);
             return Task.FromResult(c);

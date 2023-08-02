@@ -12,29 +12,37 @@ namespace Kabomu.Examples.Shared
         public IQuasiHttpApplication Application { get; set; }
 
         public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
-            IQuasiHttpRequest request, IConnectivityParams connectivityParams)
+            object remoteEndpoint,
+            IQuasiHttpRequest request,
+            IQuasiHttpSendOptions sendOptions)
         {
-            return ProcessSendRequest(_ => Task.FromResult(request),
-                connectivityParams);
+            return ProcessSendRequest(remoteEndpoint,
+                _ => Task.FromResult(request),
+                sendOptions);
         }
 
         public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+            object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
-            IConnectivityParams connectivityParams)
+            IQuasiHttpSendOptions sendOptions)
         {
-            var resTask = ProcessSendRequestInternal(requestFunc, connectivityParams);
+            var resTask = ProcessSendRequestInternal(remoteEndpoint, requestFunc,
+                sendOptions);
             return (resTask, null);
         }
 
         public async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
+            object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
-            IConnectivityParams connectivityParams)
+            IQuasiHttpSendOptions sendOptions)
         {
-            var request = await requestFunc.Invoke(connectivityParams?.ExtraParams);
+            var request = await requestFunc.Invoke(sendOptions?.ExtraConnectivityParams);
             if (request == null)
             {
                 throw new QuasiHttpRequestProcessingException("no request");
             }
+            // todo: ensure disposal of request if it was retrieved
+            // from externally supplied request func.
             return await Application.ProcessRequest(request);
         }
 

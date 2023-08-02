@@ -11,9 +11,10 @@ namespace Kabomu.Examples.Shared
 {
     public class LocalhostTcpClientTransport : IQuasiHttpClientTransport
     {
-        public async Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)
+        public async Task<IConnectionAllocationResponse> AllocateConnection(
+            object remoteEndpoint, IQuasiHttpSendOptions sendOptions)
         {
-            int port = (int)connectivityParams.RemoteEndpoint;
+            int port = (int)remoteEndpoint;
             var clientSocket = new Socket(IPAddress.Loopback.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             //clientSocket.NoDelay = true;
             await clientSocket.ConnectAsync(IPAddress.Loopback, port);

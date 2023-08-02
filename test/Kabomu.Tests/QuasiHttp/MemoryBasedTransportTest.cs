@@ -59,10 +59,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 if (randGen.Next(2) == 1)
                 {
-                    var clientC = await instanceA.AllocateConnection(new DefaultConnectivityParams
-                    {
-                        RemoteEndpoint = kumasiEndpoint
-                    });
+                    var clientC = await instanceA.AllocateConnection(kumasiEndpoint, null);
                     Assert.Same(clientC, latestConnectionAtKumasi);
                     tasks.Add(PerformProcessing(instanceA,
                         clientC.Connection, true, true));
@@ -71,10 +68,8 @@ namespace Kabomu.Tests.QuasiHttp
                 }
                 else
                 {
-                    var clientC = await instanceK.AllocateConnection(new DefaultConnectivityParams
-                    {
-                        RemoteEndpoint = accraEndpoint
-                    });
+                    var clientC = await instanceK.AllocateConnection(
+                        accraEndpoint, null);
                     Assert.Same(clientC, latestConnectionAtAccra);
                     tasks.Add(PerformProcessing(instanceK,
                         clientC.Connection, true, false));

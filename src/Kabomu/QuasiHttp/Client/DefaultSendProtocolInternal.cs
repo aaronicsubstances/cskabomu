@@ -15,13 +15,13 @@ namespace Kabomu.QuasiHttp.Client
         {
         }
 
-        public Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> RequestFunc { get; set; }
-        public IDictionary<string, object> RequestEnvironment { get; set; }
+        public IQuasiHttpRequest Request { get; set; }
         public IQuasiHttpTransport Transport { get; set; }
         public object Connection { get; set; }
         public int MaxChunkSize { get; set; }
         public bool ResponseBufferingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
+        public bool EnsureNonNullResponse { get; set; }
 
         public async Task Cancel()
         {
@@ -38,23 +38,17 @@ namespace Kabomu.QuasiHttp.Client
             {
                 throw new MissingDependencyException("client transport");
             }
-            if (RequestFunc == null)
+            if (Request == null)
             {
-                throw new ExpectationViolationException("request func");
-            }
-
-            var request = await RequestFunc.Invoke(RequestEnvironment);
-            if (request == null)
-            {
-                throw new QuasiHttpRequestProcessingException("no request");
+                throw new ExpectationViolationException("request");
             }
 
             var transportReaderWriter = new TransportCustomReaderWriter(Transport,
                 Connection, false);
 
-            await SendRequestLeadChunk(request, transportReaderWriter);
+            await SendRequestLeadChunk(Request, transportReaderWriter);
             var reqTransferTask = ProtocolUtilsInternal.TransferBodyToTransport(
-                Transport, Connection, MaxChunkSize, request.Body);
+                Transport, Connection, MaxChunkSize, Request.Body);
             var resFetchTask = StartFetchingResponse(transportReaderWriter);
             if (await Task.WhenAny(reqTransferTask, resFetchTask) == reqTransferTask)
             {
@@ -81,7 +75,7 @@ namespace Kabomu.QuasiHttp.Client
                 chunk.ContentLength = request.Body.ContentLength;
                 chunk.ContentType = request.Body.ContentType;
             }
-            await ChunkedTransferUtils.WriteLeadChunk(writer, MaxChunkSize, chunk);
+            await ChunkedTransferUtils.WriteLeadChunk(writer, chunk, MaxChunkSize);
         }
 
         private async Task<ProtocolSendResultInternal> StartFetchingResponse(ICustomReader reader)
@@ -90,6 +84,10 @@ namespace Kabomu.QuasiHttp.Client
                 MaxChunkSize);
             if (chunk == null)
             {
+                if (EnsureNonNullResponse)
+                {
+                    throw new QuasiHttpRequestProcessingException("no response");
+                }
                 return null;
             }
             var response = new DefaultQuasiHttpResponse

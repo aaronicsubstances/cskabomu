@@ -10,14 +10,15 @@ namespace Kabomu.Examples.Shared
     {
         public IDictionary<object, MemoryBasedServerTransport> Servers { get; set; }
 
-        public Task<IConnectionAllocationResponse> AllocateConnection(IConnectivityParams connectivityParams)
+        public Task<IConnectionAllocationResponse> AllocateConnection(
+            object remoteEndpoint, IQuasiHttpSendOptions sendOptions)
         {
-            var server = Servers[connectivityParams.RemoteEndpoint];
+            var server = Servers[remoteEndpoint];
             var connection = new MemoryBasedTransportConnectionInternal();
             IConnectionAllocationResponse c = new DefaultConnectionAllocationResponse
             {
                 Connection = connection,
-                Environment = connectivityParams.ExtraParams
+                Environment = sendOptions?.ExtraConnectivityParams
             };
             _ = server.AcceptConnection(c);
             return Task.FromResult(c);

@@ -72,7 +72,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var helpingReaders = new List<ICustomReader>();
             var headerStream = new MemoryStream();
             var headerReader = new StreamCustomReaderWriter(headerStream);
-            await ChunkedTransferUtils.WriteLeadChunk(headerReader, 0,
+            await ChunkedTransferUtils.WriteLeadChunk(headerReader,
                 resChunk);
             headerStream.Position = 0; // reset for reading.
             helpingReaders.Add(headerReader);
@@ -103,8 +103,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 var instance = new DefaultSendProtocolInternal
                 {
-                    RequestFunc =  _ => Task.FromResult<IQuasiHttpRequest>(
-                        new DefaultQuasiHttpRequest())
+                    Request = new DefaultQuasiHttpRequest()
                 };
                 return instance.Send();
             });
@@ -122,7 +121,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [MemberData(nameof(CreateTestSendData))]
         public async Task TestSend(
             object connection, int maxChunkSize, bool responseBufferingEnabled,
-            IQuasiHttpMutableRequest request, byte[] expectedReqBodyBytes, IDictionary<string, object> reqEnv,
+            IQuasiHttpMutableRequest request, byte[] expectedReqBodyBytes,
             IQuasiHttpResponse expectedResponse, byte[] expectedResBodyBytes)
         {
             // prepare response for reading.
@@ -154,20 +153,15 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ReleaseIndicator = new CancellationTokenSource()
             };
-            IDictionary<string, object> actualReqEnv = null;
             var instance = new DefaultSendProtocolInternal
             {
-                RequestFunc = reqEnv =>
-                {
-                    actualReqEnv = reqEnv;
-                    return Task.FromResult<IQuasiHttpRequest>(request);
-                },
-                RequestEnvironment = reqEnv,
+                Request = request,
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize,
                 ResponseBufferingEnabled = responseBufferingEnabled,
-                ResponseBodyBufferingSizeLimit = 100
+                ResponseBodyBufferingSizeLimit = 100,
+                EnsureNonNullResponse = true
             };
 
             // set up expected request headers
@@ -187,7 +181,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var wasTransportReleased = transport.ReleaseIndicator.IsCancellationRequested;
 
             // begin assert.
-            Assert.Same(instance.RequestEnvironment, actualReqEnv);
             Assert.NotNull(actualResponse);
             Assert.NotNull(actualResponse.Response);
             Assert.Equal(responseBufferingEnabled, actualResponse.ResponseBufferingApplied);
@@ -244,10 +237,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             object connection = "vgh";
             int maxChunkSize = 115;
             bool responseBufferingEnabled = true;
-            IDictionary<string, object> reqEnv = new Dictionary<string, object>
-            {
-                { "one", new List<string>{"baako", "un", "deka" } }
-            };
             var request = new DefaultQuasiHttpRequest
             {
                 Method = "POST",
@@ -279,16 +268,12 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ContentType = "image/png"
             };
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                reqEnv, expectedResponse, expectedResBodyBytes });
+                expectedResponse, expectedResBodyBytes });
 
             // next...
             connection = 123;
             maxChunkSize = 90;
             responseBufferingEnabled = false;
-            reqEnv = new Dictionary<string, object>
-            {
-                { "shoe", 67 }, { "lace", 0.5 }
-            };
             request = new DefaultQuasiHttpRequest
             {
                 Target = "/p"
@@ -302,13 +287,12 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             expectedResBodyBytes = null;
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                reqEnv, expectedResponse, expectedResBodyBytes });
+                expectedResponse, expectedResBodyBytes });
 
             // next...
             connection = new object();
             maxChunkSize = 100;
             responseBufferingEnabled = true;
-            reqEnv = null;
             request = new DefaultQuasiHttpRequest
             {
                 Target = "/fxn",
@@ -339,14 +323,13 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ContentType = "application/xml"
             };
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                reqEnv, expectedResponse, expectedResBodyBytes });
+                expectedResponse, expectedResBodyBytes });
 
             // next...
             // zero content length in request
             connection = "..";
             maxChunkSize = 50;
             responseBufferingEnabled = false;
-            reqEnv = null;
             request = new DefaultQuasiHttpRequest();
             reqBodyBytes = new byte[0];
             request.Body = new DummyQuasiHttpBody
@@ -362,14 +345,13 @@ namespace Kabomu.Tests.QuasiHttp.Client
             expectedResBodyBytes = new byte[1];
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes);
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                reqEnv, expectedResponse, expectedResBodyBytes });
+                expectedResponse, expectedResBodyBytes });
 
             // next...
             // exceed buffering limit of 100 specified in test method
             connection = true;
             maxChunkSize = 40;
             responseBufferingEnabled = false;
-            reqEnv = null;
             request = new DefaultQuasiHttpRequest();
             reqBodyBytes = null;
 
@@ -385,7 +367,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ContentType = "text/plain"
             };
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                reqEnv, expectedResponse, expectedResBodyBytes });
+                expectedResponse, expectedResBodyBytes });
 
             return testData;
         }
@@ -442,19 +424,9 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ReleaseIndicator = new CancellationTokenSource()
             };
-            IDictionary<string, object> actualReqEnv = null;
-            Func<IDictionary<string, object>, Task <IQuasiHttpRequest>> requestFunc = reqEnv =>
-            {
-                actualReqEnv = reqEnv;
-                return Task.FromResult<IQuasiHttpRequest>(request);
-            };
             var instance = new DefaultSendProtocolInternal
             {
-                RequestFunc = requestFunc,
-                RequestEnvironment = new Dictionary<string, object>
-                {
-                    { "two", 2 }
-                },
+                Request = request,
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize
@@ -475,8 +447,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             // act.
             await Assert.ThrowsAsync<NotImplementedException>(() =>
                 instance.Send());
-
-            Assert.Same(instance.RequestEnvironment, actualReqEnv);
 
             // assert written request, and work around disposed
             // request receiving streams.
@@ -528,11 +498,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             IDictionary<string, object> actualReqEnv = null;
             var instance = new DefaultSendProtocolInternal
             {
-                RequestFunc = reqEnv =>
-                {
-                    actualReqEnv = reqEnv;
-                    return Task.FromResult<IQuasiHttpRequest>(request);
-                },
+                Request = request,
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize,
@@ -574,7 +540,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         }
 
         [Fact]
-        public async Task TestSendForNullResponse()
+        public async Task TestSendForNullResponse1()
         {
             // arrange.
             object connection = "127.pcid";
@@ -598,19 +564,15 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ReleaseIndicator = new CancellationTokenSource()
             };
-            IDictionary<string, object> actualReqEnv = null;
             var instance = new DefaultSendProtocolInternal
             {
-                RequestFunc = reqEnv =>
-                {
-                    actualReqEnv = reqEnv;
-                    return Task.FromResult<IQuasiHttpRequest>(request);
-                },
+                Request = request,
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize,
                 ResponseBufferingEnabled = true,
-                ResponseBodyBufferingSizeLimit = 40
+                ResponseBodyBufferingSizeLimit = 40,
+                EnsureNonNullResponse = false
             };
 
             // set up expected request headers
@@ -630,7 +592,76 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // assert
             Assert.Null(actualResponse);
-            Assert.Null(actualReqEnv);
+
+            // assert written request, and work around disposed
+            // request receiving streams.
+            ICustomReader reqHeaderReader = new StreamCustomReaderWriter(
+                new MemoryStream(headerReceiver.ToArray()));
+            var actualReqChunk = await ChunkedTransferUtils.ReadLeadChunk(
+                reqHeaderReader, 0);
+            // verify all contents of headerReceiver was used
+            // before comparing lead chunks
+            Assert.Equal(0, await reqHeaderReader.ReadBytes(new byte[1], 0, 1));
+            ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
+
+            await instance.Cancel();
+            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
+        }
+
+        [Fact]
+        public async Task TestSendForNullResponse2()
+        {
+            // arrange.
+            object connection = "127.xct";
+            int maxChunkSize = 8000;
+            var request = new DefaultQuasiHttpRequest();
+
+            // prepare to receive request to be written
+            var headerReceiver = new MemoryStream();
+            var backingWriters = new List<ICustomWriter>();
+            backingWriters.Add(new StreamCustomReaderWriter(headerReceiver));
+            var helpingWriter = new SequenceCustomWriter
+            {
+                Writers = backingWriters
+            };
+
+            var helpingReader = new SequenceCustomReader();
+
+            // set up instance
+            var transport = new DemoQuasiHttpTransport2(connection,
+                helpingReader, helpingWriter)
+            {
+                ReleaseIndicator = new CancellationTokenSource()
+            };
+            var instance = new DefaultSendProtocolInternal
+            {
+                Request = request,
+                Transport = transport,
+                Connection = connection,
+                MaxChunkSize = maxChunkSize,
+                ResponseBufferingEnabled = true,
+                ResponseBodyBufferingSizeLimit = 40,
+                EnsureNonNullResponse = false
+            };
+
+            // set up expected request headers
+            var expectedReqChunk = new LeadChunk
+            {
+                Version = LeadChunk.Version01,
+                Method = request.Method,
+                RequestTarget = request.Target,
+                HttpVersion = request.HttpVersion,
+                Headers = request.Headers,
+                ContentLength = request.Body?.ContentLength ?? 0,
+                ContentType = request.Body?.ContentType,
+            };
+
+            // act.
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+                instance.Send());
+
+            // assert
+            Assert.Contains("no response", actualEx.Message);
 
             // assert written request, and work around disposed
             // request receiving streams.
@@ -705,20 +736,15 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 ReleaseIndicator = new CancellationTokenSource()
             };
-            IDictionary<string, object> actualReqEnv = null;
             var instance = new DefaultSendProtocolInternal
             {
-                RequestFunc = reqEnv =>
-                {
-                    actualReqEnv = reqEnv;
-                    return Task.FromResult<IQuasiHttpRequest>(request);
-                },
-                RequestEnvironment = reqEnv,
+                Request = request,
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize,
                 ResponseBufferingEnabled = responseBufferingEnabled,
-                ResponseBodyBufferingSizeLimit = 100
+                ResponseBodyBufferingSizeLimit = 100,
+                EnsureNonNullResponse = true
             };
 
             // set up expected request headers
@@ -738,7 +764,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var wasTransportReleased = transport.ReleaseIndicator.IsCancellationRequested;
 
             // begin assert.
-            Assert.Same(instance.RequestEnvironment, actualReqEnv);
             Assert.NotNull(actualResponse);
             Assert.NotNull(actualResponse.Response);
             Assert.Equal(responseBufferingEnabled, actualResponse.ResponseBufferingApplied);

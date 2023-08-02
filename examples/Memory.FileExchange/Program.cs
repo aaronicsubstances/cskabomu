@@ -2,6 +2,7 @@
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.Server;
+using Kabomu.QuasiHttp.Transport;
 using NLog;
 using System;
 using System.Collections.Generic;

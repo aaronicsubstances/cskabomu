@@ -1,6 +1,7 @@
 ﻿using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.Server;
+using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared.Common;
 using Kabomu.Tests.Shared.QuasiHttp;
 using NLog;

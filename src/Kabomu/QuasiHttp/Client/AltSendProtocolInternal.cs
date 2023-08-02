@@ -18,6 +18,7 @@ namespace Kabomu.QuasiHttp.Client
         public IQuasiHttpAltTransport TransportBypass { get; set; }
         public bool ResponseBufferingEnabled { get; set; }
         public int ResponseBodyBufferingSizeLimit { get; set; }
+        public bool EnsureNonNullResponse { get; set; }
 
         public Task Cancel()
         {
@@ -31,10 +32,6 @@ namespace Kabomu.QuasiHttp.Client
 
         public async Task<ProtocolSendResultInternal> Send()
         {
-            if (TransportBypass == null)
-            {
-                throw new MissingDependencyException("transport bypass");
-            }
             if (ResponseTask == null)
             {
                 throw new ExpectationViolationException("ResponseTask");
@@ -44,6 +41,10 @@ namespace Kabomu.QuasiHttp.Client
 
             if (response == null)
             {
+                if (EnsureNonNullResponse)
+                {
+                    throw new QuasiHttpRequestProcessingException("no response");
+                }
                 return null;
             }
             

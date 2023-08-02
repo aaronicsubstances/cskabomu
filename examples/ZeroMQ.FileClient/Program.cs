@@ -1,10 +1,13 @@
 ﻿using CommandLine;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp.Client;
+using Kabomu.QuasiHttp.Transport;
+using NetMQ;
 using NetMQ.Sockets;
 using NLog;
 using System;
 using System.Collections.Generic;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 
 namespace ZeroMQ.FileClient
@@ -38,11 +41,10 @@ namespace ZeroMQ.FileClient
         {
             try
             {
-                using (var publisher = new PublisherSocket())
+                using (var socket = CreateClientSocket(serverPort))
                 {
-                    publisher.Bind("tcp://*:" + serverPort);
                     LOG.Info("Created ZeroMQ.FileClient to {0}", serverPort);
-                    var transport = new ZeroMQClientTransport(publisher);
+                    var transport = new ZeroMQClientTransport(socket);
                     var defaultSendOptions = new DefaultQuasiHttpSendOptions
                     {
                         EnsureNonNullResponse = false
@@ -64,6 +66,13 @@ namespace ZeroMQ.FileClient
             {
                 LOG.Error(e, "Fatal error encountered");
             }
+        }
+
+        private static NetMQSocket CreateClientSocket(int port)
+        {
+            var socket = new PublisherSocket();
+            socket.Bind("tcp://*:" + port);
+            return socket;
         }
     }
 }

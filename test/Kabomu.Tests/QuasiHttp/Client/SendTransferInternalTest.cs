@@ -268,8 +268,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             var instance = new SendTransferInternal
             {
-                Request = request,
-                ResponseBufferingEnabled = true
+                Request = request
             };
             Exception cancellationError = null;
             var resCts = new CancellationTokenSource();

@@ -267,16 +267,29 @@ namespace Kabomu.Tests.Shared.Common
             Assert.Equal(expected.PathValues, actual.PathValues);
         }
 
-        public static void CompareConnectivityParams(IConnectivityParams expected, IConnectivityParams actual)
+        public static void CompareConnectivityParams(
+            object expectedRemoteEndpoint, object actualRemoteEndpoint,
+            IQuasiHttpSendOptions expectedSendOptions, IQuasiHttpSendOptions actualSendOptions)
         {
-            if (expected == null)
+            Assert.Equal(expectedRemoteEndpoint, actualRemoteEndpoint);
+            if (expectedSendOptions == null)
             {
-                Assert.Null(actual);
+                Assert.Null(actualSendOptions);
                 return;
             }
-            Assert.NotNull(actual);
-            Assert.Equal(expected.RemoteEndpoint, actual.RemoteEndpoint);
-            Assert.Equal(expected.ExtraParams, actual.ExtraParams);
+            Assert.NotNull(actualSendOptions);
+            Assert.Equal(expectedSendOptions.ResponseBufferingEnabled,
+                actualSendOptions.ResponseBufferingEnabled);
+            Assert.Equal(expectedSendOptions.ResponseBodyBufferingSizeLimit,
+                actualSendOptions.ResponseBodyBufferingSizeLimit);
+            Assert.Equal(expectedSendOptions.EnsureNonNullResponse,
+                actualSendOptions.EnsureNonNullResponse);
+            Assert.Equal(expectedSendOptions.TimeoutMillis,
+                actualSendOptions.TimeoutMillis);
+            Assert.Equal(expectedSendOptions.ExtraConnectivityParams,
+                actualSendOptions.ExtraConnectivityParams);
+            Assert.Equal(expectedSendOptions.MaxChunkSize,
+                actualSendOptions.MaxChunkSize);
         }
     }
 }

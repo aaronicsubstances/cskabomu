@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
+using Kabomu.QuasiHttp.Client;
 
-namespace Kabomu.QuasiHttp.Client
+namespace Kabomu.QuasiHttp.Transport
 {
     /// <summary>
     /// Used to configure send requests to <see cref="StandardQuasiHttpClient"/> instances.
@@ -10,9 +11,6 @@ namespace Kabomu.QuasiHttp.Client
         /// <summary>
         /// Gets any extra information which can help a transport to locate a communication endpoint.
         /// </summary>
-        /// <remarks>
-        /// Equivalent to <see cref="Transport.IConnectivityParams.ExtraParams"/> property.
-        /// </remarks>
         IDictionary<string, object> ExtraConnectivityParams { get; }
 
         /// <summary>

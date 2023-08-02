@@ -98,7 +98,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <exception cref="ChunkDecodingException">If data from reader could not be decoded
         /// into a valid lead chunk.</exception>
         public static async Task<LeadChunk> ReadLeadChunk(ICustomReader reader,
-            int maxChunkSize)
+            int maxChunkSize = 0)
         {
             if (reader == null)
             {
@@ -180,7 +180,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// is larger than the <paramref name="maxChunkSize"/> argument, or is larger than value of
         /// <see cref="HardMaxChunkSizeLimit"/> field.</exception>
         public static async Task WriteLeadChunk(ICustomWriter writer,
-            int maxChunkSize, LeadChunk chunk)
+            LeadChunk chunk, int maxChunkSize = 0)
         {
             if (writer == null)
             {
