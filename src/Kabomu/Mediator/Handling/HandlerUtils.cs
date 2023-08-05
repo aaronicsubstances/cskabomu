@@ -140,11 +140,7 @@ namespace Kabomu.Mediator.Handling
             }
             return async (context) =>
             {
-                IPathMatchResult parentPathMatchResult;
-                lock (context.Mutex)
-                {
-                    parentPathMatchResult = ContextUtils.GetPathMatchResult(context);
-                }
+                var parentPathMatchResult = ContextUtils.GetPathMatchResult(context);
                 var pathMatchResult = pathTemplate.Match(context, parentPathMatchResult.UnboundRequestTarget);
                 if (pathMatchResult != null)
                 {

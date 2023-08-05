@@ -15,14 +15,6 @@ namespace Kabomu.Mediator.Handling
         private Stack<HandlerGroup> _handlerStack;
         private IRegistry _joinedRegistry;
 
-        public object Mutex
-        {
-            get
-            {
-                return _mutex;
-            }
-        }
-
         public IContextRequest Request { get; set; } // getter is equivalent to fetching from joined registry
         public IContextResponse Response { get; set; } // getter is equivalent to fetching from joined registry
         public IList<Handler> InitialHandlers { get; set; }
@@ -208,9 +200,6 @@ namespace Kabomu.Mediator.Handling
             return handler;
         }
 
-        /// <summary>
-        /// NB: must be called from mutual exclusion
-        /// </summary>
         private Task RunNext(Handler handler)
         {
             if (handler == null)
@@ -245,22 +234,34 @@ namespace Kabomu.Mediator.Handling
 
         public (bool, object) TryGet(object key)
         {
-            return _joinedRegistry.TryGet(key);
+            lock (_mutex)
+            {
+                return _joinedRegistry.TryGet(key);
+            }
         }
 
         public object Get(object key)
         {
-            return _joinedRegistry.Get(key);
+            lock (_mutex)
+            {
+                return _joinedRegistry.Get(key);
+            }
         }
 
         public IEnumerable<object> GetAll(object key)
         {
-            return _joinedRegistry.GetAll(key);
+            lock (_mutex)
+            {
+                return _joinedRegistry.GetAll(key);
+            }
         }
 
         public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)
         {
-            return _joinedRegistry.TryGetFirst(key, transformFunction);
+            lock (_mutex)
+            {
+                return _joinedRegistry.TryGetFirst(key, transformFunction);
+            }
         }
 
         private class DynamicRegistry : IRegistry

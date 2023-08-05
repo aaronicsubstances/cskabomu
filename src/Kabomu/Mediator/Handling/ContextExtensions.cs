@@ -47,16 +47,13 @@ namespace Kabomu.Mediator.Handling
                 return (false, null);
             };
             Task<T> parserTask;
-            lock (context.Mutex)
+            bool found;
+            (found, parserTask) = RegistryExtensions.TryGetFirst(context,
+                ContextUtils.RegistryKeyRequestParser, parserCode);
+            if (!found)
             {
-                bool found;
-                (found, parserTask) = RegistryExtensions.TryGetFirst(context,
-                    ContextUtils.RegistryKeyRequestParser, parserCode);
-                if (!found)
-                {
-                    throw ContextUtils.CreateNoSuchParserExceptionForKey(
-                        ContextUtils.RegistryKeyRequestParser);
-                }
+                throw ContextUtils.CreateNoSuchParserExceptionForKey(
+                    ContextUtils.RegistryKeyRequestParser);
             }
             return await parserTask;
         }
@@ -106,16 +103,13 @@ namespace Kabomu.Mediator.Handling
                     return (false, null);
                 };
                 Task renderTask;
-                lock (context.Mutex)
+                bool found;
+                (found, renderTask) = RegistryExtensions.TryGetFirst(context,
+                    ContextUtils.RegistryKeyResponseRenderer, renderingCode);
+                if (!found)
                 {
-                    bool found;
-                    (found, renderTask) = RegistryExtensions.TryGetFirst(context,
-                        ContextUtils.RegistryKeyResponseRenderer, renderingCode);
-                    if (!found)
-                    {
-                        throw ContextUtils.CreateNoSuchRendererExceptionForKey(
-                            ContextUtils.RegistryKeyResponseRenderer);
-                    }
+                    throw ContextUtils.CreateNoSuchRendererExceptionForKey(
+                        ContextUtils.RegistryKeyResponseRenderer);
                 }
                 await renderTask;
             }
@@ -153,15 +147,12 @@ namespace Kabomu.Mediator.Handling
                     return (false, null);
                 };
                 Task unexpectedEndTask;
-                lock (context.Mutex)
+                bool found;
+                (found, unexpectedEndTask) = RegistryExtensions.TryGetFirst(context,
+                    ContextUtils.RegistryKeyUnexpectedEndHandler, unexpectedEndCode);
+                if (!found)
                 {
-                    bool found;
-                    (found, unexpectedEndTask) = RegistryExtensions.TryGetFirst(context,
-                        ContextUtils.RegistryKeyUnexpectedEndHandler, unexpectedEndCode);
-                    if (!found)
-                    {
-                        unexpectedEndTask = HandleUnexpectedEndLastResort(context);
-                    }
+                    unexpectedEndTask = HandleUnexpectedEndLastResort(context);
                 }
                 await unexpectedEndTask;
             }
@@ -213,15 +204,12 @@ namespace Kabomu.Mediator.Handling
                     return (false, null);
                 };
                 Task resultTask;
-                lock (context.Mutex)
+                bool found;
+                (found, resultTask) = RegistryExtensions.TryGetFirst(context,
+                    ContextUtils.RegistryKeyServerErrorHandler, errorHandlingCode);
+                if (!found)
                 {
-                    bool found;
-                    (found, resultTask) = RegistryExtensions.TryGetFirst(context,
-                        ContextUtils.RegistryKeyServerErrorHandler, errorHandlingCode);
-                    if (!found)
-                    {
-                        resultTask = HandleErrorLastResort(context, error, null);
-                    }
+                    resultTask = HandleErrorLastResort(context, error, null);
                 }
                 await resultTask;
             }
@@ -238,25 +226,22 @@ namespace Kabomu.Mediator.Handling
         private static Task HandleErrorLastResort(IContext context, Exception original,
             Exception errorHandlerException)
         {
-            lock (context.Mutex)
+            string msg;
+            if (errorHandlerException != null)
             {
-                string msg;
-                if (errorHandlerException != null)
-                {
-                    msg = "Exception thrown by error handler while handling exception\n" +
-                        "Original exception: " + original + "\n" +
-                        "Error handler exception: " + errorHandlerException;
-                }
-                else
-                {
-                    msg = original.ToString();
-                }
-                context.Response.TrySend(() =>
-                {
-                    context.Response.SetServerErrorStatusCode()
-                        .SetBody(new StringBody(msg) { ContentType = "text/plain" });
-                });
+                msg = "Exception thrown by error handler while handling exception\n" +
+                    "Original exception: " + original + "\n" +
+                    "Error handler exception: " + errorHandlerException;
             }
+            else
+            {
+                msg = original.ToString();
+            }
+            context.Response.TrySend(() =>
+            {
+                context.Response.SetServerErrorStatusCode()
+                    .SetBody(new StringBody(msg) { ContentType = "text/plain" });
+            });
             return Task.CompletedTask;
         }
     }

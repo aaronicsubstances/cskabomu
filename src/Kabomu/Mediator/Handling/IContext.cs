@@ -36,20 +36,9 @@ namespace Kabomu.Mediator.Handling
     /// contextual objects on top of those from the <see cref="MediatorQuasiWebApplication.InitialHandlerVariables"/> property. Those
     /// from <see cref="MediatorQuasiWebApplication.HandlerConstants"/> property however, will always remain at the top throughout
     /// the lifetime of an instance of this class.
-    /// <para></para>
-    /// 
-    /// Instances of this class are not threadsafe without external synchronization. The <see cref="MutexApi"/> property is used
-    /// internally for all synchronization needs, and is available to handlers for the same purpose. The
-    /// <see cref="MediatorQuasiWebApplication.MutexApiFactory"/> property is used to generate one instance each for every instance
-    /// of the <see cref="IContext"/> class.
     /// </remarks>
     public interface IContext : IRegistry
     {
-        /// <summary>
-        /// Gets a mutual exclusion async lock which can be used to synchronize access to instances of this object.
-        /// </summary>
-        object Mutex { get; }
-
         /// <summary>
         /// Gets the wrapper through which the quasi http request can be accessed. The wrapper also
         /// acts as a mutable store of contextual objects, which handlers can use.
