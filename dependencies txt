@@ -1,4 +1,4 @@
-- generalization of OS shell jobs, or generalized unix init mechanism, to guarantee that a child process cannot outlive its parent process.
+- generalization of OS shell jobs, docker --init or unix init mechanism, to guarantee that a child process cannot outlive its parent process.
 - system administration function for monitoring process group
 - networked database which allows ACID transaction management by one process, for the rest of the processes in a process group
 - in-memory cache with time-to-live and eviction notification support, to host non-serializable global variables
