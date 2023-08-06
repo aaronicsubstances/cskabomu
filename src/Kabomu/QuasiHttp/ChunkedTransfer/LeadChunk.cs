@@ -56,7 +56,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
         /// <summary>
         /// Gets or sets a value providing the length in bytes of a quasi http body which will
-        /// follow the lead chunk when serialized. Equivalent to Content-Type and 
+        /// follow the lead chunk when serialized. Equivalent to Content-Length and 
         /// Transfer-Encoding=chunked HTTP headers.
         /// </summary>
         /// <remarks>
@@ -74,11 +74,6 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// </list>
         /// </remarks>
         public long ContentLength { get; set; }
-
-        /// <summary>
-        /// Gets or sets the equivalent of the Content-Type header of HTTP.
-        /// </summary>
-        public string ContentType { get; set; }
 
         /// <summary>
         /// Gets or sets the equivalent of method component of HTTP request line.
@@ -119,8 +114,6 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             specialHeaderRow.Add(RequestTarget ?? "");
             specialHeaderRow.Add(StatusCode.ToString());
             specialHeaderRow.Add(ContentLength.ToString());
-            specialHeaderRow.Add((ContentType != null ? 1 : 0).ToString());
-            specialHeaderRow.Add(ContentType ?? "");
             specialHeaderRow.Add((Method != null ? 1 : 0).ToString());
             specialHeaderRow.Add(Method ?? "");
             specialHeaderRow.Add((HttpVersion != null ? 1 : 0).ToString());
@@ -261,7 +254,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 throw new ArgumentException("invalid lead chunk");
             }
             var specialHeader = csvData[0];
-            if (specialHeader.Count < 12)
+            if (specialHeader.Count < 10)
             {
                 throw new ArgumentException("invalid special header");
             }
@@ -273,19 +266,15 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             instance.ContentLength = long.Parse(specialHeader[3]);
             if (specialHeader[4] != "0")
             {
-                instance.ContentType = specialHeader[5];
+                instance.Method = specialHeader[5];
             }
             if (specialHeader[6] != "0")
             {
-                instance.Method = specialHeader[7];
+                instance.HttpVersion = specialHeader[7];
             }
             if (specialHeader[8] != "0")
             {
-                instance.HttpVersion = specialHeader[9];
-            }
-            if (specialHeader[10] != "0")
-            {
-                instance.HttpStatusMessage = specialHeader[11];
+                instance.HttpStatusMessage = specialHeader[9];
             }
             for (int i = 1; i < csvData.Count; i++)
             {
@@ -303,6 +292,58 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
 
             return instance;
+        }
+
+        public void UpdateRequest(IQuasiHttpMutableRequest request)
+        {
+            request.Method = Method;
+            request.Target = RequestTarget;
+            request.Headers = Headers;
+            request.HttpVersion = HttpVersion;
+        }
+
+        public void UpdateResponse(IQuasiHttpMutableResponse response)
+        {
+            response.StatusCode = StatusCode;
+            response.HttpStatusMessage = HttpStatusMessage;
+            response.Headers = Headers;
+            response.HttpVersion = HttpVersion;
+        }
+
+        public static LeadChunk CreateFromRequest(IQuasiHttpRequest request)
+        {
+            var chunk = new LeadChunk
+            {
+                Version = Version01,
+                Method = request.Method,
+                RequestTarget = request.Target,
+                Headers = request.Headers,
+                HttpVersion = request.HttpVersion,
+            };
+            var requestBody = request.Body;
+            if (requestBody != null)
+            {
+                chunk.ContentLength = requestBody.ContentLength;
+            }
+            return chunk;
+        }
+
+        public static LeadChunk CreateFromResponse(IQuasiHttpResponse response)
+        {
+            var chunk = new LeadChunk
+            {
+                Version = Version01,
+                StatusCode = response.StatusCode,
+                HttpStatusMessage = response.HttpStatusMessage,
+                Headers = response.Headers,
+                HttpVersion = response.HttpVersion,
+            };
+            var responseBody = response.Body;
+            if (responseBody != null)
+            {
+                chunk.ContentLength = responseBody.ContentLength;
+            }
+            return chunk;
         }
     }
 }

@@ -385,47 +385,19 @@ namespace Kabomu.Tests.QuasiHttp
         [Theory]
         [MemberData(nameof(CreateTestCreateEquivalentInMemoryBodyData))]
         public async Task TestCreateEquivalentInMemoryBody(int bufferingLimit,
-            IQuasiHttpBody originalBody, byte[] expectedBodyBytes)
+            IQuasiHttpBody body, byte[] expectedBodyBytes)
         {
             // arrange.
             IQuasiHttpBody expected = new ByteBufferBody(expectedBodyBytes)
             {
-                ContentType = originalBody.ContentType,
-                ContentLength = originalBody.ContentLength
-            };
-            var disposed = false;
-            var originalBody1 = originalBody;
-            var reader = new LambdaBasedCustomReader
-            {
-                ReadFunc = (data, offset, length) =>
-                {
-                    if (disposed)
-                    {
-                        throw new ObjectDisposedException("reader");
-                    }
-                    return originalBody1.AsReader().ReadBytes(data, offset, length);
-                },
-                DisposeFunc = () =>
-                {
-                    disposed = true;
-                    return Task.CompletedTask;
-                }
-            };
-            originalBody = new CustomReaderBackedBody(reader)
-            {
-                ContentLength = originalBody1.ContentLength,
-                ContentType = originalBody1.ContentType
+                ContentLength = body.ContentLength
             };
 
             // act.
-            var actualResponseBody = await ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(originalBody,
+            var actualResponseBody = await ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(body,
                 bufferingLimit);
             
             // assert.
-            // check that original response body has been ended.
-            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                originalBody.AsReader().ReadBytes(new byte[1], 0, 1));
-            // finally verify content.
             await ComparisonUtils.CompareBodies(expected, actualResponseBody, expectedBodyBytes);
         }
 
@@ -448,8 +420,7 @@ namespace Kabomu.Tests.QuasiHttp
             bufferingLimit = expectedResBodyBytes.Length;
             responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes))
             {
-                ContentLength = -10,
-                ContentType = "text/plain"
+                ContentLength = -10
             };
             testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
@@ -464,8 +435,7 @@ namespace Kabomu.Tests.QuasiHttp
                 (byte)'e', (byte)'f' };
             responseBody = new ByteBufferBody(expectedResBodyBytes)
             {
-                ContentLength = -1,
-                ContentType = "application/octet-stream"
+                ContentLength = -1
             };
             testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
@@ -475,7 +445,6 @@ namespace Kabomu.Tests.QuasiHttp
             responseBody = new ByteBufferBody(new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' })
             {
-                ContentType = "application/json",
                 ContentLength = 3
             };
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c' };
@@ -653,7 +622,6 @@ namespace Kabomu.Tests.QuasiHttp
             var transport = new DemoQuasiHttpTransport(connection,
                 expectedData, null);
             bool releaseConnection = false;
-            string contentType = "text/plain";
             long contentLength = srcData.Length;
             bool bufferingEnabled = false;
             int bodyBufferingSizeLimit = 2;
@@ -661,14 +629,13 @@ namespace Kabomu.Tests.QuasiHttp
             // act
             var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
                 transport, connection, releaseConnection, maxChunkSize,
-                contentType, contentLength, bufferingEnabled,
+                contentLength, bufferingEnabled,
                 bodyBufferingSizeLimit);
 
             // assert
-            Assert.Equal(contentType, body.ContentType);
             Assert.Equal(contentLength, body.ContentLength);
             var actualData = new byte[body.ContentLength];
-            await IOUtils.ReadBytesFully((ICustomReader)body,
+            await IOUtils.ReadBytesFully(body.Reader(),
                 actualData, 0, actualData.Length);
             Assert.Equal(expectedData, actualData);
 
@@ -687,7 +654,6 @@ namespace Kabomu.Tests.QuasiHttp
             var transport = new DemoQuasiHttpTransport(connection,
                 expectedData, null);
             bool releaseConnection = true;
-            string contentType = "text/plain";
             long contentLength = srcData.Length;
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 4;
@@ -695,14 +661,13 @@ namespace Kabomu.Tests.QuasiHttp
             // act
             var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
                 transport, connection, releaseConnection, maxChunkSize,
-                contentType, contentLength, bufferingEnabled,
+                contentLength, bufferingEnabled,
                 bodyBufferingSizeLimit);
 
             // assert
-            Assert.Equal(contentType, body.ContentType);
             Assert.Equal(contentLength, body.ContentLength);
             var actualData = new byte[body.ContentLength];
-            await IOUtils.ReadBytesFully((ICustomReader)body,
+            await IOUtils.ReadBytesFully(body.Reader(),
                 actualData, 0, actualData.Length);
             Assert.Equal(expectedData, actualData);
 
@@ -727,7 +692,6 @@ namespace Kabomu.Tests.QuasiHttp
             var transport = new DemoQuasiHttpTransport(connection,
                 srcData, null);
             bool releaseConnection = false;
-            string contentType = "application/xml";
             long contentLength = -1;
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 30;
@@ -735,13 +699,12 @@ namespace Kabomu.Tests.QuasiHttp
             // act
             var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
                 transport, connection, releaseConnection, maxChunkSize,
-                contentType, contentLength, bufferingEnabled,
+                contentLength, bufferingEnabled,
                 bodyBufferingSizeLimit);
 
             // assert
-            Assert.Equal(contentType, body.ContentType);
             Assert.Equal(contentLength, body.ContentLength);
-            var actualData = await IOUtils.ReadAllBytes((ICustomReader)body);
+            var actualData = await IOUtils.ReadAllBytes(body.Reader());
             Assert.Equal(expectedData, actualData);
 
             // assert that transport wasn't released.
@@ -763,7 +726,6 @@ namespace Kabomu.Tests.QuasiHttp
             var transport = new DemoQuasiHttpTransport(connection,
                 srcData, null);
             bool releaseConnection = true;
-            string contentType = null;
             long contentLength = -1;
             bool bufferingEnabled = false;
             int bodyBufferingSizeLimit = 3;
@@ -771,13 +733,12 @@ namespace Kabomu.Tests.QuasiHttp
             // act
             var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
                 transport, connection, releaseConnection, maxChunkSize,
-                contentType, contentLength, bufferingEnabled,
+                contentLength, bufferingEnabled,
                 bodyBufferingSizeLimit);
 
             // assert
-            Assert.Equal(contentType, body.ContentType);
             Assert.Equal(contentLength, body.ContentLength);
-            var actualData = await IOUtils.ReadAllBytes((ICustomReader)body);
+            var actualData = await IOUtils.ReadAllBytes(body.Reader());
             Assert.Equal(expectedData, actualData);
 
             // assert that transport was released.
@@ -799,7 +760,6 @@ namespace Kabomu.Tests.QuasiHttp
             var transport = new DemoQuasiHttpTransport(connection,
                 expectedData, null);
             bool releaseConnection = true;
-            string contentType = "text/csv";
             long contentLength = 0;
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 4;
@@ -807,7 +767,7 @@ namespace Kabomu.Tests.QuasiHttp
             // act
             var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
                 transport, connection, releaseConnection, maxChunkSize,
-                contentType, contentLength, bufferingEnabled,
+                contentLength, bufferingEnabled,
                 bodyBufferingSizeLimit);
 
             // assert
@@ -832,7 +792,6 @@ namespace Kabomu.Tests.QuasiHttp
             var transport = new DemoQuasiHttpTransport(connection,
                 srcData, null);
             bool releaseConnection = false;
-            string contentType = null;
             long contentLength = -1;
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 3;
@@ -842,7 +801,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 return ProtocolUtilsInternal.CreateBodyFromTransport(
                     transport, connection, releaseConnection, maxChunkSize,
-                    contentType, contentLength, bufferingEnabled,
+                    contentLength, bufferingEnabled,
                     bodyBufferingSizeLimit);
             });
             Assert.Contains($"limit of {bodyBufferingSizeLimit}", actualEx.Message);
@@ -859,7 +818,6 @@ namespace Kabomu.Tests.QuasiHttp
             var transport = new DemoQuasiHttpTransport(connection,
                 expectedData, null);
             bool releaseConnection = true;
-            string contentType = "text/plain";
             long contentLength = 10;
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 4;
@@ -869,7 +827,7 @@ namespace Kabomu.Tests.QuasiHttp
             {
                 return ProtocolUtilsInternal.CreateBodyFromTransport(
                     transport, connection, releaseConnection, maxChunkSize,
-                    contentType, contentLength, bufferingEnabled,
+                    contentLength, bufferingEnabled,
                     bodyBufferingSizeLimit);
             });
             Assert.Contains($"length of {contentLength}", actualEx.Message);

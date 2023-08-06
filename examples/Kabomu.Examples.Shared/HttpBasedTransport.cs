@@ -91,12 +91,7 @@ namespace Kabomu.Examples.Shared
             requestWrapper.Headers.TransferEncoding.Clear();
             if (requestWrapper.Content != null)
             {
-                requestWrapper.Content.Headers.ContentType = null;
                 requestWrapper.Content.Headers.ContentLength = null;
-                if (request.Body.ContentType != null)
-                {
-                    requestWrapper.Content.Headers.Add("Content-Type", request.Body.ContentType);
-                }
                 if (request.Body.ContentLength >= 0)
                 {
                     requestWrapper.Content.Headers.ContentLength = request.Body.ContentLength;
@@ -120,12 +115,10 @@ namespace Kabomu.Examples.Shared
             {
                 var responseStream = await responseWrapper.Content.ReadAsStreamAsync();
                 var contentLength = responseWrapper.Content.Headers.ContentLength ?? -1;
-                var contentType = responseWrapper.Content.Headers.ContentType?.ToString();
                 response.Body = new CustomReaderBackedBody(
                     new StreamCustomReaderWriter(responseStream))
                 {
-                    ContentLength = contentLength,
-                    ContentType = contentType
+                    ContentLength = contentLength
                 };
             }
             response.Headers = new Dictionary<string, IList<string>>();

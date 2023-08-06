@@ -9,7 +9,7 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <summary>
     /// Represents quasi http body based on an externally supplied reader.
     /// </summary>
-    public class CustomReaderBackedBody : AbstractQuasiHttpBody, ICustomReader
+    public class CustomReaderBackedBody : AbstractQuasiHttpBody
     {
         private readonly ICustomReader _backingReader;
 
@@ -28,9 +28,14 @@ namespace Kabomu.QuasiHttp.EntityBody
             _backingReader = wrappedReader;
         }
 
-        public override Task CustomDispose() => _backingReader.CustomDispose();
+        /// <summary>
+        /// Returns backing reader supplied at construction time.
+        /// </summary>
+        public override ICustomReader Reader() => _backingReader;
 
-        public Task<int> ReadBytes(byte[] data, int offset, int length)
-            => _backingReader.ReadBytes(data, offset, length);
+        /// <summary>
+        /// Disposes off backing reader supplied at construction time.
+        /// </summary>
+        public override Task CustomDispose() => _backingReader.CustomDispose();
     }
 }

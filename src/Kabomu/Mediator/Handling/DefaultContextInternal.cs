@@ -91,9 +91,10 @@ namespace Kabomu.Mediator.Handling
         private IPathMatchResult CreateRootPathMatch()
         {
             var pathMatchResult = new DefaultPathMatchResultInternal();
-            if (Request.Target != null)
+            var requestTarget = Request.Target;
+            if (requestTarget != null)
             {
-                pathMatchResult.UnboundRequestTarget = Request.Target;
+                pathMatchResult.UnboundRequestTarget = requestTarget;
                 pathMatchResult.BoundPath = "";
                 pathMatchResult.PathValues = new Dictionary<string, string>();
             }

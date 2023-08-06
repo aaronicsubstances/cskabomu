@@ -57,22 +57,13 @@ namespace ZeroMQ.FileClient
             var request = await requestFunc.Invoke(null);
             // todo: ensure disposal of request if it was retrieved
             // from externally supplied request func.
-            var leadChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                Headers = request.Headers,
-                HttpVersion = request.HttpVersion,
-                Method = request.Method,
-                RequestTarget = request.Target
-            };
+            var leadChunk = LeadChunk.CreateFromRequest(request);
             var requestBody = request.Body;
             byte[] requestBodyBytes = null;
             if (requestBody != null)
             {
                 requestBodyBytes = await IOUtils.ReadAllBytes(
                     request.Body.AsReader());
-                leadChunk.ContentLength = requestBody.ContentLength;
-                leadChunk.ContentType = requestBody.ContentType;
             }
             var headerStream = new MemoryStream();
             var writer = new StreamCustomReaderWriter(headerStream);

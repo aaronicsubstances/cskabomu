@@ -9,16 +9,14 @@ namespace Kabomu.QuasiHttp.EntityBody
     public static class EntityBodyExtensions
     {
         /// <summary>
-        /// Returns a custom reader for a quasi http body instance.
-        /// If the body already implements <see cref="ICustomReader"/> then
-        /// the instance is returned as is. Else <see cref="IOUtils.CoalesceAsReader"/>
-        /// is used to get a custom reader.
+        /// Calls upon <see cref="IOUtils.CoalesceAsReader"/> to get a custom reader
+        /// for the body.
         /// </summary>
         /// <param name="body">the quasi http body</param>
         /// <returns>custom reader which can be used to read bytes from the body</returns>
         public static ICustomReader AsReader(this IQuasiHttpBody body)
         {
-            return IOUtils.CoalesceAsReader(null, body);
+            return IOUtils.CoalesceAsReader(body?.Reader(), body);
         }
     }
 }

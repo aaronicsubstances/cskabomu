@@ -49,7 +49,6 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             expected.RequestTarget = "/detail";
             expected.HttpStatusMessage = "ok";
             expected.ContentLength = 20;
-            expected.ContentType = "text/plain";
             expected.StatusCode = 200;
             expected.HttpVersion = "1.1";
             expected.Method = "POST";

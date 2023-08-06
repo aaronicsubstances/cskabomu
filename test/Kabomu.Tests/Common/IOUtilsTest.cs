@@ -270,58 +270,6 @@ namespace Kabomu.Tests.Common
             return testData;
         }
 
-        [Theory]
-        [MemberData(nameof(CreateTestCoaleasceAsWritableData))]
-        public async Task TestCoaleasceAsWritable(ICustomWritable writable,
-            ICustomReader fallback, string expected)
-        {
-            writable = IOUtils.CoaleasceAsWritable(writable, fallback);
-            string actual = null;
-            if (writable != null)
-            {
-                var writer = new HelperCustomWriter();
-                await writable.WriteBytesTo(writer);
-                actual = ByteUtils.BytesToString(writer.BufferStream.ToArray());
-            }
-            Assert.Equal(expected, actual);
-        }
-
-        public static List<object[]> CreateTestCoaleasceAsWritableData()
-        {
-            var testData = new List<object[]>();
-
-            var expected = "";
-            var writable = new HelperCustomReaderWritable(
-                ByteUtils.StringToBytes(expected));
-            ICustomReader fallback = null;
-            testData.Add(new object[] { writable, fallback, expected });
-
-            expected = null;
-            writable = null;
-            fallback = null;
-            testData.Add(new object[] { writable, fallback, expected });
-
-            expected = "abcdef";
-            writable = new HelperCustomReaderWritable(
-                ByteUtils.StringToBytes(expected));
-            fallback = new LambdaBasedCustomReader();
-            testData.Add(new object[] { writable, fallback, expected });
-
-            expected = "ghijklmnop";
-            writable = null;
-            fallback = new HelperCustomReaderWritable(
-                ByteUtils.StringToBytes(expected));
-            testData.Add(new object[] { writable, fallback, expected });
-
-            expected = "qrstuvwxyz";
-            writable = null;
-            fallback = new HelperCustomReaderWritable(
-                ByteUtils.StringToBytes(expected));
-            testData.Add(new object[] { writable, fallback, expected });
-
-            return testData;
-        }
-
         class HelperCustomReaderWritable : ICustomReader, ICustomWritable
         {
             private readonly Random _randGen = new Random();

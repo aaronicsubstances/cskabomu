@@ -49,7 +49,6 @@ namespace Kabomu.Tests.Shared.Common
             Assert.Equal(expected.RequestTarget, actual.RequestTarget);
             Assert.Equal(expected.StatusCode, actual.StatusCode);
             Assert.Equal(expected.ContentLength, actual.ContentLength);
-            Assert.Equal(expected.ContentType, actual.ContentType);
             Assert.Equal(expected.Method, actual.Method);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
             Assert.Equal(expected.HttpStatusMessage, actual.HttpStatusMessage);
@@ -109,7 +108,6 @@ namespace Kabomu.Tests.Shared.Common
             }
             Assert.NotNull(actual);
             Assert.Equal(expected.ContentLength, actual.ContentLength);
-            Assert.Equal(expected.ContentType, actual.ContentType);
             var actualResBodyBytes = await IOUtils.ReadAllBytes(actual.AsReader());
             Assert.Equal(expectedBodyBytes, actualResBodyBytes);
         }

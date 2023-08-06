@@ -7,11 +7,10 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// Helper class for easier implementation of <see cref="IQuasiHttpBody"/> 
-    /// by providing a default implementation. Provides writable
-    /// content length and content type properties.
-    /// Subclasses at a minimum are supposed to implement <see cref="ICustomReader"/>
-    /// and <see cref="ICustomDisposable"/> interfaces.
+    /// Helper class for easier implementation of <see cref="IQuasiHttpBody"/>.
+    /// Provides a default implementation of the WriteBytesTo method
+    /// based on a non-null value returned by Reader() method. Also provides writable
+    /// content length property.
     /// </summary>
     public abstract class AbstractQuasiHttpBody : IQuasiHttpBody
     {
@@ -31,31 +30,25 @@ namespace Kabomu.QuasiHttp.EntityBody
         public long ContentLength { get; set; } = -1;
 
         /// <summary>
-        /// Gets or sets any string or null which can be used by the receiving end of the bytes generated
-        /// by this instance, to determine how to interpret the bytes. It is equivalent to "Content-Type" header
-        /// in HTTP.
-        /// </summary>
-        public string ContentType { get; set; }
-
-        /// <summary>
-        /// Requires instance to implement <see cref="ICustomReader"/>, and
-        /// copies from instance to supplied writer.
+        /// Copies bytes from a value retrieved from Reader() method to supplied writer.
         /// </summary>
         /// <param name="writer">the writer which will be the destination of
         /// the bytes to be written.</param>
         /// <returns>a task representing asynchronous operation</returns>
         /// <exception cref="MissingDependencyException">
-        /// if <see cref="ICustomReader"/> is not implemented</exception>
+        /// if <see cref="Reader"/> method returns null</exception>
         public virtual Task WriteBytesTo(ICustomWriter writer)
         {
-            var reader = this as ICustomReader;
+            var reader = Reader();
             if (reader == null)
             {
                 throw new MissingDependencyException(
-                    "ICustomReader not implemented");
+                    "received null from Reader() method");
             }
             return IOUtils.CopyBytes(reader, writer);
         }
+
+        public abstract ICustomReader Reader();
 
         public abstract Task CustomDispose();
     }

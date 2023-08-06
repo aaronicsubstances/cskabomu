@@ -232,9 +232,6 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { KeyStatusPhrase, new List<string>{ "Accepted" } }
                 },
                 Body = new StringBody(ByteUtils.BytesToString(expectedResponseBodyBytes))
-                {
-                    ContentType = "text/plain"
-                }
             };
             var expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -243,9 +240,6 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 HttpVersion = request.HttpVersion,
                 Headers = new Dictionary<string, IList<string>>(request.Headers),
                 Body = new ByteBufferBody(expectedResponseBodyBytes)
-                {
-                    ContentType = "text/plain"
-                }
             };
             expectedResponse.Headers.Add(KeyRequestMethod,
                 new List<string> { request.Method });
@@ -273,9 +267,6 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 Target = "/returjn/dude",
                 HttpVersion = KeyHttpVersion1_0,
                 Body = new StringBody("hello")
-                {
-                    ContentType = "text/csv"
-                }
             };
             expectedResponseBodyBytes = ByteUtils.StringToBytes("HELLO");
             expectedResponse = new DefaultQuasiHttpResponse

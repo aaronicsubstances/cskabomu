@@ -124,7 +124,7 @@ namespace Kabomu.QuasiHttp
             var reader = body.AsReader();
 
             // but still enforce the content length. even if zero,
-            // still pass it on in order to dispose the body.
+            // still pass it on
             if (body.ContentLength >= 0)
             {
                 reader = new ContentLengthEnforcingCustomReader(reader,
@@ -134,11 +134,10 @@ namespace Kabomu.QuasiHttp
             // now read in entirety of body into memory and
             var inMemBuffer = await IOUtils.ReadAllBytes(reader, bodyBufferingLimit);
             
-            // finally maintain content length and content type for the sake of tests.
+            // finally maintain content length for the sake of tests.
             return new ByteBufferBody(inMemBuffer)
             {
-                ContentLength = body.ContentLength,
-                ContentType = body.ContentType
+                ContentLength = body.ContentLength
             };
         }
 
@@ -164,7 +163,7 @@ namespace Kabomu.QuasiHttp
 
         public static async Task<IQuasiHttpBody> CreateBodyFromTransport(
             IQuasiHttpTransport transport, object connection, bool releaseConnection, int maxChunkSize,
-            string contentType, long contentLength, bool bufferingEnabled,
+            long contentLength, bool bufferingEnabled,
             int bodyBufferingSizeLimit)
         {
             if (contentLength == 0)
@@ -193,7 +192,6 @@ namespace Kabomu.QuasiHttp
                     transportReader, bodyBufferingSizeLimit);
                 return new ByteBufferBody(inMemBuffer)
                 {
-                    ContentType = contentType,
                     ContentLength = contentLength
                 };
             }
@@ -201,7 +199,6 @@ namespace Kabomu.QuasiHttp
             {
                 return new CustomReaderBackedBody(transportReader)
                 {
-                    ContentType = contentType,
                     ContentLength = contentLength
                 };
             }

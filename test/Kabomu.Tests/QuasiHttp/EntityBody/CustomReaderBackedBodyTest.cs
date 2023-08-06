@@ -29,7 +29,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 new StreamCustomReaderWriter(stream));
 
             // act and assert
-            await IOUtilsTest.TestReading(instance, null, 2, expected, null);
+            await IOUtilsTest.TestReading(instance.Reader(), null, 2, expected, null);
             Assert.Equal(-1, instance.ContentLength);
         }
 
@@ -43,8 +43,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 
             Assert.Equal(-1, instance.ContentLength);
 
+            var reader = instance.Reader();
+
             var actual = new byte[3];
-            var actualLen = await instance.ReadBytes(actual, 0, 3);
+            var actualLen = await reader.ReadBytes(actual, 0, 3);
             Assert.Equal(3, actualLen);
             ComparisonUtils.CompareData(expected, 0, actualLen,
                 actual, 0, actualLen);
@@ -53,7 +55,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             await instance.CustomDispose();
 
             await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                instance.ReadBytes(actual, 1, 2));
+                reader.ReadBytes(actual, 1, 2));
         }
 
         [Fact]

@@ -239,8 +239,9 @@ namespace Kabomu.Mediator.Handling
             }
             context.Response.TrySend(() =>
             {
+                context.Response.Headers.Set("content-type", "text/plain");
                 context.Response.SetServerErrorStatusCode()
-                    .SetBody(new StringBody(msg) { ContentType = "text/plain" });
+                    .SetBody(new StringBody(msg));
             });
             return Task.CompletedTask;
         }

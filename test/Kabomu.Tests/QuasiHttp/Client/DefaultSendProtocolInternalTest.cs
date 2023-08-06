@@ -49,8 +49,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 };
                 request.Body = new CustomWritableBackedBody(writable)
                 {
-                    ContentLength = request.Body.ContentLength,
-                    ContentType = request.Body.ContentType
+                    ContentLength = request.Body.ContentLength
                 };
             }
             return helpingWriter;
@@ -59,16 +58,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         private static async Task<SequenceCustomReader> SerializeResponseToBeRead(
             IQuasiHttpResponse res, byte[] resBodyBytes)
         {
-            var resChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                HttpVersion = res.HttpVersion,
-                StatusCode = res.StatusCode,
-                HttpStatusMessage = res.HttpStatusMessage,
-                Headers = res.Headers,
-                ContentLength = res.Body?.ContentLength ?? 0,
-                ContentType = res.Body?.ContentType
-            };
+            var resChunk = LeadChunk.CreateFromResponse(res);
             var helpingReaders = new List<ICustomReader>();
             var headerStream = new MemoryStream();
             var headerReader = new StreamCustomReaderWriter(headerStream);
@@ -165,16 +155,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                Method = request.Method,
-                RequestTarget = request.Target,
-                HttpVersion = request.HttpVersion,
-                Headers = request.Headers,
-                ContentLength = request.Body?.ContentLength ?? 0,
-                ContentType = request.Body?.ContentType,
-            };
+            var expectedReqChunk = LeadChunk.CreateFromRequest(request);
 
             // act.
             var actualResponse = await instance.Send();
@@ -249,8 +230,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var reqBodyBytes = ByteUtils.StringToBytes("this is our king");
             request.Body = new DummyQuasiHttpBody
             {
-                ContentLength = reqBodyBytes.Length,
-                ContentType = "text/plain"
+                ContentLength = reqBodyBytes.Length
             };
 
             var expectedResponse = new DefaultQuasiHttpResponse
@@ -263,10 +243,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 },
             };
             byte[] expectedResBodyBytes = ByteUtils.StringToBytes("and this is our queen");
-            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
-            {
-                ContentType = "image/png"
-            };
+            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes);
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
 
@@ -319,8 +296,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             expectedResBodyBytes = ByteUtils.StringToBytes("<a>this is news</a>");
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
-                ContentLength = -1,
-                ContentType = "application/xml"
+                ContentLength = -1
             };
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
@@ -363,8 +339,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             expectedResBodyBytes = ByteUtils.StringToBytes("dk".PadRight(120));
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
-                ContentLength = -1,
-                ContentType = "text/plain"
+                ContentLength = -1
             };
             testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
                 expectedResponse, expectedResBodyBytes });
@@ -433,16 +408,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                Method = request.Method,
-                RequestTarget = request.Target,
-                HttpVersion = request.HttpVersion,
-                Headers = request.Headers,
-                ContentLength = request.Body?.ContentLength ?? 0,
-                ContentType = request.Body?.ContentType,
-            };
+            var expectedReqChunk = LeadChunk.CreateFromRequest(request);
 
             // act.
             await Assert.ThrowsAsync<NotImplementedException>(() =>
@@ -507,16 +473,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                Method = request.Method,
-                RequestTarget = request.Target,
-                HttpVersion = request.HttpVersion,
-                Headers = request.Headers,
-                ContentLength = request.Body?.ContentLength ?? 0,
-                ContentType = request.Body?.ContentType,
-            };
+            var expectedReqChunk = LeadChunk.CreateFromRequest(request);
 
             // act.
             var actualEx = await Assert.ThrowsAsync<CustomIOException>(() => instance.Send());
@@ -576,16 +533,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                Method = request.Method,
-                RequestTarget = request.Target,
-                HttpVersion = request.HttpVersion,
-                Headers = request.Headers,
-                ContentLength = request.Body?.ContentLength ?? 0,
-                ContentType = request.Body?.ContentType,
-            };
+            var expectedReqChunk = LeadChunk.CreateFromRequest(request);
 
             // act.
             var actualResponse = await instance.Send();
@@ -645,16 +593,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                Method = request.Method,
-                RequestTarget = request.Target,
-                HttpVersion = request.HttpVersion,
-                Headers = request.Headers,
-                ContentLength = request.Body?.ContentLength ?? 0,
-                ContentType = request.Body?.ContentType,
-            };
+            var expectedReqChunk = LeadChunk.CreateFromRequest(request);
 
             // act.
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
@@ -697,8 +636,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var reqBodyBytes = ByteUtils.StringToBytes("<a>this is news</a>");
             request.Body = new DummyQuasiHttpBody
             {
-                ContentLength = reqBodyBytes.Length,
-                ContentType = "application/xml"
+                ContentLength = reqBodyBytes.Length
             };
 
             var expectedResponse = new DefaultQuasiHttpResponse
@@ -748,16 +686,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                Method = request.Method,
-                RequestTarget = request.Target,
-                HttpVersion = request.HttpVersion,
-                Headers = request.Headers,
-                ContentLength = request.Body?.ContentLength ?? 0,
-                ContentType = request.Body?.ContentType,
-            };
+            var expectedReqChunk = LeadChunk.CreateFromRequest(request);
 
             // act.
             var actualResponse = await instance.Send();

@@ -11,9 +11,7 @@ namespace Kabomu.Tests.Shared.QuasiHttp
     {
         public long ContentLength { get; set; }
 
-        public string ContentType { get; set; }
-
-        public ICustomReader Reader => throw new NotImplementedException();
+        public ICustomReader Reader() => throw new NotImplementedException();
 
         public Task CustomDispose()
         {

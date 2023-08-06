@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -9,10 +10,8 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <summary>
     /// Represents quasi http body based on a string in UTF8 encoding.
     /// </summary>
-    public class StringBody : AbstractQuasiHttpBody, ICustomReader
+    public class StringBody : AbstractQuasiHttpBody
     {
-        private ByteBufferBody _backingBody;
-
         /// <summary>
         /// Creates a new instance with the given string. The content length is
         /// initialized to the byte count of the string in UTF8 encoding.
@@ -34,24 +33,31 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         public string Content { get; }
 
+        /// <summary>
+        /// Does nothing.
+        /// </summary>
         public override Task CustomDispose() => Task.CompletedTask;
 
-        public Task<int> ReadBytes(byte[] data, int offset, int length)
+        /// <summary>
+        /// Returns a freshly created reader backed by
+        /// <see cref="Content"/> property in UTF8 encoding.
+        /// </summary>
+        public override ICustomReader Reader()
         {
-            if (_backingBody == null)
-            {
-                _backingBody = new ByteBufferBody(ByteUtils.StringToBytes(Content));
-            }
-            return _backingBody.ReadBytes(data, offset, length);
+            var stream = new MemoryStream(ByteUtils.StringToBytes(
+                Content));
+            return new StreamCustomReaderWriter(stream);
         }
 
+        /// <summary>
+        /// Transfers contents of <see cref="Content"/> property
+        /// to supplied writer in UTF8 encoding.
+        /// </summary>
+        /// <param name="writer">supplied writer</param>
         public override Task WriteBytesTo(ICustomWriter writer)
         {
-            if (_backingBody == null)
-            {
-                _backingBody = new ByteBufferBody(ByteUtils.StringToBytes(Content));
-            }
-            return _backingBody.WriteBytesTo(writer);
+            var backingBody = new ByteBufferBody(ByteUtils.StringToBytes(Content));
+            return backingBody.WriteBytesTo(writer);
         }
     }
 }

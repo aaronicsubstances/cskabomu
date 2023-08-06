@@ -397,9 +397,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         {
             public long ContentLength => throw new NotImplementedException();
 
-            public string ContentType => throw new NotImplementedException();
-
-            public ICustomReader Reader => throw new NotImplementedException();
+            public ICustomReader Reader() => throw new NotImplementedException();
 
             public Task CustomDispose()
             {

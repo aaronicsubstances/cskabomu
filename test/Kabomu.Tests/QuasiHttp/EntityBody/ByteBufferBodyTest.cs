@@ -27,7 +27,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             var instance = new ByteBufferBody(ByteUtils.StringToBytes(srcData));
 
             // act and assert
-            await IOUtilsTest.TestReading(instance, null, 2, expected, null);
+            await IOUtilsTest.TestReading(instance.Reader(), null, 2, expected, null);
             Assert.Equal(srcData.Length, instance.ContentLength);
         }
 
@@ -39,8 +39,13 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 
             Assert.Equal(expected.Length, instance.ContentLength);
 
+            // verify custom dispose is a no-op
+            await instance.CustomDispose();
+
+            var reader = instance.Reader();
+
             var actual = new byte[3];
-            var actualLen = await instance.ReadBytes(actual, 0, actual.Length);
+            var actualLen = await reader.ReadBytes(actual, 0, actual.Length);
             Assert.Equal(3, actualLen);
             ComparisonUtils.CompareData(expected, 0, actualLen,
                 actual, 0, actualLen);
@@ -48,10 +53,14 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             // verify custom dispose is a no-op
             await instance.CustomDispose();
 
-            actualLen = await instance.ReadBytes(actual, 1, actual.Length);
+            actualLen = await reader.ReadBytes(actual, 1, 2);
             Assert.Equal(1, actualLen);
             ComparisonUtils.CompareData(expected, 3, actualLen,
                 actual, 1, actualLen);
+
+            await reader.CustomDispose();
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                reader.ReadBytes(actual, 0, actual.Length));
         }
 
         [Theory]

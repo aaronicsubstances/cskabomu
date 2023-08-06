@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -9,10 +10,8 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <summary>
     /// Represents quasi http body based on a byte buffer.
     /// </summary>
-    public class ByteBufferBody : AbstractQuasiHttpBody, ICustomReader
+    public class ByteBufferBody : AbstractQuasiHttpBody
     {
-        private int _bytesRead = 0;
-
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -64,16 +63,26 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         public int Length { get; }
 
-        public Task<int> ReadBytes(byte[] data, int offset, int length)
+        /// <summary>
+        /// Returns a freshly created reader backed by
+        /// <see cref="Buffer"/> property.
+        /// </summary>
+        public override ICustomReader Reader()
         {
-            length = Math.Max(0, Math.Min(Length - _bytesRead, length));
-            Array.Copy(Buffer, Offset + _bytesRead, data, offset, length);
-            _bytesRead += length;
-            return Task.FromResult(length);
+            var stream = new MemoryStream(Buffer, Offset, Length);
+            return new StreamCustomReaderWriter(stream);
         }
 
+        /// <summary>
+        /// Does nothing.
+        /// </summary>
         public override Task CustomDispose() => Task.CompletedTask;
 
+        /// <summary>
+        /// Transfers contents of <see cref="Buffer"/> property
+        /// to supplied writer.
+        /// </summary>
+        /// <param name="writer">supplied writer</param>
         public override Task WriteBytesTo(ICustomWriter writer) =>
             writer.WriteBytes(Buffer, Offset, Length);
     }

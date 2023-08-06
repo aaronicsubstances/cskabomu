@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -16,10 +17,8 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <item>each row can have a different number of columns</item>
     /// </list>
     /// </summary>
-    public class CsvBody : AbstractQuasiHttpBody, ICustomReader
+    public class CsvBody : AbstractQuasiHttpBody
     {
-        private StringBody _backingBody;
-
         /// <summary>
         /// Creates a new instance with the given CSV content.
         /// </summary>
@@ -39,24 +38,31 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         public IDictionary<string, IList<string>> Content { get; }
 
+        /// <summary>
+        /// Does nothing.
+        /// </summary>
         public override Task CustomDispose() => Task.CompletedTask;
 
-        public Task<int> ReadBytes(byte[] data, int offset, int length)
+        /// <summary>
+        /// Returns a freshly created reader backed by
+        /// <see cref="Content"/> property in UTF8 encoding.
+        /// </summary>
+        public override ICustomReader Reader()
         {
-            if (_backingBody == null)
-            {
-                _backingBody = new StringBody(SerializeContent());
-            }
-            return _backingBody.ReadBytes(data, offset, length);
+            var stream = new MemoryStream(ByteUtils.StringToBytes(
+                SerializeContent()));
+            return new StreamCustomReaderWriter(stream);
         }
 
+        /// <summary>
+        /// Transfers contents of <see cref="Content"/> property
+        /// to supplied writer in UTF8 encoding.
+        /// </summary>
+        /// <param name="writer">supplied writer</param>
         public override Task WriteBytesTo(ICustomWriter writer)
         {
-            if (_backingBody == null)
-            {
-                _backingBody = new StringBody(SerializeContent());
-            }
-            return _backingBody.WriteBytesTo(writer);
+            var backingBody = new StringBody(SerializeContent());
+            return backingBody.WriteBytesTo(writer);
         }
 
         private string SerializeContent()

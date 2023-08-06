@@ -46,6 +46,8 @@ namespace Kabomu.QuasiHttp.Client
             var transportReaderWriter = new TransportCustomReaderWriter(Transport,
                 Connection, false);
 
+            // send lead chunk first, before racing sending of request body
+            // and receiving of response.
             await SendRequestLeadChunk(Request, transportReaderWriter);
             var reqTransferTask = ProtocolUtilsInternal.TransferBodyToTransport(
                 Transport, Connection, MaxChunkSize, Request.Body);
@@ -61,20 +63,7 @@ namespace Kabomu.QuasiHttp.Client
         private async Task SendRequestLeadChunk(IQuasiHttpRequest request,
             ICustomWriter writer)
         {
-            var chunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                RequestTarget = request.Target,
-                Headers = request.Headers,
-                HttpVersion = request.HttpVersion,
-                Method = request.Method
-            };
-
-            if (request.Body != null)
-            {
-                chunk.ContentLength = request.Body.ContentLength;
-                chunk.ContentType = request.Body.ContentType;
-            }
+            var chunk = LeadChunk.CreateFromRequest(request);
             await ChunkedTransferUtils.WriteLeadChunk(writer, chunk, MaxChunkSize);
         }
 
@@ -90,16 +79,10 @@ namespace Kabomu.QuasiHttp.Client
                 }
                 return null;
             }
-            var response = new DefaultQuasiHttpResponse
-            {
-                StatusCode = chunk.StatusCode,
-                Headers = chunk.Headers,
-                HttpStatusMessage = chunk.HttpStatusMessage,
-                HttpVersion = chunk.HttpVersion,
-            };
-
+            var response = new DefaultQuasiHttpResponse();
+            chunk.UpdateResponse(response);
             response.Body = await ProtocolUtilsInternal.CreateBodyFromTransport(Transport,
-                Connection, true, MaxChunkSize, chunk.ContentType,
+                Connection, true, MaxChunkSize,
                 chunk.ContentLength, ResponseBufferingEnabled,
                 ResponseBodyBufferingSizeLimit);
 

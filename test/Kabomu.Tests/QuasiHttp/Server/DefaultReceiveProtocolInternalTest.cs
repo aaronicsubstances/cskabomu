@@ -48,8 +48,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 };
                 response.Body = new CustomWritableBackedBody(writable)
                 {
-                    ContentLength = response.Body.ContentLength,
-                    ContentType = response.Body.ContentType
+                    ContentLength = response.Body.ContentLength
                 };
             }
             return helpingWriter;
@@ -65,8 +64,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 RequestTarget = req.Target,
                 HttpVersion = req.HttpVersion,
                 Headers = req.Headers,
-                ContentLength = req.Body?.ContentLength ?? 0,
-                ContentType = req.Body?.ContentType
+                ContentLength = req.Body?.ContentLength ?? 0
             };
             var helpingReaders = new List<ICustomReader>();
             var headerStream = new MemoryStream();
@@ -211,7 +209,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 HttpStatusMessage = expectedResponse.HttpStatusMessage,
                 Headers = expectedResponse.Headers,
                 ContentLength = expectedResponse.Body?.ContentLength ?? 0,
-                ContentType = expectedResponse.Body?.ContentType,
                 HttpVersion = expectedResponse.HttpVersion,
             };
 
@@ -286,7 +283,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 HttpStatusMessage = expectedResponse.HttpStatusMessage,
                 Headers = expectedResponse.Headers,
                 ContentLength = expectedResponse.Body?.ContentLength ?? 0,
-                ContentType = expectedResponse.Body?.ContentType,
                 HttpVersion = expectedResponse.HttpVersion,
             };
 
@@ -356,10 +352,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 }
             };
             var reqBodyBytes = ByteUtils.StringToBytes("this is our king");
-            request.Body = new ByteBufferBody(reqBodyBytes)
-            {
-                ContentType = "text/plain"
-            };
+            request.Body = new ByteBufferBody(reqBodyBytes);
 
             var expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -371,10 +364,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 },
             };
             byte[] expectedResBodyBytes = ByteUtils.StringToBytes("and this is our queen");
-            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
-            {
-                ContentType = "image/png"
-            };
+            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes);
             testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
                 expectedResponse, expectedResBodyBytes });
 
@@ -412,8 +402,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             reqBodyBytes = ByteUtils.StringToBytes("<a>this is news</a>");
             request.Body = new ByteBufferBody(reqBodyBytes)
             {
-                ContentLength = -1,
-                ContentType = "application/xml"
+                ContentLength = -1
             };
 
             expectedResponse = new DefaultQuasiHttpResponse
@@ -459,8 +448,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             expectedResBodyBytes = ByteUtils.StringToBytes("<a>this is news</a>");
             expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
             {
-                ContentLength = -1,
-                ContentType = "application/xml"
+                ContentLength = -1
             };
             testData.Add(new object[] { connection, maxChunkSize, request, reqBodyBytes, reqEnv,
                 expectedResponse, expectedResBodyBytes });

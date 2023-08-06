@@ -158,9 +158,9 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Selects the first non-null instance representing a source of bytes and
-        /// returns an instance of <see cref="ICustomReader"/> that can be used to
-        /// read the bytes from it. 
+        /// Returns first reader argument if it is not null; else sets up
+        /// an in-memory pipe to retrieve second writable argument as a
+        /// reader.
         /// </summary>
         /// <param name="reader">first instance</param>
         /// <param name="fallback">second instance</param>
@@ -172,10 +172,6 @@ namespace Kabomu.Common
             if (reader != null || fallback == null)
             {
                 return reader;
-            }
-            if (fallback is ICustomReader r)
-            {
-                return r;
             }
             var memoryPipe = new MemoryPipeCustomReaderWriter();
             _ = memoryPipe.DeferCustomDispose(async () =>
@@ -190,33 +186,6 @@ namespace Kabomu.Common
                 }
             });
             return memoryPipe;
-        }
-
-        /// <summary>
-        /// Selects the first non-null instance representing a source of bytes and
-        /// returns an instance of <see cref="ICustomWritable"/> that can be used to
-        /// transfer the bytes in it. 
-        /// </summary>
-        /// <param name="writable">first instance</param>
-        /// <param name="fallback">second instance</param>
-        /// <returns>custom writable representing contents of first non-null
-        /// argument, or null if both arguments are null.</returns>
-        public static ICustomWritable CoaleasceAsWritable(ICustomWritable writable,
-            ICustomReader fallback)
-        {
-            if (writable != null || fallback == null)
-            {
-                return writable;
-            }
-            if (fallback is ICustomWritable w)
-            {
-                return w;
-            }
-            return new LambdaBasedCustomWritable
-            {
-                WritableFunc = writer => CopyBytes(fallback, writer),
-                DisposeFunc = () => fallback.CustomDispose()
-            };
         }
     }
 }

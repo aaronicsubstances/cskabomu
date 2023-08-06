@@ -76,14 +76,11 @@ namespace Kabomu.QuasiHttp.Server
             }
             var request = new DefaultQuasiHttpRequest
             {
-                Target = chunk.RequestTarget,
-                Headers = chunk.Headers,
-                HttpVersion = chunk.HttpVersion,
-                Method = chunk.Method,
                 Environment = RequestEnvironment
             };
+            chunk.UpdateRequest(request);
             request.Body = await ProtocolUtilsInternal.CreateBodyFromTransport(Transport,
-                Connection, false, MaxChunkSize, chunk.ContentType,
+                Connection, false, MaxChunkSize,
                 chunk.ContentLength, false, 0);
             return request;
         }
@@ -96,28 +93,11 @@ namespace Kabomu.QuasiHttp.Server
             {
                 return;
             }
-            var chunk = new LeadChunk
-            {
-                Version = LeadChunk.Version01,
-                StatusCode = response.StatusCode,
-                Headers = response.Headers,
-                HttpVersion = response.HttpVersion,
-                HttpStatusMessage = response.HttpStatusMessage,
-            };
 
-            if (response.Body != null)
-            {
-                chunk.ContentLength = response.Body.ContentLength;
-                chunk.ContentType = response.Body.ContentType;
-            }
-
+            var chunk = LeadChunk.CreateFromResponse(response);
             await ChunkedTransferUtils.WriteLeadChunk(writer, chunk, MaxChunkSize);
-
-            if (response.Body != null)
-            {
-                await ProtocolUtilsInternal.TransferBodyToTransport(
-                    Transport, Connection, MaxChunkSize, response.Body);
-            }
+            await ProtocolUtilsInternal.TransferBodyToTransport(
+                Transport, Connection, MaxChunkSize, response.Body);
         }
     }
 }

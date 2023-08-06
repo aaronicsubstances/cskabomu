@@ -56,8 +56,7 @@ namespace Http.FileServer
                 quasiRequest.Body = new CustomReaderBackedBody(
                     new StreamCustomReaderWriter(httpContext.Request.Body))
                 {
-                    ContentLength = httpContext.Request.ContentLength ?? -1,
-                    ContentType = httpContext.Request.ContentType
+                    ContentLength = httpContext.Request.ContentLength ?? -1
                 };
             }
             var processingOptions = new DefaultQuasiHttpProcessingOptions
@@ -125,8 +124,6 @@ namespace Http.FileServer
                             break;
                         case "content-length":
                             break;
-                        case "content-type":
-                            break;
                         default:
                             response.Headers.Add(entry.Key, new StringValues(entry.Value.ToArray()));
                             break;
@@ -143,11 +140,6 @@ namespace Http.FileServer
                 else
                 {
                     response.Headers.Add("Transfer-Encoding", new StringValues("chunked"));
-                }
-                if (quasiHttpResponse.Body.ContentType != null)
-                {
-                    response.Headers.Add("Content-Type",
-                        new StringValues(quasiHttpResponse.Body.ContentType));
                 }
             }
         }

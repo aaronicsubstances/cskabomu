@@ -22,7 +22,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             var instance = new CsvBody(srcData);
 
             // act and assert
-            await IOUtilsTest.TestReading(instance, null, -1, expected, null);
+            await IOUtilsTest.TestReading(instance.Reader(), null, -1, expected, null);
             Assert.Equal(-1, instance.ContentLength);
         }
 
@@ -42,7 +42,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             var writer = new DemoCustomReaderWriter();
 
             // act and assert
-            await IOUtilsTest.TestReading(instance, writer, 0, expected,
+            await IOUtilsTest.TestReading(instance.Reader(), writer, 0, expected,
                 _ => ByteUtils.BytesToString(writer.BufferStream.ToArray()));
             Assert.Equal(-1, instance.ContentLength);
         }
@@ -62,8 +62,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             // verify custom dispose is a no-op
             await instance.CustomDispose();
 
+            var reader = instance.Reader();
+
             var actual = new byte[3];
-            var actualLen = await instance.ReadBytes(actual, 0, 3);
+            var actualLen = await reader.ReadBytes(actual, 0, 3);
             Assert.Equal(3, actualLen);
             ComparisonUtils.CompareData(expected, 0, actualLen,
                 actual, 0, actualLen);
@@ -71,10 +73,14 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             // verify custom dispose is a no-op
             await instance.CustomDispose();
 
-            actualLen = await instance.ReadBytes(actual, 1, 2);
+            actualLen = await reader.ReadBytes(actual, 1, 2);
             Assert.Equal(1, actualLen);
             ComparisonUtils.CompareData(expected, 3, actualLen,
                 actual, 1, actualLen);
+
+            await reader.CustomDispose();
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                reader.ReadBytes(actual, 0, actual.Length));
         }
 
         [Fact]

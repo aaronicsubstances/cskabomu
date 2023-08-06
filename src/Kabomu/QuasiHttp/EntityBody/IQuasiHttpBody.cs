@@ -18,10 +18,9 @@ namespace Kabomu.QuasiHttp.EntityBody
         long ContentLength { get; }
 
         /// <summary>
-        /// Returns any string or null which can be used by the receiving end of the bytes generated
-        /// by this instance, to determine how to interpret the bytes. It is equivalent to "Content-Type" header
-        /// in HTTP.
+        /// Gets a reader for reading from body, or returns to null to
+        /// indicate that direct reading is not supported.
         /// </summary>
-        string ContentType { get; }
+        ICustomReader Reader();
     }
 }
