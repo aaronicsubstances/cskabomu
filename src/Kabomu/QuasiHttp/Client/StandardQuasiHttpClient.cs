@@ -283,7 +283,8 @@ namespace Kabomu.QuasiHttp.Client
 
             var connectionResponse = await transport.AllocateConnection(
                 remoteEndpoint, mergedSendOptions);
-            if (connectionResponse?.Connection == null)
+            var connection = connectionResponse?.Connection;
+            if (connection == null)
             {
                 throw new QuasiHttpRequestProcessingException("no connection");
             }
@@ -302,7 +303,7 @@ namespace Kabomu.QuasiHttp.Client
             {
                 Request = transfer.Request,
                 Transport = transport,
-                Connection = connectionResponse.Connection,
+                Connection = connection,
                 ResponseBufferingEnabled = mergedSendOptions.ResponseBufferingEnabled.Value,
                 ResponseBodyBufferingSizeLimit = mergedSendOptions.ResponseBodyBufferingSizeLimit,
                 MaxChunkSize = mergedSendOptions.MaxChunkSize,

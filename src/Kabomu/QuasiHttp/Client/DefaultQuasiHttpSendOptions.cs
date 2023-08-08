@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Kabomu.QuasiHttp.Transport
+namespace Kabomu.QuasiHttp.Client
 {
     /// <summary>
     /// Implementation of the <see cref="IQuasiHttpSendOptions"/> interface providing mutable versions of

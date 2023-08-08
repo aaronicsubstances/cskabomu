@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Client;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO.Pipes;

@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
-using Kabomu.QuasiHttp.Client;
 
-namespace Kabomu.QuasiHttp.Transport
+namespace Kabomu.QuasiHttp.Client
 {
     /// <summary>
     /// Used to configure send requests to <see cref="StandardQuasiHttpClient"/> instances.
