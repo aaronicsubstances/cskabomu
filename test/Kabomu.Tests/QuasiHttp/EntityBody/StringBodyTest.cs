@@ -40,7 +40,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             var instance = new StringBody("c,2\n");
 
             // verify custom dispose is a no-op
-            await instance.CustomDispose();
+            await instance.Release();
 
             var reader = instance.Reader();
 
@@ -51,7 +51,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 actual, 0, actualLen);
 
             // verify custom dispose is a no-op
-            await instance.CustomDispose();
+            await instance.Release();
 
             actualLen = await reader.ReadBytes(actual, 1, 2);
             Assert.Equal(1, actualLen);

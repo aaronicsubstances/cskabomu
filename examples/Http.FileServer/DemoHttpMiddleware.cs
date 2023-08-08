@@ -53,9 +53,9 @@ namespace Http.FileServer
                     httpContext.Request.Headers["Transfer-Encoding"],
                     httpContext.Request.ContentLength,
                     httpContext.Request.ContentType);
-                quasiRequest.Body = new CustomReaderBackedBody(
-                    new StreamCustomReaderWriter(httpContext.Request.Body))
+                quasiRequest.Body = new LambdaBasedQuasiHttpBody
                 {
+                    ReaderFunc = () => httpContext.Request.Body,
                     ContentLength = httpContext.Request.ContentLength ?? -1
                 };
             }
@@ -82,8 +82,7 @@ namespace Http.FileServer
             if (quasiResponse.Body != null)
             {
                 var reader = quasiResponse.Body.AsReader();
-                await IOUtils.CopyBytes(reader,
-                    new StreamCustomReaderWriter(httpContext.Response.Body));
+                await IOUtils.CopyBytes(reader, httpContext.Response.Body);
             }
         }
 

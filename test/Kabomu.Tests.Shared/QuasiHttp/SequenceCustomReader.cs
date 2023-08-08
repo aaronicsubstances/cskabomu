@@ -25,15 +25,5 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             }
             return bytesRead;
         }
-
-        public async Task CustomDispose()
-        {
-            var readers = Readers;
-            if (readers == null) return;
-            foreach (var reader in readers)
-            {
-                await reader.CustomDispose();
-            }
-        }
     }
 }

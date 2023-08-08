@@ -14,7 +14,6 @@ namespace Kabomu.Examples.Shared
     public class LocalhostTcpServerTransport : IQuasiHttpServerTransport
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
-        //private readonly object _mutex = new object();
         private readonly Socket _tcpServer;
 
         public LocalhostTcpServerTransport(int port)
@@ -73,7 +72,7 @@ namespace Kabomu.Examples.Shared
                 await Server.AcceptConnection(
                     new DefaultConnectionAllocationResponse
                     {
-                        Connection = socket
+                        Connection = new SocketWrapper(socket)
                     }
                 );
             }
@@ -83,44 +82,36 @@ namespace Kabomu.Examples.Shared
             }
         }
 
+        public object GetWriter(object connection)
+        {
+            return GetWriterInternal(connection);
+        }
+
+        public object GetReader(object connection)
+        {
+            return GetReaderInternal(connection);
+        }
+
         public Task ReleaseConnection(object connection)
         {
             return ReleaseConnectionInternal(connection);
         }
 
+        internal static object GetWriterInternal(object connection)
+        {
+            return ((SocketWrapper)connection).Writer;
+        }
+
+        internal static object GetReaderInternal(object connection)
+        {
+            return ((SocketWrapper)connection).Reader;
+        }
+
         internal static Task ReleaseConnectionInternal(object connection)
         {
-            var networkStream = (Socket)connection;
-            networkStream.Dispose();
+            var socket = ((SocketWrapper)connection).Socket;
+            socket.Dispose();
             return Task.CompletedTask;
-        }
-
-        public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
-        {
-            return ReadBytesInternal(connection, data, offset, length);
-        }
-
-        internal static async Task<int> ReadBytesInternal(object connection, byte[] data, int offset, int length)
-        {
-            var networkStream = (Socket)connection;
-            return await networkStream.ReceiveAsync(new Memory<byte>(data, offset, length), SocketFlags.None);
-        }
-
-        public Task WriteBytes(object connection, byte[] data, int offset, int length)
-        {
-            return WriteBytesInternal(connection, data, offset, length);
-        }
-
-        internal static async Task WriteBytesInternal(object connection, byte[] data, int offset, int length)
-        {
-            var networkStream = (Socket)connection;
-            int totalBytesSent = 0;
-            while (totalBytesSent < length)
-            {
-                int bytesSent = await networkStream.SendAsync(
-                    new ReadOnlyMemory<byte>(data, offset + totalBytesSent, length - totalBytesSent), SocketFlags.None);
-                totalBytesSent += bytesSent;
-            }
         }
     }
 }

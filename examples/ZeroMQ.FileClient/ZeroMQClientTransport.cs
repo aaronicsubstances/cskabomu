@@ -66,8 +66,7 @@ namespace ZeroMQ.FileClient
                     request.Body.AsReader());
             }
             var headerStream = new MemoryStream();
-            var writer = new StreamCustomReaderWriter(headerStream);
-            await ChunkedTransferUtils.WriteLeadChunk(writer, leadChunk);
+            await ChunkedTransferUtils.WriteLeadChunk(headerStream, leadChunk);
 
             if (requestBodyBytes == null)
             {

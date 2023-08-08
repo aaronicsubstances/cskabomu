@@ -32,23 +32,29 @@ namespace Kabomu.Tests.Shared.QuasiHttp
 
         public MemoryStream BufferStream => _stream;
 
-        public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
+        public object GetWriter(object connection)
         {
             if (connection != _expectedConnection)
             {
                 throw new ArgumentException("unexpected connection");
             }
-            return _stream.ReadAsync(data, offset, length);
+            return new LambdaBasedCustomWriter
+            {
+                WriteFunc = async (data, offset, length) =>
+                {
+                    await _stream.WriteAsync(data, offset, length);
+                    await _stream.WriteAsync(_chunkMarker);
+                }
+            };
         }
 
-        public async Task WriteBytes(object connection, byte[] data, int offset, int length)
+        public object GetReader(object connection)
         {
             if (connection != _expectedConnection)
             {
                 throw new ArgumentException("unexpected connection");
             }
-            await _stream.WriteAsync(data, offset, length);
-            await _stream.WriteAsync(_chunkMarker);
+            return _stream;
         }
 
         public Task ReleaseConnection(object connection)

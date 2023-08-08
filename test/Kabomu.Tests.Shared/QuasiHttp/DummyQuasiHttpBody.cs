@@ -1,5 +1,4 @@
-﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -11,14 +10,14 @@ namespace Kabomu.Tests.Shared.QuasiHttp
     {
         public long ContentLength { get; set; }
 
-        public ICustomReader Reader() => throw new NotImplementedException();
+        public object Reader => throw new NotImplementedException();
 
-        public Task CustomDispose()
+        public Task Release()
         {
             throw new NotImplementedException();
         }
 
-        public Task WriteBytesTo(ICustomWriter writer)
+        public Task WriteBytesTo(object writer)
         {
             throw new NotImplementedException();
         }

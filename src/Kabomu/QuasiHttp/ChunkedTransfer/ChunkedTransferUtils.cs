@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,9 +15,10 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
     public static class ChunkedTransferUtils
     {
         /// <summary>
-        /// The default value of max chunk size used by quasi http servers and clients. Equal to 8,192 bytes.
+        /// The default value of max chunk size used by quasi http servers and clients.
+        /// Equal to 8,192 bytes.
         /// </summary>
-        public static readonly int DefaultMaxChunkSize = IOUtils.DefaultReadBufferSize;
+        public static readonly int DefaultMaxChunkSize = 8_192;
 
         /// <summary>
         /// The maximum value of a max chunk size that can be tolerated during chunk decoding even if it
@@ -44,18 +46,18 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         public static readonly int HardMaxChunkSizeLimit = 1 << 8 * LengthOfEncodedChunkLength - 1 - 1;
 
         internal static Task EncodeSubsequentChunkHeader(
-            int chunkDataLength, ICustomWriter writer, byte[] bufferToUse)
+            int chunkDataLength, object writer, byte[] bufferToUse)
         {
             ByteUtils.SerializeUpToInt64BigEndian(
                 chunkDataLength + 2, bufferToUse, 0,
                 LengthOfEncodedChunkLength);
             bufferToUse[LengthOfEncodedChunkLength] = LeadChunk.Version01;
             bufferToUse[LengthOfEncodedChunkLength + 1] = 0; // flags.
-            return writer.WriteBytes(bufferToUse, 0, LengthOfEncodedChunkLength + 2);
+            return IOUtils.WriteBytes(writer, bufferToUse, 0, LengthOfEncodedChunkLength + 2);
         }
 
         internal static async Task<int> DecodeSubsequentChunkHeader(
-            ICustomReader reader, byte[] bufferToUse, int maxChunkSize)
+            object reader, byte[] bufferToUse, int maxChunkSize)
         {
             try
             {
@@ -97,7 +99,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <exception cref="ArgumentNullException">The <paramref name="reader"/> argument is null</exception>
         /// <exception cref="ChunkDecodingException">If data from reader could not be decoded
         /// into a valid lead chunk.</exception>
-        public static async Task<LeadChunk> ReadLeadChunk(ICustomReader reader,
+        public static async Task<LeadChunk> ReadLeadChunk(object reader,
             int maxChunkSize = 0)
         {
             if (reader == null)
@@ -112,7 +114,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             try
             {
                 byte[] encodedLength = new byte[LengthOfEncodedChunkLength];
-                if (await reader.ReadBytes(encodedLength, 0, 1) <= 0)
+                if (await IOUtils.ReadBytes(reader, encodedLength, 0, 1) <= 0)
                 {
                     return null;
                 }
@@ -179,7 +181,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <exception cref="ArgumentException">The size of the data in <paramref name="chunk"/> argument 
         /// is larger than the <paramref name="maxChunkSize"/> argument, or is larger than value of
         /// <see cref="HardMaxChunkSizeLimit"/> field.</exception>
-        public static async Task WriteLeadChunk(ICustomWriter writer,
+        public static async Task WriteLeadChunk(object writer,
             LeadChunk chunk, int maxChunkSize = 0)
         {
             if (writer == null)
@@ -203,7 +205,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             var encodedLength = new byte[LengthOfEncodedChunkLength];
             ByteUtils.SerializeUpToInt64BigEndian(byteCount, encodedLength, 0,
                 encodedLength.Length);
-            await writer.WriteBytes(encodedLength, 0, encodedLength.Length);
+            await IOUtils.WriteBytes(writer, encodedLength, 0, encodedLength.Length);
             await chunk.WriteOutSerializedRepresentation(writer);
         }
     }

@@ -13,11 +13,6 @@ namespace Kabomu.Common
         /// Gets or sets lambda function for performing read operation.
         /// </summary>
         public Func<byte[], int, int, Task<int>> ReadFunc { get; set; }
-        
-        /// <summary>
-        /// Gets or sets lambda function for performing dispose operation.
-        /// </summary>
-        public Func<Task> DisposeFunc { get; set; }
 
         /// <summary>
         /// Calls upon <see cref="ReadFunc"/> to perform read operation.
@@ -38,16 +33,6 @@ namespace Kabomu.Common
                 throw new MissingDependencyException("ReadFunc");
             }
             return readFunc.Invoke(data, offset, length);
-        }
-
-        /// <summary>
-        /// Calls upon <see cref="DisposeFunc"/> to perform dispose operation.
-        /// Nothing is done if <see cref="DisposeFunc"/> property is null.
-        /// </summary>
-        /// <returns>a task representing asynchronous operation</returns>
-        public Task CustomDispose()
-        {
-            return DisposeFunc?.Invoke() ?? Task.CompletedTask;
         }
     }
 }

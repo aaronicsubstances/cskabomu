@@ -9,7 +9,6 @@ namespace Kabomu.Tests.Shared.Common
     public class DemoSimpleCustomWritable : ICustomWritable
     {
         private readonly byte[] _srcData;
-        private bool _disposed;
 
         public DemoSimpleCustomWritable() :
             this(null)
@@ -21,19 +20,9 @@ namespace Kabomu.Tests.Shared.Common
             _srcData = srcData ?? new byte[0];
         }
 
-        public Task CustomDispose()
+        public Task WriteBytesTo(object writer)
         {
-            _disposed = true;
-            return Task.CompletedTask;
-        }
-
-        public Task WriteBytesTo(ICustomWriter writer)
-        {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException("writable");
-            }
-            return writer.WriteBytes(_srcData, 0, _srcData.Length);
+            return IOUtils.WriteBytes(writer, _srcData, 0, _srcData.Length);
         }
     }
 }

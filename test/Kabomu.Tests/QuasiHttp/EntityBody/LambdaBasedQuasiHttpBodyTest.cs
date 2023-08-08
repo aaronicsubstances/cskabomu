@@ -7,13 +7,34 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
-    public class CustomReaderBackedBodyTest
+    public class LambdaBasedQuasiHttpBodyTest
     {
+        [Theory]
+        [InlineData("")]
+        [InlineData("d")]
+        [InlineData("ds")]
+        [InlineData("data")]
+        [InlineData("datadriven")]
+        public async Task TestWriting(string expected)
+        {
+            // arrange
+            var instance = new CustomWritableBackedBody(
+                new DemoSimpleCustomWritable(ByteUtils.StringToBytes(expected)));
+            var writer = new DemoCustomReaderWriter();
+
+            // act
+            await instance.WriteBytesTo(writer);
+
+            // assert
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                writer.BufferStream.ToArray()));
+            Assert.Equal(-1, instance.ContentLength);
+        }
+
         [InlineData("", "")]
         [InlineData("ab", "ab,")]
         [InlineData("abc", "ab,c,")]
@@ -36,35 +57,15 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public async Task TestCustomDispose()
         {
-            var expected = ByteUtils.StringToBytes("c,2\n");
-            var stream = new MemoryStream(expected);
-            var instance = new CustomReaderBackedBody(
-                new StreamCustomReaderWriter(stream));
+            var instance = new CustomWritableBackedBody(
+                new DemoSimpleCustomWritable(ByteUtils.StringToBytes("c,2\n")));
+            var writer = new DemoCustomReaderWriter();
 
-            Assert.Equal(-1, instance.ContentLength);
-
-            var reader = instance.Reader();
-
-            var actual = new byte[3];
-            var actualLen = await reader.ReadBytes(actual, 0, 3);
-            Assert.Equal(3, actualLen);
-            ComparisonUtils.CompareData(expected, 0, actualLen,
-                actual, 0, actualLen);
-
-            // verify custom dispose is called on stream reader.
-            await instance.CustomDispose();
+            // verify custom dispose is called on writable.
+            await instance.Release();
 
             await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                reader.ReadBytes(actual, 1, 2));
-        }
-
-        [Fact]
-        public void TestForArgumentErrors()
-        {
-            Assert.Throws<ArgumentNullException>(() =>
-            {
-                new CustomReaderBackedBody(null);
-            });
+                instance.WriteBytesTo(writer));
         }
     }
 }

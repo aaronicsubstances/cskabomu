@@ -399,7 +399,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             public ICustomReader Reader() => throw new NotImplementedException();
 
-            public Task CustomDispose()
+            public Task Release()
             {
                 throw new NotImplementedException();
             }

@@ -43,7 +43,7 @@ namespace Kabomu.QuasiHttp.Server
                 {
                     try
                     {
-                        await Request.CustomDispose();
+                        await Request.Release();
                     }
                     catch (Exception) { }
                 }
@@ -53,7 +53,7 @@ namespace Kabomu.QuasiHttp.Server
                 // dispose off response
                 try
                 {
-                    var resDisposeTask = res?.CustomDispose();
+                    var resDisposeTask = res?.Release();
                     if (resDisposeTask != null)
                     {
                         await resDisposeTask;

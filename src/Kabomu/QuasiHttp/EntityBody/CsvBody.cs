@@ -17,7 +17,7 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <item>each row can have a different number of columns</item>
     /// </list>
     /// </summary>
-    public class CsvBody : AbstractQuasiHttpBody
+    public class CsvBody : IQuasiHttpBody
     {
         /// <summary>
         /// Creates a new instance with the given CSV content.
@@ -33,6 +33,8 @@ namespace Kabomu.QuasiHttp.EntityBody
             Content = content;
         }
 
+        public long ContentLength { get; set; } = -1;
+
         /// <summary>
         /// Returns the CSV rows serving as the source of bytes for the instance.
         /// </summary>
@@ -41,17 +43,19 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// <summary>
         /// Does nothing.
         /// </summary>
-        public override Task CustomDispose() => Task.CompletedTask;
+        public Task Release() => Task.CompletedTask;
 
         /// <summary>
         /// Returns a freshly created reader backed by
         /// <see cref="Content"/> property in UTF8 encoding.
         /// </summary>
-        public override ICustomReader Reader()
+        public object Reader
         {
-            var stream = new MemoryStream(ByteUtils.StringToBytes(
-                SerializeContent()));
-            return new StreamCustomReaderWriter(stream);
+            get
+            {
+                return new MemoryStream(ByteUtils.StringToBytes(
+                    SerializeContent()));
+            }
         }
 
         /// <summary>
@@ -59,10 +63,9 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// to supplied writer in UTF8 encoding.
         /// </summary>
         /// <param name="writer">supplied writer</param>
-        public override Task WriteBytesTo(ICustomWriter writer)
+        public Task WriteBytesTo(object writer)
         {
-            var backingBody = new StringBody(SerializeContent());
-            return backingBody.WriteBytesTo(writer);
+            return IOUtils.CopyBytes(Reader, writer);
         }
 
         private string SerializeContent()

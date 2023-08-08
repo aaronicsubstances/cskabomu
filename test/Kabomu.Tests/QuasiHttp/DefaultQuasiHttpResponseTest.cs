@@ -16,7 +16,7 @@ namespace Kabomu.Tests.QuasiHttp
         public async Task TestCustomDispose()
         {
             var instance = new DefaultQuasiHttpResponse();
-            await instance.CustomDispose();
+            await instance.Release();
 
             instance.Body = new CustomReaderBackedBody(new DemoCustomReaderWriter());
             instance.CancellationTokenSource = new CancellationTokenSource();
@@ -24,12 +24,12 @@ namespace Kabomu.Tests.QuasiHttp
             Assert.Equal(0, result);
             Assert.False(instance.CancellationTokenSource.IsCancellationRequested);
 
-            await instance.CustomDispose();
+            await instance.Release();
             Assert.True(instance.CancellationTokenSource.IsCancellationRequested);
             await Assert.ThrowsAsync<ObjectDisposedException>(() =>
                 instance.Body.AsReader().ReadBytes(new byte[1], 0, 1));
 
-            await instance.CustomDispose();
+            await instance.Release();
         }
 
         [Fact]

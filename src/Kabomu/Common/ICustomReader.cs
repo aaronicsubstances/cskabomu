@@ -8,7 +8,7 @@ namespace Kabomu.Common
     /// <summary>
     /// Represents a source of bytes from which bytes can be read.
     /// </summary>
-    public interface ICustomReader : ICustomDisposable
+    public interface ICustomReader
     {
         /// <summary>
         /// Reads bytes from the instance.

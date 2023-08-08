@@ -82,7 +82,7 @@ namespace Kabomu.QuasiHttp.Client
                         responseBufferingApplied)
                 {
                     // close original response.
-                    await originalResponse.CustomDispose();
+                    await originalResponse.Release();
                 }
 
                 return new ProtocolSendResultInternal
@@ -96,7 +96,7 @@ namespace Kabomu.QuasiHttp.Client
             {
                 try
                 {
-                    await originalResponse.CustomDispose();
+                    await originalResponse.Release();
                 }
                 catch (Exception) { } // ignore
                 throw;

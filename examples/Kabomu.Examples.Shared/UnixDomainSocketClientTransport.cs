@@ -19,24 +19,24 @@ namespace Kabomu.Examples.Shared
             await socket.ConnectAsync(new UnixDomainSocketEndPoint(path));
             var response = new DefaultConnectionAllocationResponse
             {
-                Connection = socket
+                Connection = new SocketWrapper(socket)
             };
             return response;
+        }
+
+        public object GetWriter(object connection)
+        {
+            return UnixDomainSocketServerTransport.GetWriterInternal(connection);
+        }
+
+        public object GetReader(object connection)
+        {
+            return UnixDomainSocketServerTransport.GetReaderInternal(connection);
         }
 
         public Task ReleaseConnection(object connection)
         {
             return UnixDomainSocketServerTransport.ReleaseConnectionInternal(connection);
-        }
-
-        public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
-        {
-            return UnixDomainSocketServerTransport.ReadBytesInternal(connection, data, offset, length);
-        }
-
-        public Task WriteBytes(object connection, byte[] data, int offset, int length)
-        {
-            return UnixDomainSocketServerTransport.WriteBytesInternal(connection, data, offset, length);
         }
     }
 }

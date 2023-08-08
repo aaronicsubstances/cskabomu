@@ -3,6 +3,7 @@ using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,15 +44,14 @@ namespace Kabomu.QuasiHttp.Client
                 throw new ExpectationViolationException("request");
             }
 
-            var transportReaderWriter = new TransportCustomReaderWriter(Transport,
-                Connection, false);
+            var writer = Transport.GetWriter(Connection);
 
             // send lead chunk first, before racing sending of request body
             // and receiving of response.
-            await SendRequestLeadChunk(Request, transportReaderWriter);
+            await SendRequestLeadChunk(Request, writer);
             var reqTransferTask = ProtocolUtilsInternal.TransferBodyToTransport(
-                Transport, Connection, MaxChunkSize, Request.Body);
-            var resFetchTask = StartFetchingResponse(transportReaderWriter);
+                writer, MaxChunkSize, Request.Body);
+            var resFetchTask = StartFetchingResponse();
             if (await Task.WhenAny(reqTransferTask, resFetchTask) == reqTransferTask)
             {
                 // let any request transfer exceptions terminate entire processing.
@@ -61,14 +61,15 @@ namespace Kabomu.QuasiHttp.Client
         }
 
         private async Task SendRequestLeadChunk(IQuasiHttpRequest request,
-            ICustomWriter writer)
+            object writer)
         {
             var chunk = LeadChunk.CreateFromRequest(request);
             await ChunkedTransferUtils.WriteLeadChunk(writer, chunk, MaxChunkSize);
         }
 
-        private async Task<ProtocolSendResultInternal> StartFetchingResponse(ICustomReader reader)
+        private async Task<ProtocolSendResultInternal> StartFetchingResponse()
         {
+            var reader = Transport.GetReader(Connection);
             var chunk = await ChunkedTransferUtils.ReadLeadChunk(reader,
                 MaxChunkSize);
             if (chunk == null)
@@ -81,9 +82,10 @@ namespace Kabomu.QuasiHttp.Client
             }
             var response = new DefaultQuasiHttpResponse();
             chunk.UpdateResponse(response);
-            response.Body = await ProtocolUtilsInternal.CreateBodyFromTransport(Transport,
-                Connection, true, MaxChunkSize,
-                chunk.ContentLength, ResponseBufferingEnabled,
+            Func<Task> releaseFunc = () => Transport.ReleaseConnection(Connection);
+            response.Body = await ProtocolUtilsInternal.CreateBodyFromTransport(
+                reader, chunk.ContentLength, releaseFunc,
+                MaxChunkSize, ResponseBufferingEnabled,
                 ResponseBodyBufferingSizeLimit);
 
             return new ProtocolSendResultInternal

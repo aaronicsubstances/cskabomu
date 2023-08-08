@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -24,16 +25,24 @@ namespace Kabomu.Examples.Shared
             return Task.FromResult(c);
         }
 
-        public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
+        public object GetReader(object connection)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
-            return typedConnection.ProcessReadRequest(false, data, offset, length);
+            return new LambdaBasedCustomReader
+            {
+                ReadFunc = (data, offset, length) =>
+                    typedConnection.ProcessReadRequest(false, data, offset, length)
+            };
         }
 
-        public Task WriteBytes(object connection, byte[] data, int offset, int length)
+        public object GetWriter(object connection)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
-            return typedConnection.ProcessWriteRequest(false, data, offset, length);
+            return new LambdaBasedCustomWriter
+            {
+                WriteFunc = (data, offset, length) =>
+                    typedConnection.ProcessWriteRequest(false, data, offset, length)
+            };
         }
 
         public Task ReleaseConnection(object connection)

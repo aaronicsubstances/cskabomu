@@ -21,18 +21,6 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             }
         }
 
-        public async Task CustomDispose()
-        {
-            var writers = Writers;
-            if (writers != null)
-            {
-                foreach (var writer in writers)
-                {
-                    await writer.CustomDispose();
-                }
-            }
-        }
-
         public void SwitchOver()
         {
             Interlocked.Increment(ref _writerIndex);

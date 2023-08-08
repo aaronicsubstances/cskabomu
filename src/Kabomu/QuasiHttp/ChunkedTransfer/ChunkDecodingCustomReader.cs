@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -13,7 +14,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
     /// </summary>
     public class ChunkDecodingCustomReader : ICustomReader
     {
-        private readonly ICustomReader _wrappedReader;
+        private readonly object _wrappedReader;
         private readonly int _maxChunkSize;
         private readonly byte[] _chunkHeaderBuffer;
         private int _chunkDataLenRem;
@@ -27,7 +28,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// NB: values less than 64KB are always accepted, and so this parameter imposes a maximum only on chunks
         /// with lengths greater than 64KB.</param>
         /// <exception cref="ArgumentNullException">The <paramref name="wrappedReader"/> argument is null.</exception>
-        public ChunkDecodingCustomReader(ICustomReader wrappedReader, int maxChunkSize = 0)
+        public ChunkDecodingCustomReader(object wrappedReader, int maxChunkSize = 0)
         {
             if (wrappedReader == null)
             {
@@ -67,11 +68,6 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             _chunkDataLenRem -= bytesToRead;
 
             return bytesToRead;
-        }
-
-        public Task CustomDispose()
-        {
-            return _wrappedReader.CustomDispose();
         }
     }
 }

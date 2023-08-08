@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -259,7 +260,7 @@ namespace Kabomu.Common
         }
 
         internal static async Task SerializeTo(IList<IList<string>> rows,
-            ICustomWriter writer)
+            object writer)
         {
             foreach (var row in rows)
             {
@@ -268,13 +269,13 @@ namespace Kabomu.Common
                 {
                     if (addCommaSeparator)
                     {
-                        await writer.WriteBytes(CommaConstant, 0,
+                        await IOUtils.WriteBytes(writer, CommaConstant, 0,
                             CommaConstant.Length);
                     }
                     await EscapeValueTo(value, writer);
                     addCommaSeparator = true;
                 }
-                await writer.WriteBytes(NewlineConstant, 0,
+                await IOUtils.WriteBytes(writer, NewlineConstant, 0,
                     NewlineConstant.Length);
             }
         }
@@ -305,7 +306,7 @@ namespace Kabomu.Common
             return csvBuilder.ToString();
         }
 
-        internal static async Task EscapeValueTo(string raw, ICustomWriter writer)
+        internal static async Task EscapeValueTo(string raw, object writer)
         {
             // escape empty strings with two double quotes to resolve ambiguity
             // between an empty row and a row containing an empty string - otherwise both
@@ -315,7 +316,7 @@ namespace Kabomu.Common
                 raw = '"' + raw.Replace("\"", "\"\"") + '"';
             }
             var rawBytes = ByteUtils.StringToBytes(raw);
-            await writer.WriteBytes(rawBytes, 0, rawBytes.Length);
+            await IOUtils.WriteBytes(writer, rawBytes, 0, rawBytes.Length);
         }
 
         /// <summary>

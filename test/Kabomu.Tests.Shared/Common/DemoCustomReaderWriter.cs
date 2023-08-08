@@ -42,11 +42,5 @@ namespace Kabomu.Tests.Shared.Common
             await _stream.WriteAsync(data, offset, length);
             await _stream.WriteAsync(_chunkMarker);
         }
-
-        public Task CustomDispose()
-        {
-            _stream.Dispose();
-            return Task.CompletedTask;
-        }
     }
 }

@@ -16,28 +16,28 @@ namespace Kabomu.Examples.Shared
         {
             int port = (int)remoteEndpoint;
             var clientSocket = new Socket(IPAddress.Loopback.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            //clientSocket.NoDelay = true;
+            clientSocket.NoDelay = true;
             await clientSocket.ConnectAsync(IPAddress.Loopback, port);
             var response = new DefaultConnectionAllocationResponse
             {
-                Connection = clientSocket
+                Connection = new SocketWrapper(clientSocket)
             };
             return response;
+        }
+
+        public object GetWriter(object connection)
+        {
+            return LocalhostTcpServerTransport.GetWriterInternal(connection);
+        }
+
+        public object GetReader(object connection)
+        {
+            return LocalhostTcpServerTransport.GetReaderInternal(connection);
         }
 
         public Task ReleaseConnection(object connection)
         {
             return LocalhostTcpServerTransport.ReleaseConnectionInternal(connection);
-        }
-
-        public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
-        {
-            return LocalhostTcpServerTransport.ReadBytesInternal(connection, data, offset, length);
-        }
-
-        public Task WriteBytes(object connection, byte[] data, int offset, int length)
-        {
-            return LocalhostTcpServerTransport.WriteBytesInternal(connection, data, offset, length);
         }
     }
 }

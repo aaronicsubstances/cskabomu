@@ -93,7 +93,7 @@ namespace Kabomu.QuasiHttp
 
         /// <summary>
         /// Gets or sets a native cancellation handle that will be cancelled when
-        /// <see cref="CustomDispose"/> is called.
+        /// <see cref="Release"/> is called.
         /// </summary>
         public CancellationTokenSource CancellationTokenSource { get; set; }
 
@@ -101,10 +101,10 @@ namespace Kabomu.QuasiHttp
         /// Cancels the CancellationTokenSource property and ends reading on the Body property.
         /// </summary>
         /// <returns>a task representing the asynchronous close operation</returns>
-        public Task CustomDispose()
+        public Task Release()
         {
             CancellationTokenSource?.Cancel();
-            var endReadTask = Body?.CustomDispose();
+            var endReadTask = Body?.Release();
             return endReadTask ?? Task.CompletedTask;
         }
     }

@@ -205,7 +205,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 // needed to prevent server tasks from hanging when
                 // response buffering is disabled.
-                await actualResponse.CustomDispose();
+                await actualResponse.Release();
             }
         }
 

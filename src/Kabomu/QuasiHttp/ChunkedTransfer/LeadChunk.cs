@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -200,13 +201,13 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <param name="writer">The destination of the bytes to be written</returns>
         /// <exception cref="InvalidOperationException">If <see cref="UpdateSerializedRepresentation"/>
         /// has not been called</exception>
-        public async Task WriteOutSerializedRepresentation(ICustomWriter writer)
+        public async Task WriteOutSerializedRepresentation(object writer)
         {
             if (_csvDataPrefix == null || _csvData == null)
             {
                 throw new InvalidOperationException("missing serialized representation");
             }
-            await writer.WriteBytes(_csvDataPrefix, 0, _csvDataPrefix.Length);
+            await IOUtils.WriteBytes(writer, _csvDataPrefix, 0, _csvDataPrefix.Length);
             await CsvUtils.SerializeTo(_csvData, writer);
         }
 

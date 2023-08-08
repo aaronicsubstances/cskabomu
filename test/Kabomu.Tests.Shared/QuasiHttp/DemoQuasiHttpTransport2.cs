@@ -24,24 +24,36 @@ namespace Kabomu.Tests.Shared.QuasiHttp
 
         public CancellationTokenSource ReleaseIndicator { get; set; }
 
-        public async Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
+        public object GetWriter(object connection)
         {
             if (connection != _expectedConnection)
             {
                 throw new ArgumentException("unexpected connection");
             }
-            await Task.Yield();
-            return await _backingReader.ReadBytes(data, offset, length);
+            return new LambdaBasedCustomWriter
+            {
+                WriteFunc = async (data, offset, length) =>
+                {
+                    await Task.Yield();
+                    await _backingWriter.WriteBytes(data, offset, length);
+                }
+            };
         }
 
-        public async Task WriteBytes(object connection, byte[] data, int offset, int length)
+        public object GetReader(object connection)
         {
             if (connection != _expectedConnection)
             {
                 throw new ArgumentException("unexpected connection");
             }
-            await Task.Yield();
-            await _backingWriter.WriteBytes(data, offset, length);
+            return new LambdaBasedCustomReader
+            {
+                ReadFunc = async (data, offset, length) =>
+                {
+                    await Task.Yield();
+                    return await _backingReader.ReadBytes(data, offset, length);
+                }
+            };
         }
 
         public async Task ReleaseConnection(object connection)
@@ -52,8 +64,6 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             }
             ReleaseIndicator?.Cancel();
             await Task.Yield();
-            await _backingReader.CustomDispose();
-            await _backingWriter.CustomDispose();
         }
     }
 }
