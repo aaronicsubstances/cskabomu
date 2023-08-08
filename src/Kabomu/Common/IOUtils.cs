@@ -191,43 +191,5 @@ namespace Kabomu.Common
                 }
             }
         }
-
-        /// <summary>
-        /// Returns reader argument if it is not null; else sets up
-        /// an in-memory pipe to retrieve second writable argument as a
-        /// reader.
-        /// </summary>
-        /// <param name="reader">the reader to return if not null</param>
-        /// <param name="fallback">the optional writable argument to convert into
-        /// a reader</param>
-        /// <returns>custom reader representing contents of first non-null
-        /// argument, or null if both arguments are null.</returns>
-        public static object CoalesceAsReader(object reader,
-            ICustomWritable fallback)
-        {
-            if (reader != null || fallback == null)
-            {
-                return reader;
-            }
-            var memoryPipe = new MemoryPipeCustomReaderWriter();
-            // use Task.Run so as to prevent deadlock if writable is
-            // doing synchronous writes.
-            _ = Task.Run(() => ExhaustWritable(fallback, memoryPipe));
-            return memoryPipe;
-        }
-
-        private static async Task ExhaustWritable(ICustomWritable writable,
-            MemoryPipeCustomReaderWriter memoryPipe)
-        {
-            try
-            {
-                await writable.WriteBytesTo(memoryPipe);
-                await memoryPipe.EndWrites();
-            }
-            catch (Exception e)
-            {
-                await memoryPipe.EndWrites(e);
-            }
-        }
     }
 }

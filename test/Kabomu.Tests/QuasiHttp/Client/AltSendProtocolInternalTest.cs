@@ -397,14 +397,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
         {
             public long ContentLength => throw new NotImplementedException();
 
-            public ICustomReader Reader() => throw new NotImplementedException();
+            public object Reader => throw new NotImplementedException();
 
             public Task Release()
             {
                 throw new NotImplementedException();
             }
 
-            public Task WriteBytesTo(ICustomWriter writer)
+            public Task WriteBytesTo(object writer)
             {
                 throw new NotImplementedException();
             }

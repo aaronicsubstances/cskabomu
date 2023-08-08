@@ -12,6 +12,90 @@ namespace Kabomu.Tests.Common
     public class IOUtilsTest
     {
         [Fact]
+        public async Task TestReadBytes1()
+        {
+            var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            var actual = new byte[3];
+            var actualReadLen = await IOUtils.ReadBytes(stream, actual, 0, 2);
+            Assert.Equal(2, actualReadLen);
+            ComparisonUtils.CompareData(new byte[] { 1, 2 }, 0, 2,
+                actual, 0, 2);
+            actualReadLen = await IOUtils.ReadBytes(stream, actual, 1, 2);
+            Assert.Equal(1, actualReadLen);
+            ComparisonUtils.CompareData(new byte[] { 3 }, 0, 1,
+                actual, 1, 1);
+            actualReadLen = await IOUtils.ReadBytes(stream, actual, 2, 1);
+            Assert.Equal(0, actualReadLen);
+        }
+
+        [Fact]
+        public async Task TestReadBytes2()
+        {
+            var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            var reader = new LambdaBasedCustomReader
+            {
+                ReadFunc = (data, offset, length) =>
+                    stream.ReadAsync(data, offset, length)
+            };
+            var actual = new byte[3];
+            var actualReadLen = await IOUtils.ReadBytes(reader, actual, 0, 2);
+            Assert.Equal(2, actualReadLen);
+            ComparisonUtils.CompareData(new byte[] { 1, 2 }, 0, 2,
+                actual, 0, 2);
+            actualReadLen = await IOUtils.ReadBytes(reader, actual, 1, 2);
+            Assert.Equal(1, actualReadLen);
+            ComparisonUtils.CompareData(new byte[] { 3 }, 0, 1,
+                actual, 1, 1);
+            actualReadLen = await IOUtils.ReadBytes(reader, actual, 2, 1);
+            Assert.Equal(0, actualReadLen);
+        }
+
+        [Fact]
+        public async Task TestReadBytes3()
+        {
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+                IOUtils.ReadBytes(null, new byte[3], 0, 2));
+
+            var falseReader = new LambdaBasedCustomWriter();
+            await Assert.ThrowsAsync<InvalidCastException>(() =>
+                IOUtils.ReadBytes(falseReader, new byte[3], 0, 2));
+        }
+
+        [Fact]
+        public async Task TestWriteBytes1()
+        {
+            var stream = new MemoryStream();
+            await IOUtils.WriteBytes(stream, new byte[] { 1, 2, 3 }, 0, 2);
+            await IOUtils.WriteBytes(stream, new byte[] { 0, 3, 2, 1 }, 1, 2);
+            Assert.Equal(new byte[] { 1, 2, 3, 2 }, stream.ToArray());
+        }
+
+        [Fact]
+        public async Task TestWriteBytes2()
+        {
+            var stream = new MemoryStream();
+            var writer = new LambdaBasedCustomWriter
+            {
+                WriteFunc = (data, offset, length) =>
+                    stream.WriteAsync(data, offset, length)
+            };
+            await IOUtils.WriteBytes(writer, new byte[] { 1, 2, 3 }, 0, 2);
+            await IOUtils.WriteBytes(writer, new byte[] { 0, 3, 2, 1 }, 1, 2);
+            Assert.Equal(new byte[] { 1, 2, 3, 2 }, stream.ToArray());
+        }
+
+        [Fact]
+        public async Task TestWriteBytes3()
+        {
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+                IOUtils.WriteBytes(null, new byte[3], 0, 2));
+
+            var falseWriter = new LambdaBasedCustomReader();
+            await Assert.ThrowsAsync<InvalidCastException>(() =>
+                IOUtils.WriteBytes(falseWriter, new byte[3], 0, 2));
+        }
+
+        [Fact]
         public async Task TestReadBytesFully()
         {
             // arrange
@@ -208,66 +292,6 @@ namespace Kabomu.Tests.Common
             // ensure reader or writer weren't disposed.
             await writer.WriteBytes(new byte[0], 0, 0);
             await reader.ReadBytes(new byte[0], 0, 0);
-        }
-
-        [Theory]
-        [MemberData(nameof(CreateTestCoalesceAsReaderData))]
-        public async Task TestCoalesceAsReader(ICustomReader reader,
-            ICustomWritable fallback, byte[] expected)
-        {
-            reader = IOUtils.CoalesceAsReader(reader, fallback);
-            byte[] actual = null;
-            if (reader != null)
-            {
-                var desired = IOUtils.ReadAllBytes(reader, 0, 2);
-                // just in case error causes desired to hang forever,
-                // impose timeout
-                var first = await Task.WhenAny(Task.Delay(3000),
-                    desired);
-                if (first == desired)
-                {
-                    actual = await desired;
-                }
-            }
-            Assert.Equal(expected, actual);
-        }
-
-        public static List<object[]> CreateTestCoalesceAsReaderData()
-        {
-            var testData = new List<object[]>();
-
-            var expected = new byte[] { };
-            var reader = new HelperCustomReaderWritable(expected);
-            ICustomWritable fallback = null;
-            testData.Add(new object[] { reader, fallback, expected });
-
-            expected = null;
-            reader = null;
-            fallback = null;
-            testData.Add(new object[] { reader, fallback, expected });
-
-            expected = new byte[] { 0, 1, 2, 3 };
-            reader = new HelperCustomReaderWritable(expected);
-            fallback = new LambdaBasedCustomWritable();
-            testData.Add(new object[] { reader, fallback, expected });
-
-            expected = new byte[] { 0, 1, 2, 3, 4, 5 };
-            reader = null;
-            fallback = new HelperCustomReaderWritable(expected);
-            testData.Add(new object[] { reader, fallback, expected });
-
-            expected = new byte[] { 0, 1, 2 };
-            reader = null;
-            fallback = new LambdaBasedCustomWritable
-            {
-                WritableFunc = writer =>
-                {
-                    return writer.WriteBytes(expected, 0, expected.Length);
-                }
-            };
-            testData.Add(new object[] { reader, fallback, expected });
-
-            return testData;
         }
 
         class HelperCustomReaderWritable : ICustomReader, ICustomWritable

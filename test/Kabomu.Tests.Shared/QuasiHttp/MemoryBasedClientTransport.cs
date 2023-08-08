@@ -12,9 +12,14 @@ namespace Kabomu.Tests.Shared.QuasiHttp
     {
         public IDictionary<object, MemoryBasedServerTransport> Servers { get; set; }
 
+        public IQuasiHttpSendOptions ActualSendOptions { get; set; }
+        public object ActualRemoteEndpoint { get; set; }
+
         public Task<IConnectionAllocationResponse> AllocateConnection(
             object remoteEndpoint, IQuasiHttpSendOptions sendOptions)
         {
+            ActualRemoteEndpoint = remoteEndpoint;
+            ActualSendOptions = sendOptions;
             if (!Servers.ContainsKey(remoteEndpoint))
             {
                 return Task.FromResult<IConnectionAllocationResponse>(null);

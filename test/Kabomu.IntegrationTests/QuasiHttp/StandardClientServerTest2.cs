@@ -114,7 +114,18 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 ExtraConnectivityParams = new Dictionary<string, object>
                 {
                     { "scheme", "https" }
-                }
+                },
+                EnsureNonNullResponse = false,
+                ResponseBufferingEnabled = false
+            };
+            var expectedSendOptions = new DefaultQuasiHttpSendOptions
+            {
+                ExtraConnectivityParams = new Dictionary<string, object>
+                {
+                    { "scheme", "https" }
+                },
+                EnsureNonNullResponse = false,
+                ResponseBufferingEnabled = false
             };
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
                 client.Send(remoteEndpoint, requestFunc, options).Item1);
@@ -122,7 +133,10 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             Assert.Contains("no request", actualEx.Message);
 
             // also check the environment passed to the request func.
-            Assert.Equal(options.ExtraConnectivityParams, actualReqEnv);
+            ComparisonUtils.CompareConnectivityParams(remoteEndpoint,
+                clientTransport.ActualRemoteEndpoint,
+                expectedSendOptions, clientTransport.ActualSendOptions);
+            Assert.Equal(expectedSendOptions.ExtraConnectivityParams, actualReqEnv);
         }
 
         [Fact]
@@ -152,7 +166,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     {
                         { "one", 1 },
                         { "scheme", "plus" }
-                    }
+                    },
+                    TimeoutMillis = -1,
                 }
             };
             IDictionary<string, object> actualReqEnv = null;
@@ -166,7 +181,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 ExtraConnectivityParams = new Dictionary<string, object>
                 {
                     { "scheme", "https" }
-                }
+                },
+                TimeoutMillis = -2,
             };
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
                 client.Send(remoteEndpoint, requestFunc, options).Item1);
@@ -176,12 +192,21 @@ namespace Kabomu.IntegrationTests.QuasiHttp
 
             // check that the environment is passed in has been merged correctly
             // with default.
-            var expectedReqEnv = new Dictionary<string, object>
+            var expectedSendOptions = new DefaultQuasiHttpSendOptions
             {
-                { "scheme", "https" },
-                { "one", 1 }
+                ExtraConnectivityParams = new Dictionary<string, object>
+                {
+                    { "scheme", "https" },
+                    { "one", 1 }
+                },
+                EnsureNonNullResponse = true,
+                ResponseBufferingEnabled = true,
+                TimeoutMillis = -2,
             };
-            Assert.Equal(expectedReqEnv, actualReqEnv);
+            ComparisonUtils.CompareConnectivityParams(remoteEndpoint,
+                clientTransport.ActualRemoteEndpoint,
+                expectedSendOptions, clientTransport.ActualSendOptions);
+            Assert.Equal(expectedSendOptions.ExtraConnectivityParams, actualReqEnv);
         }
 
         [Fact]
@@ -239,7 +264,16 @@ namespace Kabomu.IntegrationTests.QuasiHttp
 
             // check that empty default environment is passed in to req func,
             // since MemoryBasedClientTransport uses merged connectivity params
-            Assert.Equal(new Dictionary<string, object>(), actualReqEnv);
+            var expectedSendOptions = new DefaultQuasiHttpSendOptions
+            {
+                ExtraConnectivityParams = new Dictionary<string, object>(),
+                EnsureNonNullResponse = true,
+                ResponseBufferingEnabled = true
+            };
+            ComparisonUtils.CompareConnectivityParams(remoteEndpoint,
+                clientTransport.ActualRemoteEndpoint,
+                expectedSendOptions, clientTransport.ActualSendOptions);
+            Assert.Equal(expectedSendOptions.ExtraConnectivityParams, actualReqEnv);
         }
 
         [Fact]
@@ -305,6 +339,16 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             await serverTask;
             await ComparisonUtils.CompareRequests(expectedRequest, actualRequest, null);
             await ComparisonUtils.CompareResponses(expectedResponse, actualResponse, null);
+            var expectedSendOptions = new DefaultQuasiHttpSendOptions
+            {
+                ExtraConnectivityParams = new Dictionary<string, object>(),
+                TimeoutMillis = 5_000,
+                EnsureNonNullResponse = true,
+                ResponseBufferingEnabled = true
+            };
+            ComparisonUtils.CompareConnectivityParams(remoteEndpoint,
+                clientTransport.ActualRemoteEndpoint,
+                expectedSendOptions, clientTransport.ActualSendOptions);
         }
 
         [Fact]
@@ -348,10 +392,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 Environment = new Dictionary<string, object>()
             };
-            IDictionary<string, object> actualReqEnv = null;
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc = async reqEnv =>
             {
-                actualReqEnv = reqEnv;
                 await Task.Delay(1000);
                 return expectedRequest;
             };
@@ -405,10 +447,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 Environment = new Dictionary<string, object>()
             };
-            IDictionary<string, object> actualReqEnv = null;
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc = async reqEnv =>
             {
-                actualReqEnv = reqEnv;
                 await Task.Delay(1000);
                 return expectedRequest;
             };
@@ -463,14 +503,21 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 Transport = clientTransport,
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    TimeoutMillis = -1
+                    TimeoutMillis = -1,
+                    EnsureNonNullResponse = true,
                 }
             };
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc = async reqEnv =>
             {
                 return new DefaultQuasiHttpRequest();
             };
-            var sendOptions = new DefaultQuasiHttpSendOptions();
+            var sendOptions = new DefaultQuasiHttpSendOptions
+            {
+                MaxChunkSize = 200,
+                ResponseBodyBufferingSizeLimit = 20_000,
+                ResponseBufferingEnabled = false,
+                EnsureNonNullResponse = true,
+            };
             var result = client.Send(remoteEndpoint, requestFunc, sendOptions);
             await Task.Delay(1000);
             client.CancelSend(result.Item2);
@@ -486,6 +533,18 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 result.Item1);
             Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeCancelled,
                 actualEx.ReasonCode);
+            var expectedSendOptions = new DefaultQuasiHttpSendOptions
+            {
+                EnsureNonNullResponse = true,
+                ExtraConnectivityParams = new Dictionary<string, object>(),
+                TimeoutMillis = -1,
+                MaxChunkSize = 200,
+                ResponseBodyBufferingSizeLimit = 20_000,
+                ResponseBufferingEnabled = false
+            };
+            ComparisonUtils.CompareConnectivityParams(remoteEndpoint,
+                clientTransport.ActualRemoteEndpoint,
+                expectedSendOptions, clientTransport.ActualSendOptions);
         }
 
         [Fact]
@@ -641,12 +700,17 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 Transport = clientTransport,
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
-                    TimeoutMillis = 30_000
+                    TimeoutMillis = 30_000,
+                    MaxChunkSize = 200,
+                    ResponseBodyBufferingSizeLimit = 20_000,
+                    ResponseBufferingEnabled = true
                 }
             };
             var sendOptions = new DefaultQuasiHttpSendOptions
             {
-                TimeoutMillis = 3_000
+                TimeoutMillis = 3_000,
+                EnsureNonNullResponse = false,
+                ResponseBufferingEnabled = true
             };
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
                 client.Send(remoteEndpoint, new DefaultQuasiHttpRequest(),
@@ -658,6 +722,18 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
                 serverTask);
             Log.Info(actualEx, "actual server error from TestTimeout2");
+            var expectedSendOptions = new DefaultQuasiHttpSendOptions
+            {
+                ExtraConnectivityParams = new Dictionary<string, object>(),
+                TimeoutMillis = 3_000,
+                MaxChunkSize = 200,
+                ResponseBodyBufferingSizeLimit = 20_000,
+                ResponseBufferingEnabled = true,
+                EnsureNonNullResponse = false
+            };
+            ComparisonUtils.CompareConnectivityParams(remoteEndpoint,
+                clientTransport.ActualRemoteEndpoint,
+                expectedSendOptions, clientTransport.ActualSendOptions);
         }
 
         [Fact]
