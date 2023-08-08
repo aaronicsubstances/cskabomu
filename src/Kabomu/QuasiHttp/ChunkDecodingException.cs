@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Kabomu.QuasiHttp.ChunkedTransfer
+namespace Kabomu.QuasiHttp
 {
     /// <summary>
     /// Exception thrown to indicate failure in decoding of byte streams expected to be

@@ -43,7 +43,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// implementation in the Kabomu library, and that is currently the largest
         /// signed integer that can fit into 3 bytes.
         /// </summary>
-        public static readonly int HardMaxChunkSizeLimit = 1 << 8 * LengthOfEncodedChunkLength - 1 - 1;
+        public static readonly int HardMaxChunkSizeLimit = 8_388_607;
 
         internal static Task EncodeSubsequentChunkHeader(
             int chunkDataLength, object writer, byte[] bufferToUse)
