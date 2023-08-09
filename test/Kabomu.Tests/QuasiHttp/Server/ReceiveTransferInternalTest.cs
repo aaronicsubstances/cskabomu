@@ -7,6 +7,7 @@ using Xunit;
 using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.Tests.Shared.QuasiHttp;
 
 namespace Kabomu.Tests.QuasiHttp.Server
 {
@@ -73,18 +74,19 @@ namespace Kabomu.Tests.QuasiHttp.Server
             {
                 return instance.StartProtocol();
             });
-
-            // assert
-            Assert.Same(protocol, instance.Protocol);
         }
 
         [Fact]
         public async Task TestAbort1()
         {
             // arrange
-            var request = new DefaultQuasiHttpRequest
+            var requestReleaseCallCount = 0;
+            var request = new ConfigurableQuasiHttpRequest
             {
-                CancellationTokenSource = new CancellationTokenSource()
+                ReleaseFunc = async () =>
+                {
+                    requestReleaseCallCount++;
+                }
             };
             var protocol = new HelperReceiveProtocol();
             var instance = new ReceiveTransferInternal
@@ -92,17 +94,21 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Request = request,
                 Protocol = protocol
             };
-            var res = new DefaultQuasiHttpResponse
+            var responseReleaseCallCount = 0;
+            var res = new ConfigurableQuasiHttpResponse
             {
-                CancellationTokenSource = new CancellationTokenSource()
+                ReleaseFunc = async () =>
+                {
+                    responseReleaseCallCount++;
+                }
             };
 
             // act
             await instance.Abort(res);
 
             // assert
-            Assert.True(request.CancellationTokenSource.IsCancellationRequested);
-            Assert.False(res.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(1, requestReleaseCallCount);
+            Assert.Equal(0, responseReleaseCallCount);
             Assert.True(protocol.Cancelled);
         }
 
@@ -122,21 +128,42 @@ namespace Kabomu.Tests.QuasiHttp.Server
         public async Task TestAbort3()
         {
             // arrange
-            var protocol = new HelperReceiveProtocol();
-            var request = new DefaultQuasiHttpRequest
+            var instance = new ReceiveTransferInternal();
+            instance.TrySetAborted();
+
+            // act to verify no errors are raised with
+            // the missing props
+            await instance.Abort(null);
+        }
+
+        [Fact]
+        public async Task TestAbort4()
+        {
+            // arrange
+            var requestReleaseCallCount = 0;
+            var request = new ConfigurableQuasiHttpRequest
             {
-                CancellationTokenSource = new CancellationTokenSource()
+                ReleaseFunc = async () =>
+                {
+                    requestReleaseCallCount++;
+                    throw new Exception("should be ignored");
+                }
             };
+            var protocol = new HelperReceiveProtocol();
             var instance = new ReceiveTransferInternal
             {
                 TimeoutId = new CancellationTokenSource(),
                 Protocol = protocol,
                 Request = request
             };
-            var response = new DefaultQuasiHttpResponse
+            var responseReleaseCallCount = 0;
+            var response = new ConfigurableQuasiHttpResponse
             {
                 Body = new StringBody("unbuffered"),
-                CancellationTokenSource = new CancellationTokenSource()
+                ReleaseFunc = async () =>
+                {
+                    responseReleaseCallCount++;
+                }
             };
 
             // act
@@ -145,29 +172,38 @@ namespace Kabomu.Tests.QuasiHttp.Server
             // assert
             Assert.True(protocol.Cancelled);
             Assert.True(instance.TimeoutId.IsCancellationRequested);
-            Assert.True(request.CancellationTokenSource.IsCancellationRequested);
-            Assert.False(response.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(1, requestReleaseCallCount);
+            Assert.Equal(0, responseReleaseCallCount);
         }
 
         [Fact]
-        public async Task TestAbort4()
+        public async Task TestAbort5()
         {
             // arrange
-            var protocol = new HelperReceiveProtocol();
-            var request = new DefaultQuasiHttpRequest
+            var requestReleaseCallCount = 0;
+            var request = new ConfigurableQuasiHttpRequest
             {
-                CancellationTokenSource = new CancellationTokenSource()
+                ReleaseFunc = async () =>
+                {
+                    requestReleaseCallCount++;
+                }
             };
+            var protocol = new HelperReceiveProtocol();
             var instance = new ReceiveTransferInternal
             {
                 TimeoutId = new CancellationTokenSource(),
                 Protocol = protocol
             };
             instance.TrySetAborted();
-            var response = new DefaultQuasiHttpResponse
+            var responseReleaseCallCount = 0;
+            var response = new ConfigurableQuasiHttpResponse
             {
                 Body = new StringBody("unbuffered"),
-                CancellationTokenSource = new CancellationTokenSource()
+                ReleaseFunc = async () =>
+                {
+                    responseReleaseCallCount++;
+                    throw new Exception("should be ignored");
+                }
             };
 
             // act
@@ -176,18 +212,15 @@ namespace Kabomu.Tests.QuasiHttp.Server
             // assert
             Assert.False(protocol.Cancelled);
             Assert.False(instance.TimeoutId.IsCancellationRequested);
-            Assert.False(request.CancellationTokenSource.IsCancellationRequested);
-            Assert.True(response.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(0, requestReleaseCallCount);
+            Assert.Equal(1, responseReleaseCallCount);
         }
 
         [Fact]
-        public async Task TestAbort5()
+        public async Task TestAbort6()
         {
             // arrange
-            var request = new DefaultQuasiHttpRequest
-            {
-                CancellationTokenSource = new CancellationTokenSource()
-            };
+            var request = new DefaultQuasiHttpRequest();
             var protocol = new HelperReceiveProtocol
             {
                 ExpectedCancelError = new InvalidOperationException()
@@ -198,10 +231,8 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Request = request,
                 TimeoutId = new CancellationTokenSource(),
             };
-            var resCts = new CancellationTokenSource();
             var res = new DefaultQuasiHttpResponse
             {
-                CancellationTokenSource = resCts,
                 Body = new StringBody("deal")
             };
 
@@ -209,37 +240,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             await instance.Abort(res);
 
             // assert
-            Assert.True(request.CancellationTokenSource.IsCancellationRequested);
-            Assert.True(instance.TimeoutId.IsCancellationRequested);
-            Assert.True(protocol.Cancelled);
-            Assert.False(resCts.IsCancellationRequested);
-        }
-
-        [Fact]
-        public async Task TestAbort6()
-        {
-            // arrange
-            var request = new DefaultQuasiHttpRequest
-            {
-                CancellationTokenSource = new CancellationTokenSource()
-            };
-            var protocol = new HelperReceiveProtocol
-            {
-                ExpectedCancelError = new InvalidOperationException()
-            };
-            var instance = new ReceiveTransferInternal
-            {
-                Protocol = protocol,
-                Request = request,
-                TimeoutId = new CancellationTokenSource()
-            };
-            var res = new DefaultQuasiHttpResponse();
-
-            // act
-            await instance.Abort(res);
-
-            // assert
-            Assert.True(request.CancellationTokenSource.IsCancellationRequested);
             Assert.True(instance.TimeoutId.IsCancellationRequested);
             Assert.True(protocol.Cancelled);
         }

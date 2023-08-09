@@ -13,6 +13,7 @@ namespace Kabomu.Tests.Shared.QuasiHttp
         private readonly object _expectedConnection;
         private readonly object _backingReader;
         private readonly object _backingWriter;
+        private int _releaseCallCount;
 
         public DemoQuasiHttpTransport(object expectedConnection,
             object backingReader, object backingWriter)
@@ -22,7 +23,7 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             _backingWriter = backingWriter;
         }
 
-        public CancellationTokenSource ReleaseIndicator { get; set; }
+        public int ReleaseCallCount => _releaseCallCount;
 
         public object GetWriter(object connection)
         {
@@ -62,7 +63,7 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             {
                 throw new ArgumentException("unexpected connection");
             }
-            ReleaseIndicator?.Cancel();
+            Interlocked.Increment(ref _releaseCallCount);
             await Task.Yield();
         }
     }

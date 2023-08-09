@@ -111,7 +111,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         public async Task TestSend(
             object connection, int maxChunkSize, bool responseBufferingEnabled,
             IQuasiHttpMutableRequest request, byte[] expectedReqBodyBytes,
-            IQuasiHttpResponse expectedResponse, byte[] expectedResBodyBytes)
+            DefaultQuasiHttpResponse expectedResponse, byte[] expectedResBodyBytes)
         {
             // prepare response for reading.
             var helpingReader = await SerializeResponseToBeRead(
@@ -138,10 +138,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // set up instance
             var transport = new DemoQuasiHttpTransport(connection,
-                helpingReader, helpingWriter)
-            {
-                ReleaseIndicator = new CancellationTokenSource()
-            };
+                helpingReader, helpingWriter);
             var instance = new DefaultSendProtocolInternal
             {
                 Request = request,
@@ -162,7 +159,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             // begin assert.
             Assert.NotNull(actualResponse);
             Assert.NotNull(actualResponse.Response);
-            Assert.False(transport.ReleaseIndicator.IsCancellationRequested);
+            Assert.Equal(0, transport.ReleaseCallCount);
             Assert.Equal(responseBufferingEnabled, actualResponse.ResponseBufferingApplied);
 
             // assert read response.
@@ -197,7 +194,16 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // verify cancel expectations
             await instance.Cancel();
-            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
+            await actualResponse.Response.Release();
+            if (actualResponse.Response.Body != null &&
+                !responseBufferingEnabled)
+            {
+                Assert.Equal(2, transport.ReleaseCallCount);
+            }
+            else
+            {
+                Assert.Equal(1, transport.ReleaseCallCount);
+            }
         }
 
         public static List<object[]> CreateTestSendData()
@@ -386,10 +392,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // set up instance
             var transport = new DemoQuasiHttpTransport(connection,
-                helpingReader, helpingWriter)
-            {
-                ReleaseIndicator = new CancellationTokenSource()
-            };
+                helpingReader, helpingWriter);
             var instance = new DefaultSendProtocolInternal
             {
                 Request = request,
@@ -416,7 +419,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
 
             await instance.Cancel();
-            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
+            Assert.Equal(1, transport.ReleaseCallCount);
         }
 
         [Fact]
@@ -447,10 +450,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // set up instance
             var transport = new DemoQuasiHttpTransport(connection,
-                helpingReader, helpingWriter)
-            {
-                ReleaseIndicator = new CancellationTokenSource()
-            };
+                helpingReader, helpingWriter);
             IDictionary<string, object> actualReqEnv = null;
             var instance = new DefaultSendProtocolInternal
             {
@@ -482,7 +482,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
 
             await instance.Cancel();
-            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
+            Assert.Equal(1, transport.ReleaseCallCount);
         }
 
         [Fact]
@@ -506,10 +506,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // set up instance
             var transport = new DemoQuasiHttpTransport(connection,
-                helpingReader, helpingWriter)
-            {
-                ReleaseIndicator = new CancellationTokenSource()
-            };
+                helpingReader, helpingWriter);
             var instance = new DefaultSendProtocolInternal
             {
                 Request = request,
@@ -541,7 +538,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
 
             await instance.Cancel();
-            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
+            Assert.Equal(1, transport.ReleaseCallCount);
         }
 
         [Fact]
@@ -565,10 +562,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // set up instance
             var transport = new DemoQuasiHttpTransport(connection,
-                helpingReader, helpingWriter)
-            {
-                ReleaseIndicator = new CancellationTokenSource()
-            };
+                helpingReader, helpingWriter);
             var instance = new DefaultSendProtocolInternal
             {
                 Request = request,
@@ -601,7 +595,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             ComparisonUtils.CompareLeadChunks(expectedReqChunk, actualReqChunk);
 
             await instance.Cancel();
-            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
+            Assert.Equal(1, transport.ReleaseCallCount);
         }
 
         [Fact]
@@ -671,10 +665,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // set up instance
             var transport = new DemoQuasiHttpTransport(connection,
-                helpingReader, helpingWriter)
-            {
-                ReleaseIndicator = new CancellationTokenSource()
-            };
+                helpingReader, helpingWriter);
             var instance = new DefaultSendProtocolInternal
             {
                 Request = request,
@@ -691,11 +682,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // act.
             var actualResponse = await instance.Send();
-            var wasTransportReleased = transport.ReleaseIndicator.IsCancellationRequested;
 
             // begin assert.
             Assert.NotNull(actualResponse);
             Assert.NotNull(actualResponse.Response);
+            Assert.Equal(0, transport.ReleaseCallCount);
             Assert.Equal(responseBufferingEnabled, actualResponse.ResponseBufferingApplied);
 
             // assert read response.
@@ -717,9 +708,8 @@ namespace Kabomu.Tests.QuasiHttp.Client
             Assert.Equal(reqBodyBytes, actualReqBodyBytes);
 
             // verify cancel expectations
-            Assert.False(wasTransportReleased);
             await instance.Cancel();
-            Assert.True(transport.ReleaseIndicator.IsCancellationRequested);
+            Assert.Equal(1, transport.ReleaseCallCount);
         }
     }
 }

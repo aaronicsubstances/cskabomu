@@ -72,12 +72,22 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 Transport = clientTransport
             };
-            var request = new DefaultQuasiHttpRequest();
+            var requestReleaseCallCount = 0;
+            var request = new ConfigurableQuasiHttpRequest
+            {
+                ReleaseFunc = async () =>
+                {
+                    requestReleaseCallCount++;
+                }
+            };
             DefaultQuasiHttpSendOptions options = null;
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
                 client.Send(remoteEndpoint, request, options));
             Log.Info(actualEx, "actual error from TestNoConnection3");
             Assert.Contains("no connection", actualEx.Message);
+
+            // assert request release
+            Assert.Equal(1, requestReleaseCallCount);
         }
 
         [Fact]
@@ -244,8 +254,13 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 Transport = clientTransport
             };
-            var expectedRequest = new DefaultQuasiHttpRequest
+            var requestReleaseCallCount = 0;
+            var expectedRequest = new ConfigurableQuasiHttpRequest
             {
+                ReleaseFunc = async () =>
+                {
+                    requestReleaseCallCount++;
+                },
                 Environment = new Dictionary<string, object>()
             };
             IDictionary<string, object> actualReqEnv = null;
@@ -273,6 +288,9 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 clientTransport.ActualRemoteEndpoint,
                 expectedSendOptions, clientTransport.ActualSendOptions);
             Assert.Equal(expectedSendOptions.ExtraConnectivityParams, actualReqEnv);
+
+            // assert request release
+            Assert.Equal(1, requestReleaseCallCount);
         }
 
         [Fact]
@@ -320,9 +338,15 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     TimeoutMillis = 5_000
                 }
             };
-            var expectedRequest = new DefaultQuasiHttpRequest
+            var requestReleaseCallCount = 0;
+            var expectedRequest = new ConfigurableQuasiHttpRequest
             {
-                Environment = new Dictionary<string, object>()
+                Environment = new Dictionary<string, object>(),
+                ReleaseFunc = async () =>
+                {
+                    requestReleaseCallCount++;
+                    throw new Exception("should be ignored");
+                }
             };
             IDictionary<string, object> actualReqEnv = null;
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc = async reqEnv =>
@@ -348,6 +372,9 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             ComparisonUtils.CompareConnectivityParams(remoteEndpoint,
                 clientTransport.ActualRemoteEndpoint,
                 expectedSendOptions, clientTransport.ActualSendOptions);
+
+            // assert request release
+            Assert.Equal(1, requestReleaseCallCount);
         }
 
         [Fact]
@@ -506,9 +533,16 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     EnsureNonNullResponse = true,
                 }
             };
+            var requestReleaseCallCount = 0;
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc = async reqEnv =>
             {
-                return new DefaultQuasiHttpRequest();
+                return new ConfigurableQuasiHttpRequest
+                {
+                    ReleaseFunc = async ()=>
+                    {
+                        requestReleaseCallCount++;
+                    }
+                };
             };
             var sendOptions = new DefaultQuasiHttpSendOptions
             {
@@ -544,6 +578,9 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             ComparisonUtils.CompareConnectivityParams(remoteEndpoint,
                 clientTransport.ActualRemoteEndpoint,
                 expectedSendOptions, clientTransport.ActualSendOptions);
+
+            // assert request release
+            Assert.Equal(1, requestReleaseCallCount);
         }
 
         [Fact]

@@ -108,8 +108,7 @@ namespace Kabomu.Examples.Shared
             {
                 HttpVersion = responseWrapper.Version?.ToString(),
                 StatusCode = (int)responseWrapper.StatusCode,
-                HttpStatusMessage = responseWrapper.ReasonPhrase,
-                CancellationTokenSource = cancellationTokenSource
+                HttpStatusMessage = responseWrapper.ReasonPhrase
             };
             if (responseWrapper.Content != null)
             {

@@ -53,7 +53,7 @@ namespace Kabomu.QuasiHttp.Client
                     catch (Exception) { } // ignore
                 }
 
-                // close request body
+                // close request
                 if (Request != null)
                 {
                     try

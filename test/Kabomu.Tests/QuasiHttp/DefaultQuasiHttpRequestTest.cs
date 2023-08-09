@@ -26,14 +26,11 @@ namespace Kabomu.Tests.QuasiHttp
                 ReaderFunc = () => stream,
                 ReleaseFunc = async () => await stream.DisposeAsync()
             };
-            instance.CancellationTokenSource = new CancellationTokenSource();
             int result = await IOUtils.ReadBytes(instance.Body.AsReader(),
                 new byte[1], 0, 1);
             Assert.Equal(0, result);
-            Assert.False(instance.CancellationTokenSource.IsCancellationRequested);
 
             await instance.Release();
-            Assert.True(instance.CancellationTokenSource.IsCancellationRequested);
             await Assert.ThrowsAsync<ObjectDisposedException>(() =>
                 IOUtils.ReadBytes(instance.Body.AsReader(), new byte[1], 0, 1));
 

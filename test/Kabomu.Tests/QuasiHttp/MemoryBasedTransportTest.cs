@@ -174,7 +174,7 @@ namespace Kabomu.Tests.QuasiHttp
                     await WriteMsg(readerWriter, outgoingAnswer);
                 }
             }
-            LogMsg(DescribeCustomDispose(connection, isClient, isAtAccra));
+            LogMsg(DescribeRelease(connection, isClient, isAtAccra));
         }
 
         private static void LogMsg(string msg)
@@ -191,7 +191,7 @@ namespace Kabomu.Tests.QuasiHttp
                 $"{maxQuestionsToAnswer} at {part1} in {part2}";
         }
 
-        private static string DescribeCustomDispose(object connection,
+        private static string DescribeRelease(object connection,
             bool isClient, bool isAtAccra)
         {
             var part1 = isClient ? "client" : "server";

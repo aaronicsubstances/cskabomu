@@ -4,6 +4,7 @@ using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared.Common;
+using Kabomu.Tests.Shared.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -52,9 +53,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestSendEnsuresCloseOnReceivingErrorResponse1()
         {
-            var expectedResponse = new DefaultQuasiHttpResponse
+            var responseReleaseCallCount = 0;
+            var expectedResponse = new ConfigurableQuasiHttpResponse
             {
-                CancellationTokenSource = new CancellationTokenSource(),
+                ReleaseFunc = async () =>
+                {
+                    responseReleaseCallCount++;
+                    throw new Exception("should be ignored");
+                },
                 Body = new ErrorQuasiHttpBody()
             };
             var transport = new HelperQuasiHttpAltTransport();
@@ -70,7 +76,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 return instance.Send();
             });
-            Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(1, responseReleaseCallCount);
 
             await instance.Cancel();
             Assert.Same(instance.SendCancellationHandle,
@@ -80,9 +86,13 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestSendEnsuresCloseOnReceivingErrorResponse2()
         {
-            var expectedResponse = new DefaultQuasiHttpResponse
+            var responseReleaseCallCount = 0;
+            var expectedResponse = new ConfigurableQuasiHttpResponse
             {
-                CancellationTokenSource = new CancellationTokenSource(),
+                ReleaseFunc = async () =>
+                {
+                    responseReleaseCallCount++;
+                },
                 Body = new StringBody("too much!")
             };
             var transport = new HelperQuasiHttpAltTransport();
@@ -100,7 +110,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 return instance.Send();
             });
             Assert.Contains("limit of 5", actualEx.Message);
-            Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(1, responseReleaseCallCount);
 
             await instance.Cancel();
             Assert.Same(instance.SendCancellationHandle,
@@ -110,10 +120,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestSendResponseBufferingDisabledAndBodyPresent1()
         {
-            var expectedResponse = new DefaultQuasiHttpResponse
+            var responseReleaseCallCount = 0;
+            var expectedResponse = new ConfigurableQuasiHttpResponse
             {
+                ReleaseFunc = async () =>
+                {
+                    responseReleaseCallCount++;
+                },
                 Body = new StringBody("tea"),
-                CancellationTokenSource = new CancellationTokenSource()
             };
             var transport = new HelperQuasiHttpAltTransport();
             var instance = new AltSendProtocolInternal
@@ -124,7 +138,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 EnsureNonNullResponse = true
             };
             var res = await instance.Send();
-            Assert.False(expectedResponse.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(0, responseReleaseCallCount);
             Assert.Same(expectedResponse, res?.Response);
             Assert.Equal(false, res?.ResponseBufferingApplied);
 
@@ -136,13 +150,18 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestSendResponseBufferingDisabledAndBodyPresent2()
         {
-            var expectedResponse = new DefaultQuasiHttpResponse
+            var responseReleaseCallCount = 0;
+            var expectedResponse = new ConfigurableQuasiHttpResponse
             {
                 Body = new StringBody("tea"),
-                CancellationTokenSource = new CancellationTokenSource(),
                 Environment = new Dictionary<string, object>
                 {
                     { TransportUtils.ResEnvKeyResponseBufferingApplied, true }
+                },
+                ReleaseFunc = async () =>
+                {
+                    responseReleaseCallCount++;
+                    throw new Exception("should be ignored");
                 }
             };
             var transport = new HelperQuasiHttpAltTransport();
@@ -155,7 +174,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 EnsureNonNullResponse = true
             };
             var res = await instance.Send();
-            Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(1, responseReleaseCallCount);
             Assert.Same(expectedResponse, res?.Response);
             Assert.Equal(true, res?.ResponseBufferingApplied);
 
@@ -167,9 +186,13 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestSendResponseBufferingDisabledAndBodyAbsent()
         {
-            var expectedResponse = new DefaultQuasiHttpResponse
+            var responseReleaseCallCount = 0;
+            var expectedResponse = new ConfigurableQuasiHttpResponse
             {
-                CancellationTokenSource = new CancellationTokenSource(),
+                ReleaseFunc = async () =>
+                {
+                    responseReleaseCallCount++;
+                },
                 Environment = new Dictionary<string, object>
                 {
                     { TransportUtils.ResEnvKeyResponseBufferingApplied, null }
@@ -185,7 +208,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 EnsureNonNullResponse = true
             };
             var res = await instance.Send();
-            Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(1, responseReleaseCallCount);
             Assert.Same(expectedResponse, res?.Response);
             Assert.Equal(false, res?.ResponseBufferingApplied);
 
@@ -197,9 +220,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestSendResponseBufferingEnabledAndBodyAbsent1()
         {
-            var expectedResponse = new DefaultQuasiHttpResponse
+            var responseReleaseCallCount = 0;
+            var expectedResponse = new ConfigurableQuasiHttpResponse
             {
-                CancellationTokenSource = new CancellationTokenSource(),
+                ReleaseFunc = async () =>
+                {
+                    responseReleaseCallCount++;
+                    throw new Exception("should be ignored");
+                },
                 Environment = new Dictionary<string, object>
                 {
                     { TransportUtils.ResEnvKeyResponseBufferingApplied, true }
@@ -214,7 +242,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 EnsureNonNullResponse = true
             };
             var res = await instance.Send();
-            Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(1, responseReleaseCallCount);
             Assert.Same(expectedResponse, res?.Response);
             Assert.Equal(true, res?.ResponseBufferingApplied);
 
@@ -226,9 +254,13 @@ namespace Kabomu.Tests.QuasiHttp.Client
         [Fact]
         public async Task TestSendResponseBufferingEnabledAndBodyAbsent2()
         {
-            var expectedResponse = new DefaultQuasiHttpResponse
+            var responseReleaseCallCount = 0;
+            var expectedResponse = new ConfigurableQuasiHttpResponse
             {
-                CancellationTokenSource = new CancellationTokenSource()
+                ReleaseFunc = async () =>
+                {
+                    responseReleaseCallCount++;
+                }
             };
             var transport = new HelperQuasiHttpAltTransport();
             var instance = new AltSendProtocolInternal
@@ -239,7 +271,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 EnsureNonNullResponse = true
             };
             var res = await instance.Send();
-            Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(1, responseReleaseCallCount);
             Assert.Same(expectedResponse, res?.Response);
             Assert.Equal(false, res?.ResponseBufferingApplied);
 
@@ -248,9 +280,43 @@ namespace Kabomu.Tests.QuasiHttp.Client
             Assert.Null(transport.ActualCancellationHandle);
         }
 
+        [Fact]
+        public async Task TestSendResponseBufferingEnabledAndBodyPresent1()
+        {
+            var expectedResBodyBytes = ByteUtils.StringToBytes("just enough");
+            var responseReleaseCallCount = 0;
+            var expectedResponse = new ConfigurableQuasiHttpResponse
+            {
+                Body = new ByteBufferBody(expectedResBodyBytes),
+                ReleaseFunc = async () =>
+                {
+                    responseReleaseCallCount++;
+                }
+            };
+            var transport = new HelperQuasiHttpAltTransport();
+            var instance = new AltSendProtocolInternal
+            {
+                ResponseTask = Task.FromResult<IQuasiHttpResponse>(expectedResponse),
+                TransportBypass = transport,
+                ResponseBufferingEnabled = true,
+                EnsureNonNullResponse = true
+            };
+            var response = await instance.Send();
+            Assert.Equal(1, responseReleaseCallCount);
+            Assert.Equal(true, response?.ResponseBufferingApplied);
+
+            await ComparisonUtils.CompareResponses(
+                expectedResponse, response?.Response, expectedResBodyBytes);
+            Assert.Equal(expectedResponse.Environment,
+                response.Response.Environment);
+
+            await instance.Cancel();
+            Assert.Null(transport.ActualCancellationHandle);
+        }
+
         [Theory]
         [MemberData(nameof(CreateTestSendResponseBufferingEnabledAndBodyPresentData))]
-        public async Task TestSendResponseBufferingEnabledAndBodyPresent(
+        public async Task TestSendResponseBufferingEnabledAndBodyPresent2(
             int responseBodyBufferingLimit, object sendCancellationHandle,
             byte[] expectedResBodyBytes, DefaultQuasiHttpResponse expectedResponse)
         {
@@ -265,10 +331,6 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 EnsureNonNullResponse = true
             };
             var response = await instance.Send();
-            if (expectedResponse.CancellationTokenSource != null)
-            {
-                Assert.True(expectedResponse.CancellationTokenSource.IsCancellationRequested);
-            }
             Assert.Equal(true, response?.ResponseBufferingApplied);
 
             await ComparisonUtils.CompareResponses(
