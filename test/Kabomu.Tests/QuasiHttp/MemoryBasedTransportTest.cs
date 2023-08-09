@@ -83,8 +83,15 @@ namespace Kabomu.Tests.QuasiHttp
         private async Task PerformProcessing(IQuasiHttpTransport transport,
             object connection, bool isClient, bool isAtAccra)
         {
-            var readerWriter = new TransportCustomReaderWriter(transport,
-                connection, true);
+            var transportReader = transport.GetReader(connection);
+            var transportWriter = transport.GetWriter(connection);
+            var readerWriter = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                    IOUtils.ReadBytes(transportReader, data, offset, length),
+                WriteFunc = (data, offset, length) =>
+                    IOUtils.WriteBytes(transportWriter, data, offset, length)
+            };
 
             var randGen = new Random();
 
@@ -168,7 +175,6 @@ namespace Kabomu.Tests.QuasiHttp
                 }
             }
             LogMsg(DescribeCustomDispose(connection, isClient, isAtAccra));
-            await readerWriter.CustomDispose();
         }
 
         private static void LogMsg(string msg)

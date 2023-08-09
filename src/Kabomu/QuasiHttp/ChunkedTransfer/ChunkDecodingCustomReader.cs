@@ -53,7 +53,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
             if (_chunkDataLenRem == 0)
             {
-                _chunkDataLenRem = await ChunkedTransferUtils.DecodeSubsequentChunkHeader(
+                _chunkDataLenRem = await ChunkedTransferUtils.DecodeSubsequentChunkV1Header(
                     _wrappedReader, _chunkHeaderBuffer, _maxChunkSize);
                 if (_chunkDataLenRem == 0)
                 {

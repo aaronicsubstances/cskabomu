@@ -85,8 +85,6 @@ namespace Kabomu.QuasiHttp.Client
         /// <exception cref="ArgumentNullException">The <paramref name="request"/> argument is null</exception>
         /// <exception cref="MissingDependencyException">The <see cref="Transport"/>
         /// property is null.</exception>
-        /// <exception cref="MissingDependencyException">The <see cref="TimerApi"/>
-        /// property is null at a point where timer functionality is needed.</exception>
         public Task<IQuasiHttpResponse> Send(object remoteEndpoint,
             IQuasiHttpRequest request, IQuasiHttpSendOptions options)
         {

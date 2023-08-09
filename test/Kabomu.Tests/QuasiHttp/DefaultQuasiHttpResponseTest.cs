@@ -1,8 +1,9 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.Tests.Shared.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,16 +19,22 @@ namespace Kabomu.Tests.QuasiHttp
             var instance = new DefaultQuasiHttpResponse();
             await instance.Release();
 
-            instance.Body = new CustomReaderBackedBody(new DemoCustomReaderWriter());
+            var stream = new MemoryStream();
+            instance.Body = new LambdaBasedQuasiHttpBody
+            {
+                ReaderFunc = () => stream,
+                ReleaseFunc = async () => await stream.DisposeAsync()
+            };
             instance.CancellationTokenSource = new CancellationTokenSource();
-            int result = await instance.Body.AsReader().ReadBytes(new byte[1], 0, 1);
+            int result = await IOUtils.ReadBytes(instance.Body.AsReader(),
+                new byte[1], 0, 1);
             Assert.Equal(0, result);
             Assert.False(instance.CancellationTokenSource.IsCancellationRequested);
 
             await instance.Release();
             Assert.True(instance.CancellationTokenSource.IsCancellationRequested);
             await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                instance.Body.AsReader().ReadBytes(new byte[1], 0, 1));
+                IOUtils.ReadBytes(instance.Body.AsReader(), new byte[1], 0, 1));
 
             await instance.Release();
         }

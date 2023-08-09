@@ -19,7 +19,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
     public class LeadChunk
     {
         /// <summary>
-        /// Current version of standard chunk serialization format.
+        /// Current version of standard chunk serialization format, which is v1.
         /// </summary>
         public const byte Version01 = 1;
 
@@ -242,9 +242,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
             var instance = new LeadChunk();
             instance.Version = data[offset];
-            if (instance.Version == 0)
+            if (instance.Version != Version01)
             {
-                throw new ArgumentException("version not set");
+                throw new ArgumentException("version not set to v1");
             }
             instance.Flags = data[offset + 1];
 

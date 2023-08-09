@@ -2,11 +2,12 @@
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.Tests.Shared.Common;
-using Kabomu.Tests.Shared.QuasiHttp;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp
@@ -485,15 +486,9 @@ namespace Kabomu.Tests.QuasiHttp
         [Fact]
         public async Task TestTransferBodyToTransport1()
         {
-            object connection = "davi";
             int maxChunkSize = 6;
-            var transport = new DemoQuasiHttpTransport(connection,
-                null, null);
-
             var srcData = "data bits and bytes";
-            var reader = new DemoCustomReaderWriter(
-                ByteUtils.StringToBytes(srcData));
-
+            var writer = new MemoryStream();
             var expected = new byte[] { 0 ,0, 8, 1, 0, (byte)'d',
                 (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',
                 0, 0, 8, 1, 0, (byte)'i', (byte)'t', (byte)'s', (byte)' ',
@@ -501,64 +496,33 @@ namespace Kabomu.Tests.QuasiHttp
                 (byte)'b', (byte)'y', (byte)'t', (byte)'e', 0, 0, 3, 1, 0,
                 (byte)'s', 0, 0, 2, 1, 0
             };
-            var body = new CustomReaderBackedBody(reader)
+            var body = new StringBody(srcData)
             {
                 ContentLength = -1
             };
-            await ProtocolUtilsInternal.TransferBodyToTransport(transport, connection,
+            await ProtocolUtilsInternal.TransferBodyToTransport(writer,
                 maxChunkSize, body);
 
-            Assert.Equal(expected, transport.BufferStream.ToArray());
+            Assert.Equal(expected, writer.ToArray());
         }
 
         [Fact]
         public async Task TestTransferBodyToTransport2()
         {
-            object connection = "david";
             int maxChunkSize = 6;
-            var transport = new DemoQuasiHttpTransport(connection,
-                null, null);
-
+            var writer = new MemoryStream();
+            var writerWrapper = new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = (data, off, len) =>
+                    writer.WriteAsync(data, off, len)
+            };
             var expected = "camouflage";
-            var reader = new DemoCustomReaderWriter(
-                ByteUtils.StringToBytes(expected));
-
-            var body = new CustomReaderBackedBody(reader)
-            {
-                ContentLength = expected.Length
-            };
-            await ProtocolUtilsInternal.TransferBodyToTransport(transport, connection,
+            var body = new StringBody(expected);
+            await ProtocolUtilsInternal.TransferBodyToTransport(writerWrapper,
                 maxChunkSize, body);
 
             Assert.Equal(expected, ByteUtils.BytesToString(
-                transport.BufferStream.ToArray()));
-        }
-
-        // 
-        /// <summary>
-        /// Assert that positive content length is not enforced
-        /// </summary>
-        [Fact]
-        public async Task TestTransferBodyToTransport4()
-        {
-            object connection = new object();
-            int maxChunkSize = -1;
-            var transport = new DemoQuasiHttpTransport(connection,
-                null, null);
-
-            var expected = "frutis and pils";
-            var reader = new DemoCustomReaderWriter(
-                ByteUtils.StringToBytes(expected));
-
-            var body = new CustomReaderBackedBody(reader)
-            {
-                ContentLength = 456
-            };
-            await ProtocolUtilsInternal.TransferBodyToTransport(transport, connection,
-                maxChunkSize, body);
-
-            Assert.Equal(expected, ByteUtils.BytesToString(
-                transport.BufferStream.ToArray()));
+                writer.ToArray()));
         }
 
         /// <summary>
@@ -568,30 +532,56 @@ namespace Kabomu.Tests.QuasiHttp
         [Fact]
         public async Task TestTransferBodyToTransport3()
         {
-            object connection = 34;
             int maxChunkSize = 6;
-            var transport = new DemoQuasiHttpTransport(connection,
-                null, null);
-
+            var writer = new MemoryStream();
+            var writerWrapper = new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = (data, off, len) =>
+                    writer.WriteAsync(data, off, len)
+            };
             var srcData = "ice";
-            var reader = new DemoCustomReaderWriter(
+            var reader = new MemoryStream(
                 ByteUtils.StringToBytes(srcData));
 
-            var body = new CustomReaderBackedBody(reader)
+            var body = new LambdaBasedQuasiHttpBody
             {
-                ContentLength = 0
+                ReaderFunc = () => reader,
+                ContentLength = 0,
+                ReleaseFunc = async () => await reader.DisposeAsync()
             };
-            await ProtocolUtilsInternal.TransferBodyToTransport(transport, connection,
+            await ProtocolUtilsInternal.TransferBodyToTransport(writerWrapper,
                 maxChunkSize, body);
 
-            Assert.Equal(new byte[0], transport.BufferStream.ToArray());
+            Assert.Equal(new byte[0], writer.ToArray());
 
-            // check that dispose is not called on body during transfer.
+            // check that release is not called on body during transfer.
             var actual = await IOUtils.ReadAllBytes(reader);
             Assert.Equal(srcData, ByteUtils.BytesToString(actual));
+        }
 
-            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                IOUtils.ReadAllBytes(reader));
+        // 
+        /// <summary>
+        /// Assert that positive content length is not enforced
+        /// </summary>
+        [Fact]
+        public async Task TestTransferBodyToTransport4()
+        {
+            int maxChunkSize = -1;
+            var writer = new MemoryStream();
+            var expected = "frutis and pils";
+            var reader = new MemoryStream(
+                ByteUtils.StringToBytes(expected));
+
+            var body = new LambdaBasedQuasiHttpBody
+            {
+                ReaderFunc = () => reader,
+                ContentLength = 456
+            };
+            await ProtocolUtilsInternal.TransferBodyToTransport(writer,
+                maxChunkSize, body);
+
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                writer.ToArray()));
         }
 
         /// <summary>
@@ -600,88 +590,87 @@ namespace Kabomu.Tests.QuasiHttp
         [Fact]
         public async Task TestTransferBodyToTransport5()
         {
-            object connection = 34;
             int maxChunkSize = 6;
-            var transport = new DemoQuasiHttpTransport(connection,
-                null, null);
-
-            await ProtocolUtilsInternal.TransferBodyToTransport(transport, connection,
+            var writer = new MemoryStream();
+            await ProtocolUtilsInternal.TransferBodyToTransport(writer,
                 maxChunkSize, null);
 
-            Assert.Equal(new byte[0], transport.BufferStream.ToArray());
+            Assert.Equal(new byte[0], writer.ToArray());
         }
 
         [Fact]
         public async Task TestCreateBodyFromTransport1()
         {
             // arrange
-            object connection = 34;
-            int maxChunkSize = 6;
             var srcData = "ice";
             var expectedData = ByteUtils.StringToBytes(srcData);
-            var transport = new DemoQuasiHttpTransport(connection,
-                expectedData, null);
-            bool releaseConnection = false;
+            var reader = new MemoryStream(expectedData);
             long contentLength = srcData.Length;
+            Func<Task> releaseFunc = null;
+            int maxChunkSize = 6;
             bool bufferingEnabled = false;
             int bodyBufferingSizeLimit = 2;
 
             // act
             var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
-                transport, connection, releaseConnection, maxChunkSize,
-                contentLength, bufferingEnabled,
-                bodyBufferingSizeLimit);
+                reader, contentLength, releaseFunc, maxChunkSize,
+                bufferingEnabled, bodyBufferingSizeLimit);
 
             // assert
             Assert.Equal(contentLength, body.ContentLength);
             var actualData = new byte[body.ContentLength];
-            await IOUtils.ReadBytesFully(body.Reader(),
+            await IOUtils.ReadBytesFully(body.Reader,
                 actualData, 0, actualData.Length);
             Assert.Equal(expectedData, actualData);
 
-            // assert that transport wasn't released.
-            Assert.Equal(0, await transport.ReadBytes(connection, new byte[1], 0, 1));
+            // assert no errors on release
+            await body.Release();
         }
 
         [Fact]
         public async Task TestCreateBodyFromTransport2()
         {
             // arrange
-            object connection = 34;
-            int maxChunkSize = 6;
             var srcData = "ice";
             var expectedData = ByteUtils.StringToBytes(srcData);
-            var transport = new DemoQuasiHttpTransport(connection,
-                expectedData, null);
-            bool releaseConnection = true;
+            var srcStream = new MemoryStream(expectedData);
+            var reader = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                    srcStream.ReadAsync(data, offset, length)
+            };
             long contentLength = srcData.Length;
+            var releaseCallCount = 0;
+            Func<Task> releaseFunc = () =>
+            {
+                releaseCallCount++;
+                return Task.CompletedTask;
+            };
+            int maxChunkSize = 6;
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 4;
 
             // act
             var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
-                transport, connection, releaseConnection, maxChunkSize,
-                contentLength, bufferingEnabled,
-                bodyBufferingSizeLimit);
+                reader, contentLength, releaseFunc, maxChunkSize,
+                bufferingEnabled, bodyBufferingSizeLimit);
 
             // assert
             Assert.Equal(contentLength, body.ContentLength);
             var actualData = new byte[body.ContentLength];
-            await IOUtils.ReadBytesFully(body.Reader(),
+            await IOUtils.ReadBytesFully(body.Reader,
                 actualData, 0, actualData.Length);
             Assert.Equal(expectedData, actualData);
 
-            // assert that transport was released.
-            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                transport.ReadBytes(connection, new byte[1], 0, 1));
+            // assert that transport wasn't released due to buffering.
+            await body.Release();
+            Assert.Equal(0, releaseCallCount);
         }
 
         [Fact]
         public async Task TestCreateBodyFromTransport3()
         {
             // arrange
-            object connection = "34d";
-            int maxChunkSize = 6;
             var srcData = new byte[] { 0 ,0, 11, 1, 0, (byte)'d',
                 (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',
                 (byte)'i', (byte)'t', (byte)'s', 0, 0, 11, 1, 0, (byte)' ',
@@ -689,61 +678,67 @@ namespace Kabomu.Tests.QuasiHttp
                 (byte)'y', (byte)'t', (byte)'e', 0, 0, 2, 1, 0
             };
             var expectedData = ByteUtils.StringToBytes("data bits and byte");
-            var transport = new DemoQuasiHttpTransport(connection,
-                srcData, null);
-            bool releaseConnection = false;
+            var srcStream = new MemoryStream(srcData);
+            var reader = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                    srcStream.ReadAsync(data, offset, length)
+            };
             long contentLength = -1;
+            Func<Task> releaseFunc = null;
+            int maxChunkSize = 6;
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 30;
 
             // act
             var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
-                transport, connection, releaseConnection, maxChunkSize,
-                contentLength, bufferingEnabled,
-                bodyBufferingSizeLimit);
+                reader, contentLength, releaseFunc, maxChunkSize,
+                bufferingEnabled, bodyBufferingSizeLimit);
 
             // assert
             Assert.Equal(contentLength, body.ContentLength);
-            var actualData = await IOUtils.ReadAllBytes(body.Reader());
+            var actualData = await IOUtils.ReadAllBytes(body.Reader);
             Assert.Equal(expectedData, actualData);
 
-            // assert that transport wasn't released.
-            Assert.Equal(0, await transport.ReadBytes(connection, new byte[1], 0, 1));
+            // assert no errors on release
+            await body.Release();
         }
 
         [Fact]
         public async Task TestCreateBodyFromTransport4()
         {
             // arrange
-            object connection = "tea";
-            int maxChunkSize = 60;
             var srcData = new byte[] { 0 ,0, 16, 1, 0, (byte)'b',
                 (byte)'i', (byte)'t', (byte)'s', (byte)' ',
                 (byte)'a', (byte)'n', (byte)'d', (byte)' ', (byte)'b',
                 (byte)'y', (byte)'t', (byte)'e', (byte)'s', 0, 0, 2, 1, 0
             };
             var expectedData = ByteUtils.StringToBytes("bits and bytes");
-            var transport = new DemoQuasiHttpTransport(connection,
-                srcData, null);
-            bool releaseConnection = true;
+            var reader = new MemoryStream(srcData);
             long contentLength = -1;
+            var releaseCallCount = 0;
+            Func<Task> releaseFunc = () =>
+            {
+                releaseCallCount++;
+                return Task.CompletedTask;
+            };
+            int maxChunkSize = 60;
             bool bufferingEnabled = false;
             int bodyBufferingSizeLimit = 3;
 
             // act
             var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
-                transport, connection, releaseConnection, maxChunkSize,
-                contentLength, bufferingEnabled,
-                bodyBufferingSizeLimit);
+                reader, contentLength, releaseFunc, maxChunkSize,
+                bufferingEnabled, bodyBufferingSizeLimit);
 
             // assert
             Assert.Equal(contentLength, body.ContentLength);
-            var actualData = await IOUtils.ReadAllBytes(body.Reader());
+            var actualData = await IOUtils.ReadAllBytes(body.Reader);
             Assert.Equal(expectedData, actualData);
 
             // assert that transport was released.
-            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                transport.ReadBytes(connection, new byte[1], 0, 1));
+            await body.Release();
+            Assert.Equal(1, releaseCallCount);
         }
 
         /// <summary>
@@ -753,46 +748,46 @@ namespace Kabomu.Tests.QuasiHttp
         public async Task TestCreateBodyFromTransport5()
         {
             // arrange
-            object connection = new object();
-            int maxChunkSize = 6;
             var srcData = "ice";
             var expectedData = ByteUtils.StringToBytes(srcData);
-            var transport = new DemoQuasiHttpTransport(connection,
-                expectedData, null);
-            bool releaseConnection = true;
+            var reader = new MemoryStream(expectedData);
             long contentLength = 0;
+            var releaseCallCount = 0;
+            Func<Task> releaseFunc = () =>
+            {
+                releaseCallCount++;
+                return Task.CompletedTask;
+            };
+            int maxChunkSize = 6;
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 4;
 
             // act
             var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
-                transport, connection, releaseConnection, maxChunkSize,
-                contentLength, bufferingEnabled,
-                bodyBufferingSizeLimit);
+                reader, contentLength, releaseFunc, maxChunkSize,
+                bufferingEnabled, bodyBufferingSizeLimit);
 
             // assert
             Assert.Null(body);
 
             // assert that transport wasn't released.
-            Assert.Equal(1, await transport.ReadBytes(connection, new byte[1], 0, 1));
+            Assert.Equal(0, releaseCallCount);
         }
 
         [Fact]
         public async Task TestCreateBodyFromTransportForErrors1()
         {
             // arrange
-            object connection = "tea";
-            int maxChunkSize = 60;
             var srcData = new byte[] { 0 ,0, 16, 1, 0, (byte)'b',
                 (byte)'i', (byte)'t', (byte)'s', (byte)' ',
                 (byte)'a', (byte)'n', (byte)'d', (byte)' ', (byte)'b',
                 (byte)'y', (byte)'t', (byte)'e', (byte)'s', 0, 0, 2, 1, 0
             };
             var expectedData = ByteUtils.StringToBytes("bits and bytes");
-            var transport = new DemoQuasiHttpTransport(connection,
-                srcData, null);
-            bool releaseConnection = false;
+            var reader = new MemoryStream(srcData);
             long contentLength = -1;
+            Func<Task> releaseFunc = null;
+            int maxChunkSize = 60;
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 3;
 
@@ -800,9 +795,8 @@ namespace Kabomu.Tests.QuasiHttp
             var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
             {
                 return ProtocolUtilsInternal.CreateBodyFromTransport(
-                    transport, connection, releaseConnection, maxChunkSize,
-                    contentLength, bufferingEnabled,
-                    bodyBufferingSizeLimit);
+                    reader, contentLength, releaseFunc, maxChunkSize,
+                    bufferingEnabled, bodyBufferingSizeLimit);
             });
             Assert.Contains($"limit of {bodyBufferingSizeLimit}", actualEx.Message);
         }
@@ -811,14 +805,17 @@ namespace Kabomu.Tests.QuasiHttp
         public async Task TestCreateBodyFromTransportForErrors2()
         {
             // arrange
-            object connection = 34;
-            int maxChunkSize = 6;
             var srcData = "ice";
             var expectedData = ByteUtils.StringToBytes(srcData);
-            var transport = new DemoQuasiHttpTransport(connection,
-                expectedData, null);
-            bool releaseConnection = true;
+            var reader = new MemoryStream(expectedData);
             long contentLength = 10;
+            var releaseCallCount = 0;
+            Func<Task> releaseFunc = () =>
+            {
+                releaseCallCount++;
+                return Task.CompletedTask;
+            };
+            int maxChunkSize = 6;
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 4;
 
@@ -826,11 +823,13 @@ namespace Kabomu.Tests.QuasiHttp
             var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
             {
                 return ProtocolUtilsInternal.CreateBodyFromTransport(
-                    transport, connection, releaseConnection, maxChunkSize,
-                    contentLength, bufferingEnabled,
-                    bodyBufferingSizeLimit);
+                    reader, contentLength, releaseFunc, maxChunkSize,
+                    bufferingEnabled, bodyBufferingSizeLimit);
             });
             Assert.Contains($"length of {contentLength}", actualEx.Message);
+
+            // assert that transport wasn't released.
+            Assert.Equal(0, releaseCallCount);
         }
 
         [Fact]

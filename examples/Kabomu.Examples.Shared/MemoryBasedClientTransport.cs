@@ -29,7 +29,7 @@ namespace Kabomu.Examples.Shared
         public object GetReader(object connection)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
-            return new LambdaBasedCustomReader
+            return new LambdaBasedCustomReaderWriter
             {
                 ReadFunc = (data, offset, length) =>
                     typedConnection.ProcessReadRequest(false, data, offset, length)
@@ -39,7 +39,7 @@ namespace Kabomu.Examples.Shared
         public object GetWriter(object connection)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
-            return new LambdaBasedCustomWriter
+            return new LambdaBasedCustomReaderWriter
             {
                 WriteFunc = (data, offset, length) =>
                     typedConnection.ProcessWriteRequest(false, data, offset, length)

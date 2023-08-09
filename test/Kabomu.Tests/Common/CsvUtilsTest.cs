@@ -23,7 +23,7 @@ namespace Kabomu.Tests.Common
         public async Task TestEscapeValueTo(string raw, string expected)
         {
             var stream = new MemoryStream();
-            await CsvUtils.EscapeValueTo(raw, new LambdaBasedCustomWriter
+            await CsvUtils.EscapeValueTo(raw, new LambdaBasedCustomReaderWriter
             {
                 WriteFunc = (data, offset, length) =>
                     stream.WriteAsync(data, offset, length)
@@ -102,7 +102,7 @@ namespace Kabomu.Tests.Common
         public async Task TestSerializeTo(IList<IList<string>> rows, string expected)
         {
             var stream = new MemoryStream();
-            await CsvUtils.SerializeTo(rows, new LambdaBasedCustomWriter
+            await CsvUtils.SerializeTo(rows, new LambdaBasedCustomReaderWriter
             {
                 WriteFunc = (data, offset, length) =>
                     stream.WriteAsync(data, offset, length)

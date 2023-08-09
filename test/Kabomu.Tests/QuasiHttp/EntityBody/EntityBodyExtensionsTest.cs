@@ -1,5 +1,8 @@
-﻿using System;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp.EntityBody;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,50 +12,48 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class EntityBodyExtensionsTest
     {
+        [Fact]
+        public void TestAsReaderForErrors()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                EntityBodyExtensions.AsReader(null));
+        }
+
         [Theory]
-        [MemberData(nameof(CreateTestCoalesceAsReaderData))]
-        public async Task TestCoalesceAsReader(ICustomReader reader,
+        [MemberData(nameof(CreateTestAsReaderData))]
+        public async Task TestAsReader(object reader,
             ICustomWritable fallback, byte[] expected)
         {
-            reader = IOUtils.CoalesceAsReader(reader, fallback);
-            byte[] actual = null;
-            if (reader != null)
+            var body = new LambdaBasedQuasiHttpBody
             {
-                var desired = IOUtils.ReadAllBytes(reader, 0, 2);
-                // just in case error causes desired to hang forever,
-                // impose timeout
-                var first = await Task.WhenAny(Task.Delay(3000),
-                    desired);
-                if (first == desired)
-                {
-                    actual = await desired;
-                }
+                ReaderFunc = () => reader,
+                Writable = fallback,
+            };
+            byte[] actual = null;
+            var desired = IOUtils.ReadAllBytes(body.AsReader());
+            // just in case error causes desired to hang forever,
+            // impose timeout
+            var first = await Task.WhenAny(Task.Delay(3000),
+                desired);
+            if (first == desired)
+            {
+                actual = await desired;
             }
             Assert.Equal(expected, actual);
         }
 
-        public static List<object[]> CreateTestCoalesceAsReaderData()
+        public static List<object[]> CreateTestAsReaderData()
         {
             var testData = new List<object[]>();
 
-            var expected = new byte[] { };
-            var reader = new HelperCustomReaderWritable(expected);
+            var expected = new byte[0];
+            object reader = new MemoryStream();
             ICustomWritable fallback = null;
             testData.Add(new object[] { reader, fallback, expected });
 
-            expected = null;
-            reader = null;
-            fallback = null;
-            testData.Add(new object[] { reader, fallback, expected });
-
             expected = new byte[] { 0, 1, 2, 3 };
-            reader = new HelperCustomReaderWritable(expected);
+            reader = new MemoryStream(expected);
             fallback = new LambdaBasedCustomWritable();
-            testData.Add(new object[] { reader, fallback, expected });
-
-            expected = new byte[] { 0, 1, 2, 3, 4, 5 };
-            reader = null;
-            fallback = new HelperCustomReaderWritable(expected);
             testData.Add(new object[] { reader, fallback, expected });
 
             expected = new byte[] { 0, 1, 2 };
@@ -61,7 +62,8 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             {
                 WritableFunc = writer =>
                 {
-                    return writer.WriteBytes(expected, 0, expected.Length);
+                    return IOUtils.WriteBytes(writer, expected, 0,
+                        expected.Length);
                 }
             };
             testData.Add(new object[] { reader, fallback, expected });

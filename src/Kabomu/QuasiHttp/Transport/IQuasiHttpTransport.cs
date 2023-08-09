@@ -7,7 +7,8 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.Transport
 {
     /// <summary>
-    /// Represents TCP and any connection-oriented network protocol or IPC mechanism which resembles TCP, 
+    /// Represents connections of TCP and any network protocol 
+    /// or IPC mechanism which is connection-oriented like TCP, 
     /// where duplex streams of data are provided in the form of connections for reading and writing simulataneously.
     /// </summary>
     /// <remarks>

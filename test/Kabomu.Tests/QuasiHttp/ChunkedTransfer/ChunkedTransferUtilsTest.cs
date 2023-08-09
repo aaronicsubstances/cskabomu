@@ -14,20 +14,19 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
     public class ChunkedTransferUtilsTest
     {
         [Theory]
-        [MemberData(nameof(CreateTestEncodeSubsequentChunkHeaderData))]
-        public async Task TestEncodeSubsequentChunkHeader(int chunkDataLength,
+        [MemberData(nameof(CreateTestEncodeSubsequentChunkV1HeaderData))]
+        public async Task TestEncodeSubsequentChunkV1Header(int chunkDataLength,
             byte[] expected)
         {
             var destStream = new MemoryStream();
-            var writer = new StreamCustomReaderWriter(destStream);
-            await ChunkedTransferUtils.EncodeSubsequentChunkHeader(
-                chunkDataLength, writer, new byte[50]);
+            await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
+                chunkDataLength, destStream, new byte[50]);
             var actual = destStream.ToArray();
             ComparisonUtils.CompareData(expected, 0, expected.Length,
                 actual, 0, actual.Length);
         }
 
-        public static List<object[]> CreateTestEncodeSubsequentChunkHeaderData()
+        public static List<object[]> CreateTestEncodeSubsequentChunkV1HeaderData()
         {
             var testData = new List<object[]>();
 
@@ -47,17 +46,17 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         }
 
         [Theory]
-        [MemberData(nameof(CreateTestDecodeSubsequentChunkHeaderData))]
-        public async Task TestDecodeSubsequentChunkHeader(byte[] srcData,
+        [MemberData(nameof(CreateTestDecodeSubsequentChunkV1HeaderData))]
+        public async Task TestDecodeSubsequentChunkV1Header(byte[] srcData,
             int maxChunkSize, int expected)
         {
-            var reader = new DemoCustomReaderWriter(srcData);
-            var actual = await ChunkedTransferUtils.DecodeSubsequentChunkHeader(
+            var reader = new MemoryStream(srcData);
+            var actual = await ChunkedTransferUtils.DecodeSubsequentChunkV1Header(
                 reader, new byte[50], maxChunkSize);
             Assert.Equal(expected, actual);
         }
 
-        public static List<object[]> CreateTestDecodeSubsequentChunkHeaderData()
+        public static List<object[]> CreateTestDecodeSubsequentChunkV1HeaderData()
         {
             var testData = new List<object[]>();
 
@@ -80,17 +79,17 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         }
 
         [Theory]
-        [MemberData(nameof(CreateTestDecodeSubsequentChunkHeaderForErrorsData))]
-        public async Task TestDecodeSubsequentChunkHeaderForErrors(byte[] srcData,
+        [MemberData(nameof(CreateTestDecodeSubsequentChunkV1HeaderForErrorsData))]
+        public async Task TestDecodeSubsequentChunkV1HeaderForErrors(byte[] srcData,
             int maxChunkSize)
         {
-            var reader = new DemoCustomReaderWriter(srcData);
+            var reader = new MemoryStream(srcData);
             await Assert.ThrowsAsync<ChunkDecodingException>(() =>
-                ChunkedTransferUtils.DecodeSubsequentChunkHeader(
+                ChunkedTransferUtils.DecodeSubsequentChunkV1Header(
                     reader, new byte[50], maxChunkSize));
         }
 
-        public static List<object[]> CreateTestDecodeSubsequentChunkHeaderForErrorsData()
+        public static List<object[]> CreateTestDecodeSubsequentChunkV1HeaderForErrorsData()
         {
             var testData = new List<object[]>();
 
@@ -121,10 +120,9 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             expectedStreamContents[ChunkedTransferUtils.LengthOfEncodedChunkLength - 1] = (byte)serializedLength;
 
             var destStream = new MemoryStream();
-            var writer = new StreamCustomReaderWriter(destStream);
 
             // act.
-            await ChunkedTransferUtils.WriteLeadChunk(writer, leadChunk, -1);
+            await ChunkedTransferUtils.WriteLeadChunk(destStream, leadChunk, -1);
 
             // assert.
             Assert.Equal(expectedStreamContents, destStream.ToArray());
@@ -142,7 +140,11 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             expectedStreamContents[ChunkedTransferUtils.LengthOfEncodedChunkLength - 1] = (byte)serializedLength;
 
             var destStream = new MemoryStream();
-            var writer = new StreamCustomReaderWriter(destStream);
+            var writer = new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = (dta, offset, leng) =>
+                    destStream.WriteAsync(dta, offset, leng)
+            };
 
             // act.
             await ChunkedTransferUtils.WriteLeadChunk(writer, leadChunk, 1000);
@@ -156,7 +158,6 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         {
             // arrange.
             var srcStream = new MemoryStream();
-            var reader = new StreamCustomReaderWriter(srcStream);
             int maxChunkSize = 0;
             var expectedChunk = new LeadChunk
             {
@@ -169,7 +170,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             srcStream.Position = 0; // reset for reading.
 
             // act
-            var actualChunk = await ChunkedTransferUtils.ReadLeadChunk(reader, maxChunkSize);
+            var actualChunk = await ChunkedTransferUtils.ReadLeadChunk(srcStream, maxChunkSize);
 
             // assert
             ComparisonUtils.CompareLeadChunks(expectedChunk, actualChunk);
@@ -180,7 +181,11 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         {
             // arrange.
             var srcStream = new MemoryStream();
-            var reader = new StreamCustomReaderWriter(srcStream);
+            var reader = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                    srcStream.ReadAsync(data, offset, length)
+            };
             int maxChunkSize = 0;
 
             // act
@@ -195,7 +200,11 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         {
             // arrange.
             var srcStream = new MemoryStream();
-            var reader = new StreamCustomReaderWriter(srcStream);
+            var reader = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                    srcStream.ReadAsync(data, offset, length)
+            };
             int maxChunkSize = 10; // definitely less than actual serialized value but ok once it is less than 64K
             var expectedChunk = new LeadChunk
             {
@@ -219,7 +228,6 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         public async Task TestReadLeadChunkForMaxChunkExceededError()
         {
             var srcStream = new MemoryStream();
-            var reader = new StreamCustomReaderWriter(srcStream);
             int maxChunkSize = 40;
             var encodedLength = new byte[ChunkedTransferUtils.LengthOfEncodedChunkLength];
             ByteUtils.SerializeUpToInt64BigEndian(1_000_000, encodedLength, 0, encodedLength.Length);
@@ -229,7 +237,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
             {
-                await ChunkedTransferUtils.ReadLeadChunk(reader, maxChunkSize);
+                await ChunkedTransferUtils.ReadLeadChunk(srcStream, maxChunkSize);
             });
             Assert.Contains("headers", decodingError.Message);
             Assert.NotNull(decodingError.InnerException);
@@ -241,7 +249,6 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         public async Task TestReadLeadChunkForInsuffcientDataForLengthError()
         {
             var srcStream = new MemoryStream();
-            var reader = new StreamCustomReaderWriter(srcStream);
             int maxChunkSize = 40;
             var encodedLength = new byte[ChunkedTransferUtils.LengthOfEncodedChunkLength - 1];
             srcStream.Write(encodedLength);
@@ -250,7 +257,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
             {
-                await ChunkedTransferUtils.ReadLeadChunk(reader, maxChunkSize);
+                await ChunkedTransferUtils.ReadLeadChunk(srcStream, maxChunkSize);
             });
             Assert.Contains("headers", decodingError.Message);
             Assert.NotNull(decodingError.InnerException);
@@ -261,7 +268,6 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         public async Task TestReadLeadChunkForInsuffcientDataError()
         {
             var srcStream = new MemoryStream();
-            var reader = new StreamCustomReaderWriter(srcStream);
             int maxChunkSize = 40;
             var encodedLength = new byte[ChunkedTransferUtils.LengthOfEncodedChunkLength];
             encodedLength[ChunkedTransferUtils.LengthOfEncodedChunkLength - 1] = 77;
@@ -272,7 +278,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
             {
-                await ChunkedTransferUtils.ReadLeadChunk(reader, maxChunkSize);
+                await ChunkedTransferUtils.ReadLeadChunk(srcStream, maxChunkSize);
             });
             Assert.Contains("headers", decodingError.Message);
             Assert.NotNull(decodingError.InnerException);
@@ -283,7 +289,6 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         public async Task TestReadLeadChunkForInvalidChunkError()
         {
             var srcStream = new MemoryStream();
-            var reader = new StreamCustomReaderWriter(srcStream);
             byte maxChunkSize = 100;
             var encodedLength = new byte[ChunkedTransferUtils.LengthOfEncodedChunkLength];
             encodedLength[ChunkedTransferUtils.LengthOfEncodedChunkLength - 1] = maxChunkSize;
@@ -294,7 +299,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
             {
-                await ChunkedTransferUtils.ReadLeadChunk(reader, maxChunkSize);
+                await ChunkedTransferUtils.ReadLeadChunk(srcStream, maxChunkSize);
             });
             Assert.Contains("headers", decodingError.Message);
             Assert.Contains("invalid chunk", decodingError.Message);
@@ -304,7 +309,6 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         public async Task TestReadLeadChunkForInvalidChunkLengthError()
         {
             var srcStream = new MemoryStream();
-            var reader = new StreamCustomReaderWriter(srcStream);
             byte maxChunkSize = 100;
             var encodedLength = new byte[] { 0xf0, 1, 3 };
             srcStream.Write(encodedLength);
@@ -314,7 +318,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>
             {
-                await ChunkedTransferUtils.ReadLeadChunk(reader, maxChunkSize);
+                await ChunkedTransferUtils.ReadLeadChunk(srcStream, maxChunkSize);
             });
             Assert.NotNull(decodingError.InnerException);
             Assert.Contains("negative chunk size", decodingError.InnerException.Message);

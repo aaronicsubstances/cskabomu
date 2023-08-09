@@ -14,7 +14,7 @@ namespace Kabomu.Tests.Shared.QuasiHttp
         public object GetReader(object connection)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
-            return new LambdaBasedCustomReader
+            return new LambdaBasedCustomReaderWriter
             {
                 ReadFunc = (data, offset, length) =>
                     typedConnection.ProcessReadRequest(true, data, offset, length)
@@ -24,7 +24,7 @@ namespace Kabomu.Tests.Shared.QuasiHttp
         public object GetWriter(object connection)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
-            return new LambdaBasedCustomWriter
+            return new LambdaBasedCustomReaderWriter
             {
                 WriteFunc = (data, offset, length) =>
                     typedConnection.ProcessWriteRequest(true, data, offset, length)

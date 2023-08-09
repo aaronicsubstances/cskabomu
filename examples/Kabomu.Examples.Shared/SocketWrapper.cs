@@ -13,7 +13,7 @@ namespace Kabomu.Examples.Shared
         public SocketWrapper(Socket socket)
         {
             Socket = socket ?? throw new ArgumentNullException(nameof(socket));
-            Reader = new LambdaBasedCustomReader
+            Reader = new LambdaBasedCustomReaderWriter
             {
                 ReadFunc = async (data, offset, length) =>
                 {
@@ -21,7 +21,7 @@ namespace Kabomu.Examples.Shared
                         SocketFlags.None);
                 }
             };
-            Writer = new LambdaBasedCustomWriter
+            Writer = new LambdaBasedCustomReaderWriter
             {
                 WriteFunc = async (data, offset, length) =>
                 {

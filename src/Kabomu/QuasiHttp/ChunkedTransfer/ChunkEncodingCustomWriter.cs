@@ -74,7 +74,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
             else
             {
-                await ChunkedTransferUtils.EncodeSubsequentChunkHeader(
+                await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
                     _buffer.Length, _wrappedWriter, _chunkHeaderBuffer);
 
                 // next empty buffer
@@ -92,14 +92,14 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             // write out remaining data.
             if (_usedBufferOffset > 0)
             {
-                await ChunkedTransferUtils.EncodeSubsequentChunkHeader(
+                await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
                     _usedBufferOffset, _wrappedWriter, _chunkHeaderBuffer);
                 await IOUtils.WriteBytes(_wrappedWriter, _buffer, 0, _usedBufferOffset);
                 _usedBufferOffset = 0;
             }
 
             // end by writing out empty terminating chunk
-            await ChunkedTransferUtils.EncodeSubsequentChunkHeader(0, _wrappedWriter,
+            await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(0, _wrappedWriter,
                 _chunkHeaderBuffer);
         }
     }

@@ -27,7 +27,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         public long ContentLength { get; set; } = -1;
 
-        public Func<ICustomWritable> WritableFunc { get; set; }
+        public ICustomWritable Writable { get; set; }
 
         public Func<object> ReaderFunc { get; set; }
 
@@ -37,7 +37,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         public Func<Task> ReleaseFunc { get; set; }
 
         /// <summary>
-        /// Invokes value retried from <see cref="WritableFunc"/> property, and
+        /// Invokes value retrieved from <see cref="Writable"/> property, and
         /// if that value is null, falls back to copying over
         /// value retrieved from <see cref="ReaderFunc"/> property to supplied writer.
         /// </summary>
@@ -48,7 +48,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// if <see cref="Reader"/> property returns null</exception>
         public virtual Task WriteBytesTo(object writer)
         {
-            var writable = WritableFunc?.Invoke();
+            var writable = Writable;
             if (writable != null)
             {
                 return writable.WriteBytesTo(writer);

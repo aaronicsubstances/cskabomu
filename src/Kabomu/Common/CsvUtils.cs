@@ -259,7 +259,13 @@ namespace Kabomu.Common
                 row + 1, column + 1, errorMessage ?? ""));
         }
 
-        internal static async Task SerializeTo(IList<IList<string>> rows,
+        /// <summary>
+        /// Serializes CSV data to a custom writer.
+        /// </summary>
+        /// <param name="rows">CSV data</param>
+        /// <param name="writer">destination of CSV data to be written</param>
+        /// <returns>task representing end of serialization</returns>
+        public static async Task SerializeTo(IList<IList<string>> rows,
             object writer)
         {
             foreach (var row in rows)
@@ -306,7 +312,13 @@ namespace Kabomu.Common
             return csvBuilder.ToString();
         }
 
-        internal static async Task EscapeValueTo(string raw, object writer)
+        /// <summary>
+        /// Escapes a string to a custom writer. for use as a CSV column value
+        /// </summary>
+        /// <param name="raw">value to escape. Note that empty strings are always escaped as two double quotes.</param>
+        /// <param name="writer">destination of escaped value</param>
+        /// <returns>task representing end of escape</returns>
+        public static async Task EscapeValueTo(string raw, object writer)
         {
             // escape empty strings with two double quotes to resolve ambiguity
             // between an empty row and a row containing an empty string - otherwise both

@@ -1,8 +1,5 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.Tests.Common;
-using Kabomu.Tests.Shared;
-using Kabomu.Tests.Shared.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,53 +11,35 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class ByteBufferBodyTest
     {
-        [InlineData("", "")]
-        [InlineData("ab", "ab,")]
-        [InlineData("abc", "ab,c,")]
-        [InlineData("abcd", "ab,cd,")]
-        [InlineData("abcde", "ab,cd,e,")]
-        [InlineData("abcdef", "ab,cd,ef,")]
+        [InlineData("", 0)]
+        [InlineData("ab", 2)]
+        [InlineData("abc", 3)]
+        [InlineData("abcd", 4)]
+        [InlineData("abcde", 5)]
+        [InlineData("abcdef", 6)]
+        [InlineData("Foo \u00c0\u00ff", 8)]
         [Theory]
-        public async Task TestReading(string srcData, string expected)
+        public async Task TestReading(string srcData, int expectedContentLength)
         {
             // arrange
             var instance = new ByteBufferBody(ByteUtils.StringToBytes(srcData));
+            Assert.Equal(expectedContentLength, instance.ContentLength);
 
-            // act and assert
-            await IOUtilsTest.TestReading(instance.Reader, null, 2, expected, null);
-            Assert.Equal(srcData.Length, instance.ContentLength);
-        }
+            // act
+            var actual = ByteUtils.BytesToString(await IOUtils.ReadAllBytes(
+                instance.Reader));
 
-        [Fact]
-        public async Task TestCustomDispose()
-        {
-            var expected = ByteUtils.StringToBytes("c,2\n");
-            var instance = new ByteBufferBody(expected);
+            // assert
+            Assert.Equal(srcData, actual);
+            Assert.Equal(expectedContentLength, instance.ContentLength);
 
-            Assert.Equal(expected.Length, instance.ContentLength);
-
-            // verify custom dispose is a no-op
+            // verify that release is a no-op
             await instance.Release();
 
-            var reader = instance.Reader;
-
-            var actual = new byte[3];
-            var actualLen = await reader.ReadBytes(actual, 0, actual.Length);
-            Assert.Equal(3, actualLen);
-            ComparisonUtils.CompareData(expected, 0, actualLen,
-                actual, 0, actualLen);
-
-            // verify custom dispose is a no-op
-            await instance.Release();
-
-            actualLen = await reader.ReadBytes(actual, 1, 2);
-            Assert.Equal(1, actualLen);
-            ComparisonUtils.CompareData(expected, 3, actualLen,
-                actual, 1, actualLen);
-
-            await reader.CustomDispose();
-            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                reader.ReadBytes(actual, 0, actual.Length));
+            // assert repeatability.
+            actual = ByteUtils.BytesToString(await IOUtils.ReadAllBytes(
+                instance.Reader));
+            Assert.Equal(srcData, actual);
         }
 
         [Theory]
@@ -69,17 +48,30 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [InlineData("ds")]
         [InlineData("data")]
         [InlineData("datadriven")]
+        [InlineData("Foo \u00c0\u00ff")]
         public async Task TestWriting(string expected)
         {
-            var instance = new ByteBufferBody(ByteUtils.StringToBytes(expected));
-            var writer = new DemoCustomReaderWriter();
+            var srcData = ByteUtils.StringToBytes(expected);
+            var instance = new ByteBufferBody(srcData, 0, srcData.Length)
+            {
+                ContentLength = -1
+            };
+            var writer = new MemoryStream();
 
             // act
             await instance.WriteBytesTo(writer);
 
             // assert
             Assert.Equal(expected, ByteUtils.BytesToString(
-                writer.BufferStream.ToArray()));
+                writer.ToArray()));
+
+            // verify that release is a no-op
+            await instance.Release();
+
+            // assert repeatability.
+            await instance.WriteBytesTo(writer);
+            Assert.Equal(expected + expected, ByteUtils.BytesToString(
+                writer.ToArray()));
         }
 
         [Fact]

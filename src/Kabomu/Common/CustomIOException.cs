@@ -45,9 +45,9 @@ namespace Kabomu.Common
         
         /// <summary>
          /// Creates error indicating overflow of a byte buffer with
-         /// an imposed maximum size.
+         /// an imposed maximum limit.
          /// </summary>
-         /// <param name="bufferSizeLimit">maximum data buffer size to include in error message</param>
+         /// <param name="bufferSizeLimit">maximum data buffer limit to include in error message</param>
         public static CustomIOException CreateDataBufferLimitExceededErrorMessage(int bufferSizeLimit)
         {
             return new CustomIOException($"data buffer size limit of " +

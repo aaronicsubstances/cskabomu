@@ -12,7 +12,7 @@ namespace Kabomu.QuasiHttp.Transport
     public interface IConnectionAllocationResponse
     {
         /// <summary>
-        /// Gets the opaque connection object created by a quasi http transport.
+        /// Gets the connection object created by a quasi http transport.
         /// </summary>
         object Connection { get; }
 

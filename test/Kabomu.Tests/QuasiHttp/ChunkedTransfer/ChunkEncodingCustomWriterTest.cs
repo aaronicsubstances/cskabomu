@@ -17,14 +17,13 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         {
             // arrange.
             var destStream = new MemoryStream();
-            var backingWriter = new StreamCustomReaderWriter(destStream);
             int maxChunkSize = 6;
-            var instance = new ChunkEncodingCustomWriter(backingWriter,
+            var instance = new ChunkEncodingCustomWriter(destStream,
                 maxChunkSize);
 
             var srcData = "data bits and bytes";
             // get randomized read request sizes.
-            var reader = new DemoCustomReaderWriter(
+            var reader = new RandomizedReadSizeBufferReader(
                 ByteUtils.StringToBytes(srcData));
 
             var expected = new byte[] { 0 ,0, 8, 1, 0, (byte)'d',
@@ -37,29 +36,29 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             // act
             await IOUtils.CopyBytes(reader, instance, 2);
-            await instance.CustomDispose();
-
-            // assert backing writer was disposed
-            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                backingWriter.WriteBytes(new byte[0], 0, 0));
-
+            await instance.EndWrites();
             // assert
             var actual = destStream.ToArray();
             Assert.Equal(expected, actual);
         }
+
         [Fact]
         public async Task TestWriting2()
         {
             // arrange.
             var destStream = new MemoryStream();
-            var backingWriter = new StreamCustomReaderWriter(destStream);
+            var backingWriter = new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = (data, offset, length) =>
+                    destStream.WriteAsync(data, offset, length)
+            };
             int maxChunkSize = 9;
             var instance = new ChunkEncodingCustomWriter(backingWriter,
                 maxChunkSize);
 
             var srcData = "data bits and byte";
             // get randomized read request sizes.
-            var reader = new DemoCustomReaderWriter(
+            var reader = new RandomizedReadSizeBufferReader(
                 ByteUtils.StringToBytes(srcData));
 
             var expected1 = new byte[] { 0 ,0, 11, 1, 0, (byte)'d',
@@ -78,14 +77,11 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             // act
             await IOUtils.CopyBytes(reader, instance, 5);
 
-            // assert without dispose
+            // assert without EndWrites()
             var actual = destStream.ToArray();
             Assert.Equal(expected1, actual);
 
-            // assert backing writer was disposed
-            await instance.CustomDispose();
-            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                backingWriter.WriteBytes(new byte[0], 0, 0));
+            await instance.EndWrites();
 
             // assert final stream contents
             actual = destStream.ToArray();

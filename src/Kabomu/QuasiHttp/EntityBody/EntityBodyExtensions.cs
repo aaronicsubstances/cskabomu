@@ -19,8 +19,12 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// <returns>a reader which can be used to read bytes from the body</returns>
         public static object AsReader(this IQuasiHttpBody body)
         {
-            var reader = body?.Reader;
-            if (reader != null || body == null)
+            if (body == null)
+            {
+                throw new ArgumentNullException(nameof(body));
+            }
+            var reader = body.Reader;
+            if (reader != null)
             {
                 return reader;
             }

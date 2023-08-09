@@ -17,7 +17,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         {
             chunk.UpdateSerializedRepresentation();
             int chunkLen = chunk.CalculateSizeInBytesOfSerializedRepresentation();
-            await chunk.WriteOutSerializedRepresentation(new LambdaBasedCustomWriter
+            await chunk.WriteOutSerializedRepresentation(new LambdaBasedCustomReaderWriter
             {
                 WriteFunc = (data, offset, length) =>
                     stream.WriteAsync(data, offset, length)

@@ -22,9 +22,25 @@ namespace Kabomu.Common
         /// </summary>
         private static readonly int DefaultReadBufferSize = 8_192;
 
+        /// <summary>
+        /// Performs writes on behalf of an instance of <see cref="Stream"/>
+        /// class or <see cref="ICustomWriter"/> interface.
+        /// </summary>
+        /// <param name="writer">instance of <see cref="Stream"/>
+        /// class or <see cref="ICustomWriter"/> interface</param>
+        /// <param name="data">destination buffer of bytes to write</param>
+        /// <param name="offset">starting position in buffer to begin write from</param>
+        /// <param name="length">number of bytes to write</param>
+        /// <returns>a task representing end of asynchronous write operation</returns>
+        /// <exception cref="ArgumentNullException">The <see cref="writer"/> argument
+        /// is null</exception>
         public static Task WriteBytes(object writer,
             byte[] data, int offset, int length)
         {
+            if (writer == null)
+            {
+                throw new ArgumentNullException(nameof(writer));
+            }
             if (writer is Stream s)
             {
                 return s.WriteAsync(data, offset, length);
@@ -35,9 +51,26 @@ namespace Kabomu.Common
             }
         }
 
+        /// <summary>
+        /// Performs reads on behalf of an instance of <see cref="Stream"/>
+        /// class or <see cref="ICustomReader"/> interface.
+        /// </summary>
+        /// <param name="reader">instance of <see cref="Stream"/>
+        /// class or <see cref="ICustomReader"/> interface</param>
+        /// <param name="data">source buffer of bytes to read</param>
+        /// <param name="offset">starting position in buffer to begin read from</param>
+        /// <param name="length">number of bytes to read</param>
+        /// <returns>a task whose result will be the number of bytes actually read, which
+        /// depending of the kind of reader may be less than the number of bytes requested.</returns>
+        /// <exception cref="ArgumentNullException">The <see cref="reader"/> argument
+        /// is null</exception>
         public static Task<int> ReadBytes(object reader,
             byte[] data, int offset, int length)
         {
+            if (reader == null)
+            {
+                throw new ArgumentNullException(nameof(reader));
+            }
             if (reader is Stream s)
             {
                 return s.ReadAsync(data, offset, length);
@@ -57,6 +90,8 @@ namespace Kabomu.Common
         /// <param name="length">number of bytes to read. Failure to obtain this number of bytes will
         /// result in an error.</param>
         /// <returns>A task that represents the asynchronous read operation.</returns>
+        /// <exception cref="CustomIOException">Not enough bytes were found in
+        /// <see cref="reader"/> argument to supply requested number of bytes.</exception>
         public static async Task ReadBytesFully(object reader,
             byte[] data, int offset, int length)
         {
@@ -81,10 +116,10 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Reads in all of a reader's data into an in-memory buffer within some maximum limit, and disposes it.
+        /// Reads in all of a reader's data into an in-memory buffer.
         /// </summary>
         /// <remarks>
-        /// One can specify a maximum size beyond which an <see cref="DataBufferLimitExceededException"/> instance will be
+        /// One can specify a maximum size beyond which an error will be
         /// thrown if there is more data after that limit.
         /// </remarks>
         /// <param name="reader">The source of data to read.</param>
@@ -94,8 +129,8 @@ namespace Kabomu.Common
         /// <param name="readBufferSize">The size in bytes of the read buffer.
         /// Can pass zero to use default value</param>
         /// <returns>A task whose result is an in-memory buffer which has all of the remaining data in the reader.</returns>
-        /// <exception cref="DataBufferLimitExceededException">If <paramref name="bufferingLimit"/> argument indicates a positive value,
-        /// and data in <paramref name="body"/> argument exceeds that value.</exception>
+        /// <exception cref="CustomIOException">The <paramref name="bufferingLimit"/> argument indicates a positive value,
+        /// and data in <paramref name="body"/> argument exceeded that value.</exception>
         public static async Task<byte[]> ReadAllBytes(object reader,
             int bufferingLimit = 0, int readBufferSize = 0)
         {

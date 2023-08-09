@@ -18,7 +18,7 @@ namespace Kabomu.Common
         private long _bytesAlreadyRead;
 
         /// <summary>
-        /// Creates new instance.
+        /// Creates a new instance.
         /// </summary>
         /// <param name="wrappedReader">the backing reader.</param>
         /// <param name="expectedLength">the expected number of bytes to guarantee or assert.
@@ -26,8 +26,8 @@ namespace Kabomu.Common
         /// should be returned.</param>
         /// <param name="answerZeroByteReadsFromBackingReader">pass true
         /// if a request to read zero bytes should be passed onto backing reader;
-        /// or pass false to immediately return zero which is the default.</param>
-        /// <exception cref="ArgumentNullException">The <paramref name="wrappedBody"/> argument is null.</exception>
+        /// or pass false to immediately return zero, which is the default.</param>
+        /// <exception cref="ArgumentNullException">The <paramref name="wrappedReader"/> argument is null.</exception>
         public ContentLengthEnforcingCustomReader(object wrappedReader,
             long expectedLength, bool answerZeroByteReadsFromBackingReader = false)
         {
@@ -56,8 +56,21 @@ namespace Kabomu.Common
             // if bytes to read is zero at this stage, decide on whether or
             // not to go ahead and call backing reader
             // so that any error in backing reader can be thrown.
+            bool proceedWithUnderlyingRead;
+            if (bytesToRead > 0)
+            {
+                proceedWithUnderlyingRead = true;
+            }
+            else if (length > 0)
+            {
+                proceedWithUnderlyingRead = false;
+            }
+            else
+            {
+                proceedWithUnderlyingRead = _answerZeroByteReadsFromBackingReader;
+            }
             int bytesJustRead = 0;
-            if (bytesToRead > 0 || _answerZeroByteReadsFromBackingReader)
+            if (proceedWithUnderlyingRead)
             {
                 bytesJustRead = await IOUtils.ReadBytes(_wrappedReader,
                     data, offset, bytesToRead);

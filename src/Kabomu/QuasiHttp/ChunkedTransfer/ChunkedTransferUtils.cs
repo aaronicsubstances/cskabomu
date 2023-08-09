@@ -45,7 +45,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// </summary>
         public static readonly int HardMaxChunkSizeLimit = 8_388_607;
 
-        internal static Task EncodeSubsequentChunkHeader(
+        public static Task EncodeSubsequentChunkV1Header(
             int chunkDataLength, object writer, byte[] bufferToUse)
         {
             ByteUtils.SerializeUpToInt64BigEndian(
@@ -56,7 +56,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             return IOUtils.WriteBytes(writer, bufferToUse, 0, LengthOfEncodedChunkLength + 2);
         }
 
-        internal static async Task<int> DecodeSubsequentChunkHeader(
+        public static async Task<int> DecodeSubsequentChunkV1Header(
             object reader, byte[] bufferToUse, int maxChunkSize)
         {
             try
@@ -71,9 +71,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
                 int version = bufferToUse[LengthOfEncodedChunkLength];
                 //int flags = readBuffer[LengthOfEncodedChunkLength+1];
-                if (version == 0)
+                if (version != LeadChunk.Version01)
                 {
-                    throw new ArgumentException("version not set");
+                    throw new ArgumentException("version not set to v1");
                 }
 
                 int chunkDataLen = chunkLen - 2;
