@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
+using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Transport;
 using NetMQ;
@@ -66,8 +67,7 @@ namespace ZeroMQ.FileClient
                     request.Body.AsReader());
             }
             var headerStream = new MemoryStream();
-            var writer = new StreamCustomReaderWriter(headerStream);
-            await ChunkedTransferUtils.WriteLeadChunk(writer, leadChunk);
+            await ChunkedTransferUtils.WriteLeadChunk(headerStream, leadChunk);
 
             if (requestBodyBytes == null)
             {

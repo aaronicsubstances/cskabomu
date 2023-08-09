@@ -10,7 +10,7 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <summary>
     /// Represents quasi http body based on a string in UTF8 encoding.
     /// </summary>
-    public class StringBody : AbstractQuasiHttpBody
+    public class StringBody : IQuasiHttpBody
     {
         /// <summary>
         /// Creates a new instance with the given string. The content length is
@@ -33,20 +33,24 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// </summary>
         public string Content { get; }
 
+        public long ContentLength { get; set; }
+
         /// <summary>
         /// Does nothing.
         /// </summary>
-        public override Task CustomDispose() => Task.CompletedTask;
+        public Task Release() => Task.CompletedTask;
 
         /// <summary>
         /// Returns a freshly created reader backed by
         /// <see cref="Content"/> property in UTF8 encoding.
         /// </summary>
-        public override ICustomReader Reader()
+        public object Reader
         {
-            var stream = new MemoryStream(ByteUtils.StringToBytes(
-                Content));
-            return new StreamCustomReaderWriter(stream);
+            get
+            {
+                return new MemoryStream(ByteUtils.StringToBytes(
+                    Content));
+            }
         }
 
         /// <summary>
@@ -54,10 +58,9 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// to supplied writer in UTF8 encoding.
         /// </summary>
         /// <param name="writer">supplied writer</param>
-        public override Task WriteBytesTo(ICustomWriter writer)
+        public Task WriteBytesTo(object writer)
         {
-            var backingBody = new ByteBufferBody(ByteUtils.StringToBytes(Content));
-            return backingBody.WriteBytesTo(writer);
+            return IOUtils.CopyBytes(Reader, writer);
         }
     }
 }

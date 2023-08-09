@@ -12,12 +12,7 @@ namespace Kabomu.Common
         /// <summary>
         /// Gets or sets lambda function for performing write operation.
         /// </summary>
-        public Func<ICustomWriter, Task> WritableFunc { get; set; }
-
-        /// <summary>
-        /// Gets or sets lambda function for performing dispose operation.
-        /// </summary>
-        public Func<Task> DisposeFunc { get; set; }
+        public Func<object, Task> WritableFunc { get; set; }
 
         /// <summary>
         /// Calls upon <see cref="WritableFunc"/> to perform write operation.
@@ -28,7 +23,7 @@ namespace Kabomu.Common
         /// lambda function</returns>
         /// <exception cref="MissingDependencyException">If <see cref="WritableFunc"/>
         /// property is null</exception>
-        public Task WriteBytesTo(ICustomWriter writer)
+        public Task WriteBytesTo(object writer)
         {
             var writableFunc = WritableFunc;
             if (writableFunc == null)
@@ -36,16 +31,6 @@ namespace Kabomu.Common
                 throw new MissingDependencyException("WritableFunc");
             }
             return writableFunc.Invoke(writer);
-        }
-
-        /// <summary>
-        /// Calls upon <see cref="DisposeFunc"/> to perform dispose operation.
-        /// Nothing is done if <see cref="DisposeFunc"/> property is null.
-        /// </summary>
-        /// <returns>a task representing asynchronous operation</returns>
-        public Task CustomDispose()
-        {
-            return DisposeFunc?.Invoke() ?? Task.CompletedTask;
         }
     }
 }

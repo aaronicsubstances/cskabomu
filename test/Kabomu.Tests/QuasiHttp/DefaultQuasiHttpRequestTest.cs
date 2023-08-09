@@ -7,29 +7,34 @@ using System.Threading.Tasks;
 using System.Threading;
 using Xunit;
 using Kabomu.Tests.Shared.Common;
+using Kabomu.Common;
+using System.IO;
 
 namespace Kabomu.Tests.QuasiHttp
 {
     public class DefaultQuasiHttpRequestTest
     {
         [Fact]
-        public async Task TestCustomDispose()
+        public async Task TestRelease()
         {
             var instance = new DefaultQuasiHttpRequest();
-            await instance.CustomDispose();
+            await instance.Release();
 
-            instance.Body = new CustomReaderBackedBody(new DemoCustomReaderWriter());
-            instance.CancellationTokenSource = new CancellationTokenSource();
-            int result = await instance.Body.AsReader().ReadBytes(new byte[1], 0, 1);
+            var stream = new MemoryStream();
+            instance.Body = new LambdaBasedQuasiHttpBody
+            {
+                ReaderFunc = () => stream,
+                ReleaseFunc = async () => await stream.DisposeAsync()
+            };
+            int result = await IOUtils.ReadBytes(instance.Body.AsReader(),
+                new byte[1], 0, 1);
             Assert.Equal(0, result);
-            Assert.False(instance.CancellationTokenSource.IsCancellationRequested);
 
-            await instance.CustomDispose();
-            Assert.True(instance.CancellationTokenSource.IsCancellationRequested);
+            await instance.Release();
             await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                instance.Body.AsReader().ReadBytes(new byte[1], 0, 1));
+                IOUtils.ReadBytes(instance.Body.AsReader(), new byte[1], 0, 1));
 
-            await instance.CustomDispose();
+            await instance.Release();
         }
 
         [Fact]

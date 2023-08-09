@@ -18,13 +18,13 @@ namespace Kabomu.Tests.Common
         public async Task TestReadingAndWriting(string expected)
         {
             // arrange
-            var initialReader = new DemoCustomReaderWriter(
+            var initialReader = new MemoryStream(
                 ByteUtils.StringToBytes(expected));
             var instance = new MemoryPipeCustomReaderWriter();
 
             // act
             var t1 = IOUtils.ReadAllBytes(instance, 0, 2);
-            var t2 = instance.DeferCustomDispose(async () =>
+            var f2 = async () =>
             {
                 try
                 {
@@ -32,9 +32,10 @@ namespace Kabomu.Tests.Common
                 }
                 finally
                 {
-                    await initialReader.CustomDispose();
+                    await instance.EndWrites();
                 }
-            });
+            };
+            var t2 = f2();
             // just in case error causes t1 or t2 to hang forever,
             // impose timeout
             var delayTask = Task.Delay(3000);
@@ -50,10 +51,6 @@ namespace Kabomu.Tests.Common
                 actual = ByteUtils.BytesToString(actualBytes);
             }
             Assert.Equal(expected, actual);
-
-            // assert that initial reader is disposed.
-            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                initialReader.ReadBytes(new byte[0], 0, 0));
         }
 
         [Fact]
@@ -100,8 +97,8 @@ namespace Kabomu.Tests.Common
             // Now test for errors
             writeTask = instance.WriteBytes(new byte[] { 9, 7 }, 0, 2);
 
-            await instance.CustomDispose(new NotImplementedException());
-            await instance.CustomDispose(new NotSupportedException()); // should have no effect
+            await instance.EndWrites(new NotImplementedException());
+            await instance.EndWrites(new NotSupportedException()); // should have no effect
 
             await Assert.ThrowsAsync<NotImplementedException>(
                 () => writeTask);
@@ -157,8 +154,8 @@ namespace Kabomu.Tests.Common
             // Now test for errors
             readTask = instance.ReadBytes(readBuffer, 0, 2);
 
-            await instance.CustomDispose(new NotSupportedException());
-            await instance.CustomDispose(); // should have no effect
+            await instance.EndWrites(new NotSupportedException());
+            await instance.EndWrites(); // should have no effect
 
             await Assert.ThrowsAsync<NotSupportedException>(
                 () => readTask);
@@ -214,8 +211,8 @@ namespace Kabomu.Tests.Common
             // Now test for errors
             readTask = instance.ReadBytes(readBuffer, 0, 2);
 
-            await instance.CustomDispose();
-            await instance.CustomDispose(new NotSupportedException()); // should have no effect
+            await instance.EndWrites();
+            await instance.EndWrites(new NotSupportedException()); // should have no effect
 
             readLen = await readTask;
             Assert.Equal(0, readLen);
@@ -273,8 +270,8 @@ namespace Kabomu.Tests.Common
             await writeTask;
 
             // Now test for errors
-            await instance.CustomDispose();
-            await instance.CustomDispose(new NotSupportedException()); // should have no effect
+            await instance.EndWrites();
+            await instance.EndWrites(new NotSupportedException()); // should have no effect
 
             actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.WriteBytes(new byte[10], 0, 4));
@@ -334,8 +331,8 @@ namespace Kabomu.Tests.Common
             await writeTask;
 
             // Now test for errors
-            await instance.CustomDispose();
-            await instance.CustomDispose(new NotSupportedException()); // should have no effect
+            await instance.EndWrites();
+            await instance.EndWrites(new NotSupportedException()); // should have no effect
 
             actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.WriteBytes(new byte[10], 0, 4));

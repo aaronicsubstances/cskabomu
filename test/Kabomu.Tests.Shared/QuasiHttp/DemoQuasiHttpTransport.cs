@@ -2,63 +2,69 @@
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.Tests.Shared.QuasiHttp
 {
-    internal class DemoQuasiHttpTransport : IQuasiHttpTransport
+    public class DemoQuasiHttpTransport : IQuasiHttpTransport
     {
-        private readonly MemoryStream _stream;
-        private readonly byte[] _chunkMarker;
         private readonly object _expectedConnection;
-
-        public DemoQuasiHttpTransport(object expectedConnection) :
-            this(expectedConnection, null, null)
-        { }
+        private readonly object _backingReader;
+        private readonly object _backingWriter;
+        private int _releaseCallCount;
 
         public DemoQuasiHttpTransport(object expectedConnection,
-            byte[] srcData, string chunkMarker)
+            object backingReader, object backingWriter)
         {
             _expectedConnection = expectedConnection;
-            _stream = new MemoryStream();
-            _chunkMarker = ByteUtils.StringToBytes(chunkMarker ?? "");
-
-            _stream.Write(srcData ?? new byte[0]);
-            // rewind for reading.
-            _stream.Position = 0;
+            _backingReader = backingReader;
+            _backingWriter = backingWriter;
         }
 
-        public MemoryStream BufferStream => _stream;
+        public int ReleaseCallCount => _releaseCallCount;
 
-        public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
+        public object GetWriter(object connection)
         {
             if (connection != _expectedConnection)
             {
                 throw new ArgumentException("unexpected connection");
             }
-            return _stream.ReadAsync(data, offset, length);
+            return new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = async (data, offset, length) =>
+                {
+                    await Task.Yield();
+                    await IOUtils.WriteBytes(_backingWriter, data, offset, length);
+                }
+            };
         }
 
-        public async Task WriteBytes(object connection, byte[] data, int offset, int length)
+        public object GetReader(object connection)
         {
             if (connection != _expectedConnection)
             {
                 throw new ArgumentException("unexpected connection");
             }
-            await _stream.WriteAsync(data, offset, length);
-            await _stream.WriteAsync(_chunkMarker);
+            return new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = async (data, offset, length) =>
+                {
+                    await Task.Yield();
+                    return await IOUtils.ReadBytes(_backingReader, data, offset, length);
+                }
+            };
         }
 
-        public Task ReleaseConnection(object connection)
+        public async Task ReleaseConnection(object connection)
         {
             if (connection != _expectedConnection)
             {
                 throw new ArgumentException("unexpected connection");
             }
-            _stream.Dispose();
-            return Task.CompletedTask;
+            Interlocked.Increment(ref _releaseCallCount);
+            await Task.Yield();
         }
     }
 }

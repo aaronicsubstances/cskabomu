@@ -31,26 +31,27 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-         /// Creates error message indicating that a number of bytes
+         /// Creates error indicating that a number of bytes
          /// indicated by quasi http content length could not be fully
          /// read from a reader or source of bytes.
          /// </summary>
          /// <param name="contentLength">content length to include in error message</param>
-         /// <returns>default error message describing content length.</returns>
-        public static string CreateContentLengthNotSatisfiedErrorMessage(long contentLength)
+        public static CustomIOException CreateContentLengthNotSatisfiedError(long contentLength)
         {
-            return $"insufficient bytes available to satisfy content length of {contentLength} bytes";
+            return new CustomIOException($"insufficient bytes available to satisfy " +
+                $"content length of {contentLength} bytes (could not read remaining " +
+                $"{{remainingBytesToRead}} bytes before end of read)");
         }
         
         /// <summary>
-         /// Creates error message indicating overflow of a byte buffer with
-         /// an imposed maximum size.
+         /// Creates error indicating overflow of a byte buffer with
+         /// an imposed maximum limit.
          /// </summary>
-         /// <param name="bufferSizeLimit">maximum data buffer size to include in error message</param>
-         /// <returns>default error message describing buffer size limit.</returns>
-        public static string CreateDataBufferLimitExceededErrorMessage(int bufferSizeLimit)
+         /// <param name="bufferSizeLimit">maximum data buffer limit to include in error message</param>
+        public static CustomIOException CreateDataBufferLimitExceededErrorMessage(int bufferSizeLimit)
         {
-            return $"data buffer size limit of {bufferSizeLimit} bytes exceeded";
+            return new CustomIOException($"data buffer size limit of " +
+                $"{bufferSizeLimit} bytes exceeded");
         }
     }
 }

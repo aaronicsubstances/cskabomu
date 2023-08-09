@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Kabomu.QuasiHttp.Transport
+namespace Kabomu.QuasiHttp.Client
 {
     /// <summary>
     /// Implementation of the <see cref="IQuasiHttpSendOptions"/> interface providing mutable versions of
@@ -31,8 +31,8 @@ namespace Kabomu.QuasiHttp.Transport
         public bool? ResponseBufferingEnabled { get; set; }
 
         /// <summary>
-        /// Gets or sets a value that imposes a maximum size on response bodies when they are being buffered in situations
-        /// where response streaming is disabled.
+        /// Gets or sets a value that imposes a maximum size on response bodies when they are being buffered,
+        /// i.e. in situations where response streaming is disabled.
         /// </summary>
         public int ResponseBodyBufferingSizeLimit { get; set; }
 

@@ -117,19 +117,12 @@ namespace Kabomu.QuasiHttp
         public IDictionary<string, object> Environment { get; set; }
 
         /// <summary>
-        /// Gets or sets a native cancellation handle that will be cancelled when
-        /// <see cref="CustomDispose"/> is called.
+        /// Releases the Body property.
         /// </summary>
-        public CancellationTokenSource CancellationTokenSource { get; set; }
-
-        /// <summary>
-        /// Cancels the CancellationTokenSource property and ends reading on the Body property.
-        /// </summary>
-        /// <returns>a task representing the asynchronous close operation</returns>
-        public Task CustomDispose()
+        /// <returns>a task representing the asynchronous release operation</returns>
+        public Task Release()
         {
-            CancellationTokenSource?.Cancel();
-            var endReadTask = Body?.CustomDispose();
+            var endReadTask = Body?.Release();
             return endReadTask ?? Task.CompletedTask;
         }
     }

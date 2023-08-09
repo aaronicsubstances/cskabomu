@@ -8,7 +8,7 @@ namespace Kabomu.Tests.Shared.QuasiHttp
 {
     public class SequenceCustomReader : ICustomReader
     {
-        public List<ICustomReader>? Readers { get; set; }
+        public List<object>? Readers { get; set; }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int length)
         {
@@ -17,23 +17,14 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             int bytesRead = 0;
             foreach (var reader in readers)
             {
-                bytesRead = await reader.ReadBytes(data, offset, length);
+                bytesRead = await IOUtils.ReadBytes(reader,
+                    data, offset, length);
                 if (bytesRead > 0)
                 {
                     break;
                 }
             }
             return bytesRead;
-        }
-
-        public async Task CustomDispose()
-        {
-            var readers = Readers;
-            if (readers == null) return;
-            foreach (var reader in readers)
-            {
-                await reader.CustomDispose();
-            }
         }
     }
 }

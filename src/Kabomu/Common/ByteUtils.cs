@@ -5,8 +5,9 @@ using System.Text;
 namespace Kabomu.Common
 {
     /// <summary>
-    /// Provides helper functions for common operations performed by networking protocols on or with byte arrays,
-    /// such as conversion to and from integers.
+    /// Provides helper functions for common operations performed by
+    /// networking protocols on or with byte arrays, such as conversion to and
+    /// from integers.
     /// </summary>
     public static class ByteUtils
     {
@@ -18,7 +19,7 @@ namespace Kabomu.Common
         /// <param name="data">backing byte array of slice. Invalid if null.</param>
         /// <param name="offset">offset of range in byte array. Invalid if negative.</param>
         /// <param name="length">length of range in byte array. Invalid if negative.</param>
-        /// <returns>true if byte buffer slice is valid; false if otherwise.</returns>
+        /// <returns>true if and only if byte buffer slice is valid.</returns>
         public static bool IsValidByteBufferSlice(byte[] data, int offset, int length)
         {
             if (data == null)
@@ -139,7 +140,8 @@ namespace Kabomu.Common
                 v |= (long)(rawBytes[nextIndex--] & 0xff) << shiftCount;
                 shiftCount += 8;
             }
-            // cater for signed integers of size less than 8 bytes
+            // cater for signed integers of size less than 8 bytes (those exactly
+            // of 8 bytes will already be signed).
             if (signed && length > 0 && length < 8 && (rawBytes[offset] >> 7) != 0)
             {
                 long inverter = ~((1L << (length * 8)) - 1);

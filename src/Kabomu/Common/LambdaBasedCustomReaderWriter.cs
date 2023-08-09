@@ -4,20 +4,16 @@ using System.Threading.Tasks;
 namespace Kabomu.Common
 {
     /// <summary>
-    /// Implementation of <see cref="ICustomReader"/> which delegates
+    /// Implementation of <see cref="ICustomReader"/> and
+    /// <see cref="ICustomWriter"/> interfaces which delegates
     /// to externally supplied lambda functions.
     /// </summary>
-    public class LambdaBasedCustomReader : ICustomReader
+    public class LambdaBasedCustomReaderWriter : ICustomReader, ICustomWriter
     {
         /// <summary>
         /// Gets or sets lambda function for performing read operation.
         /// </summary>
         public Func<byte[], int, int, Task<int>> ReadFunc { get; set; }
-        
-        /// <summary>
-        /// Gets or sets lambda function for performing dispose operation.
-        /// </summary>
-        public Func<Task> DisposeFunc { get; set; }
 
         /// <summary>
         /// Calls upon <see cref="ReadFunc"/> to perform read operation.
@@ -41,13 +37,30 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Calls upon <see cref="DisposeFunc"/> to perform dispose operation.
-        /// Nothing is done if <see cref="DisposeFunc"/> property is null.
+        /// Gets or sets lambda function for performing write operation.
         /// </summary>
-        /// <returns>a task representing asynchronous operation</returns>
-        public Task CustomDispose()
+        public Func<byte[], int, int, Task> WriteFunc { get; set; }
+
+        /// <summary>
+        /// Calls upon <see cref="WriteFunc"/> to perform write operation.
+        /// </summary>
+        /// <param name="data">buffer to pass to <see cref="WriteFunc"/>
+        /// lambda function for supplying bytes to write</param>
+        /// <param name="offset">starting position in buffer from which
+        /// to start transferring bytes</param>
+        /// <param name="length">number of bytes to write</param>
+        /// <returns>the task returned by calling the <see cref="WriteFunc"/>
+        /// lambda function</returns>
+        /// <exception cref="MissingDependencyException">If <see cref="WriteFunc"/>
+        /// property is null</exception>
+        public Task WriteBytes(byte[] data, int offset, int length)
         {
-            return DisposeFunc?.Invoke() ?? Task.CompletedTask;
+            var writeFunc = WriteFunc;
+            if (writeFunc == null)
+            {
+                throw new MissingDependencyException("WriteFunc");
+            }
+            return writeFunc.Invoke(data, offset, length);
         }
     }
 }

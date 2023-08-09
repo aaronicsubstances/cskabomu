@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
-using Kabomu.QuasiHttp.Client;
 
-namespace Kabomu.QuasiHttp.Transport
+namespace Kabomu.QuasiHttp.Client
 {
     /// <summary>
     /// Used to configure send requests to <see cref="StandardQuasiHttpClient"/> instances.
@@ -47,8 +46,8 @@ namespace Kabomu.QuasiHttp.Transport
         bool? ResponseBufferingEnabled { get; }
 
         /// <summary>
-        /// Gets the value that imposes a maximum size on response bodies when they are being buffered in situations
-        /// where response streaming is disabled.
+        /// Gets the value that imposes a maximum size on response bodies when they are being buffered,
+        /// i.e. in situations where response streaming is disabled.
         /// </summary>
         /// <remarks>
         /// Note that zero and negative values will be interpreted as unspecified, and in the absence of any overriding options

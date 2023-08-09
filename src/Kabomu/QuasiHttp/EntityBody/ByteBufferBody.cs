@@ -10,7 +10,7 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <summary>
     /// Represents quasi http body based on a byte buffer.
     /// </summary>
-    public class ByteBufferBody : AbstractQuasiHttpBody
+    public class ByteBufferBody : IQuasiHttpBody
     {
         /// <summary>
         /// Creates a new instance.
@@ -67,23 +67,27 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// Returns a freshly created reader backed by
         /// <see cref="Buffer"/> property.
         /// </summary>
-        public override ICustomReader Reader()
+        public object Reader
         {
-            var stream = new MemoryStream(Buffer, Offset, Length);
-            return new StreamCustomReaderWriter(stream);
+            get
+            {
+                return new MemoryStream(Buffer, Offset, Length);
+            }
         }
+
+        public long ContentLength { get; set; }
 
         /// <summary>
         /// Does nothing.
         /// </summary>
-        public override Task CustomDispose() => Task.CompletedTask;
+        public Task Release() => Task.CompletedTask;
 
         /// <summary>
         /// Transfers contents of <see cref="Buffer"/> property
         /// to supplied writer.
         /// </summary>
         /// <param name="writer">supplied writer</param>
-        public override Task WriteBytesTo(ICustomWriter writer) =>
-            writer.WriteBytes(Buffer, Offset, Length);
+        public Task WriteBytesTo(object writer) =>
+            IOUtils.WriteBytes(writer, Buffer, Offset, Length);
     }
 }

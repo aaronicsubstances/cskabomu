@@ -56,7 +56,7 @@ namespace Kabomu.Examples.Shared
                 using (var fileStream = new FileStream(p, FileMode.Create))
                 {
                     var reader = context.Request.Body.AsReader();
-                    await IOUtils.CopyBytes(reader, new StreamCustomReaderWriter(fileStream));
+                    await IOUtils.CopyBytes(reader, fileStream);
                 }
             }
             catch (Exception e)

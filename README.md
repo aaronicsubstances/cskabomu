@@ -14,14 +14,14 @@ Kabomu seeks to demonstrate the following:
 
 3. *Cross-platform quasi web framework*, i.e. offers a web framework pattern which can be shared across programming languages, and does not assume the use of actual HTTP.
 
-4. *Abstraction of message queues*, by modelling them as fire and forget requests to email address groups or multicast addresses.
+4. *Abstraction of message queues*, by modelling them as fire and forget requests to email-like address groups (e.g. kafka topic, network multicast address).
 
 
 ## Design
 
 1. Deployment enviroment: mainly localhost, but can be extended to the Internet via HTTP.
 
-1. Quasi web transports demonstrated: HTTP, memory, localhost TCP, unix domain socket, windows named pipe, zeromq.
+1. Quasi web transports demonstrated: HTTP, memory, localhost TCP, unix domain socket, windows named pipe, zeromq (with limit on body size).
    1. *Support for HTTP makes it possible to use Kabomu with any HTTP client library.*
    2. Interfaces are provided for the creation of any custom quasi web transport.
 

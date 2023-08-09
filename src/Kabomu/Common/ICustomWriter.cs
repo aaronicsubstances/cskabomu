@@ -8,7 +8,7 @@ namespace Kabomu.Common
     /// <summary>
     /// Represents a destination of bytes to which bytes can be written.
     /// </summary>
-    public interface ICustomWriter : ICustomDisposable
+    public interface ICustomWriter
     {
         /// <summary>
         /// Writes bytes to the instance.

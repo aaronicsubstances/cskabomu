@@ -83,8 +83,15 @@ namespace Kabomu.Tests.QuasiHttp
         private async Task PerformProcessing(IQuasiHttpTransport transport,
             object connection, bool isClient, bool isAtAccra)
         {
-            var readerWriter = new TransportCustomReaderWriter(transport,
-                connection, true);
+            var transportReader = transport.GetReader(connection);
+            var transportWriter = transport.GetWriter(connection);
+            var readerWriter = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                    IOUtils.ReadBytes(transportReader, data, offset, length),
+                WriteFunc = (data, offset, length) =>
+                    IOUtils.WriteBytes(transportWriter, data, offset, length)
+            };
 
             var randGen = new Random();
 
@@ -167,8 +174,7 @@ namespace Kabomu.Tests.QuasiHttp
                     await WriteMsg(readerWriter, outgoingAnswer);
                 }
             }
-            LogMsg(DescribeCustomDispose(connection, isClient, isAtAccra));
-            await readerWriter.CustomDispose();
+            LogMsg(DescribeRelease(connection, isClient, isAtAccra));
         }
 
         private static void LogMsg(string msg)
@@ -185,7 +191,7 @@ namespace Kabomu.Tests.QuasiHttp
                 $"{maxQuestionsToAnswer} at {part1} in {part2}";
         }
 
-        private static string DescribeCustomDispose(object connection,
+        private static string DescribeRelease(object connection,
             bool isClient, bool isAtAccra)
         {
             var part1 = isClient ? "client" : "server";

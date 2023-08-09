@@ -53,12 +53,12 @@ namespace Kabomu.QuasiHttp.Client
                     catch (Exception) { } // ignore
                 }
 
-                // close request body
+                // close request
                 if (Request != null)
                 {
                     try
                     {
-                        await Request.CustomDispose();
+                        await Request.Release();
                     }
                     catch (Exception) { } // ignore
                 }
@@ -68,7 +68,7 @@ namespace Kabomu.QuasiHttp.Client
                 // dispose off response
                 try
                 {
-                    var resDisposeTask = res?.Response?.CustomDispose();
+                    var resDisposeTask = res?.Response?.Release();
                     if (resDisposeTask != null)
                     {
                         await resDisposeTask;

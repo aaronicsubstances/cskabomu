@@ -12,24 +12,33 @@ namespace Kabomu.Tests.Common
     {
         [InlineData(0, "", "")]
         [InlineData(0, "a", "")]
-        [InlineData(1, "ab", "a,")]
-        [InlineData(-2, "ab", "ab,")]
-        [InlineData(2, "abc", "ab,")]
-        [InlineData(3, "abc", "ab,c,")]
-        [InlineData(4, "abcd", "ab,cd,")]
-        [InlineData(5, "abcde", "ab,cd,e,")]
-        [InlineData(-1, "abcdef", "ab,cd,ef,")]
+        [InlineData(1, "ab", "a")]
+        [InlineData(-2, "ab", "ab")]
+        [InlineData(2, "abc", "ab")]
+        [InlineData(3, "abc", "abc")]
+        [InlineData(4, "abcd", "abcd")]
+        [InlineData(5, "abcde", "abcde")]
+        [InlineData(-1, "abcdef", "abcdef")]
         [Theory]
-        public async Task TestReading(long contentLength,
-            string srcData, string expected)
+        public async Task TestReading(long contentLength, string srcData,
+            string expected)
         {
             // arrange
             var stream = new MemoryStream(ByteUtils.StringToBytes(srcData));
-            ICustomReader instance = new StreamCustomReaderWriter(stream);
-            instance = new ContentLengthEnforcingCustomReader(instance, contentLength);
+            var instance = new ContentLengthEnforcingCustomReader(stream,
+                contentLength);
 
-            // act and assert
-            await IOUtilsTest.TestReading(instance, null, 2, expected, null);
+            // act
+            var actual = ByteUtils.BytesToString(await IOUtils.ReadAllBytes(
+                instance));
+
+            // assert
+            Assert.Equal(expected, actual);
+
+            // assert non-repeatability.
+            actual = ByteUtils.BytesToString(await IOUtils.ReadAllBytes(
+                instance));
+            Assert.Equal("", actual);
         }
 
         [InlineData(2, "")]
@@ -41,131 +50,214 @@ namespace Kabomu.Tests.Common
         {
             // arrange
             var stream = new MemoryStream(ByteUtils.StringToBytes(srcData));
-            ICustomReader instance = new StreamCustomReaderWriter(stream);
-            instance = new ContentLengthEnforcingCustomReader(instance, contentLength);
+            var instance = new ContentLengthEnforcingCustomReader(stream,
+                contentLength);
 
             // act and assert
             var actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => IOUtilsTest.TestReading(instance, null, 0,
-                    null, null));
+                () => IOUtils.ReadAllBytes(
+                instance));
             Assert.Contains($"length of {contentLength}", actualEx.Message);
         }
 
         [Fact]
-        public async Task TestCustomDispose1()
+        public async Task TestZeroByteRead1()
         {
             var stream = new MemoryStream(new byte[] { 0, 1, 2});
-            ICustomReader instance = new StreamCustomReaderWriter(stream);
-            instance = new ContentLengthEnforcingCustomReader(instance, -1, true);
+            var instance = new ContentLengthEnforcingCustomReader(stream, -1, true);
+
+            var actual = await instance.ReadBytes(new byte[0], 0, 0);
+            Assert.Equal(0, actual);
 
             var expected = new byte[3];
-            var actual = await instance.ReadBytes(expected, 0, 3);
+            actual = await instance.ReadBytes(expected, 0, 3);
             Assert.Equal(3, actual);
             Assert.Equal(expected, new byte[] { 0, 1, 2});
 
             actual = await instance.ReadBytes(new byte[0], 0, 0);
             Assert.Equal(0, actual);
-
-            await instance.CustomDispose();
-
-            await Assert.ThrowsAsync<ObjectDisposedException>(
-                () => instance.ReadBytes(new byte[0], 0, 0));
-
-            await Assert.ThrowsAsync<ObjectDisposedException>(
-                () => instance.ReadBytes(new byte[1], 0, 1));
         }
 
         [Fact]
-        public async Task TestCustomDispose2()
+        public async Task TestZeroByteRead2()
         {
             var stream = new MemoryStream(new byte[] { 0, 1, 2 });
-            ICustomReader instance = new StreamCustomReaderWriter(stream);
-            instance = new ContentLengthEnforcingCustomReader(instance, -1);
+            var instance = new ContentLengthEnforcingCustomReader(stream, 3);
+
+            var actual = await instance.ReadBytes(new byte[0], 0, 0);
+            Assert.Equal(0, actual);
 
             var expected = new byte[3];
-            var actual = await instance.ReadBytes(expected, 0, 3);
+            actual = await instance.ReadBytes(expected, 0, 3);
+            Assert.Equal(3, actual);
+            Assert.Equal(expected, new byte[] { 0, 1, 2 });
+
+            actual = await instance.ReadBytes(new byte[0], 0, 0);
+            Assert.Equal(0, actual);
+        }
+
+        [Fact]
+        public async Task TestZeroByteRead3()
+        {
+            var stream = new MemoryStream(new byte[] { 0, 1, 2 });
+            var instance = new ContentLengthEnforcingCustomReader(stream, 4, true);
+
+            var actual = await instance.ReadBytes(new byte[0], 0, 0);
+            Assert.Equal(0, actual);
+
+            var expected = new byte[3];
+            actual = await instance.ReadBytes(expected, 0, 3);
             Assert.Equal(3, actual);
             Assert.Equal(expected, new byte[] { 0, 1, 2 });
 
             actual = await instance.ReadBytes(new byte[0], 0, 0);
             Assert.Equal(0, actual);
 
-            await instance.CustomDispose();
+            await Assert.ThrowsAsync<CustomIOException>(
+                () => instance.ReadBytes(new byte[2], 0, 2));
 
-            // verify that zero byte can be initiated in spite of
-            // disposal of backing reader.
+            // verify that zero byte reads will work at this stage.
             actual = await instance.ReadBytes(new byte[0], 0, 0);
             Assert.Equal(0, actual);
-
-            await Assert.ThrowsAsync<ObjectDisposedException>(
-                () => instance.ReadBytes(new byte[1], 0, 1));
         }
 
         [Fact]
-        public async Task TestCustomDispose3()
+        public async Task TestZeroByteRead4()
         {
             var stream = new MemoryStream(new byte[] { 0, 1, 2 });
-            ICustomReader instance = new StreamCustomReaderWriter(stream);
-            instance = new ContentLengthEnforcingCustomReader(instance, 1, true);
+            var reader = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                {
+                    if (length == 0)
+                    {
+                        throw new ArgumentException("this instance only accepts " +
+                            "positive lengths");
+                    }
+                    return stream.ReadAsync(data, offset, length);
+                }
+            };
+            var instance = new ContentLengthEnforcingCustomReader(reader, 3,
+                true);
 
-            var actual = await instance.ReadBytes(new byte[0], 0, 0);
-            Assert.Equal(0, actual);
-
-            await instance.CustomDispose();
-
-            await Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 () => instance.ReadBytes(new byte[0], 0, 0));
 
-            await Assert.ThrowsAsync<ObjectDisposedException>(
-                () => instance.ReadBytes(new byte[1], 0, 1));
+            var expected = new byte[3];
+            var actual = await instance.ReadBytes(expected, 0, 3);
+            Assert.Equal(3, actual);
+            Assert.Equal(expected, new byte[] { 0, 1, 2 });
+
+            actual = await instance.ReadBytes(expected, 0, expected.Length);
+            Assert.Equal(0, actual);
+
+            await Assert.ThrowsAsync<ArgumentException>(
+                () => instance.ReadBytes(new byte[0], 0, 0));
         }
 
         [Fact]
-        public async Task TestCustomDispose4()
+        public async Task TestZeroByteRead5()
         {
-            var stream = new MemoryStream(new byte[] { 4, 91, 2 });
-            ICustomReader instance = new StreamCustomReaderWriter(stream);
-            instance = new ContentLengthEnforcingCustomReader(instance, 2, false);
+            var stream = new MemoryStream(new byte[] { 0, 1, 2 });
+            var reader = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                {
+                    if (length == 0)
+                    {
+                        throw new ArgumentException("this instance only accepts " +
+                            "positive lengths");
+                    }
+                    return stream.ReadAsync(data, offset, length);
+                }
+            };
+            var instance = new ContentLengthEnforcingCustomReader(reader, -1,
+                true);
+
+            await Assert.ThrowsAsync<ArgumentException>(
+                () => instance.ReadBytes(new byte[0], 0, 0));
+
+            var expected = new byte[3];
+            var actual = await instance.ReadBytes(expected, 0, 3);
+            Assert.Equal(3, actual);
+            Assert.Equal(expected, new byte[] { 0, 1, 2 });
+
+            actual = await instance.ReadBytes(expected, 0, expected.Length);
+            Assert.Equal(0, actual);
+
+            await Assert.ThrowsAsync<ArgumentException>(
+                () => instance.ReadBytes(new byte[0], 0, 0));
+        }
+
+        [Fact]
+        public async Task TestZeroByteRead6()
+        {
+            var stream = new MemoryStream(new byte[] { 0, 1, 2 });
+            var reader = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                {
+                    if (length == 0)
+                    {
+                        throw new ArgumentException("this instance only accepts " +
+                            "positive lengths");
+                    }
+                    return stream.ReadAsync(data, offset, length);
+                }
+            };
+            var instance = new ContentLengthEnforcingCustomReader(reader, 4,
+                false);
 
             var actual = await instance.ReadBytes(new byte[0], 0, 0);
             Assert.Equal(0, actual);
 
-            var expected = new byte[1];
-            actual = await instance.ReadBytes(expected, 0, 1);
-            Assert.Equal(1, actual);
-            Assert.Equal(expected, new byte[] { 4 });
+            var expected = new byte[3];
+            actual = await instance.ReadBytes(expected, 0, 3);
+            Assert.Equal(3, actual);
+            Assert.Equal(expected, new byte[] { 0, 1, 2 });
 
-            await instance.CustomDispose();
-
-            // verify that zero byte can be initiated in spite of
-            // disposal of backing reader.
             actual = await instance.ReadBytes(new byte[0], 0, 0);
             Assert.Equal(0, actual);
 
-            await Assert.ThrowsAsync<ObjectDisposedException>(
-                () => instance.ReadBytes(new byte[1], 0, 1));
+            await Assert.ThrowsAsync<CustomIOException>(
+                () => instance.ReadBytes(new byte[2], 0, 2));
+
+            // verify that zero byte reads will work at this stage.
+            actual = await instance.ReadBytes(new byte[0], 0, 0);
+            Assert.Equal(0, actual);
         }
 
         [Fact]
-        public async Task TestCustomDispose5()
+        public async Task TestZeroByteRead7()
         {
-            var stream = new MemoryStream(new byte[] { 4, 91, 2 });
-            ICustomReader instance = new StreamCustomReaderWriter(stream);
-            instance = new ContentLengthEnforcingCustomReader(instance, 0);
+            var stream = new MemoryStream(new byte[] { 0, 1, 2 });
+            var reader = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                {
+                    if (length == 0)
+                    {
+                        throw new ArgumentException("this instance only accepts " +
+                            "positive lengths");
+                    }
+                    return stream.ReadAsync(data, offset, length);
+                }
+            };
+            var instance = new ContentLengthEnforcingCustomReader(reader, -1,
+                false);
 
             var actual = await instance.ReadBytes(new byte[0], 0, 0);
             Assert.Equal(0, actual);
 
-            actual = await instance.ReadBytes(new byte[1], 0, 1);
-            Assert.Equal(0, actual);
+            var expected = new byte[3];
+            actual = await instance.ReadBytes(expected, 0, 3);
+            Assert.Equal(3, actual);
+            Assert.Equal(expected, new byte[] { 0, 1, 2 });
 
-            await instance.CustomDispose();
-
-            // verify that zero byte can be initiated in spite of
-            // disposal of backing reader.
             actual = await instance.ReadBytes(new byte[0], 0, 0);
             Assert.Equal(0, actual);
-            actual = await instance.ReadBytes(new byte[1], 0, 1);
+
+            actual = await instance.ReadBytes(new byte[2], 0, 2);
             Assert.Equal(0, actual);
         }
     }

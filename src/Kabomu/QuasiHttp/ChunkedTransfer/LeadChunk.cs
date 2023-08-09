@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -18,7 +19,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
     public class LeadChunk
     {
         /// <summary>
-        /// Current version of standard chunk serialization format.
+        /// Current version of standard chunk serialization format, which is v1.
         /// </summary>
         public const byte Version01 = 1;
 
@@ -200,13 +201,13 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <param name="writer">The destination of the bytes to be written</returns>
         /// <exception cref="InvalidOperationException">If <see cref="UpdateSerializedRepresentation"/>
         /// has not been called</exception>
-        public async Task WriteOutSerializedRepresentation(ICustomWriter writer)
+        public async Task WriteOutSerializedRepresentation(object writer)
         {
             if (_csvDataPrefix == null || _csvData == null)
             {
                 throw new InvalidOperationException("missing serialized representation");
             }
-            await writer.WriteBytes(_csvDataPrefix, 0, _csvDataPrefix.Length);
+            await IOUtils.WriteBytes(writer, _csvDataPrefix, 0, _csvDataPrefix.Length);
             await CsvUtils.SerializeTo(_csvData, writer);
         }
 
@@ -241,9 +242,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
             var instance = new LeadChunk();
             instance.Version = data[offset];
-            if (instance.Version == 0)
+            if (instance.Version != Version01)
             {
-                throw new ArgumentException("version not set");
+                throw new ArgumentException("version not set to v1");
             }
             instance.Flags = data[offset + 1];
 

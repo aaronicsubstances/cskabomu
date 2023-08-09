@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.Common
@@ -10,13 +12,13 @@ namespace Kabomu.Common
     /// </summary>
     public class ContentLengthEnforcingCustomReader : ICustomReader
     {
-        private readonly ICustomReader _wrappedReader;
+        private readonly object _wrappedReader;
         private readonly long _expectedLength;
         private readonly bool _answerZeroByteReadsFromBackingReader;
         private long _bytesAlreadyRead;
 
         /// <summary>
-        /// Creates new instance.
+        /// Creates a new instance.
         /// </summary>
         /// <param name="wrappedReader">the backing reader.</param>
         /// <param name="expectedLength">the expected number of bytes to guarantee or assert.
@@ -24,9 +26,9 @@ namespace Kabomu.Common
         /// should be returned.</param>
         /// <param name="answerZeroByteReadsFromBackingReader">pass true
         /// if a request to read zero bytes should be passed onto backing reader;
-        /// or pass false to immediately return zero which is the default.</param>
-        /// <exception cref="ArgumentNullException">The <paramref name="wrappedBody"/> argument is null.</exception>
-        public ContentLengthEnforcingCustomReader(ICustomReader wrappedReader,
+        /// or pass false to immediately return zero, which is the default.</param>
+        /// <exception cref="ArgumentNullException">The <paramref name="wrappedReader"/> argument is null.</exception>
+        public ContentLengthEnforcingCustomReader(object wrappedReader,
             long expectedLength, bool answerZeroByteReadsFromBackingReader = false)
         {
             if (wrappedReader == null)
@@ -43,7 +45,7 @@ namespace Kabomu.Common
             int bytesToRead = length;
             if (_expectedLength >= 0)
             {
-                // just in case content length is changed in between reads due
+                // just in case content length is changed in between reads
                 // if content length becomes an editable property,
                 // ensure bytesToRead will never become negative.
                 bytesToRead = (int)Math.Max(0,
@@ -54,10 +56,24 @@ namespace Kabomu.Common
             // if bytes to read is zero at this stage, decide on whether or
             // not to go ahead and call backing reader
             // so that any error in backing reader can be thrown.
-            int bytesJustRead = 0;
-            if (bytesToRead > 0 || _answerZeroByteReadsFromBackingReader)
+            bool proceedWithUnderlyingRead;
+            if (bytesToRead > 0)
             {
-                bytesJustRead = await _wrappedReader.ReadBytes(data, offset, bytesToRead);
+                proceedWithUnderlyingRead = true;
+            }
+            else if (length > 0)
+            {
+                proceedWithUnderlyingRead = false;
+            }
+            else
+            {
+                proceedWithUnderlyingRead = _answerZeroByteReadsFromBackingReader;
+            }
+            int bytesJustRead = 0;
+            if (proceedWithUnderlyingRead)
+            {
+                bytesJustRead = await IOUtils.ReadBytes(_wrappedReader,
+                    data, offset, bytesToRead);
             }
 
             // update record of number of bytes read.
@@ -68,19 +84,10 @@ namespace Kabomu.Common
             var remainingBytesToRead = _expectedLength - _bytesAlreadyRead;
             if (bytesToRead > 0 && bytesJustRead == 0 && remainingBytesToRead > 0)
             {
-                var errorMsg = CustomIOException.CreateContentLengthNotSatisfiedErrorMessage(
-                    _expectedLength) +
-                    $" (could not read remaining {remainingBytesToRead} " +
-                    "bytes before end of read)";
-
-                throw new CustomIOException(errorMsg);
+                throw CustomIOException.CreateContentLengthNotSatisfiedError(
+                    _expectedLength);
             }
             return bytesJustRead;
-        }
-
-        public Task CustomDispose()
-        {
-            return _wrappedReader.CustomDispose();
         }
     }
 }

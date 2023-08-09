@@ -42,9 +42,7 @@ namespace Kabomu.QuasiHttp.Server
                 throw new MissingDependencyException("server application");
             }
 
-            var transportReaderWriter = new TransportCustomReaderWriter(Transport,
-                Connection, false);
-            var request = await ReadRequestLeadChunk(transportReaderWriter);
+            var request = await ReadRequestLeadChunk();
 
             var response = await Application.ProcessRequest(request);
             if (response == null)
@@ -54,21 +52,22 @@ namespace Kabomu.QuasiHttp.Server
 
             try
             {
-                await TransferResponseToTransport(transportReaderWriter, response);
+                await TransferResponseToTransport(response);
                 return null;
             }
             finally
             {
                 try
                 {
-                    await response.CustomDispose();
+                    await response.Release();
                 }
                 catch (Exception) { } // ignore
             }
         }
 
-        private async Task<IQuasiHttpRequest> ReadRequestLeadChunk(ICustomReader reader)
+        private async Task<IQuasiHttpRequest> ReadRequestLeadChunk()
         {
+            var reader = Transport.GetReader(Connection);
             var chunk = await ChunkedTransferUtils.ReadLeadChunk(reader, MaxChunkSize);
             if (chunk == null)
             {
@@ -79,14 +78,13 @@ namespace Kabomu.QuasiHttp.Server
                 Environment = RequestEnvironment
             };
             chunk.UpdateRequest(request);
-            request.Body = await ProtocolUtilsInternal.CreateBodyFromTransport(Transport,
-                Connection, false, MaxChunkSize,
-                chunk.ContentLength, false, 0);
+            request.Body = await ProtocolUtilsInternal.CreateBodyFromTransport(
+                reader, chunk.ContentLength, null,
+                MaxChunkSize, false, 0);
             return request;
         }
 
-        private async Task TransferResponseToTransport(ICustomWriter writer,
-            IQuasiHttpResponse response)
+        private async Task TransferResponseToTransport(IQuasiHttpResponse response)
         {
             if (ProtocolUtilsInternal.GetEnvVarAsBoolean(response.Environment,
                 TransportUtils.ResEnvKeySkipResponseSending) == true)
@@ -95,9 +93,10 @@ namespace Kabomu.QuasiHttp.Server
             }
 
             var chunk = LeadChunk.CreateFromResponse(response);
+            var writer = Transport.GetWriter(Connection);
             await ChunkedTransferUtils.WriteLeadChunk(writer, chunk, MaxChunkSize);
             await ProtocolUtilsInternal.TransferBodyToTransport(
-                Transport, Connection, MaxChunkSize, response.Body);
+                writer, MaxChunkSize, response.Body);
         }
     }
 }

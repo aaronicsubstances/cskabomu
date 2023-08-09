@@ -48,8 +48,8 @@ namespace Kabomu.Tests.Shared.QuasiHttp
 
         public async Task Release()
         {
-            await _serverPipe.CustomDispose();
-            await _clientPipe.CustomDispose();
+            await _serverPipe.EndWrites();
+            await _clientPipe.EndWrites();
         }
     }
 }

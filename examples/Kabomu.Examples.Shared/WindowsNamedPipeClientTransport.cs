@@ -1,4 +1,5 @@
-﻿using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp.Client;
+using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO.Pipes;
@@ -22,19 +23,19 @@ namespace Kabomu.Examples.Shared
             return response;
         }
 
+        public object GetWriter(object connection)
+        {
+            return WindowsNamedPipeServerTransport.GetWriterInternal(connection);
+        }
+
+        public object GetReader(object connection)
+        {
+            return WindowsNamedPipeServerTransport.GetReaderInternal(connection);
+        }
+
         public Task ReleaseConnection(object connection)
         {
             return WindowsNamedPipeServerTransport.ReleaseConnectionInternal(connection);
-        }
-
-        public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
-        {
-            return WindowsNamedPipeServerTransport.ReadBytesInternal(connection, data, offset, length);
-        }
-
-        public Task WriteBytes(object connection, byte[] data, int offset, int length)
-        {
-            return WindowsNamedPipeServerTransport.WriteBytesInternal(connection, data, offset, length);
         }
     }
 }

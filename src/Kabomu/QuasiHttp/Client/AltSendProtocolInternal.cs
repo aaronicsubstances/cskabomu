@@ -64,7 +64,7 @@ namespace Kabomu.QuasiHttp.Client
                     responseBufferingApplied = true;
 
                     // read response body into memory and create equivalent response for 
-                    // which CustomDispose() operation is redundant.
+                    // which Release() operation is redundant.
                     responseBody = await ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(responseBody,
                         ResponseBodyBufferingSizeLimit);
                     response = new DefaultQuasiHttpResponse
@@ -82,7 +82,11 @@ namespace Kabomu.QuasiHttp.Client
                         responseBufferingApplied)
                 {
                     // close original response.
-                    await originalResponse.CustomDispose();
+                    try
+                    {
+                        await originalResponse.Release();
+                    }
+                    catch (Exception) { } // ignore
                 }
 
                 return new ProtocolSendResultInternal
@@ -96,7 +100,7 @@ namespace Kabomu.QuasiHttp.Client
             {
                 try
                 {
-                    await originalResponse.CustomDispose();
+                    await originalResponse.Release();
                 }
                 catch (Exception) { } // ignore
                 throw;

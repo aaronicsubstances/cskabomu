@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -188,50 +189,15 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Executes a lambda function and then calls <see cref="CustomDispose"/>
-        /// regardless of whether function call succeeds or throws an error.
-        /// </summary>
-        /// <param name="dependentTask">function to run. If
-        /// the function throws an exception, <see cref="CustomDispose(Exception)"/>
-        /// will be called instead. If function is null, only
-        /// <see cref="CustomDispose"/> will be called.</param>
-        /// <returns>a task representing asynchronous operation</returns>
-        public async Task DeferCustomDispose(Func<Task> dependentTask)
-        {
-            Exception taskError = null;
-            if (dependentTask != null)
-            {
-                try
-                {
-                    await dependentTask.Invoke();
-                }
-                catch (Exception e)
-                {
-                    taskError = e;
-                }
-            }
-            await CustomDispose(taskError);
-        }
-
-        /// <summary>
-        /// Causes pending and future writes to be aborted with a default end of write error
-        /// message, and causes pending and future reads to return 0.
-        /// </summary>
-        /// <returns>a task representing asynchronous operation</returns>
-        public Task CustomDispose()
-        {
-            return CustomDispose(null);
-        }
-
-        /// <summary>
         /// Causes pending and future read and writes to be aborted with a
-        /// supplied exception instance.
+        /// supplied exception instance (pending and future reads will return 0
+        /// if no exception is supplied).
         /// </summary>
         /// <param name="e">exception instance for ending read and writes.
         /// If null, then a default exception will be used for writes, and
         /// reads will simply return 0</param>
         /// <returns>a task representing the asynchronous operation</returns>
-        public Task CustomDispose(Exception e)
+        public Task EndWrites(Exception e = null)
         {
             lock (_mutex)
             {

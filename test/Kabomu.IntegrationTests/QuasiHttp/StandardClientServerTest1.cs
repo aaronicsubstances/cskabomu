@@ -117,7 +117,14 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { TransportUtils.ConnectivityParamFireAndForget, true }
                 }
             };
-            var expectedRequest = new DefaultQuasiHttpRequest();
+            var requestReleaseCallCount = 0;
+            var expectedRequest = new ConfigurableQuasiHttpRequest
+            {
+                ReleaseFunc = async () =>
+                {
+                    requestReleaseCallCount++;
+                }
+            };
 
             // act
             var res = await client.Send(endpoint, expectedRequest, sendOptions);
@@ -128,6 +135,9 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             Assert.Null(res);
             await ComparisonUtils.CompareRequests(expectedRequest, actualRequestClone,
                 null);
+
+            // assert request release
+            Assert.Equal(1, requestReleaseCallCount);
         }
 
         [Fact]
@@ -205,7 +215,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 // needed to prevent server tasks from hanging when
                 // response buffering is disabled.
-                await actualResponse.CustomDispose();
+                await actualResponse.Release();
             }
         }
 

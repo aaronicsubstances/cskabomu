@@ -24,11 +24,11 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 (byte)'s', 0, 0, 2, 1, 0
             };
             // get randomized read request sizes.
-            var backingReader = new DemoCustomReaderWriter(srcData);
+            var backingReader = new RandomizedReadSizeBufferReader(srcData);
             int maxChunkSize = 6;
             var instance = new ChunkDecodingCustomReader(
                 backingReader, maxChunkSize);
-            var writer = new DemoCustomReaderWriter();
+            var writer = new MemoryStream();
             var expected = "data bits and bytes";
 
             // act
@@ -36,12 +36,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             // assert
             Assert.Equal(expected, ByteUtils.BytesToString(
-                writer.BufferStream.ToArray()));
-
-            // assert disposal of backingReader
-            await instance.CustomDispose();
-            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                backingReader.ReadBytes(new byte[0], 0, 0));
+                writer.ToArray()));
         }
 
         [Fact]
@@ -55,11 +50,11 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 (byte)'y', (byte)'t', (byte)'e', 0, 0, 2, 1, 0
             };
             // get randomized read request sizes.
-            var backingReader = new DemoCustomReaderWriter(srcData);
+            var backingReader = new RandomizedReadSizeBufferReader(srcData);
             int maxChunkSize = 9;
             var instance = new ChunkDecodingCustomReader(
                 backingReader, maxChunkSize);
-            var writer = new DemoCustomReaderWriter();
+            var writer = new MemoryStream();
             var expected = "data bits and byte";
 
             // act
@@ -67,15 +62,38 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             // assert
             Assert.Equal(expected, ByteUtils.BytesToString(
-                writer.BufferStream.ToArray()));
+                writer.ToArray()));
 
             // ensure subsequent reading attempts return 0
             Assert.Equal(0, await instance.ReadBytes(new byte[1], 0, 1));
+        }
 
-            // assert disposal of backingReader
-            await instance.CustomDispose();
-            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                backingReader.ReadBytes(new byte[0], 0, 0));
+        [Fact]
+        public async Task TestReading3()
+        {
+            // arrange
+            var srcData = new byte[] { 0 ,0, 11, 1, 0, (byte)'d',
+                (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',
+                (byte)'i', (byte)'t', (byte)'s', 0, 0, 11, 1, 0, (byte)' ',
+                (byte)'a', (byte)'n', (byte)'d', (byte)' ', (byte)'b',
+                (byte)'y', (byte)'t', (byte)'e', 0, 0, 2, 1, 0
+            };
+            var backingReader = new MemoryStream(srcData);
+            int maxChunkSize = 9;
+            var instance = new ChunkDecodingCustomReader(
+                backingReader, maxChunkSize);
+            var writer = new MemoryStream();
+            var expected = "data bits and byte";
+
+            // act
+            await IOUtils.CopyBytes(instance, writer, 5);
+
+            // assert
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                writer.ToArray()));
+
+            // ensure subsequent reading attempts return 0
+            Assert.Equal(0, await instance.ReadBytes(new byte[1], 0, 1));
         }
     }
 }

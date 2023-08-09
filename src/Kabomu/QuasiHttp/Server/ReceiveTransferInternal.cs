@@ -38,12 +38,12 @@ namespace Kabomu.QuasiHttp.Server
                 }
                 catch (Exception) { } // ignore
 
-                // close body of request received for direct send to application
+                // close request received for direct send to application
                 if (Request != null)
                 {
                     try
                     {
-                        await Request.CustomDispose();
+                        await Request.Release();
                     }
                     catch (Exception) { }
                 }
@@ -53,7 +53,7 @@ namespace Kabomu.QuasiHttp.Server
                 // dispose off response
                 try
                 {
-                    var resDisposeTask = res?.CustomDispose();
+                    var resDisposeTask = res?.Release();
                     if (resDisposeTask != null)
                     {
                         await resDisposeTask;

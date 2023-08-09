@@ -12,10 +12,94 @@ namespace Kabomu.Tests.Common
     public class IOUtilsTest
     {
         [Fact]
+        public async Task TestReadBytes1()
+        {
+            var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            var actual = new byte[3];
+            var actualReadLen = await IOUtils.ReadBytes(stream, actual, 0, 2);
+            Assert.Equal(2, actualReadLen);
+            ComparisonUtils.CompareData(new byte[] { 1, 2 }, 0, 2,
+                actual, 0, 2);
+            actualReadLen = await IOUtils.ReadBytes(stream, actual, 1, 2);
+            Assert.Equal(1, actualReadLen);
+            ComparisonUtils.CompareData(new byte[] { 3 }, 0, 1,
+                actual, 1, 1);
+            actualReadLen = await IOUtils.ReadBytes(stream, actual, 2, 1);
+            Assert.Equal(0, actualReadLen);
+        }
+
+        [Fact]
+        public async Task TestReadBytes2()
+        {
+            var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            var reader = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                    stream.ReadAsync(data, offset, length)
+            };
+            var actual = new byte[3];
+            var actualReadLen = await IOUtils.ReadBytes(reader, actual, 0, 2);
+            Assert.Equal(2, actualReadLen);
+            ComparisonUtils.CompareData(new byte[] { 1, 2 }, 0, 2,
+                actual, 0, 2);
+            actualReadLen = await IOUtils.ReadBytes(reader, actual, 1, 2);
+            Assert.Equal(1, actualReadLen);
+            ComparisonUtils.CompareData(new byte[] { 3 }, 0, 1,
+                actual, 1, 1);
+            actualReadLen = await IOUtils.ReadBytes(reader, actual, 2, 1);
+            Assert.Equal(0, actualReadLen);
+        }
+
+        [Fact]
+        public async Task TestReadBytes3()
+        {
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+                IOUtils.ReadBytes(null, new byte[3], 0, 2));
+
+            var falseReader = new object();
+            await Assert.ThrowsAsync<InvalidCastException>(() =>
+                IOUtils.ReadBytes(falseReader, new byte[3], 0, 2));
+        }
+
+        [Fact]
+        public async Task TestWriteBytes1()
+        {
+            var stream = new MemoryStream();
+            await IOUtils.WriteBytes(stream, new byte[] { 1, 2, 3 }, 0, 2);
+            await IOUtils.WriteBytes(stream, new byte[] { 0, 3, 2, 1 }, 1, 2);
+            Assert.Equal(new byte[] { 1, 2, 3, 2 }, stream.ToArray());
+        }
+
+        [Fact]
+        public async Task TestWriteBytes2()
+        {
+            var stream = new MemoryStream();
+            var writer = new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = (data, offset, length) =>
+                    stream.WriteAsync(data, offset, length)
+            };
+            await IOUtils.WriteBytes(writer, new byte[] { 1, 2, 3 }, 0, 2);
+            await IOUtils.WriteBytes(writer, new byte[] { 0, 3, 2, 1 }, 1, 2);
+            Assert.Equal(new byte[] { 1, 2, 3, 2 }, stream.ToArray());
+        }
+
+        [Fact]
+        public async Task TestWriteBytes3()
+        {
+            await Assert.ThrowsAnyAsync<Exception>(() =>
+                IOUtils.WriteBytes(null, new byte[3], 0, 2));
+
+            var falseWriter = new object();
+            await Assert.ThrowsAsync<InvalidCastException>(() =>
+                IOUtils.WriteBytes(falseWriter, new byte[3], 0, 2));
+        }
+
+        [Fact]
         public async Task TestReadBytesFully()
         {
             // arrange
-            var reader = new HelperCustomReaderWritable(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
+            var reader = new RandomizedReadSizeBufferReader(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
             var readBuffer = new byte[6];
 
             // act
@@ -42,15 +126,17 @@ namespace Kabomu.Tests.Common
             ComparisonUtils.CompareData(new byte[] { 6, 7 }, 0, 2,
                 readBuffer, 3, 2);
 
-            // assert that reader hasn't been disposed
-            await reader.ReadBytes(new byte[1], 0, 1);
+            // test zero byte reads.
+            readBuffer = new byte[] { 2, 3, 5, 8 };
+            await IOUtils.ReadBytesFully(reader, readBuffer, 0, 0);
+            Assert.Equal(new byte[] { 2, 3, 5, 8 }, readBuffer);
         }
 
         [Fact]
         public async Task TestReadBytesFullyForErrors()
         {
             // arrange
-            var reader = new HelperCustomReaderWritable(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
+            var reader = new RandomizedReadSizeBufferReader(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
             var readBuffer = new byte[5];
 
             // act
@@ -65,9 +151,6 @@ namespace Kabomu.Tests.Common
             var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
                 IOUtils.ReadBytesFully(reader, readBuffer, 0, readBuffer.Length));
             Assert.Contains("end of read", actualEx.Message);
-
-            // assert that reader hasn't been disposed
-            await reader.ReadBytes(readBuffer, 0, readBuffer.Length);
         }
 
         [Theory]
@@ -76,18 +159,17 @@ namespace Kabomu.Tests.Common
             byte[] expected)
         {
             // arrange
-            var reader = new HelperCustomReaderWritable(expected);
+            var reader = new RandomizedReadSizeBufferReader(expected);
             
             // act
             var actual = await IOUtils.ReadAllBytes(reader, bufferingLimit,
                 readBufferSize);
             
             // assert
-            // check that reader has been disposed.
-            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
-                reader.ReadBytes(new byte[1], 0, 1));
-            // finally verify content.
             Assert.Equal(expected, actual);
+
+            // assert that reader has been exhausted.
+            Assert.Equal(0, await reader.ReadBytes(new byte[1], 0, 1));
         }
 
         public static List<object[]> CreateTestReadAllBytesData()
@@ -134,7 +216,7 @@ namespace Kabomu.Tests.Common
             int bufferingLimit, int readBufferSize)
         {
             // arrange
-            var reader = new HelperCustomReaderWritable(srcData);
+            var reader = new RandomizedReadSizeBufferReader(srcData);
 
             // act
             var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
@@ -166,171 +248,37 @@ namespace Kabomu.Tests.Common
             return testData;
         }
 
-        [InlineData("", 0, "")]
-        [InlineData("ab", 1, "a,b,")]
-        [InlineData("ab", 2, "ab,")]
-        [InlineData("abc", 2, "ab,c,")]
-        [InlineData("abcd", 3, "abc,d,")]
-        [InlineData("abcde", 0, "abcde,")]
-        [InlineData("abcdef", -1, "abcdef,")]
+        [InlineData("", 0, true, true)]
+        [InlineData("ab", 1, true, false)]
+        [InlineData("ab", 1, false, false)]
+        [InlineData("ab", 2, false, true)]
+        [InlineData("abc", 2, false, false)]
+        [InlineData("abcd", 3, true, true)]
+        [InlineData("abcde", 0, true, false)]
+        [InlineData("abcde", 0, false, false)]
+        [InlineData("abcdef", -1, false, true)]
         [Theory]
-        public async Task TestCopyBytes(string srcData, int readBufferSize, string expected)
+        public async Task TestCopyBytes(string srcData, int readBufferSize,
+            bool wrapReaderStream, bool wrapWriterStream)
         {
             // arrange
-            var reader = new HelperCustomReaderWritable(
-                ByteUtils.StringToBytes(srcData))
+            var expected = ByteUtils.StringToBytes(srcData);
+            var readerStream = new MemoryStream(expected);
+            var readerStreamWrapper = new RandomizedReadSizeBufferReader(expected);
+            var writerStream = new MemoryStream();
+            var writerStreamWrapper = new LambdaBasedCustomReaderWriter
             {
-                TurnOffReadRandomization = true
+                WriteFunc = (data, offset, length) =>
+                    writerStream.WriteAsync(data, offset, length)
             };
 
-            // act and assert
-            await TestReading(reader, null, readBufferSize, expected, null);
-        }
-
-        internal static async Task TestReading(ICustomReader reader, ICustomWriter writer,
-            int readBufferSize, string expected,
-            Func<ICustomWriter, string> actualFunc)
-        {
-            // arrange
-            if (writer == null)
-            {
-                writer = new DemoCustomReaderWriter(null, ",");
-                actualFunc = w => ByteUtils.BytesToString(
-                    ((DemoCustomReaderWriter)w).BufferStream.ToArray());
-            }
-
-            // act.
-            await IOUtils.CopyBytes(reader, writer, readBufferSize);
+            // act
+            await IOUtils.CopyBytes(wrapReaderStream ? readerStreamWrapper :
+                readerStream, wrapWriterStream ? writerStreamWrapper :
+                writerStream, readBufferSize);
 
             // assert
-            Assert.Equal(expected, actualFunc.Invoke(writer));
-
-            // ensure reader or writer weren't disposed.
-            await writer.WriteBytes(new byte[0], 0, 0);
-            await reader.ReadBytes(new byte[0], 0, 0);
-        }
-
-        [Theory]
-        [MemberData(nameof(CreateTestCoalesceAsReaderData))]
-        public async Task TestCoalesceAsReader(ICustomReader reader,
-            ICustomWritable fallback, byte[] expected)
-        {
-            reader = IOUtils.CoalesceAsReader(reader, fallback);
-            byte[] actual = null;
-            if (reader != null)
-            {
-                var desired = IOUtils.ReadAllBytes(reader, 0, 2);
-                // just in case error causes desired to hang forever,
-                // impose timeout
-                var first = await Task.WhenAny(Task.Delay(3000),
-                    desired);
-                if (first == desired)
-                {
-                    actual = await desired;
-                }
-            }
-            Assert.Equal(expected, actual);
-        }
-
-        public static List<object[]> CreateTestCoalesceAsReaderData()
-        {
-            var testData = new List<object[]>();
-
-            var expected = new byte[] { };
-            var reader = new HelperCustomReaderWritable(expected);
-            ICustomWritable fallback = null;
-            testData.Add(new object[] { reader, fallback, expected });
-
-            expected = null;
-            reader = null;
-            fallback = null;
-            testData.Add(new object[] { reader, fallback, expected });
-
-            expected = new byte[] { 0, 1, 2, 3 };
-            reader = new HelperCustomReaderWritable(expected);
-            fallback = new LambdaBasedCustomWritable();
-            testData.Add(new object[] { reader, fallback, expected });
-
-            expected = new byte[] { 0, 1, 2, 3, 4, 5 };
-            reader = null;
-            fallback = new HelperCustomReaderWritable(expected);
-            testData.Add(new object[] { reader, fallback, expected });
-
-            expected = new byte[] { 0, 1, 2 };
-            reader = null;
-            fallback = new LambdaBasedCustomWritable
-            {
-                WritableFunc = writer =>
-                {
-                    return writer.WriteBytes(expected, 0, expected.Length);
-                }
-            };
-            testData.Add(new object[] { reader, fallback, expected });
-
-            return testData;
-        }
-
-        class HelperCustomReaderWritable : ICustomReader, ICustomWritable
-        {
-            private readonly Random _randGen = new Random();
-            private readonly MemoryStream _stream;
-
-            public HelperCustomReaderWritable() :
-                this(null)
-            {
-            }
-
-            public HelperCustomReaderWritable(byte[] srcData)
-            {
-                _stream = new MemoryStream(srcData ?? new byte[0]);
-                _stream.Position = 0; // rewind for reading
-            }
-
-            public bool TurnOffReadRandomization { get; set; }
-
-            public Task<int> ReadBytes(byte[] data, int offset, int length)
-            {
-                var bytesToCopy = (int)Math.Min(_stream.Length - _stream.Position, length);
-                if (bytesToCopy > 0)
-                {
-                    if (!TurnOffReadRandomization)
-                    {
-                        // copy just a random quantity out of the remaining bytes
-                        bytesToCopy = _randGen.Next(bytesToCopy) + 1;
-                    }
-                }
-                return _stream.ReadAsync(data, offset, bytesToCopy);
-            }
-
-            public Task CustomDispose()
-            {
-                _stream.Dispose();
-                return Task.CompletedTask;
-            }
-
-            public Task WriteBytesTo(ICustomWriter writer)
-            {
-                var srcDataLen = (int)_stream.Length; // should trigger exception if disposed
-                return writer.WriteBytes(_stream.ToArray(), 0, srcDataLen);
-            }
-        }
-
-        class HelperCustomWriter : ICustomWriter
-        {
-            private readonly MemoryStream _stream = new MemoryStream();
-
-            public MemoryStream BufferStream => _stream;
-
-            public async Task WriteBytes(byte[] data, int offset, int length)
-            {
-                await _stream.WriteAsync(data, offset, length);
-            }
-
-            public Task CustomDispose()
-            {
-                _stream.Dispose();
-                return Task.CompletedTask;
-            }
+            Assert.Equal(expected, writerStream.ToArray());
         }
     }
 }

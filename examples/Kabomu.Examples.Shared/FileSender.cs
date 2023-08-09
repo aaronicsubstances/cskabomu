@@ -48,9 +48,9 @@ namespace Kabomu.Examples.Shared
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
             long fLen = RandGen.NextDouble() < 0.5 ? -1 : f.Length;
-            request.Body = new CustomReaderBackedBody(
-                new StreamCustomReaderWriter(fileStream))
+            request.Body = new LambdaBasedQuasiHttpBody
             {
+                ReaderFunc = () => fileStream,
                 ContentLength = fLen
             };
             IQuasiHttpResponse res;

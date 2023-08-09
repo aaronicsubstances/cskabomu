@@ -19,6 +19,6 @@ namespace Kabomu.Common
         /// by instance.
         /// </summary>
         /// <returns>a task representing asynchronous operation</returns>
-        Task CustomDispose();
+        Task Release();
     }
 }

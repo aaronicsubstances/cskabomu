@@ -1,4 +1,6 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Common;
+using Kabomu.QuasiHttp;
+using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
@@ -11,9 +13,14 @@ namespace Kabomu.Tests.Shared.QuasiHttp
     {
         public IDictionary<object, MemoryBasedServerTransport> Servers { get; set; }
 
+        public IQuasiHttpSendOptions ActualSendOptions { get; set; }
+        public object ActualRemoteEndpoint { get; set; }
+
         public Task<IConnectionAllocationResponse> AllocateConnection(
             object remoteEndpoint, IQuasiHttpSendOptions sendOptions)
         {
+            ActualRemoteEndpoint = remoteEndpoint;
+            ActualSendOptions = sendOptions;
             if (!Servers.ContainsKey(remoteEndpoint))
             {
                 return Task.FromResult<IConnectionAllocationResponse>(null);
@@ -37,16 +44,24 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             return Task.FromResult(c);
         }
 
-        public Task<int> ReadBytes(object connection, byte[] data, int offset, int length)
+        public object GetReader(object connection)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
-            return typedConnection.ProcessReadRequest(false, data, offset, length);
+            return new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                    typedConnection.ProcessReadRequest(false, data, offset, length)
+            };
         }
 
-        public Task WriteBytes(object connection, byte[] data, int offset, int length)
+        public object GetWriter(object connection)
         {
             var typedConnection = (MemoryBasedTransportConnectionInternal)connection;
-            return typedConnection.ProcessWriteRequest(false, data, offset, length);
+            return new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = (data, offset, length) =>
+                    typedConnection.ProcessWriteRequest(false, data, offset, length)
+            };
         }
 
         public Task ReleaseConnection(object connection)

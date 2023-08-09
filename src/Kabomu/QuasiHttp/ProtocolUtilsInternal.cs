@@ -1,9 +1,9 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -119,77 +119,73 @@ namespace Kabomu.QuasiHttp
         public static async Task<IQuasiHttpBody> CreateEquivalentOfUnknownBodyInMemory(
             IQuasiHttpBody body, int bodyBufferingLimit)
         {
-            // Assume that body is completely unknown, such as having nothing
+            // Assume that body is completely unknown,and as such has nothing
             // to do with chunk transfer protocol
             var reader = body.AsReader();
 
             // but still enforce the content length. even if zero,
             // still pass it on
-            if (body.ContentLength >= 0)
+            var contentLength = body.ContentLength;
+            if (contentLength >= 0)
             {
                 reader = new ContentLengthEnforcingCustomReader(reader,
-                    body.ContentLength);
+                    contentLength);
             }
 
-            // now read in entirety of body into memory and
+            // now read in entirety of body into memory
             var inMemBuffer = await IOUtils.ReadAllBytes(reader, bodyBufferingLimit);
             
             // finally maintain content length for the sake of tests.
             return new ByteBufferBody(inMemBuffer)
             {
-                ContentLength = body.ContentLength
+                ContentLength = contentLength
             };
         }
 
         public static async Task TransferBodyToTransport(
-            IQuasiHttpTransport transport, object connection, int maxChunkSize,
-            IQuasiHttpBody body)
+            object writer, int maxChunkSize, IQuasiHttpBody body)
         {
-            if (body == null || body.ContentLength == 0)
+            var contentLength = body?.ContentLength ?? 0;
+            if (body == null || contentLength == 0)
             {
                 return;
             }
-            ICustomWriter writer = new TransportCustomReaderWriter(transport,
-                connection, false);
-            if (body.ContentLength < 0)
+            if (contentLength < 0)
             {
-                writer = new ChunkEncodingCustomWriter(writer, maxChunkSize);
+                var chunkWriter = new ChunkEncodingCustomWriter(writer, maxChunkSize);
+                await body.WriteBytesTo(chunkWriter);
+                // important for chunked transfer to write out final empty chunk
+                await chunkWriter.EndWrites();
             }
-            await body.WriteBytesTo(writer);
-
-            // important for chunked transfer to write out final empty chunk
-            await writer.CustomDispose();
+            else
+            {
+                await body.WriteBytesTo(writer);
+            }
         }
 
         public static async Task<IQuasiHttpBody> CreateBodyFromTransport(
-            IQuasiHttpTransport transport, object connection, bool releaseConnection, int maxChunkSize,
-            long contentLength, bool bufferingEnabled,
-            int bodyBufferingSizeLimit)
+            object reader, long contentLength, Func<Task> releaseFunc,
+            int maxChunkSize, bool bufferingEnabled, int bodyBufferingSizeLimit)
         {
             if (contentLength == 0)
             {
                 return null;
             }
 
-            // but for the need to release connection in response processing stage,
-            // as opposed to keeping connection in request processing stage,
-            // could have received the reader as a parameter.
-            ICustomReader transportReader = new TransportCustomReaderWriter(
-                transport, connection, releaseConnection);
             if (contentLength < 0)
             {
-                transportReader = new ChunkDecodingCustomReader(transportReader,
+                reader = new ChunkDecodingCustomReader(reader,
                     maxChunkSize);
             }
             else
             {
-                transportReader = new ContentLengthEnforcingCustomReader(transportReader,
+                reader = new ContentLengthEnforcingCustomReader(reader,
                     contentLength);
             }
             if (bufferingEnabled)
             {
                 var inMemBuffer = await IOUtils.ReadAllBytes(
-                    transportReader, bodyBufferingSizeLimit);
+                    reader, bodyBufferingSizeLimit);
                 return new ByteBufferBody(inMemBuffer)
                 {
                     ContentLength = contentLength
@@ -197,9 +193,11 @@ namespace Kabomu.QuasiHttp
             }
             else
             {
-                return new CustomReaderBackedBody(transportReader)
+                return new LambdaBasedQuasiHttpBody
                 {
-                    ContentLength = contentLength
+                    ContentLength = contentLength,
+                    ReaderFunc = () => reader,
+                    ReleaseFunc = releaseFunc
                 };
             }
         }

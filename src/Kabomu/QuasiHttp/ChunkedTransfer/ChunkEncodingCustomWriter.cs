@@ -1,6 +1,7 @@
 ﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,11 +12,11 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
     /// into which it writes an unknown number of one or more chunks, 
     /// in which the last chunk has zero data length
     /// and all the previous ones have non-empty data. The last zero-data chunk
-    /// is written only when an instance of this class is disposed.
+    /// is written only when <see cref="EndWrites"/> method is called.
     /// </summary>
     public class ChunkEncodingCustomWriter : ICustomWriter
     {
-        private readonly ICustomWriter _wrappedWriter;
+        private readonly object _wrappedWriter;
         private readonly byte[] _buffer;
         private readonly byte[] _chunkHeaderBuffer;
         private int _usedBufferOffset;
@@ -30,7 +31,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <exception cref="ArgumentNullException">If <paramref name="wrappedWriter"/> is null</exception>
         /// <exception cref="ArgumentException">If <paramref name="maxChunkSize"/> exceeds
         /// the maximum signed 24-bit integer.</exception>
-        public ChunkEncodingCustomWriter(ICustomWriter wrappedWriter,
+        public ChunkEncodingCustomWriter(object wrappedWriter,
             int maxChunkSize = 0)
         {
             if (wrappedWriter == null)
@@ -73,35 +74,33 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
             else
             {
-                await ChunkedTransferUtils.EncodeSubsequentChunkHeader(
+                await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
                     _buffer.Length, _wrappedWriter, _chunkHeaderBuffer);
 
                 // next empty buffer
-                await _wrappedWriter.WriteBytes(_buffer, 0, _usedBufferOffset);
+                await IOUtils.WriteBytes(_wrappedWriter, _buffer, 0, _usedBufferOffset);
                 _usedBufferOffset = 0;
 
                 // now directly transfer data to writer.
-                await _wrappedWriter.WriteBytes(data, offset, chunkRem);
+                await IOUtils.WriteBytes(_wrappedWriter, data, offset, chunkRem);
             }
             return chunkRem;
         }
 
-        public async Task CustomDispose()
+        public async Task EndWrites()
         {
-            // flush out remaining data.
+            // write out remaining data.
             if (_usedBufferOffset > 0)
             {
-                await ChunkedTransferUtils.EncodeSubsequentChunkHeader(
+                await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
                     _usedBufferOffset, _wrappedWriter, _chunkHeaderBuffer);
-                await _wrappedWriter.WriteBytes(_buffer, 0, _usedBufferOffset);
+                await IOUtils.WriteBytes(_wrappedWriter, _buffer, 0, _usedBufferOffset);
                 _usedBufferOffset = 0;
             }
 
             // end by writing out empty terminating chunk
-            await ChunkedTransferUtils.EncodeSubsequentChunkHeader(0, _wrappedWriter,
+            await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(0, _wrappedWriter,
                 _chunkHeaderBuffer);
-
-            await _wrappedWriter.CustomDispose();
         }
     }
 }

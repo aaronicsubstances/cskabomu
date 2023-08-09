@@ -928,10 +928,14 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         [Fact]
         public async Task TestServerBypass1()
         {
+            var requestReleaseCallCount = 0;
             var remoteEndpoint = new object();
-            var request = new DefaultQuasiHttpRequest
+            var request = new ConfigurableQuasiHttpRequest
             {
-                CancellationTokenSource = new CancellationTokenSource()
+                ReleaseFunc = async () =>
+                {
+                    requestReleaseCallCount++;
+                }
             };
             var expectedResponse = new DefaultQuasiHttpResponse();
             IQuasiHttpRequest actualRequest = null;
@@ -954,16 +958,21 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             await ComparisonUtils.CompareResponses(expectedResponse,
                 actualResponse, null);
             // test that transfer was aborted.
-            Assert.True(request.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(1, requestReleaseCallCount);
         }
 
         [Fact]
         public async Task TestServerBypass2()
         {
+            var requestReleaseCallCount = 0;
             var remoteEndpoint = new object();
-            var request = new DefaultQuasiHttpRequest
+            var request = new ConfigurableQuasiHttpRequest
             {
-                CancellationTokenSource = new CancellationTokenSource()
+                ReleaseFunc = async () =>
+                {
+                    requestReleaseCallCount++;
+                    throw new Exception("should be ignored");
+                }
             };
             IQuasiHttpRequest actualRequest = null;
             var server = new StandardQuasiHttpServer
@@ -982,7 +991,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             Assert.Same(request, actualRequest);
             Assert.Null(actualResponse);
             // test that transfer was aborted.
-            Assert.True(request.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(1, requestReleaseCallCount);
         }
 
         [Fact]
@@ -1043,9 +1052,13 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 TimeoutMillis = 1_500
             };
-            var request = new DefaultQuasiHttpRequest
+            var requestReleaseCallCount = 0;
+            var request = new ConfigurableQuasiHttpRequest
             {
-                CancellationTokenSource = new CancellationTokenSource()
+                ReleaseFunc = async () =>
+                {
+                    requestReleaseCallCount++;
+                }
             };
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
                 server.AcceptRequest(request, receiveOptions));
@@ -1053,7 +1066,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeTimeout,
                 actualEx.ReasonCode);
             // test that transfer was aborted.
-            Assert.True(request.CancellationTokenSource.IsCancellationRequested);
+            Assert.Equal(1, requestReleaseCallCount);
         }
 
         [Fact]
