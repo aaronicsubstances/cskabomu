@@ -45,10 +45,25 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// </summary>
         public static readonly int HardMaxChunkSizeLimit = 8_388_607;
 
+        /// <summary>
+        /// Encodes a subsequent chunk header to a custom writer.
+        /// </summary>
+        /// <param name="chunkDataLength">the number of bytes of the
+        /// chunk data section which will follow the header.</param>
+        /// <param name="writer">destination of encoded subsequent chunk header
+        /// acceptable by <see cref="IOUtils.WriteBytes"/> function.</param>
+        /// <param name="bufferToUse">optional buffer to use as temporary
+        /// storage during encoding. Will be ignored if less than 5 bytes long.</param>
+        /// <returns>a task representing asynchronous operation</returns>
         public static Task EncodeSubsequentChunkV1Header(
-            int chunkDataLength, object writer, byte[] bufferToUse)
+            int chunkDataLength, object writer, byte[] bufferToUse = null)
         {
-            ByteUtils.SerializeUpToInt64BigEndian(
+            if (bufferToUse == null ||
+                bufferToUse.Length < LengthOfEncodedChunkLength + 2)
+            {
+                bufferToUse = new byte[LengthOfEncodedChunkLength + 2];
+            }
+            ByteUtils.SerializeUpToInt32BigEndian(
                 chunkDataLength + 2, bufferToUse, 0,
                 LengthOfEncodedChunkLength);
             bufferToUse[LengthOfEncodedChunkLength] = LeadChunk.Version01;
@@ -56,21 +71,45 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             return IOUtils.WriteBytes(writer, bufferToUse, 0, LengthOfEncodedChunkLength + 2);
         }
 
+        /// <summary>
+        /// Decodes a subsequent chunk header from a custom reader.
+        /// </summary>
+        /// <param name="reader">source of bytes representing subsequent
+        /// chunk header which is acceptable by <see cref="IOUtils.ReadBytes"/> function.</param>
+        /// <param name="bufferToUse">optional buffer to use as temporary
+        /// storage during decoding. Will be ignored if less than 5 bytes long.</param>
+        /// <param name="maxChunkSize">the maximum allowable size of the subsequent chunk to be decoded.
+        /// NB: This parameter imposes a maximum only on lead chunks exceeding 64KB in size. Can
+        /// pass zero to use default value.</param>
+        /// <returns>a task whose result will be the number of bytes in the
+        /// data following the decoded header.</returns>
+        /// <exception cref="ChunkDecodingException">the bytes in the
+        /// <see cref="reader"/> argument do not represent a valid subsequent
+        /// chunk header in version 1 format.</exception>
         public static async Task<int> DecodeSubsequentChunkV1Header(
-            object reader, byte[] bufferToUse, int maxChunkSize)
+            object reader, byte[] bufferToUse = null, int maxChunkSize = 0)
         {
+            if (bufferToUse == null ||
+                bufferToUse.Length < LengthOfEncodedChunkLength + 2)
+            {
+                bufferToUse = new byte[LengthOfEncodedChunkLength + 2];
+            }
+            if (maxChunkSize <= 0)
+            {
+                maxChunkSize = DefaultMaxChunkSize;
+            }
             try
             {
                 await IOUtils.ReadBytesFully(reader,
                    bufferToUse, 0, LengthOfEncodedChunkLength + 2);
 
-                var chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(
+                var chunkLen = ByteUtils.DeserializeUpToInt32BigEndian(
                     bufferToUse, 0, LengthOfEncodedChunkLength,
                     true);
                 ValidateChunkLength(chunkLen, maxChunkSize);
 
                 int version = bufferToUse[LengthOfEncodedChunkLength];
-                //int flags = readBuffer[LengthOfEncodedChunkLength+1];
+                //int flags = bufferToUse[LengthOfEncodedChunkLength+1];
                 if (version != LeadChunk.Version01)
                 {
                     throw new ArgumentException("version not set to v1");
@@ -94,7 +133,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <param name="reader">the source to read from</param>
         /// <param name="maxChunkSize">the maximum allowable size of the lead chunk to be decoded; effectively this
         /// determines the maximum combined size of quasi http headers to be decoded. NB: This parameter
-        /// imposes a maximum only on lead chunks exceeding 64KB in size.</param>
+        /// imposes a maximum only on lead chunks exceeding 64KB in size. Can
+        /// pass zero to use default value.</param>
         /// <returns>task whose result is a decoded lead chunk.</returns>
         /// <exception cref="ArgumentNullException">The <paramref name="reader"/> argument is null</exception>
         /// <exception cref="ChunkDecodingException">If data from reader could not be decoded
@@ -120,7 +160,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 }
                 await IOUtils.ReadBytesFully(reader,
                     encodedLength, 1, encodedLength.Length - 1);
-                int chunkLen = (int)ByteUtils.DeserializeUpToInt64BigEndian(encodedLength, 0,
+                int chunkLen = ByteUtils.DeserializeUpToInt32BigEndian(encodedLength, 0,
                      encodedLength.Length, true);
                 ValidateChunkLength(chunkLen, maxChunkSize);
                 chunkBytes = new byte[chunkLen];
@@ -172,9 +212,11 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// Helper function for writing out quasi http headers. Quasi http headers are encoded
         /// as the leading chunk before any subsequent chunk representing part of the data of an http body.
         /// </summary>
-        /// <param name="writer">the destination to write to</param>
+        /// <param name="writer">the destination to write to which is acceptable
+        /// by <see cref="IOUtils.WriteBytes"/></param>
         /// <param name="chunk">the lead chunk containing http headers to be written</param>
-        /// <param name="maxChunkSize">the maximum size of the lead chunk.</param>
+        /// <param name="maxChunkSize">the maximum size of the lead chunk. Can
+        /// pass zero to use default value.</param>
         /// <returns>a task representing the asynchronous write operation.</returns>
         /// <exception cref="ArgumentNullException">The <paramref name="writer"/> or
         /// the <paramref name="chunk"/> argument is null.</exception>
@@ -203,7 +245,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 throw new ArgumentException($"headers larger than max chunk size limit of {HardMaxChunkSizeLimit}");
             }
             var encodedLength = new byte[LengthOfEncodedChunkLength];
-            ByteUtils.SerializeUpToInt64BigEndian(byteCount, encodedLength, 0,
+            ByteUtils.SerializeUpToInt32BigEndian(byteCount, encodedLength, 0,
                 encodedLength.Length);
             await IOUtils.WriteBytes(writer, encodedLength, 0, encodedLength.Length);
             await chunk.WriteOutSerializedRepresentation(writer);

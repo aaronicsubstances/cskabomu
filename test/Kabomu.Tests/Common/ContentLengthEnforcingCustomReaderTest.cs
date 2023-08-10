@@ -64,7 +64,7 @@ namespace Kabomu.Tests.Common
         public async Task TestZeroByteRead1()
         {
             var stream = new MemoryStream(new byte[] { 0, 1, 2});
-            var instance = new ContentLengthEnforcingCustomReader(stream, -1, true);
+            var instance = new ContentLengthEnforcingCustomReader(stream, -1);
 
             var actual = await instance.ReadBytes(new byte[0], 0, 0);
             Assert.Equal(0, actual);
@@ -100,25 +100,34 @@ namespace Kabomu.Tests.Common
         public async Task TestZeroByteRead3()
         {
             var stream = new MemoryStream(new byte[] { 0, 1, 2 });
-            var instance = new ContentLengthEnforcingCustomReader(stream, 4, true);
+            var reader = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = (data, offset, length) =>
+                {
+                    if (length == 0)
+                    {
+                        throw new ArgumentException("this instance only accepts " +
+                            "positive lengths");
+                    }
+                    return stream.ReadAsync(data, offset, length);
+                }
+            };
+            var instance = new ContentLengthEnforcingCustomReader(reader, 4);
+            int actual;
 
-            var actual = await instance.ReadBytes(new byte[0], 0, 0);
-            Assert.Equal(0, actual);
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                instance.ReadBytes(new byte[0], 0, 0));
 
             var expected = new byte[3];
             actual = await instance.ReadBytes(expected, 0, 3);
             Assert.Equal(3, actual);
             Assert.Equal(expected, new byte[] { 0, 1, 2 });
 
-            actual = await instance.ReadBytes(new byte[0], 0, 0);
-            Assert.Equal(0, actual);
-
             await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.ReadBytes(new byte[2], 0, 2));
 
-            // verify that zero byte reads will work at this stage.
-            actual = await instance.ReadBytes(new byte[0], 0, 0);
-            Assert.Equal(0, actual);
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                instance.ReadBytes(new byte[0], 0, 0));
         }
 
         [Fact]
@@ -137,28 +146,28 @@ namespace Kabomu.Tests.Common
                     return stream.ReadAsync(data, offset, length);
                 }
             };
-            var instance = new ContentLengthEnforcingCustomReader(reader, 3,
-                true);
+            var instance = new ContentLengthEnforcingCustomReader(reader, -1);
+            int actual;
 
-            await Assert.ThrowsAsync<ArgumentException>(
-                () => instance.ReadBytes(new byte[0], 0, 0));
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                instance.ReadBytes(new byte[0], 0, 0));
 
             var expected = new byte[3];
-            var actual = await instance.ReadBytes(expected, 0, 3);
+            actual = await instance.ReadBytes(expected, 0, 3);
             Assert.Equal(3, actual);
             Assert.Equal(expected, new byte[] { 0, 1, 2 });
 
-            actual = await instance.ReadBytes(expected, 0, expected.Length);
-            Assert.Equal(0, actual);
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                instance.ReadBytes(new byte[0], 0, 0));
 
-            await Assert.ThrowsAsync<ArgumentException>(
-                () => instance.ReadBytes(new byte[0], 0, 0));
+            actual = await instance.ReadBytes(new byte[2], 0, 2);
+            Assert.Equal(0, actual);
         }
 
         [Fact]
         public async Task TestZeroByteRead5()
         {
-            var stream = new MemoryStream(new byte[] { 0, 1, 2 });
+            var stream = new MemoryStream(new byte[] { 0, 1, 2, 3 });
             var reader = new LambdaBasedCustomReaderWriter
             {
                 ReadFunc = (data, offset, length) =>
@@ -171,94 +180,25 @@ namespace Kabomu.Tests.Common
                     return stream.ReadAsync(data, offset, length);
                 }
             };
-            var instance = new ContentLengthEnforcingCustomReader(reader, -1,
-                true);
+            var instance = new ContentLengthEnforcingCustomReader(reader, 3);
+            int actual;
 
-            await Assert.ThrowsAsync<ArgumentException>(
-                () => instance.ReadBytes(new byte[0], 0, 0));
-
-            var expected = new byte[3];
-            var actual = await instance.ReadBytes(expected, 0, 3);
-            Assert.Equal(3, actual);
-            Assert.Equal(expected, new byte[] { 0, 1, 2 });
-
-            actual = await instance.ReadBytes(expected, 0, expected.Length);
-            Assert.Equal(0, actual);
-
-            await Assert.ThrowsAsync<ArgumentException>(
-                () => instance.ReadBytes(new byte[0], 0, 0));
-        }
-
-        [Fact]
-        public async Task TestZeroByteRead6()
-        {
-            var stream = new MemoryStream(new byte[] { 0, 1, 2 });
-            var reader = new LambdaBasedCustomReaderWriter
-            {
-                ReadFunc = (data, offset, length) =>
-                {
-                    if (length == 0)
-                    {
-                        throw new ArgumentException("this instance only accepts " +
-                            "positive lengths");
-                    }
-                    return stream.ReadAsync(data, offset, length);
-                }
-            };
-            var instance = new ContentLengthEnforcingCustomReader(reader, 4,
-                false);
-
-            var actual = await instance.ReadBytes(new byte[0], 0, 0);
-            Assert.Equal(0, actual);
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                instance.ReadBytes(new byte[0], 0, 0));
 
             var expected = new byte[3];
             actual = await instance.ReadBytes(expected, 0, 3);
             Assert.Equal(3, actual);
             Assert.Equal(expected, new byte[] { 0, 1, 2 });
 
-            actual = await instance.ReadBytes(new byte[0], 0, 0);
-            Assert.Equal(0, actual);
-
-            await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.ReadBytes(new byte[2], 0, 2));
-
-            // verify that zero byte reads will work at this stage.
-            actual = await instance.ReadBytes(new byte[0], 0, 0);
-            Assert.Equal(0, actual);
-        }
-
-        [Fact]
-        public async Task TestZeroByteRead7()
-        {
-            var stream = new MemoryStream(new byte[] { 0, 1, 2 });
-            var reader = new LambdaBasedCustomReaderWriter
-            {
-                ReadFunc = (data, offset, length) =>
-                {
-                    if (length == 0)
-                    {
-                        throw new ArgumentException("this instance only accepts " +
-                            "positive lengths");
-                    }
-                    return stream.ReadAsync(data, offset, length);
-                }
-            };
-            var instance = new ContentLengthEnforcingCustomReader(reader, -1,
-                false);
-
-            var actual = await instance.ReadBytes(new byte[0], 0, 0);
-            Assert.Equal(0, actual);
-
-            var expected = new byte[3];
-            actual = await instance.ReadBytes(expected, 0, 3);
-            Assert.Equal(3, actual);
-            Assert.Equal(expected, new byte[] { 0, 1, 2 });
-
-            actual = await instance.ReadBytes(new byte[0], 0, 0);
-            Assert.Equal(0, actual);
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                instance.ReadBytes(new byte[0], 0, 0));
 
             actual = await instance.ReadBytes(new byte[2], 0, 2);
             Assert.Equal(0, actual);
+
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                instance.ReadBytes(new byte[0], 0, 0));
         }
     }
 }

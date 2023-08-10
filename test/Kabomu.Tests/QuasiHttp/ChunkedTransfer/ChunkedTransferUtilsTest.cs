@@ -20,8 +20,24 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         {
             var destStream = new MemoryStream();
             await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
-                chunkDataLength, destStream, new byte[50]);
+                chunkDataLength, destStream, new byte[5]);
             var actual = destStream.ToArray();
+            ComparisonUtils.CompareData(expected, 0, expected.Length,
+                actual, 0, actual.Length);
+
+            // should work without temp buffer
+            destStream.Position = 0;
+            await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
+                chunkDataLength, destStream);
+            actual = destStream.ToArray();
+            ComparisonUtils.CompareData(expected, 0, expected.Length,
+                actual, 0, actual.Length);
+
+            // should also work with unusable buffer
+            destStream.Position = 0;
+            await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
+                chunkDataLength, destStream, new byte[4]);
+            actual = destStream.ToArray();
             ComparisonUtils.CompareData(expected, 0, expected.Length,
                 actual, 0, actual.Length);
         }
@@ -54,6 +70,18 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var actual = await ChunkedTransferUtils.DecodeSubsequentChunkV1Header(
                 reader, new byte[50], maxChunkSize);
             Assert.Equal(expected, actual);
+
+            // should work without temp buffer
+            reader.Position = 0;
+            actual = await ChunkedTransferUtils.DecodeSubsequentChunkV1Header(
+                reader, null, maxChunkSize);
+            Assert.Equal(expected, actual);
+
+            // should also work with unusable buffer
+            reader.Position = 0;
+            actual = await ChunkedTransferUtils.DecodeSubsequentChunkV1Header(
+                reader, new byte[4], maxChunkSize);
+            Assert.Equal(expected, actual);
         }
 
         public static List<object[]> CreateTestDecodeSubsequentChunkV1HeaderData()
@@ -63,6 +91,11 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var srcData = new byte[] { 0, 0, 2, 1, 0 };
             int maxChunkSize = 40;
             int expected = 0;
+            testData.Add(new object[] { srcData, maxChunkSize, expected });
+
+            srcData = new byte[] { 0, 0, 2, 1, 0 };
+            maxChunkSize = 0;
+            expected = 0;
             testData.Add(new object[] { srcData, maxChunkSize, expected });
 
             srcData = new byte[] { 0, 2, 0x2d, 1, 0 };
@@ -230,7 +263,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var srcStream = new MemoryStream();
             int maxChunkSize = 40;
             var encodedLength = new byte[ChunkedTransferUtils.LengthOfEncodedChunkLength];
-            ByteUtils.SerializeUpToInt64BigEndian(1_000_000, encodedLength, 0, encodedLength.Length);
+            ByteUtils.SerializeUpToInt32BigEndian(1_000_000, encodedLength, 0, encodedLength.Length);
             srcStream.Write(encodedLength);
 
             srcStream.Position = 0; // reset for reading.

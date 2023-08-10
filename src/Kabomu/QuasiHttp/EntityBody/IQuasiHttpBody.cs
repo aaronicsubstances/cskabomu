@@ -19,7 +19,8 @@ namespace Kabomu.QuasiHttp.EntityBody
         long ContentLength { get; }
 
         /// <summary>
-        /// Gets a reader for reading from body, or returns null to
+        /// Gets a reader acceptable by <see cref="IOUtils.ReadBytes"/>,
+        /// for reading from body. Can also return null to
         /// indicate that direct reading is not supported.
         /// </summary>
         object Reader { get; }

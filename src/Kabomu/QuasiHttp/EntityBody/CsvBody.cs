@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// Represents quasi http body based CSV serialized in UTF8 encoding. This class was created
+    /// Represents quasi http body based CSV serialized in UTF-8 encoding. This class was created
     /// to serve as a convenient means of representing actual HTTP forms (application/x-www-form-urlencoded),
     /// and query string portion of actual HTTP request lines/URLs. Both can be encoded as CSV rows, in which 
     /// <list type="number">
@@ -46,8 +46,8 @@ namespace Kabomu.QuasiHttp.EntityBody
         public Task Release() => Task.CompletedTask;
 
         /// <summary>
-        /// Returns a freshly created reader backed by
-        /// <see cref="Content"/> property in UTF8 encoding.
+        /// Returns a freshly created <see cref="Stream"/> instance backed by
+        /// <see cref="Content"/> property in UTF-8 encoding.
         /// </summary>
         public object Reader
         {
@@ -60,7 +60,7 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         /// <summary>
         /// Transfers contents of <see cref="Content"/> property
-        /// to supplied writer in UTF8 encoding.
+        /// to supplied writer in UTF-8 encoding.
         /// </summary>
         /// <param name="writer">supplied writer</param>
         public Task WriteBytesTo(object writer)

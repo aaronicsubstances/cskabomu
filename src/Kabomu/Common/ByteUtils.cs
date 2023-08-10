@@ -74,16 +74,16 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Converts a 64-bit signed integer to its big-endian representation and stores any specified number of
+        /// Converts a 32-bit signed integer to its big-endian representation and stores any specified number of
         /// the least significant bytes of the representation in a byte array.
         /// </summary>
-        /// <param name="v">64-bit signed integer to convert.</param>
+        /// <param name="v">32-bit signed integer to convert.</param>
         /// <param name="rawBytes">destination buffer of conversion.</param>
         /// <param name="offset">offset into destination buffer to store the conversion.</param>
-        /// <param name="length">the number of least significant bytes of the representation to store in the destination buffer (0-8).</param>
+        /// <param name="length">the number of least significant bytes of the representation to store in the destination buffer (0-4).</param>
         /// <exception cref="T:System.ArgumentException">The <paramref name="offset"/> argument is negative.</exception>
-        /// <exception cref="T:System.ArgumentException">The <paramref name="length"/> argument is negative or larger than 8.</exception>
-        public static void SerializeUpToInt64BigEndian(long v, byte[] rawBytes, int offset, int length)
+        /// <exception cref="T:System.ArgumentException">The <paramref name="length"/> argument is negative or larger than 4.</exception>
+        public static void SerializeUpToInt32BigEndian(int v, byte[] rawBytes, int offset, int length)
         {
             if (offset < 0)
             {
@@ -93,9 +93,9 @@ namespace Kabomu.Common
             {
                 throw new ArgumentException("cannot be negative", nameof(length));
             }
-            if (length > 8)
+            if (length > 4)
             {
-                throw new ArgumentException("cannot be larger than 8", nameof(length));
+                throw new ArgumentException("cannot be larger than 4", nameof(length));
             }
             int nextIndex = offset + length - 1;
             int shiftCount = 0;
@@ -107,17 +107,17 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Creates a 64-bit signed integer from its big-endian representation, given any number of its least significant bytes.
+        /// Creates a 32-bit signed integer from its big-endian representation, given any number of its least significant bytes.
         /// </summary>
         /// <param name="rawBytes">source buffer for conversion.</param>
         /// <param name="offset">the start of the data for the integer in the source buffer</param>
-        /// <param name="length">the number of least significant bytes of the representation to fetch from the source buffer (0-8).</param>
+        /// <param name="length">the number of least significant bytes of the representation to fetch from the source buffer (0-4).</param>
         /// <param name="signed">whether the bytes should be interpreted as a signed integer. pass false to interpret as an
-        /// unsigned integer. NB: for length of 8 bytes, interpretation is always as a signed integer.</param>
+        /// unsigned integer. NB: for length of 4 bytes, interpretation is always as a signed integer.</param>
         /// <returns></returns>
         /// <exception cref="T:System.ArgumentException">The <paramref name="offset"/> argument is negative.</exception>
-        /// <exception cref="T:System.ArgumentException">The <paramref name="length"/> argument is negative or larger than 8.</exception>
-        public static long DeserializeUpToInt64BigEndian(byte[] rawBytes, int offset, int length,
+        /// <exception cref="T:System.ArgumentException">The <paramref name="length"/> argument is negative or larger than 4.</exception>
+        public static int DeserializeUpToInt32BigEndian(byte[] rawBytes, int offset, int length,
             bool signed)
         {
             if (offset < 0)
@@ -128,23 +128,23 @@ namespace Kabomu.Common
             {
                 throw new ArgumentException("cannot be negative", nameof(length));
             }
-            if (length > 8)
+            if (length > 4)
             {
-                throw new ArgumentException("cannot be larger than 8", nameof(length));
+                throw new ArgumentException("cannot be larger than 4", nameof(length));
             }
             int nextIndex = offset + length - 1;
             int shiftCount = 0;
-            long v = 0;
+            int v = 0;
             while (nextIndex >= offset)
             {
-                v |= (long)(rawBytes[nextIndex--] & 0xff) << shiftCount;
+                v |= (rawBytes[nextIndex--] & 0xff) << shiftCount;
                 shiftCount += 8;
             }
-            // cater for signed integers of size less than 8 bytes (those exactly
-            // of 8 bytes will already be signed).
-            if (signed && length > 0 && length < 8 && (rawBytes[offset] >> 7) != 0)
+            // cater for signed integers of size less than 4 bytes (those exactly
+            // of 4 bytes will already be signed).
+            if (signed && length > 0 && length < 4 && (rawBytes[offset] >> 7) != 0)
             {
-                long inverter = ~((1L << (length * 8)) - 1);
+                int inverter = ~((1 << (length * 8)) - 1);
                 v = v | inverter;
             }
             return v;

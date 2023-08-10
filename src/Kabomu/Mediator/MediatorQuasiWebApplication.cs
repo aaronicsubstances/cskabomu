@@ -1,5 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.Mediator.Handling;
+using Kabomu.Mediator.Path;
 using Kabomu.Mediator.Registry;
 using Kabomu.QuasiHttp;
 using System;
@@ -31,7 +32,7 @@ namespace Kabomu.Mediator
     /// <see cref="ContextExtensions"/> classes.
     /// <para></para>
     /// Handlers however can need more sophisticated setups to deal with request method and path matching,
-    /// and so the <see cref="HandlerUtils"/> and <see cref="Path.DefaultPathTemplateGenerator"/> classes exist for this
+    /// and so the <see cref="HandlerUtils"/> and <see cref="DefaultPathTemplateGenerator"/> classes exist for this
     /// purpose as well.
     /// </remarks>
     public class MediatorQuasiWebApplication : IQuasiHttpApplication
@@ -47,9 +48,23 @@ namespace Kabomu.Mediator
         /// instance of <see cref="IContext"/> class for use by all handlers.
         /// </summary>
         /// <remarks>
-        /// "Shadowable" here means that handlers can use delegation to insert their own
+        /// "Shadowable" here means "can be hiddden", ie handlers can insert their own
         /// contextual objects at the top of the context's registry under the keys of
         /// the context objects in this property.
+        /// <para>
+        /// The following shadowable contextual objects are made available by default if not found
+        /// initially inside this property:
+        /// (1) an instance of <see cref="DefaultPathTemplateGenerator"/>
+        /// stored under the key <see cref="ContextUtils.RegistryKeyPathTemplateGenerator"/>;
+        /// (2) an instance of <see cref="IPathMatchResult"/> stored under the
+        /// key <see cref="ContextUtils.RegistryKeyPathMatchResult"/> with its
+        /// <see cref="IPathMatchResult.UnboundRequestTarget"/> property set to the
+        /// value of the <see cref="IQuasiHttpRequest.Target"/> property for the incoming
+        /// request. The <see cref="IPathMatchResult.BoundPath"/> and 
+        /// <see cref="IPathMatchResult.PathValues"/> properties will be set with
+        /// empty or null values depending on whether the <see cref="IQuasiHttpRequest.Target"/>
+        /// value is not null or null respectively.
+        /// </para>
         /// </remarks>
         public IRegistry InitialHandlerVariables { get; set; }
 
@@ -58,9 +73,24 @@ namespace Kabomu.Mediator
         /// instance of <see cref="IContext"/> class for use by all handlers.
         /// </summary>
         /// <remarks>
-        /// "Non-shadowable" here means that handlers cannot use delegation to insert their own
+        /// "Non-shadowable" here means "cannot be hidden", ie handlers cannot insert their own
         /// contextual objects at the top of the context's registry under the keys of
         /// the context objects in this property (they can try, but it won't take effect).
+        /// <para>
+        /// The following non-shadowable contextual objects are always exposed
+        /// regardless of whether they are found initially inside this property:
+        /// (1) an instance of <see cref="IContext"/>
+        /// stored under the key <see cref="ContextUtils.RegistryKeyContext"/>,
+        /// which is same as the context object that all handlers will receive;
+        /// (2) an instance of <see cref="IContextRequest"/>
+        /// stored under the key <see cref="ContextUtils.RegistryKeyRequest"/>,
+        /// which is same as the <see cref="IContext.Request"/> property of
+        /// the context that all handlers will receive;
+        /// (3) an instance of <see cref="IContextResponse"/>
+        /// stored under the key <see cref="ContextUtils.RegistryKeyResponse"/>,
+        /// which is same as the <see cref="IContext.Response"/> property of
+        /// the context that all handlers will receive;
+        /// </para>
         /// </remarks>
         public IRegistry HandlerConstants { get; set; }
 
@@ -69,8 +99,7 @@ namespace Kabomu.Mediator
         /// processing the pipeline of handlers set up in the <see cref="InitialHandlers"/> property.
         /// </summary>
         /// <param name="request">the quasi http response</param>
-        /// <param name="requestEnvironment">request environment variables</param>
-        /// <returns>a task whose result will be a quasi http response</returns>
+        /// <returns>a task whose result will be a quasi http response to the request</returns>
         /// <exception cref="MissingDependencyException">The <see cref="InitialHandlers"/> property is null</exception>
         public Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request)
         {

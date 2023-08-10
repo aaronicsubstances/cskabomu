@@ -7,8 +7,9 @@ using System.Threading.Tasks;
 namespace Kabomu.Common
 {
     /// <summary>
-    /// Implementation of reader and writer interfaces which is based on a "pipe"
-    /// of bytes, where one thread writes data to one end of it,
+    /// Implementation of <see cref="ICustomReader"/> and <see cref="ICustomWriter"/>
+    /// interfaces which is based on a "pipe" of bytes, where one thread writes 
+    /// data to one end of it,
     /// and another thread reads data from the other end of it.
     /// The end of the pipe from which data is read serves
     /// as the byte stream to be read by clients.

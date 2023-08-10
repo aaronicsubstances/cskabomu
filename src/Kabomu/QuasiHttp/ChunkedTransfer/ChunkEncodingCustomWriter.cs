@@ -25,7 +25,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// Creates a new instance.
         /// </summary>
         /// <param name="wrappedWriter">the backing writer through which
-        /// the encoded bytes will be sent</param>
+        /// the encoded bytes will be sent. Must be acceptable by
+        /// <see cref="IOUtils.WriteBytes"/> function.</param>
         /// <param name="maxChunkSize">maximum size of chunks. Can pass
         /// 0 to use a default value.</param>
         /// <exception cref="ArgumentNullException">If <paramref name="wrappedWriter"/> is null</exception>

@@ -156,7 +156,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
         }
 
         [Fact]
-        public async Task TestReceiveEnsuresCloseOnNonNullResponse()
+        public async Task TestReceiveEnsuresReleaseOnNonNullResponse()
         {
             var connection = new List<string> { "example" };
             var request = new DefaultQuasiHttpRequest();

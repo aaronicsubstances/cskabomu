@@ -37,7 +37,7 @@ namespace Kabomu.QuasiHttp.Client
         /// <para></para>
         /// A value of false means clients are responsible for closing a response if it has a body.
         /// <para></para>
-        /// A value of true means send request processing must ensure that responses are closed before returning them to clients,
+        /// A value of true means send request processing must ensure that responses are released before returning them to clients,
         /// by generating equivalent responses with buffered bodies.
         /// <para></para>
         /// Else a value of null means it is unspecified whether response buffering is enabled or not, and in the absence of

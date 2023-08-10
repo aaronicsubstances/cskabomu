@@ -8,13 +8,13 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.EntityBody
 {
     /// <summary>
-    /// Represents quasi http body based on a string in UTF8 encoding.
+    /// Represents quasi http body based on a string in UTF-8 encoding.
     /// </summary>
     public class StringBody : IQuasiHttpBody
     {
         /// <summary>
         /// Creates a new instance with the given string. The content length is
-        /// initialized to the byte count of the string in UTF8 encoding.
+        /// initialized to the byte count of the string in UTF-8 encoding.
         /// </summary>
         /// <param name="content">string content</param>
         /// <exception cref="ArgumentNullException">if string argument is null</exception>
@@ -41,8 +41,8 @@ namespace Kabomu.QuasiHttp.EntityBody
         public Task Release() => Task.CompletedTask;
 
         /// <summary>
-        /// Returns a freshly created reader backed by
-        /// <see cref="Content"/> property in UTF8 encoding.
+        /// Returns a freshly created  <see cref="Stream"/> instance backed by
+        /// <see cref="Content"/> property in UTF-8 encoding.
         /// </summary>
         public object Reader
         {
@@ -55,7 +55,7 @@ namespace Kabomu.QuasiHttp.EntityBody
 
         /// <summary>
         /// Transfers contents of <see cref="Content"/> property
-        /// to supplied writer in UTF8 encoding.
+        /// to supplied writer in UTF-8 encoding.
         /// </summary>
         /// <param name="writer">supplied writer</param>
         public Task WriteBytesTo(object writer)

@@ -61,8 +61,7 @@ namespace Http.FileServer
             }
             var processingOptions = new DefaultQuasiHttpProcessingOptions
             {
-                TimeoutMillis = 5_000,
-                MaxChunkSize = 2 * 8192
+                TimeoutMillis = 5_000
             };
             IQuasiHttpResponse quasiResponse;
             try

@@ -8,9 +8,10 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp.ChunkedTransfer
 {
     /// <summary>
-    /// The standard chunk decoder of byte streams in the Kabomu library. Receives a reader and assumes it consists of
-    /// an unknown number of one or more chunks, in which the last chunk has zero data length
-    /// and all the previous ones have non-empty data.
+    /// The standard chunk decoder of byte streams in the Kabomu library.
+    /// Receives a reader and assumes it consists of
+    /// an unknown number of one or more chunks, in which the last chunk has
+    /// zero data length and all the previous ones have non-empty data.
     /// </summary>
     public class ChunkDecodingCustomReader : ICustomReader
     {
@@ -23,7 +24,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <summary>
         /// Constructor for decoding chunks previously encoded in the data of another instance.
         /// </summary>
-        /// <param name="wrappedReader">the source of bytes to decode.</param>
+        /// <param name="wrappedReader">the source of bytes to decode which
+        /// is acceptable by <see cref="IOUtils.ReadBytes"/> function.</param>
         /// <param name="maxChunkSize">the maximum allowable size of a chunk seen in the body instance being decoded.
         /// NB: values less than 64KB are always accepted, and so this parameter imposes a maximum only on chunks
         /// with lengths greater than 64KB.</param>

@@ -14,7 +14,6 @@ namespace Kabomu.Common
     {
         private readonly object _wrappedReader;
         private readonly long _expectedLength;
-        private readonly bool _answerZeroByteReadsFromBackingReader;
         private long _bytesAlreadyRead;
 
         /// <summary>
@@ -24,12 +23,8 @@ namespace Kabomu.Common
         /// <param name="expectedLength">the expected number of bytes to guarantee or assert.
         /// Can be negative to indicate that the all remaining bytes in the backing reader
         /// should be returned.</param>
-        /// <param name="answerZeroByteReadsFromBackingReader">pass true
-        /// if a request to read zero bytes should be passed onto backing reader;
-        /// or pass false to immediately return zero, which is the default.</param>
         /// <exception cref="ArgumentNullException">The <paramref name="wrappedReader"/> argument is null.</exception>
-        public ContentLengthEnforcingCustomReader(object wrappedReader,
-            long expectedLength, bool answerZeroByteReadsFromBackingReader = false)
+        public ContentLengthEnforcingCustomReader(object wrappedReader, long expectedLength)
         {
             if (wrappedReader == null)
             {
@@ -37,7 +32,6 @@ namespace Kabomu.Common
             }
             _wrappedReader = wrappedReader;
             _expectedLength = expectedLength;
-            _answerZeroByteReadsFromBackingReader = answerZeroByteReadsFromBackingReader;
         }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int length)
@@ -67,7 +61,7 @@ namespace Kabomu.Common
             }
             else
             {
-                proceedWithUnderlyingRead = _answerZeroByteReadsFromBackingReader;
+                proceedWithUnderlyingRead = true;
             }
             int bytesJustRead = 0;
             if (proceedWithUnderlyingRead)

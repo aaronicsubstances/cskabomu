@@ -81,7 +81,7 @@ namespace Kabomu.QuasiHttp.Client
                 if (responseBody == null || originalResponseBufferingApplied == true ||
                         responseBufferingApplied)
                 {
-                    // close original response.
+                    // dispose original response.
                     try
                     {
                         await originalResponse.Release();

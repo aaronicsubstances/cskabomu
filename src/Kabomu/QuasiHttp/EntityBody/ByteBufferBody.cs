@@ -64,7 +64,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         public int Length { get; }
 
         /// <summary>
-        /// Returns a freshly created reader backed by
+        /// Returns a freshly created <see cref="Stream"/> instance backed by
         /// <see cref="Buffer"/> property.
         /// </summary>
         public object Reader

@@ -11,8 +11,8 @@ namespace Kabomu.Mediator.Registry
     public static class RegistryExtensions
     {
         /// <summary>
-        /// Constructs a registry out of two existing registries, in which one is preferred,
-        /// and the other is used as fallback when keys are not found in preferred registry.
+        /// Constructs a registry out of two existing registries, in which the second one is preferred,
+        /// and the first is used as fallback when keys are not found in preferred registry.
         /// </summary>
         /// <param name="parent">the fallback registry. if null, preferred registry is returned.</param>
         /// <param name="child">the preferred registry. if null, child registry is returned.</param>

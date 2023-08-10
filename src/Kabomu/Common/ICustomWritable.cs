@@ -16,7 +16,8 @@ namespace Kabomu.Common
         /// Transfers some byte representation of the instance to
         /// a writer.
         /// </summary>
-        /// <param name="writer">the writer which will receive the
+        /// <param name="writer">a writer object acceptable by
+        /// <see cref="IOUtils.WriteBytes"/>, which will receive the
         /// byte representation of this instance</param>
         /// <returns>task representing end of write operation</returns>
         Task WriteBytesTo(object writer);

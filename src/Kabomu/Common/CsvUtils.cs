@@ -263,7 +263,8 @@ namespace Kabomu.Common
         /// Serializes CSV data to a custom writer.
         /// </summary>
         /// <param name="rows">CSV data</param>
-        /// <param name="writer">destination of CSV data to be written</param>
+        /// <param name="writer">writer object acceptable by <see cref="IOUtils.WriteBytes"/>,
+        /// which serves as destination of CSV data to be written</param>
         /// <returns>task representing end of serialization</returns>
         public static async Task SerializeTo(IList<IList<string>> rows,
             object writer)
@@ -316,7 +317,8 @@ namespace Kabomu.Common
         /// Escapes a string to a custom writer. for use as a CSV column value
         /// </summary>
         /// <param name="raw">value to escape. Note that empty strings are always escaped as two double quotes.</param>
-        /// <param name="writer">destination of escaped value</param>
+        /// <param name="writer">writer object acceptable by <see cref="IOUtils.WriteBytes"/>,
+        /// which serves as destination of escaped value</param>
         /// <returns>task representing end of escape</returns>
         public static async Task EscapeValueTo(string raw, object writer)
         {

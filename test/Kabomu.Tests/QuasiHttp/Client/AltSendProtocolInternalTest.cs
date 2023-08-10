@@ -51,7 +51,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         }
 
         [Fact]
-        public async Task TestSendEnsuresCloseOnReceivingErrorResponse1()
+        public async Task TestSendEnsuresReleaseOnReceivingErrorResponse1()
         {
             var responseReleaseCallCount = 0;
             var expectedResponse = new ConfigurableQuasiHttpResponse
@@ -84,7 +84,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         }
 
         [Fact]
-        public async Task TestSendEnsuresCloseOnReceivingErrorResponse2()
+        public async Task TestSendEnsuresReleaseOnReceivingErrorResponse2()
         {
             var responseReleaseCallCount = 0;
             var expectedResponse = new ConfigurableQuasiHttpResponse

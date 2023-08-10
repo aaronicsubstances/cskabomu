@@ -114,7 +114,7 @@ namespace Kabomu.QuasiHttp.Server
         /// <remarks>
         /// By this method, transport types which are not connection-oriented or implement connections
         /// differently can still make use of this class to offload some of the burdens of quasi http
-        /// request processing, such as setting timeouts on request processing.
+        /// request processing. Currently what is available is setting timeouts on request processing.
         /// </remarks>
         /// <param name="request">quasi http request to process </param>
         /// <param name="options">supplies request timeout and any processing options which should 

@@ -198,7 +198,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// Writes out the serialized representation generated internally by 
         /// calling <see cref="UpdateSerializedRepresentation"/> as bytes.
         /// </summary>
-        /// <param name="writer">The destination of the bytes to be written</returns>
+        /// <param name="writer">The destination of the bytes to be written
+        /// which is acceptable by <see cref="IOUtils.WriteBytes"/> function</returns>
         /// <exception cref="InvalidOperationException">If <see cref="UpdateSerializedRepresentation"/>
         /// has not been called</exception>
         public async Task WriteOutSerializedRepresentation(object writer)

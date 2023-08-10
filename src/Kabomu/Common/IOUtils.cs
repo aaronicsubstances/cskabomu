@@ -84,7 +84,8 @@ namespace Kabomu.Common
         /// <summary>
         /// Reads in data in order to completely fill in a buffer.
         /// </summary>
-        /// <param name="reader">source of bytes to read</param>
+        /// <param name="reader">source of bytes to read acceptable by
+        /// <see cref="ReadBytes"/> function.</param>
         /// <param name="data">destination buffer</param>
         /// <param name="offset">start position in buffer to fill from</param>
         /// <param name="length">number of bytes to read. Failure to obtain this number of bytes will
@@ -122,7 +123,8 @@ namespace Kabomu.Common
         /// One can specify a maximum size beyond which an error will be
         /// thrown if there is more data after that limit.
         /// </remarks>
-        /// <param name="reader">The source of data to read.</param>
+        /// <param name="reader">The source of data to read acceptable by
+        /// <see cref="ReadBytes"/> function.</param>
         /// <param name="bufferingLimit">Indicates the maximum size in bytes of the resulting buffer.
         /// Can pass zero to use default value. Can also pass a negative value which will ignore
         /// imposing a maximum size.</param>
@@ -186,8 +188,10 @@ namespace Kabomu.Common
         /// <summary>
         /// Copies bytes from a reader to a writer.
         /// </summary>
-        /// <param name="reader">source of data being transferred</param>
-        /// <param name="writer">destination of data being transferred</param>
+        /// <param name="reader">source of data being transferred which is
+        /// acceptable by <see cref="ReadBytes"/> function.</param>
+        /// <param name="writer">destination of data being transferred
+        /// which is acceptable by <see cref="WriteBytes"/> function</param>
         /// <param name="readBufferSize">The size in bytes of the read buffer.
         /// Can pass zero to use default value</param>
         /// <returns>A task that represents the asynchronous copy operation.</returns>

@@ -38,7 +38,7 @@ namespace Kabomu.QuasiHttp.Server
                 }
                 catch (Exception) { } // ignore
 
-                // close request received for direct send to application
+                // dispose request received for direct send to application
                 if (Request != null)
                 {
                     try

@@ -22,7 +22,8 @@ namespace Kabomu.Mediator.Registry
         private readonly IRegistry _child;
 
         /// <summary>
-        /// Creates a new instance out of two existing registries.
+        /// Creates a new instance out of two existing registries, with the 
+        /// second being preferred for look up over the first.
         /// </summary>
         /// <param name="parent">the fallback registry.</param>
         /// <param name="child">the preferred registry</param>
