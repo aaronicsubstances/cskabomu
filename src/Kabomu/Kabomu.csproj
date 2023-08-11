@@ -16,9 +16,8 @@ This enables programming the same HTTP semantics at the level of web application
 
 This library has the goal of letting the software community have their cake and eat it, by enforcing monolithic architectures with serializable inter module communications, so that monolithic architectures remain simple to manage, and at the same time become straightforward to evolve into distributed systems.</Description>
     <Copyright>Copyright ©2022 Aaronic Substances</Copyright>
-    <Version>4.1.0</Version>
-    <PackageReleaseNotes>- Updated documentation comments.
-- Minor code improvements.</PackageReleaseNotes>
+    <Version>4.2.0</Version>
+    <PackageReleaseNotes>- Simplified usage of default path template generator</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

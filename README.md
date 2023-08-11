@@ -21,7 +21,9 @@ Kabomu seeks to demonstrate the following:
 
 1. Deployment enviroment: mainly localhost, but can be extended to the Internet via HTTP.
 
-1. Quasi web transports demonstrated: HTTP, memory, localhost TCP, unix domain socket, windows named pipe, zeromq (with limit on body size).
+1. Quasi web transports demonstrated: HTTP, memory, localhost TCP, unix domain socket, 
+windows named pipe, zeromq (NB: zeromq transport example requires
+limiting body sizes to some maximum value).
    1. *Support for HTTP makes it possible to use Kabomu with any HTTP client library.*
    2. Interfaces are provided for the creation of any custom quasi web transport.
 

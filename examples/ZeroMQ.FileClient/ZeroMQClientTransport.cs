@@ -64,7 +64,7 @@ namespace ZeroMQ.FileClient
             if (requestBody != null)
             {
                 requestBodyBytes = await IOUtils.ReadAllBytes(
-                    request.Body.AsReader());
+                    request.Body.AsReader(), sendOptions.ResponseBodyBufferingSizeLimit);
             }
             var headerStream = new MemoryStream();
             await ChunkedTransferUtils.WriteLeadChunk(headerStream, leadChunk);

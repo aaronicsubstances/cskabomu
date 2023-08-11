@@ -1,10 +1,12 @@
 ﻿using Kabomu.Common;
 using Kabomu.Mediator.Handling;
+using Kabomu.Mediator.Path;
 using Kabomu.Mediator.Registry;
 using Kabomu.Mediator.RequestParsing;
 using Kabomu.Mediator.ResponseRendering;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
+using Kabomu.Tests.Shared.Mediator;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -55,6 +57,143 @@ namespace Kabomu.Tests.Mediator.Handling
             };
             context.Start();
             return context;
+        }
+        [Fact]
+        public void TestGetPathTemplateGenerator()
+        {
+            var registry = new DefaultMutableRegistry();
+            Assert.Throws<NotInRegistryException>(() => registry.GetPathTemplateGenerator());
+            var expected = new DefaultPathTemplateGenerator();
+            registry.Add(ContextUtils.RegistryKeyPathTemplateGenerator, expected);
+            var actual = registry.GetPathTemplateGenerator();
+            Assert.Same(expected, actual);
+        }
+
+        [Fact]
+        public void TestGetPathMatchResult()
+        {
+            var registry = new DefaultMutableRegistry();
+            Assert.Throws<NotInRegistryException>(() => registry.GetPathMatchResult());
+            var expected = new DefaultPathMatchResultInternal();
+            registry.Add(ContextUtils.RegistryKeyPathMatchResult, expected);
+            var actual = registry.GetPathMatchResult();
+            Assert.Same(expected, actual);
+        }
+
+        [Fact]
+        public void TestGeneratePathTemplate()
+        {
+            var registry = new DefaultMutableRegistry();
+            var generator = new TempPathTemplateGenerator();
+            registry.Add(ContextUtils.RegistryKeyPathTemplateGenerator, generator);
+
+            string spec = "/1";
+            object options = null;
+            var actual = (TempPathTemplate)registry.GeneratePathTemplate(spec, options);
+            Assert.Equal(spec, actual.Spec);
+            Assert.Same(options, actual.Options);
+
+            spec = "dkk";
+            options = new object();
+            actual = (TempPathTemplate)registry.GeneratePathTemplate(spec, options);
+            Assert.Equal(spec, actual.Spec);
+            Assert.Same(options, actual.Options);
+
+            spec = null;
+            options = new object();
+            actual = (TempPathTemplate)registry.GeneratePathTemplate(spec, options);
+            Assert.Equal(spec, actual.Spec);
+            Assert.Same(options, actual.Options);
+        }
+
+        [Fact]
+        public void TestGeneratePathTemplateForErrors()
+        {
+            var registry = new DefaultMutableRegistry();
+            Assert.Throws<NotInRegistryException>(() =>
+                registry.GeneratePathTemplate("/", null));
+        }
+
+        [Fact]
+        public async Task TestPathForGeneratedTemplateMatch()
+        {
+            var handlers = new Handler[]
+            {
+                context => Task.CompletedTask
+            };
+            var prevPathTemplateResult = new DefaultPathMatchResultInternal
+            {
+                UnboundRequestTarget = "/"
+            };
+            var pathTemplate = new TempPathTemplate
+            {
+                PathMatchResultToReturn = new DefaultPathMatchResultInternal(),
+                RequestTargetToMatch = "/"
+            };
+            var pathTemplateGenerator = new TempPathTemplateGenerator
+            {
+                PathTemplateToReturn = pathTemplate
+            };
+            var delegateRegistry = new DefaultMutableRegistry()
+                .Add(ContextUtils.RegistryKeyPathTemplateGenerator, pathTemplateGenerator)
+                .Add(ContextUtils.RegistryKeyPathMatchResult, prevPathTemplateResult);
+            var context = new TempContext
+            {
+                DelegateRegistry = delegateRegistry
+            };
+            string path = "d";
+            var handler = delegateRegistry.HandlePath(path, handlers);
+            await handler.Invoke(context);
+            Assert.Equal(1, pathTemplateGenerator.ParseCallCount);
+            Assert.Equal(path, pathTemplateGenerator.SpecSeen);
+            Assert.Null(pathTemplateGenerator.OptionsSeen);
+            Assert.Equal(0, context.NextCallCount);
+            Assert.Equal(0, context.SkipInsertCallCount);
+            Assert.Equal(1, context.InsertCallCount);
+            Assert.Equal(handlers, context.HandlersSeen);
+            Assert.NotNull(context.RegistrySeen);
+            Assert.Same(pathTemplate.PathMatchResultToReturn,
+                context.RegistrySeen.Get(ContextUtils.RegistryKeyPathMatchResult));
+        }
+
+        [Fact]
+        public async Task TestPathForGeneratedTemplateMismatch()
+        {
+            var handlers = new Handler[]
+            {
+                context => Task.CompletedTask
+            };
+            var prevPathTemplateResult = new DefaultPathMatchResultInternal
+            {
+                UnboundRequestTarget = "/tree"
+            };
+            var pathTemplate = new TempPathTemplate
+            {
+                PathMatchResultToReturn = new DefaultPathMatchResultInternal(),
+                RequestTargetToMatch = "/moon"
+            };
+            var pathTemplateGenerator = new TempPathTemplateGenerator
+            {
+                PathTemplateToReturn = pathTemplate
+            };
+            var delegateRegistry = new DefaultMutableRegistry()
+                .Add(ContextUtils.RegistryKeyPathTemplateGenerator, pathTemplateGenerator)
+                .Add(ContextUtils.RegistryKeyPathMatchResult, prevPathTemplateResult);
+            string path = "de";
+            var handler = delegateRegistry.HandlePath(path, handlers);
+            var context = new TempContext
+            {
+                DelegateRegistry = delegateRegistry
+            };
+            await handler.Invoke(context);
+            Assert.Equal(1, pathTemplateGenerator.ParseCallCount);
+            Assert.Equal(path, pathTemplateGenerator.SpecSeen);
+            Assert.Null(pathTemplateGenerator.OptionsSeen);
+            Assert.Equal(1, context.NextCallCount);
+            Assert.Equal(0, context.SkipInsertCallCount);
+            Assert.Equal(0, context.InsertCallCount);
+            Assert.Null(context.HandlersSeen);
+            Assert.Null(context.RegistrySeen);
         }
 
         [Fact]

@@ -32,7 +32,8 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Equal(0, context.SkipInsertCallCount);
             Assert.Equal(1, context.InsertCallCount);
             Assert.Null(context.RegistrySeen);
-            AssertSameHandlers(handlers, context.HandlersSeen);
+            // check sameness of items
+            Assert.Equal(handlers, context.HandlersSeen);
         }
 
         [Fact]
@@ -46,7 +47,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Equal(0, context.SkipInsertCallCount);
             Assert.Equal(1, context.InsertCallCount);
             Assert.Null(context.RegistrySeen);
-            AssertSameHandlers(handlers, context.HandlersSeen);
+            Assert.Equal(handlers, context.HandlersSeen);
         }
 
         [Fact]
@@ -64,7 +65,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Equal(0, context.SkipInsertCallCount);
             Assert.Equal(1, context.InsertCallCount);
             Assert.Null(context.RegistrySeen);
-            AssertSameHandlers(handlers, context.HandlersSeen);
+            Assert.Equal(handlers, context.HandlersSeen);
         }
 
         [Fact]
@@ -83,7 +84,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Equal(0, context.SkipInsertCallCount);
             Assert.Equal(1, context.InsertCallCount);
             Assert.Null(context.RegistrySeen);
-            AssertSameHandlers(handlers, context.HandlersSeen);
+            Assert.Equal(handlers, context.HandlersSeen);
         }
 
         [Fact]
@@ -93,7 +94,7 @@ namespace Kabomu.Tests.Mediator.Handling
             {
                 context => Task.CompletedTask
             };
-            Assert.Throws<ArgumentNullException>(() => HandlerUtils.Path(null, handlers));
+            Assert.Throws<ArgumentNullException>(() => HandlerUtils.ByPath(null, handlers));
         }
 
         [Fact]
@@ -112,7 +113,7 @@ namespace Kabomu.Tests.Mediator.Handling
                 PathMatchResultToReturn = new DefaultPathMatchResultInternal(),
                 RequestTargetToMatch = "/"
             };
-            var handler = HandlerUtils.Path(pathTemplate, handlers);
+            var handler = HandlerUtils.ByPath(pathTemplate, handlers);
             var delegateRegistry = new DefaultMutableRegistry()
                 .Add(ContextUtils.RegistryKeyPathMatchResult, prevPathTemplateResult);
             var context = new TempContext
@@ -123,7 +124,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Equal(0, context.NextCallCount);
             Assert.Equal(0, context.SkipInsertCallCount);
             Assert.Equal(1, context.InsertCallCount);
-            AssertSameHandlers(handlers, context.HandlersSeen);
+            Assert.Equal(handlers, context.HandlersSeen);
             Assert.NotNull(context.RegistrySeen);
             Assert.Same(pathTemplate.PathMatchResultToReturn,
                 context.RegistrySeen.Get(ContextUtils.RegistryKeyPathMatchResult));
@@ -145,7 +146,7 @@ namespace Kabomu.Tests.Mediator.Handling
                 PathMatchResultToReturn = new DefaultPathMatchResultInternal(),
                 RequestTargetToMatch = "/moon"
             };
-            var handler = HandlerUtils.Path(pathTemplate, handlers);
+            var handler = HandlerUtils.ByPath(pathTemplate, handlers);
             var delegateRegistry = new DefaultMutableRegistry()
                 .Add(ContextUtils.RegistryKeyPathMatchResult, prevPathTemplateResult);
             var context = new TempContext
@@ -153,90 +154,6 @@ namespace Kabomu.Tests.Mediator.Handling
                 DelegateRegistry = delegateRegistry
             };
             await handler.Invoke(context);
-            Assert.Equal(1, context.NextCallCount);
-            Assert.Equal(0, context.SkipInsertCallCount);
-            Assert.Equal(0, context.InsertCallCount);
-            Assert.Null(context.HandlersSeen);
-            Assert.Null(context.RegistrySeen);
-        }
-
-        [Fact]
-        public async Task TestPathForGeneratedTemplateMatch()
-        {
-            var handlers = new Handler[]
-            {
-                context => Task.CompletedTask
-            };
-            var prevPathTemplateResult = new DefaultPathMatchResultInternal
-            {
-                UnboundRequestTarget = "/"
-            };
-            var pathTemplate = new TempPathTemplate
-            {
-                PathMatchResultToReturn = new DefaultPathMatchResultInternal(),
-                RequestTargetToMatch = "/"
-            };
-            var pathTemplateGenerator = new TempPathTemplateGenerator
-            {
-                PathTemplateToReturn = pathTemplate
-            };
-            var delegateRegistry = new DefaultMutableRegistry()
-                .Add(ContextUtils.RegistryKeyPathTemplateGenerator, pathTemplateGenerator)
-                .Add(ContextUtils.RegistryKeyPathMatchResult, prevPathTemplateResult);
-            var context = new TempContext
-            {
-                DelegateRegistry = delegateRegistry
-            };
-            string spec = "d";
-            object options = "k";
-            var handler = HandlerUtils.Path(delegateRegistry, spec, options, handlers);
-            await handler.Invoke(context);
-            Assert.Equal(1, pathTemplateGenerator.ParseCallCount);
-            Assert.Equal(spec, pathTemplateGenerator.SpecSeen);
-            Assert.Same(options, pathTemplateGenerator.OptionsSeen);
-            Assert.Equal(0, context.NextCallCount);
-            Assert.Equal(0, context.SkipInsertCallCount);
-            Assert.Equal(1, context.InsertCallCount);
-            AssertSameHandlers(handlers, context.HandlersSeen);
-            Assert.NotNull(context.RegistrySeen);
-            Assert.Same(pathTemplate.PathMatchResultToReturn,
-                context.RegistrySeen.Get(ContextUtils.RegistryKeyPathMatchResult));
-        }
-
-        [Fact]
-        public async Task TestPathForGeneratedTemplateMismatch()
-        {
-            var handlers = new Handler[]
-            {
-                context => Task.CompletedTask
-            };
-            var prevPathTemplateResult = new DefaultPathMatchResultInternal
-            {
-                UnboundRequestTarget = "/tree"
-            };
-            var pathTemplate = new TempPathTemplate
-            {
-                PathMatchResultToReturn = new DefaultPathMatchResultInternal(),
-                RequestTargetToMatch = "/moon"
-            };
-            var pathTemplateGenerator = new TempPathTemplateGenerator
-            {
-                PathTemplateToReturn = pathTemplate
-            };
-            var delegateRegistry = new DefaultMutableRegistry()
-                .Add(ContextUtils.RegistryKeyPathTemplateGenerator, pathTemplateGenerator)
-                .Add(ContextUtils.RegistryKeyPathMatchResult, prevPathTemplateResult);
-            string spec = "de";
-            object options = null;
-            var handler = HandlerUtils.Path(delegateRegistry, spec, options, handlers);
-            var context = new TempContext
-            {
-                DelegateRegistry = delegateRegistry
-            };
-            await handler.Invoke(context);
-            Assert.Equal(1, pathTemplateGenerator.ParseCallCount);
-            Assert.Equal(spec, pathTemplateGenerator.SpecSeen);
-            Assert.Same(options, pathTemplateGenerator.OptionsSeen);
             Assert.Equal(1, context.NextCallCount);
             Assert.Equal(0, context.SkipInsertCallCount);
             Assert.Equal(0, context.InsertCallCount);
@@ -287,7 +204,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Equal(0, context.SkipInsertCallCount);
             Assert.Equal(1, context.InsertCallCount);
             Assert.Same(registry, context.RegistrySeen);
-            AssertSameHandlers(handlers, context.HandlersSeen);
+            Assert.Equal(handlers, context.HandlersSeen);
         }
 
         [Fact]
@@ -432,7 +349,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Equal(0, context.SkipInsertCallCount);
             Assert.Equal(1, context.InsertCallCount);
             Assert.Null(context.RegistrySeen);
-            AssertSameHandlers(expectedHandlersSeen, context.HandlersSeen);
+            Assert.Equal(expectedHandlersSeen, context.HandlersSeen);
         }
 
         private async Task TestCommonByMethodMismatch(Handler handler, string methodToMismatch)
@@ -458,113 +375,6 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Equal(0, context.InsertCallCount);
             Assert.Null(context.RegistrySeen);
             Assert.Null(context.HandlersSeen);
-        }
-
-        private static void AssertSameHandlers(IList<Handler> expected, IList<Handler> actual)
-        {
-            Assert.Equal(expected.Count, actual.Count);
-            for (int i = 0; i < expected.Count; i++)
-            {
-                Assert.Equal(expected[i], actual[i]);
-            }
-        }
-
-        private class TempContext : IContext
-        {
-            public IContextRequest Request { get; set; }
-            public IContextResponse Response { get; set; }
-            public IList<Handler> HandlersSeen { get; set; }
-            public IRegistry RegistrySeen { get; set; }
-            public int InsertCallCount { get; set; }
-            public int SkipInsertCallCount { get; set; }
-            public int NextCallCount { get; set; }
-            public IRegistry DelegateRegistry { get; set; }
-
-            public void Insert(IList<Handler> handlers)
-            {
-                Insert(handlers, null);
-            }
-
-            public void Insert(IList<Handler> handlers, IRegistry registry)
-            {
-                InsertCallCount++;
-                HandlersSeen = handlers;
-                RegistrySeen = registry;
-            }
-
-            public void SkipInsert()
-            {
-                SkipInsertCallCount++;
-            }
-
-            public void Next()
-            {
-                Next(null);
-            }
-
-            public void Next(IRegistry registry)
-            {
-                NextCallCount++;
-                RegistrySeen = registry;
-            }
-
-            public object Get(object key)
-            {
-                return DelegateRegistry.Get(key);
-            }
-
-            public IEnumerable<object> GetAll(object key)
-            {
-                return DelegateRegistry.GetAll(key);
-            }
-
-            public (bool, object) TryGet(object key)
-            {
-                return DelegateRegistry.TryGet(key);
-            }
-
-            public (bool, object) TryGetFirst(object key, Func<object, (bool, object)> transformFunction)
-            {
-                return DelegateRegistry.TryGetFirst(key, transformFunction);
-            }
-        }
-
-        class TempPathTemplateGenerator : IPathTemplateGenerator
-        {
-            public string SpecSeen { get; set; }
-            public object OptionsSeen { get; set; }
-            public int ParseCallCount { get; set; }
-
-            public IPathTemplate PathTemplateToReturn;
-
-            public IPathTemplate Parse(string spec, object options)
-            {
-                ParseCallCount++;
-                SpecSeen = spec;
-                OptionsSeen = options;
-                return PathTemplateToReturn;
-            }
-        }
-
-        class TempPathTemplate : IPathTemplate
-        {
-            public IPathMatchResult PathMatchResultToReturn { get; set; }
-            public string RequestTargetToMatch { get; set; }
-
-            public string Interpolate(IContext context, IDictionary<string, string> pathValues, object opaqueOptionObj)
-            {
-                throw new NotImplementedException();
-            }
-
-            public IList<string> InterpolateAll(IContext context, IDictionary<string, string> pathValues, object opaqueOptionObj)
-            {
-                throw new NotImplementedException();
-            }
-
-            public IPathMatchResult Match(IContext context, string requestTarget)
-            {
-                return requestTarget == RequestTargetToMatch ? PathMatchResultToReturn : null;
-            }
         }
     }
 }

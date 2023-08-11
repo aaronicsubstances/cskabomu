@@ -87,36 +87,6 @@ namespace Kabomu.Mediator.Handling
 
         /// <summary>
         /// Creates a handler which will insert a variable number of handlers conditional on whether a path match is found between
-        /// the path template generated from the most current instance of <see cref="IPathTemplateGenerator"/> in a given
-        /// registry, and the unbound request path of the most current instance of the <see cref="IPathMatchResult"/> class
-        /// in the <see cref="IContext"/> present at the time of execution of the created handler. By default the
-        /// path template will be generated from CSV specs as expected by the <see cref="DefaultPathTemplateGenerator"/> class.
-        /// </summary>
-        /// <remarks>
-        /// If a match is found, the inserted handlers will see a new instance of <see cref="IPathMatchResult"/>
-        /// corresponding to the match as the most current instance in the context. Else 
-        /// the created handler will just call the next handler in the context.
-        /// </remarks>
-        /// <param name="registry">the registry containing the instance of the <see cref="IPathTemplateGenerator"/> to
-        /// be used. Must be non null and contain the path template generator or else an error will be thrown.</param>
-        /// <param name="spec">the string specification of the path template acceptable to the path template generator
-        /// in the given registry. defaults to CSV specs as expected by the <see cref="DefaultPathTemplateGenerator"/> class.</param>
-        /// <param name="options">the options accompanying the path template to be generated</param>
-        /// <param name="handlers">the handlers which will be inserted if the generated path template matches
-        /// the most current unbound request path at the time the created handler is invoked</param>
-        /// <returns>new handler which represents deferred execution of handlers conditional on
-        /// unbound request path</returns>
-        /// <exception cref="ArgumentNullException">The <paramref name="registry"/> argument is null.</exception>
-        /// <exception cref="NotInRegistryException">The <paramref name="registry"/> argument does not
-        /// contain the key equal to <see cref="ContextUtils.RegistryKeyPathTemplateGenerator"/>.</exception>
-        public static Handler Path(IRegistry registry, string spec, object options, params Handler[] handlers)
-        {
-            var pathTemplate = ContextUtils.GeneratePathTemplate(registry, spec, options);
-            return Path(pathTemplate, handlers);
-        }
-
-        /// <summary>
-        /// Creates a handler which will insert a variable number of handlers conditional on whether a path match is found between
         /// a given path template, and the unbound request path of the most current instance of the
         /// <see cref="IPathMatchResult"/> class in the <see cref="IContext"/> present at the time of
         /// execution of the created handler.
@@ -132,7 +102,7 @@ namespace Kabomu.Mediator.Handling
         /// <returns>new handler which represents deferred execution of handlers conditional on
         /// unbound request path</returns>
         /// <exception cref="ArgumentNullException">The <paramref name="pathTemplate"/> argument is null.</exception>
-        public static Handler Path(IPathTemplate pathTemplate, params Handler[] handlers)
+        public static Handler ByPath(IPathTemplate pathTemplate, params Handler[] handlers)
         {
             if (pathTemplate == null)
             {
@@ -140,7 +110,7 @@ namespace Kabomu.Mediator.Handling
             }
             return async (context) =>
             {
-                var parentPathMatchResult = ContextUtils.GetPathMatchResult(context);
+                var parentPathMatchResult = context.GetPathMatchResult();
                 var pathMatchResult = pathTemplate.Match(context, parentPathMatchResult.UnboundRequestTarget);
                 if (pathMatchResult != null)
                 {

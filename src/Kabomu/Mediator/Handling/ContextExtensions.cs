@@ -1,4 +1,5 @@
-﻿using Kabomu.Mediator.Registry;
+﻿using Kabomu.Mediator.Path;
+using Kabomu.Mediator.Registry;
 using Kabomu.Mediator.RequestParsing;
 using Kabomu.Mediator.ResponseRendering;
 using Kabomu.QuasiHttp.EntityBody;
@@ -14,6 +15,92 @@ namespace Kabomu.Mediator.Handling
     /// </summary>
     public static class ContextExtensions
     {
+        /// <summary>
+        /// Creates a handler which will insert a variable number of handlers conditional on whether a path match is found between
+        /// the path template generated from the most current instance of <see cref="IPathTemplateGenerator"/> in a given
+        /// registry, and the unbound request path of the most current instance of the <see cref="IPathMatchResult"/> class
+        /// in the provided <see cref="IContext"/> argument. By default the
+        /// path template will be generated from CSV specs as expected by the <see cref="DefaultPathTemplateGenerator"/> class.
+        /// </summary>
+        /// <remarks>
+        /// If a match is found, the inserted handlers will see a new instance of <see cref="IPathMatchResult"/>
+        /// corresponding to the match as the most current instance in the context. Else 
+        /// the created handler will just call the next handler in the context.
+        /// </remarks>
+        /// <param name="context">the context with the <see cref="IPathTemplateGenerator"/> instance to
+        /// be used.</param>
+        /// <param name="path">the string specification of the path template acceptable to the path template generator
+        /// in the given registry. defaults to CSV specs as expected by the <see cref="DefaultPathTemplateGenerator"/> class.</param>
+        /// <param name="handlers">the handlers which will be inserted if the generated path template matches
+        /// the most current unbound request path at the time the created handler is invoked</param>
+        /// <returns>new handler which represents deferred execution of handlers conditional on
+        /// unbound request path</returns>
+        /// <exception cref="ArgumentNullException">The <paramref name="context"/> argument is null.</exception>
+        /// <exception cref="NotInRegistryException">The <paramref name="context"/> argument does not
+        /// contain the key equal to <see cref="ContextUtils.RegistryKeyPathTemplateGenerator"/>.</exception>
+        public static Handler HandlePath(this IRegistry context, string path, params Handler[] handlers)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            var pathTemplate = GeneratePathTemplate(context, path, null);
+            return HandlerUtils.ByPath(pathTemplate, handlers);
+        }
+
+        /// <summary>
+        /// Gets the most current instance of <see cref="IPathMatchResult"/> class from a given registry using
+        /// the key of <see cref="ContextUtils.RegistryKeyPathMatchResult"/>. Key must be found or else exception will be thrown.
+        /// </summary>
+        /// <param name="context">the context with the
+        /// <see cref="IPathMatchResult"/> instance</param>
+        /// <returns>most current path match result</returns>
+        /// <exception cref="NotInRegistryException">If key of
+        /// <see cref="ContextUtils.RegistryKeyPathMatchResult"/>
+        /// was not found.</exception>
+        public static IPathMatchResult GetPathMatchResult(this IRegistry context)
+        {
+            return RegistryExtensions.Get<IPathMatchResult>(context,
+                ContextUtils.RegistryKeyPathMatchResult);
+        }
+
+        /// <summary>
+        /// Gets the most current instance of <see cref="IPathTemplateGenerator"/> class from a given registry using
+        /// the key of <see cref="ContextUtils.RegistryKeyPathTemplateGenerator"/>.
+        /// Key must be found or else exception will be thrown.
+        /// </summary>
+        /// <param name="context">the context with the
+        /// <see cref="IPathTemplateGenerator"/> instance</param>
+        /// <returns>most current path template generator</returns>
+        /// <exception cref="NotInRegistryException">If key of
+        /// <see cref="ContextUtils.RegistryKeyPathTemplateGenerator"/>
+        /// was not found.</exception>
+        public static IPathTemplateGenerator GetPathTemplateGenerator(this IRegistry context)
+        {
+            return RegistryExtensions.Get<IPathTemplateGenerator>(context,
+                ContextUtils.RegistryKeyPathTemplateGenerator);
+        }
+
+        /// <summary>
+        /// Generates a path template from a string specification and compatible options, using the most current instance of 
+        /// <see cref="IPathTemplateGenerator"/> stored in a given registry under the key of
+        /// <see cref="ContextUtils.RegistryKeyPathTemplateGenerator"/>. Key must be found or else exception will be thrown.
+        /// </summary>
+        /// <param name="context">the context with the
+        /// <see cref="IPathTemplateGenerator"/> instance to use</param>
+        /// <param name="spec">string specification</param>
+        /// <param name="options">options accompanying string spec</param>
+        /// <returns>path template generated from spec with most current path template generator</returns>
+        /// <exception cref="NotInRegistryException">If key of
+        /// <see cref="ContextUtils.RegistryKeyPathTemplateGenerator"/>
+        /// was not found.</exception>
+        public static IPathTemplate GeneratePathTemplate(this IRegistry context, string spec, object options)
+        {
+            var pathTemplateGenerator = GetPathTemplateGenerator(context);
+            IPathTemplate pathTemplate = pathTemplateGenerator.Parse(spec, options);
+            return pathTemplate;
+        }
+
         /// <summary>
         /// Searches inside a context's registry under the key of <see cref="ContextUtils.RegistryKeyRequestParser"/>,
         /// for the first request parser (instance of <see cref="IRequestParser"/> class) which indicates that 
