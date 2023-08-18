@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.Tests.Shared.Common;
 using System;
@@ -94,6 +95,42 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             // ensure subsequent reading attempts return 0
             Assert.Equal(0, await instance.ReadBytes(new byte[1], 0, 1));
+        }
+
+        [Fact]
+        public async Task TestReadingError1()
+        {
+            // arrange
+            var srcData = new byte[] { 0 ,0, 11, 1 };
+            var backingReader = new MemoryStream(srcData);
+            int maxChunkSize = 9;
+            var instance = new ChunkDecodingCustomReader(
+                backingReader, maxChunkSize);
+            var writer = new MemoryStream();
+
+            // act and assert
+            var actualEx = await Assert.ThrowsAsync<ChunkDecodingException>(() =>
+                IOUtils.CopyBytes(instance, writer));
+            Assert.Contains("subsequent chunk header", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestReadingError2()
+        {
+            // arrange
+            var srcData = new byte[] { 0 ,0, 11, 1, 0, (byte)'d',
+                (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',
+                (byte)'i'};
+            var backingReader = new MemoryStream(srcData);
+            int maxChunkSize = 9;
+            var instance = new ChunkDecodingCustomReader(
+                backingReader, maxChunkSize);
+            var writer = new MemoryStream();
+
+            // act and assert
+            var actualEx = await Assert.ThrowsAsync<ChunkDecodingException>(() =>
+                IOUtils.CopyBytes(instance, writer));
+            Assert.Contains("subsequent chunk body", actualEx.Message);
         }
     }
 }

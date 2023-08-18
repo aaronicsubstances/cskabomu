@@ -36,11 +36,13 @@ namespace Kabomu.Common
          /// read from a reader or source of bytes.
          /// </summary>
          /// <param name="contentLength">content length to include in error message</param>
-        public static CustomIOException CreateContentLengthNotSatisfiedError(long contentLength)
+         /// <param name="remainingBytesToRead">remaining bytes to read</param>
+        public static CustomIOException CreateContentLengthNotSatisfiedError(long contentLength,
+            long remainingBytesToRead)
         {
             return new CustomIOException($"insufficient bytes available to satisfy " +
                 $"content length of {contentLength} bytes (could not read remaining " +
-                $"{{remainingBytesToRead}} bytes before end of read)");
+                $"{remainingBytesToRead} bytes before end of read)");
         }
         
         /// <summary>

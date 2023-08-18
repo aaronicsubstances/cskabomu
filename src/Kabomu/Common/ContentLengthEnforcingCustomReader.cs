@@ -79,7 +79,7 @@ namespace Kabomu.Common
             if (bytesToRead > 0 && bytesJustRead == 0 && remainingBytesToRead > 0)
             {
                 throw CustomIOException.CreateContentLengthNotSatisfiedError(
-                    _expectedLength);
+                    _expectedLength, remainingBytesToRead);
             }
             return bytesJustRead;
         }

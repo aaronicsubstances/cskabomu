@@ -78,7 +78,7 @@ namespace Kabomu.Mediator.Path
         }
 
         public static (bool, string) ApplyValueConstraints(DefaultPathTemplateInternal pathTemplate,
-            IContext context, IDictionary<string, string> pathValues,
+            IContext context, IDictionary<string, object> pathValues,
             string valueKey, IList<(string, string[])> constraints, int direction)
         {
             foreach (var constraint in constraints)
@@ -96,7 +96,7 @@ namespace Kabomu.Mediator.Path
         }
 
         public static bool AreAllRelevantPathValuesSatisfiedFromDefaultValues(
-            IDictionary<string, string> pathValues,
+            IDictionary<string, object> pathValues,
             DefaultPathTemplateFormatOptions formatOptions,
             IList<DefaultPathTemplateExampleInternal> parsedExamples, int alreadySatisfiedIndex,
             IDictionary<string, string> defaultValues)
@@ -166,7 +166,7 @@ namespace Kabomu.Mediator.Path
             return true;
         }
 
-        internal static bool AreTwoPossiblyNullStringsEqual(string first, string second, bool matchCase)
+        internal static bool AreTwoPossiblyNullStringsEqual(object first, string second, bool matchCase)
         {
             if (first == null)
             {
@@ -175,7 +175,7 @@ namespace Kabomu.Mediator.Path
             var comparisonType = matchCase ?
                 StringComparison.Ordinal :
                 StringComparison.OrdinalIgnoreCase;
-            return first.Equals(second, comparisonType);
+            return first.ToString().Equals(second, comparisonType);
         }
 
         public static bool GetEffectiveEscapeNonWildCardSegment(DefaultPathTemplateFormatOptions options,

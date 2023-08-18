@@ -21,7 +21,7 @@ namespace Kabomu.Mediator.Path
         /// <see cref="ContextUtils.PathConstraintMatchDirectionFormat"/> if
         /// constraint is being applied during path interpolation time</param>
         /// <returns>true if and only if constraint passes</returns>
-        bool ApplyCheck(IContext context, IPathTemplate pathTemplate, IDictionary<string, string> values, 
+        bool ApplyCheck(IContext context, IPathTemplate pathTemplate, IDictionary<string, object> values, 
             string valueKey, string[] constraintArgs, int direction);
     }
 }

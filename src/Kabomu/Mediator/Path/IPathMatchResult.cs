@@ -13,7 +13,7 @@ namespace Kabomu.Mediator.Path
         /// <summary>
         /// Gets path segments captured in a successful match.
         /// </summary>
-        IDictionary<string, string> PathValues { get; }
+        IDictionary<string, object> PathValues { get; }
 
         /// <summary>
         /// Gets the prefix of a request path or target which was matched.

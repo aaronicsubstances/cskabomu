@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Xunit;
 
 namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
@@ -19,25 +20,10 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             byte[] expected)
         {
             var destStream = new MemoryStream();
-            await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
-                chunkDataLength, destStream, new byte[5]);
-            var actual = destStream.ToArray();
-            ComparisonUtils.CompareData(expected, 0, expected.Length,
-                actual, 0, actual.Length);
-
-            // should work without temp buffer
-            destStream.Position = 0;
-            await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
+            var instance = new ChunkedTransferUtils();
+            await instance.EncodeSubsequentChunkV1Header(
                 chunkDataLength, destStream);
-            actual = destStream.ToArray();
-            ComparisonUtils.CompareData(expected, 0, expected.Length,
-                actual, 0, actual.Length);
-
-            // should also work with unusable buffer
-            destStream.Position = 0;
-            await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
-                chunkDataLength, destStream, new byte[4]);
-            actual = destStream.ToArray();
+            var actual = destStream.ToArray();
             ComparisonUtils.CompareData(expected, 0, expected.Length,
                 actual, 0, actual.Length);
         }
@@ -66,21 +52,14 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         public async Task TestDecodeSubsequentChunkV1Header(byte[] srcData,
             int maxChunkSize, int expected)
         {
-            var reader = new MemoryStream(srcData);
-            var actual = await ChunkedTransferUtils.DecodeSubsequentChunkV1Header(
-                reader, new byte[50], maxChunkSize);
+            var instance = new ChunkedTransferUtils();
+            var actual = await instance.DecodeSubsequentChunkV1Header(
+                srcData, null, maxChunkSize);
             Assert.Equal(expected, actual);
 
-            // should work without temp buffer
-            reader.Position = 0;
-            actual = await ChunkedTransferUtils.DecodeSubsequentChunkV1Header(
-                reader, null, maxChunkSize);
-            Assert.Equal(expected, actual);
-
-            // should also work with unusable buffer
-            reader.Position = 0;
-            actual = await ChunkedTransferUtils.DecodeSubsequentChunkV1Header(
-                reader, new byte[4], maxChunkSize);
+            // should work indirectly with reader
+            actual = await instance.DecodeSubsequentChunkV1Header(
+                null, new MemoryStream(srcData), maxChunkSize);
             Assert.Equal(expected, actual);
         }
 
@@ -111,15 +90,22 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             return testData;
         }
 
+        [Fact]
+        public async Task TestDecodeSubsequentChunkV1HeaderForArgError()
+        {
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                new ChunkedTransferUtils().DecodeSubsequentChunkV1Header(
+                    null, null, 0));
+        }
+
         [Theory]
         [MemberData(nameof(CreateTestDecodeSubsequentChunkV1HeaderForErrorsData))]
         public async Task TestDecodeSubsequentChunkV1HeaderForErrors(byte[] srcData,
             int maxChunkSize)
         {
-            var reader = new MemoryStream(srcData);
             await Assert.ThrowsAsync<ChunkDecodingException>(() =>
-                ChunkedTransferUtils.DecodeSubsequentChunkV1Header(
-                    reader, new byte[50], maxChunkSize));
+                new ChunkedTransferUtils().DecodeSubsequentChunkV1Header(
+                    srcData, null, maxChunkSize));
         }
 
         public static List<object[]> CreateTestDecodeSubsequentChunkV1HeaderForErrorsData()

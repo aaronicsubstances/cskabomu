@@ -14,6 +14,6 @@ namespace Kabomu.Mediator.Path
 
         public string UnboundRequestTarget { get; set; }
 
-        public IDictionary<string, string> PathValues { get; set; }
+        public IDictionary<string, object> PathValues { get; set; }
     }
 }

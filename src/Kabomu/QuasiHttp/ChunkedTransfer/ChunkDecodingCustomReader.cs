@@ -17,7 +17,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
     {
         private readonly object _wrappedReader;
         private readonly int _maxChunkSize;
-        private readonly byte[] _chunkHeaderBuffer;
+        private readonly ChunkedTransferUtils _chunkTransferUtils = new ChunkedTransferUtils();
         private int _chunkDataLenRem;
         private bool _lastChunkSeen;
 
@@ -42,7 +42,6 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
             _wrappedReader = wrappedReader;
             _maxChunkSize = maxChunkSize;
-            _chunkHeaderBuffer = new byte[10];
         }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
@@ -55,8 +54,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
             if (_chunkDataLenRem == 0)
             {
-                _chunkDataLenRem = await ChunkedTransferUtils.DecodeSubsequentChunkV1Header(
-                    _wrappedReader, _chunkHeaderBuffer, _maxChunkSize);
+                _chunkDataLenRem = await _chunkTransferUtils.DecodeSubsequentChunkV1Header(
+                    null, _wrappedReader, _maxChunkSize);
                 if (_chunkDataLenRem == 0)
                 {
                     _lastChunkSeen = true;
@@ -65,8 +64,16 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
 
             bytesToRead = Math.Min(_chunkDataLenRem, bytesToRead);
-            await IOUtils.ReadBytesFully(_wrappedReader,
-                data, offset, bytesToRead);
+            try
+            {
+                await IOUtils.ReadBytesFully(_wrappedReader,
+                    data, offset, bytesToRead);
+            }
+            catch (Exception e)
+            {
+                throw new ChunkDecodingException("Error encountered while " +
+                    "decoding a subsequent chunk body", e);
+            }
             _chunkDataLenRem -= bytesToRead;
 
             return bytesToRead;

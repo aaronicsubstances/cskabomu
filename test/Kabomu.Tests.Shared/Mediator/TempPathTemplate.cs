@@ -10,12 +10,12 @@ namespace Kabomu.Tests.Shared.Mediator
         public string Spec { get; internal set; }
         public object Options { get; internal set; }
 
-        public string Interpolate(IContext context, IDictionary<string, string> pathValues, object opaqueOptionObj)
+        public string Interpolate(IContext context, IDictionary<string, object> pathValues, object opaqueOptionObj)
         {
             throw new NotImplementedException();
         }
 
-        public IList<string> InterpolateAll(IContext context, IDictionary<string, string> pathValues, object opaqueOptionObj)
+        public IList<string> InterpolateAll(IContext context, IDictionary<string, object> pathValues, object opaqueOptionObj)
         {
             throw new NotImplementedException();
         }

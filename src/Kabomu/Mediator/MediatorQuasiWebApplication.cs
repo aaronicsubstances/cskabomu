@@ -54,7 +54,8 @@ namespace Kabomu.Mediator
         /// <para>
         /// The following shadowable contextual objects are made available by default if not found
         /// initially inside this property:
-        /// (1) an instance of <see cref="DefaultPathTemplateGenerator"/>
+        /// (1) an instance of <see cref="DefaultPathTemplateGenerator"/> with no value for its
+        /// <see cref="DefaultPathTemplateGenerator.ConstraintFunctions"/> property,
         /// stored under the key <see cref="ContextUtils.RegistryKeyPathTemplateGenerator"/>;
         /// (2) an instance of <see cref="IPathMatchResult"/> stored under the
         /// key <see cref="ContextUtils.RegistryKeyPathMatchResult"/> with its

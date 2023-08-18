@@ -36,7 +36,7 @@ namespace Kabomu.Mediator.Path
         /// <param name="pathValues">values with which to fill in path segments</param>
         /// <param name="options">any options object which can direct interpolation</param>
         /// <returns>interpolated path</returns>
-        string Interpolate(IContext context, IDictionary<string, string> pathValues,
+        string Interpolate(IContext context, IDictionary<string, object> pathValues,
             object options);
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace Kabomu.Mediator.Path
         /// <param name="pathValues">values with which to fill in path segments</param>
         /// <param name="options">any options object which can direct interpolation</param>
         /// <returns>all possible interpolated paths, or empty list if no interpolation is possible</returns>
-        IList<string> InterpolateAll(IContext context, IDictionary<string, string> pathValues,
+        IList<string> InterpolateAll(IContext context, IDictionary<string, object> pathValues,
             object options);
     }
 }

@@ -96,7 +96,7 @@ namespace Kabomu.Mediator.Handling
             {
                 pathMatchResult.UnboundRequestTarget = requestTarget;
                 pathMatchResult.BoundPath = "";
-                pathMatchResult.PathValues = new Dictionary<string, string>();
+                pathMatchResult.PathValues = new Dictionary<string, object>();
             }
             return pathMatchResult;
         }

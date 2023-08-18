@@ -24,7 +24,7 @@ namespace Kabomu.Tests.Mediator.Path
                 }
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             object formatOptions = "problematic";
             Assert.ThrowsAny<Exception>(() => instance.InterpolateAll(context, pathValues, formatOptions));
             Assert.ThrowsAny<Exception>(() => instance.Interpolate(context, pathValues, formatOptions));
@@ -38,7 +38,7 @@ namespace Kabomu.Tests.Mediator.Path
                 ParsedExamples = new DefaultPathTemplateExampleInternal[0]
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = null;
             Assert.Empty(instance.InterpolateAll(context, pathValues, formatOptions));
             Assert.Throws<PathTemplateException>(() => instance.Interpolate(context, pathValues, formatOptions));
@@ -62,7 +62,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/"                
             };
             IContext context = null;
-            Dictionary<string, string> pathValues = null;
+            Dictionary<string, object> pathValues = null;
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
@@ -88,7 +88,7 @@ namespace Kabomu.Tests.Mediator.Path
                 ""
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
@@ -115,7 +115,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
@@ -142,7 +142,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
@@ -169,7 +169,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions();
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
@@ -196,7 +196,7 @@ namespace Kabomu.Tests.Mediator.Path
                 ""
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions();
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
@@ -223,7 +223,7 @@ namespace Kabomu.Tests.Mediator.Path
                 ""
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
             {
                 ApplyLeadingSlash = false
@@ -253,7 +253,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
             {
                 ApplyTrailingSlash = true
@@ -290,7 +290,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/bread"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions();
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
@@ -384,7 +384,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/bread/and/tea/", "just/bread"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions();
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
@@ -478,7 +478,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/just/bread/", "/bread/",
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
             {
                 ApplyLeadingSlash = true,
@@ -576,7 +576,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "bread?name=value#key%",
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = new DefaultPathTemplateFormatOptions
             {
                 ApplyLeadingSlash = false,
@@ -612,7 +612,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "*", null }
             };
@@ -647,7 +647,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/drink"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "*", "/drink" }
             };
@@ -683,7 +683,7 @@ namespace Kabomu.Tests.Mediator.Path
                 ""
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "w", null }
             };
@@ -719,7 +719,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/drink"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "w", "/drink" }
             };
@@ -766,7 +766,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "singing/all%20the/time/throughout/the/day"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "*", "all the" },
                 { "w", "time/throughout/the/day" }
@@ -812,7 +812,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "singing/all%20day/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "*", "all day" },
                 { "w", null }
@@ -854,7 +854,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "", null }
             };
@@ -896,7 +896,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "//"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "", null }
             };
@@ -938,7 +938,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "", "" }
             };
@@ -984,7 +984,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/peace/and/justice/bread/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "*", "/peace/and/justice/" }
             };
@@ -1026,7 +1026,7 @@ namespace Kabomu.Tests.Mediator.Path
             };
             var expected = new List<string>();
             IContext context = null;
-            Dictionary<string, string> pathValues = null; ;
+            Dictionary<string, object> pathValues = null; ;
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
@@ -1062,7 +1062,7 @@ namespace Kabomu.Tests.Mediator.Path
             };
             var expected = new List<string>();
             IContext context = null;
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
@@ -1098,7 +1098,7 @@ namespace Kabomu.Tests.Mediator.Path
             };
             var expected = new List<string>();
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "tea", null }
             };
@@ -1137,7 +1137,7 @@ namespace Kabomu.Tests.Mediator.Path
             };
             var expected = new List<string>();
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "tea", "" }
             };
@@ -1180,7 +1180,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "///"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "tea", null }
             };
@@ -1223,7 +1223,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "tea", "" }
             };
@@ -1305,7 +1305,7 @@ namespace Kabomu.Tests.Mediator.Path
             };
             var expected = new List<string>();
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "id", "2" }
             };
@@ -1386,7 +1386,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>();
+            var pathValues = new Dictionary<string, object>();
             DefaultPathTemplateFormatOptions formatOptions = null;
             var actual = instance.InterpolateAll(context, pathValues, formatOptions);
             Assert.Equal(expected, actual);
@@ -1464,7 +1464,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/", "/Home"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "controller", "Home" }
             };
@@ -1545,7 +1545,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/", "/home", "/home/index"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "controller", "home" }, { "action", "index" }
             };
@@ -1627,7 +1627,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/", "/home/index"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "controller", "home" }, { "action", "index" }
             };
@@ -1708,7 +1708,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/home/index/3"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "controller", "home" }, { "action", "index" }, { "id", "3" }
             };
@@ -1791,7 +1791,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/home/index"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "controller", "home" }, { "action", "index" }
             };
@@ -1877,7 +1877,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/", "/home", "/home/index"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "controller", "home" }, { "action", "index" }
             };
@@ -1963,7 +1963,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/", "/Home", "/Home/Index"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "controller", "Home" }, { "action", "Index" }
             };
@@ -2047,7 +2047,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/ceo%20account%2F", "/ceo%20account%2F/index"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "controller", "ceo account/" }, { "action", "index" }
             };
@@ -2128,7 +2128,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/ceo account//upd|ate/"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "controller", "ceo account/" }, { "action", "upd|ate" }
             };
@@ -2190,7 +2190,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/%2FCEO%20account%2F/UPD%7Cate%2F"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "controller", "/CEO account/" }, { "action", "UPD|ate/" }
             };
@@ -2248,7 +2248,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/%2FCEO%20account%2F/UPD%7Cate%2F", "/CEO account/"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "controller", "/CEO account/" }, { "action", "UPD|ate/" }
             };
@@ -2306,7 +2306,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/%2Fceo%20account%2F/upd%7Cate%2F", "/ceo account/"
             };
             IContext context = new DefaultContextInternal();
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "controller", "/ceo account/" }, { "action", "upd|ate/" }
             };
@@ -2343,7 +2343,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/drink/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "w", "/drink/" }
             };
@@ -2380,7 +2380,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "drink"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "w", "drink" }
             };
@@ -2417,7 +2417,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/drink/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "w", "/drink/" }
             };
@@ -2454,7 +2454,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "drink"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "w", "drink" }
             };
@@ -2491,7 +2491,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "//drink//"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "w", "/drink/" }
             };
@@ -2540,7 +2540,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/p/drink/p/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "w", "/drink/" }
             };
@@ -2589,7 +2589,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "p/drink/p"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "w", "/drink/" }
             };
@@ -2638,7 +2638,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "p/drink/p/"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "w", "drink" }
             };
@@ -2687,7 +2687,7 @@ namespace Kabomu.Tests.Mediator.Path
                 "/p/drink/p"
             };
             IContext context = null;
-            var pathValues = new Dictionary<string, string>
+            var pathValues = new Dictionary<string, object>
             {
                 { "w", "/drink/" }
             };

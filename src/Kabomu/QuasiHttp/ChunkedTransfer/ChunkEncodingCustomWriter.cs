@@ -18,7 +18,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
     {
         private readonly object _wrappedWriter;
         private readonly byte[] _buffer;
-        private readonly byte[] _chunkHeaderBuffer;
+        private readonly ChunkedTransferUtils _chunkTransferUtils = new ChunkedTransferUtils();
         private int _usedBufferOffset;
 
         /// <summary>
@@ -49,7 +49,6 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
             _wrappedWriter = wrappedWriter;
             _buffer = new byte[maxChunkSize];
-            _chunkHeaderBuffer = new byte[10];
         }
 
         public async Task WriteBytes(byte[] data, int offset, int length)
@@ -75,8 +74,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
             else
             {
-                await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
-                    _buffer.Length, _wrappedWriter, _chunkHeaderBuffer);
+                await _chunkTransferUtils.EncodeSubsequentChunkV1Header(
+                    _buffer.Length, _wrappedWriter);
 
                 // next empty buffer
                 await IOUtils.WriteBytes(_wrappedWriter, _buffer, 0, _usedBufferOffset);
@@ -93,15 +92,15 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             // write out remaining data.
             if (_usedBufferOffset > 0)
             {
-                await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(
-                    _usedBufferOffset, _wrappedWriter, _chunkHeaderBuffer);
+                await _chunkTransferUtils.EncodeSubsequentChunkV1Header(
+                    _usedBufferOffset, _wrappedWriter);
                 await IOUtils.WriteBytes(_wrappedWriter, _buffer, 0, _usedBufferOffset);
                 _usedBufferOffset = 0;
             }
 
             // end by writing out empty terminating chunk
-            await ChunkedTransferUtils.EncodeSubsequentChunkV1Header(0, _wrappedWriter,
-                _chunkHeaderBuffer);
+            await _chunkTransferUtils.EncodeSubsequentChunkV1Header(
+                0, _wrappedWriter);
         }
     }
 }

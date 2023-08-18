@@ -29,7 +29,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>()
+                PathValues = new Dictionary<string, object>()
             };
             IContext context = null;
             var actual = instance.Match(context, "/");
@@ -72,7 +72,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>()
+                PathValues = new Dictionary<string, object>()
             };
             IContext context = null;
             var actual = instance.Match(context, "");
@@ -136,7 +136,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>()
+                PathValues = new Dictionary<string, object>()
             };
             IContext context = null;
             var actual = instance.Match(context, "/");
@@ -204,7 +204,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>()
+                PathValues = new Dictionary<string, object>()
             };
             IContext context = null;
             var actual = instance.Match(context, "");
@@ -230,7 +230,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>()
+                PathValues = new Dictionary<string, object>()
             };
             IContext context = null;
             var actual = instance.Match(context, "/");
@@ -275,7 +275,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/",
                 UnboundRequestTarget = "?k=v&k2=v2",
-                PathValues = new Dictionary<string, string>()
+                PathValues = new Dictionary<string, object>()
             };
             IContext context = null;
             var actual = instance.Match(context, "/?k=v&k2=v2");
@@ -299,7 +299,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "",
                 UnboundRequestTarget = "#k=v&k2=v2",
-                PathValues = new Dictionary<string, string>()
+                PathValues = new Dictionary<string, object>()
             };
             IContext context = null;
             var actual = instance.Match(context, "#k=v&k2=v2");
@@ -335,7 +335,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/UI/material",
                 UnboundRequestTarget = "?check=0#k=v&k2=v2",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "material" }
                 }
@@ -375,7 +375,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/ui/material/",
                 UnboundRequestTarget = "?check=0#k=v&k2=v2",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "material" }
                 }
@@ -511,7 +511,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/U%49/mat%65rial/",
                 UnboundRequestTarget = "?",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "material" }
                 }
@@ -551,7 +551,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "U%49/mat%65rial/",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "mat%65rial" }
                 }
@@ -728,7 +728,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/UI//",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "" }, { "fallback", "metro" }
                 }
@@ -862,7 +862,7 @@ namespace Kabomu.Tests.Mediator.Path
                 },
                 DefaultValues = new Dictionary<string, string>
                 {
-                    { "ux", "matte" }, { "fallback", "metro" }
+                   { "fallback", "metro" }
                 },
                 ConstraintFunctions = new Dictionary<string, IPathConstraint>
                 {
@@ -884,9 +884,9 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "UI//",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
-                    { "ux", "matte" }, { "fallback", "metro" }
+                    { "fallback", "metro" }
                 }
             };
             var expectedConstraintLogs = new List<string>
@@ -978,7 +978,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "UI/",
                 UnboundRequestTarget = "?disp",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", null }, { "fallback", "metro" }
                 }
@@ -1077,12 +1077,15 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/UI/ux",
                 UnboundRequestTarget = "#disp",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "matte" }, { "fallback", "metro" }
                 }
             };
-            var expectedConstraintLogs = new List<string>();
+            var expectedConstraintLogs = new List<string>
+            {
+                "ux,5,6", "ux,short"
+            };
             var actual = instance.Match(context, "/UI/ux#disp");
             Assert.Equal(expectedConstraintLogs, actualConstraintLogs);
             ComparisonUtils.AssertPathMatchResult(expected, actual);
@@ -1142,7 +1145,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/UI//m/nn/%51ooo/luda",
                 UnboundRequestTarget = "#disp?",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "//m/nn/%51ooo" }, { "fallback", "metro" }
                 }
@@ -1190,7 +1193,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/UI/luda",
                 UnboundRequestTarget = "//m/nn/%51ooo?disp#",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "//m/nn/%51ooo" }, { "fallback", "metro" }
                 }
@@ -1238,7 +1241,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "//m/nn/%51ooo/UI/luda",
                 UnboundRequestTarget = "?disp#",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "//m/nn/%51ooo" }, { "fallback", "metro" }
                 }
@@ -1286,7 +1289,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/UI/luda",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", null }
                 }
@@ -1320,7 +1323,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "" }
                 }
@@ -1354,7 +1357,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "",
                 UnboundRequestTarget = "/",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "/" }
                 }
@@ -1388,7 +1391,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "",
                 UnboundRequestTarget = "/bread",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "/bread" }
                 }
@@ -1422,7 +1425,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "",
                 UnboundRequestTarget = "/bread/?",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "/bread/" }
                 }
@@ -1456,7 +1459,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "",
                 UnboundRequestTarget = "bread/?",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "bread/" }
                 }
@@ -1490,7 +1493,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "",
                 UnboundRequestTarget = "bread",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "bread" }
                 }
@@ -1524,7 +1527,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "",
                 UnboundRequestTarget = "/bread//of//life/?",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "/bread//of//life/" }
                 }
@@ -1563,7 +1566,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/",
                 UnboundRequestTarget = "/bread//of//life/?",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "/bread//of//life/" }
                 }
@@ -1633,7 +1636,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "tea/",
                 UnboundRequestTarget = "bread//of//life/?",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "bread//of//life/" }
                 }
@@ -1672,7 +1675,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "tea/",
                 UnboundRequestTarget = "bread",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", "bread" }
                 }
@@ -1711,7 +1714,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "tea",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "ux", null }
                 }
@@ -1750,7 +1753,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "green/tea",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "type", "green" }
                 }
@@ -1789,7 +1792,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "tea",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "type", null }
                 }
@@ -1828,7 +1831,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/tea",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "type", null }
                 }
@@ -1867,7 +1870,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "//tea",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "type", "/" }
                 }
@@ -1911,7 +1914,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/green/precious/te%61/from/chin%61%2fhills",
                 UnboundRequestTarget = "",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "colour", "green" },
                     { "product", "/precious/te%61/from" },
@@ -1952,7 +1955,7 @@ namespace Kabomu.Tests.Mediator.Path
             {
                 BoundPath = "/green",
                 UnboundRequestTarget = "/precious/te%61/from/chin%61%2fhills",
-                PathValues = new Dictionary<string, string>
+                PathValues = new Dictionary<string, object>
                 {
                     { "colour", "green" },
                     { "product", "/precious/te%61/from/chin%61%2fhills" },

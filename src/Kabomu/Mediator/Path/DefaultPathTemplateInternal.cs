@@ -18,7 +18,7 @@ namespace Kabomu.Mediator.Path
         public IDictionary<string, IList<(string, string[])>> AllConstraints { get; set; }
         public IDictionary<string, IPathConstraint> ConstraintFunctions { get; set; }
 
-        public string Interpolate(IContext context, IDictionary<string, string> pathValues,
+        public string Interpolate(IContext context, IDictionary<string, object> pathValues,
             object opaqueOptionObj)
         {
             var candidates = InterpolateAll(context, pathValues, opaqueOptionObj);
@@ -33,7 +33,7 @@ namespace Kabomu.Mediator.Path
             return shortest;
         }
 
-        public IList<string> InterpolateAll(IContext context, IDictionary<string, string> pathValues,
+        public IList<string> InterpolateAll(IContext context, IDictionary<string, object> pathValues,
             object opaqueOptionObj)
         {
             var options = (DefaultPathTemplateFormatOptions)opaqueOptionObj;
@@ -50,7 +50,7 @@ namespace Kabomu.Mediator.Path
             return candidates;
         }
 
-        private string TryInterpolate(int parsedExampleIndex, IContext context, IDictionary<string, string> pathValues,
+        private string TryInterpolate(int parsedExampleIndex, IContext context, IDictionary<string, object> pathValues,
             DefaultPathTemplateFormatOptions options)
         {
             var parsedExample = ParsedExamples[parsedExampleIndex];
@@ -69,12 +69,12 @@ namespace Kabomu.Mediator.Path
                 else
                 {
                     var valueKey = token.Value;
-                    if (pathValues == null || !pathValues.ContainsKey(token.Value))
+                    if (pathValues == null || !pathValues.ContainsKey(valueKey))
                     {
                         // no path value provided, meaning parsed example is not meant to be used.
                         return null;
                     }
-                    var pathValue = pathValues[valueKey];
+                    var pathValue = pathValues[valueKey]?.ToString();
                     if (token.Type == PathToken.TokenTypeSegment)
                     {
                         if (!token.EmptySegmentAllowed && (pathValue == "" || pathValue == null))
@@ -211,7 +211,7 @@ namespace Kabomu.Mediator.Path
             var path = pathAndAftermath[0];
             var segments = PathUtilsInternal.NormalizeAndSplitPath(path);
 
-            IDictionary<string, string> pathValues = null;
+            IDictionary<string, object> pathValues = null;
             DefaultPathTemplateExampleInternal matchingExample = null;
             string wildCardMatch = null;
             foreach (var parsedExample in ParsedExamples)
@@ -250,17 +250,30 @@ namespace Kabomu.Mediator.Path
                     continue;
                 }
 
+                // add default values.
+                var candidatePathValues = matchAttempt.PathValues;
+                if (DefaultValues != null)
+                {
+                    foreach (var e in DefaultValues)
+                    {
+                        if (!candidatePathValues.ContainsKey(e.Key))
+                        {
+                            candidatePathValues.Add(e.Key, e.Value);
+                        }
+                    }
+                }
+
                 // apply constraint functions.
                 bool constraintViolationDetected = false;
                 if (AllConstraints != null)
                 {
                     foreach (var e in AllConstraints)
                     {
-                        if (!matchAttempt.PathValues.ContainsKey(e.Key))
+                        if (!candidatePathValues.ContainsKey(e.Key))
                         {
                             continue;
                         }
-                        var (ok, _) = PathUtilsInternal.ApplyValueConstraints(this, context, matchAttempt.PathValues,
+                        var (ok, _) = PathUtilsInternal.ApplyValueConstraints(this, context, candidatePathValues,
                             e.Key, e.Value, ContextUtils.PathConstraintMatchDirectionMatch);
                         if (!ok)
                         {
@@ -276,7 +289,7 @@ namespace Kabomu.Mediator.Path
                 }
 
                 matchingExample = parsedExample;
-                pathValues = matchAttempt.PathValues;
+                pathValues = candidatePathValues;
                 wildCardMatch = matchAttempt.WildCardMatch;
                 break;
             }
@@ -284,18 +297,6 @@ namespace Kabomu.Mediator.Path
             if (matchingExample == null)
             {
                 return null;
-            }
-
-            // add default values.
-            if (DefaultValues != null)
-            {
-                foreach (var e in DefaultValues)
-                {
-                    if (!pathValues.ContainsKey(e.Key))
-                    {
-                        pathValues.Add(e.Key, e.Value);
-                    }
-                }
             }
 
             string boundPath = path, unboundRequestTarget = pathAndAftermath[1];
@@ -319,7 +320,10 @@ namespace Kabomu.Mediator.Path
         private MatchAttemptResult TryMatch(string path, IList<string> segments,
             DefaultPathTemplateExampleInternal parsedExample)
         {
-            var pathValues = new Dictionary<string, string>();
+            // use mutable dictionary to make it possible for
+            // the addition of default values, and mutation by
+            // constraint functions.
+            var pathValues = new Dictionary<string, object>();
             IList<PathToken> tokens = parsedExample.Tokens;
 
             int wildCardTokenIndex = -1;
@@ -457,7 +461,7 @@ namespace Kabomu.Mediator.Path
         class MatchAttemptResult
         {
             public string WildCardMatch { get; set; }
-            public IDictionary<string, string> PathValues { get; set; }
+            public IDictionary<string, object> PathValues { get; set; }
         }
     }
 }

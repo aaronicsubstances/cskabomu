@@ -11,13 +11,13 @@ namespace Kabomu.Tests.Shared.Mediator
     {
         public IContext ExpectedContext { get; set; }
         internal DefaultPathTemplateInternal ExpectedPathTemplate { get; set; }
-        public IDictionary<string, string> ExpectedValues { get; set; }
+        public IDictionary<string, object> ExpectedValues { get; set; }
         public int ExpectedDirection { get; set; }
         public bool? ReturnValue { get; set; }
         public List<string> ConstraintLogs { get; set; }
 
         public bool ApplyCheck(IContext context, IPathTemplate pathTemplate,
-            IDictionary<string, string> values, string valueKey,
+            IDictionary<string, object> values, string valueKey,
             string[] constraintArgs, int direction)
         {
             if (ExpectedContext != null)

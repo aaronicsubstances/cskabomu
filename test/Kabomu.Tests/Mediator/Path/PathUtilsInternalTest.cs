@@ -688,7 +688,7 @@ namespace Kabomu.Tests.Mediator.Path
         [Theory]
         [MemberData(nameof(CreateTestAreAllRelevantPathValuesSatisfiedFromDefaultValuesData))]
         public void TestAreAllRelevantPathValuesSatisfiedFromDefaultValues(
-            IDictionary<string, string> pathValues,
+            IDictionary<string, object> pathValues,
             DefaultPathTemplateFormatOptions formatOptions,
             object parsedExamples, int alreadySatisfiedIndex,
             IDictionary<string, string> defaultValues,
@@ -705,7 +705,7 @@ namespace Kabomu.Tests.Mediator.Path
         {
             var testData = new List<object[]>();
 
-            IDictionary<string, string> pathValues = new Dictionary<string, string>
+            IDictionary<string, object> pathValues = new Dictionary<string, object>
             {
             };
             DefaultPathTemplateFormatOptions formatOptions = null;
@@ -725,7 +725,7 @@ namespace Kabomu.Tests.Mediator.Path
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "country", "gh" },
                 { "city", "ksi" }
@@ -778,7 +778,7 @@ namespace Kabomu.Tests.Mediator.Path
                 alreadySatisfiedIndex, defaultValues, expected });
 
             // change index
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "country", "gh" },
                 { "city", "ksi" }
@@ -831,7 +831,7 @@ namespace Kabomu.Tests.Mediator.Path
                 alreadySatisfiedIndex, defaultValues, expected });
 
             // test for use of default values.
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "country", "gh" },
                 { "city", "ksi" }
@@ -888,7 +888,7 @@ namespace Kabomu.Tests.Mediator.Path
                 alreadySatisfiedIndex, defaultValues, expected });
 
             // test for case matching.
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "country", "gh" },
                 { "city", "ksi" }
@@ -946,7 +946,7 @@ namespace Kabomu.Tests.Mediator.Path
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "country", "gh" },
                 { "city", "ksi" }
@@ -1005,7 +1005,7 @@ namespace Kabomu.Tests.Mediator.Path
                 alreadySatisfiedIndex, defaultValues, expected });
 
             // test for case override
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "country", "gh" },
                 { "city", "ksi" }
@@ -1066,7 +1066,7 @@ namespace Kabomu.Tests.Mediator.Path
                 alreadySatisfiedIndex, defaultValues, expected });
 
             // test for null entries
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "country", null },
                 { "city", null }
@@ -1126,7 +1126,7 @@ namespace Kabomu.Tests.Mediator.Path
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "country", null },
                 { "city", "ksi" }
@@ -1187,7 +1187,7 @@ namespace Kabomu.Tests.Mediator.Path
                 alreadySatisfiedIndex, defaultValues, expected });
 
             // test that only non literal tokens are used.
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "country", "for sth else" },
                 { "zen", "ksi" }
@@ -1240,7 +1240,7 @@ namespace Kabomu.Tests.Mediator.Path
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "dklo", "for sth else" },
                 { "zen", "ksi" }
@@ -1296,7 +1296,7 @@ namespace Kabomu.Tests.Mediator.Path
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "zen", "KSI" }
             };
@@ -1355,7 +1355,7 @@ namespace Kabomu.Tests.Mediator.Path
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "zen", "ksi" }
             };
@@ -1407,7 +1407,7 @@ namespace Kabomu.Tests.Mediator.Path
             testData.Add(new object[] { pathValues, formatOptions, parsedExamples,
                 alreadySatisfiedIndex, defaultValues, expected });
 
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "dklo", "for sth else" },
                 { "zen", null }
@@ -1470,7 +1470,7 @@ namespace Kabomu.Tests.Mediator.Path
         [MemberData(nameof(CreateApplyValueConstraintsData))]
         public void TestApplyValueConstraints(IList<(string, string[])> constraints,
             Dictionary<string, bool> constraintFunctionConfigMap,
-            IContext contextArg, IDictionary<string, string> pathValuesArg,
+            IContext contextArg, IDictionary<string, object> pathValuesArg,
             string valueKeyArg, int directionArg,
             ValueTuple<bool, string> expected, List<string> expectedConstraintLogs)
         {
@@ -1505,7 +1505,7 @@ namespace Kabomu.Tests.Mediator.Path
             var constraints = new List<(string, string[])>();
             var constraintFunctionConfigMap = new Dictionary<string, bool>();
             IContext context = null;
-            IDictionary<string, string> pathValues = null;
+            IDictionary<string, object> pathValues = null;
             string valueKey = null;
             int direction = 0;
             ValueTuple<bool, string> expected = (true, null);
@@ -1522,7 +1522,7 @@ namespace Kabomu.Tests.Mediator.Path
                 { "int", false }
             };
             context = new DefaultContextInternal();
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "test", "t" }
             };
@@ -1545,7 +1545,7 @@ namespace Kabomu.Tests.Mediator.Path
                 { "str", true }
             };
             context = new DefaultContextInternal();
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "test", "t" }
             };
@@ -1570,7 +1570,7 @@ namespace Kabomu.Tests.Mediator.Path
                 { "float", false },
             };
             context = new DefaultContextInternal();
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "test", "t" }
             };
@@ -1595,7 +1595,7 @@ namespace Kabomu.Tests.Mediator.Path
                 { "float", false },
             };
             context = new DefaultContextInternal();
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
                 { "test", "t" }, { "src", "c.py" }
             };
@@ -1620,9 +1620,9 @@ namespace Kabomu.Tests.Mediator.Path
                 { "float", true },
             };
             context = null;
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
-                { "test", "t" }, { "src", "6" }
+                { "test", "t" }, { "src", 6 }
             };
             valueKey = "src";
             direction = 4;
@@ -1646,9 +1646,9 @@ namespace Kabomu.Tests.Mediator.Path
                 { "float", true },
             };
             context = null;
-            pathValues = new Dictionary<string, string>
+            pathValues = new Dictionary<string, object>
             {
-                { "test", "t" }, { "src", "6" }
+                { "test", "t" }, { "src", 6 }
             };
             valueKey = "src";
             direction = 4;
