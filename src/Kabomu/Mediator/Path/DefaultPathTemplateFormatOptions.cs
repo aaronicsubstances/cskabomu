@@ -67,17 +67,5 @@ namespace Kabomu.Mediator.Path
         /// </list>
         /// </remarks>
         public bool? EscapeNonWildCardSegments { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value which indicates constraints used to create a path template should be applied
-        /// during interpolation.
-        /// </summary>
-        /// <remarks>
-        /// <list type="bullet">
-        ///   <item>A value of false means that application of constraints should be skipped.</item>
-        ///   <item>A value of true or null means that constraints should be applied.</item>
-        /// </list>
-        /// </remarks>
-        public bool? ApplyConstraints { get; set; }
     }
 }

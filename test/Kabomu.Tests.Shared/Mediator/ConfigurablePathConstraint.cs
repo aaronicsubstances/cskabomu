@@ -12,13 +12,12 @@ namespace Kabomu.Tests.Shared.Mediator
         public IContext ExpectedContext { get; set; }
         internal DefaultPathTemplateInternal ExpectedPathTemplate { get; set; }
         public IDictionary<string, object> ExpectedValues { get; set; }
-        public int ExpectedDirection { get; set; }
         public bool? ReturnValue { get; set; }
         public List<string> ConstraintLogs { get; set; }
 
         public bool ApplyCheck(IContext context, IPathTemplate pathTemplate,
             IDictionary<string, object> values, string valueKey,
-            string[] constraintArgs, int direction)
+            string[] constraintArgs)
         {
             if (ExpectedContext != null)
             {
@@ -31,10 +30,6 @@ namespace Kabomu.Tests.Shared.Mediator
             if (ExpectedValues != null)
             {
                 Assert.Equal(ExpectedValues, values);
-            }
-            if (ExpectedDirection != 0)
-            {
-                Assert.Equal(ExpectedDirection, direction);
             }
             if (constraintArgs != null)
             {

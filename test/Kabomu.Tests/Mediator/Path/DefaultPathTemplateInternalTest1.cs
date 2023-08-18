@@ -746,7 +746,6 @@ namespace Kabomu.Tests.Mediator.Path
             IPathConstraint intCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
-                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
                 ConstraintLogs = actualConstraintLogs,
                 ReturnValue = false
             };
@@ -810,14 +809,12 @@ namespace Kabomu.Tests.Mediator.Path
             IPathConstraint intCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
-                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
                 ConstraintLogs = actualConstraintLogs,
                 ReturnValue = false
             };
             IPathConstraint strCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
-                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
                 ConstraintLogs = actualConstraintLogs,
                 ReturnValue = true
             };
@@ -906,14 +903,12 @@ namespace Kabomu.Tests.Mediator.Path
             IPathConstraint intCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
-                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
                 ConstraintLogs = actualConstraintLogs,
                 ReturnValue = true
             };
             IPathConstraint strCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
-                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
                 ConstraintLogs = actualConstraintLogs,
                 ReturnValue = true
             };
@@ -1000,14 +995,12 @@ namespace Kabomu.Tests.Mediator.Path
             IPathConstraint intCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
-                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
                 ConstraintLogs = actualConstraintLogs,
                 ReturnValue = true
             };
             IPathConstraint strCheck = new ConfigurablePathConstraint
             {
                 ExpectedContext = context,
-                ExpectedDirection = ContextUtils.PathConstraintMatchDirectionMatch,
                 ConstraintLogs = actualConstraintLogs,
                 ReturnValue = true
             };

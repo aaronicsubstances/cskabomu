@@ -143,32 +143,6 @@ namespace Kabomu.Mediator.Path
                 }
             }
 
-            // by default apply constraints.
-            var applyConstraints = options?.ApplyConstraints ?? true;
-            if (applyConstraints && AllConstraints != null)
-            {
-                foreach (var token in tokens)
-                {
-                    if (token.Type == PathToken.TokenTypeLiteral)
-                    {
-                        continue;
-                    }
-                    var valueKey = token.Value;
-                    if (!AllConstraints.ContainsKey(valueKey))
-                    {
-                        continue;
-                    }
-                    var valueConstraints = AllConstraints[valueKey];
-                    var (ok, _) = PathUtilsInternal.ApplyValueConstraints(this,
-                        context, pathValues, valueKey, valueConstraints,
-                        ContextUtils.PathConstraintMatchDirectionFormat);
-                    if (!ok)
-                    {
-                        return null;
-                    }
-                }
-            }
-
             // if our segments are ready then proceed to join them with intervening slashes
             // and carefully surround with sentinel slashes.
             var wildCardValuePresent = wildCardTokenIndex != -1 &&
@@ -274,7 +248,7 @@ namespace Kabomu.Mediator.Path
                             continue;
                         }
                         var (ok, _) = PathUtilsInternal.ApplyValueConstraints(this, context, candidatePathValues,
-                            e.Key, e.Value, ContextUtils.PathConstraintMatchDirectionMatch);
+                            e.Key, e.Value);
                         if (!ok)
                         {
                             constraintViolationDetected = true;

@@ -58,9 +58,8 @@ made, the matched path variables will be merged with the default values, with th
 (implementation of [IPathConstraint](https://github.com/aaronicsubstances/cskabomu/blob/main/src/Kabomu/Mediator/Path/IPathConstraint.cs) interface)
 in the *ConstraintFunctions* property of the DefaultPathTemplateGenerator instance. The
 third and remaining columns are interpreted as a list of arguments which should be
-stored and passed to the constraint function every time path matching or interpolation
-is requested later on.
-During matching and interpolation, all checks which reference a path variable
+stored and passed to the constraint function every time path matching is requested later on.
+During matching, all checks which reference a path variable
 in captured path variables have to pass for the match to be
 considered successful.
    - first column is empty. Then current row must not be the first row, and the
@@ -118,5 +117,4 @@ generated.
 See [DefaultPathTemplateInternalTest1](https://github.com/aaronicsubstances/cskabomu/blob/main/test/Kabomu.Tests/Mediator/Path/DefaultPathTemplateInternalTest1.cs)
 for examples of default path matching.
 
-And for examples of default path interpolation see [DefaultPathTemplateInternalTest2](https://github.com/aaronicsubstances/cskabomu/blob/main/test/Kabomu.Tests/Mediator/Path/DefaultPathTemplateInternalTest2.cs) and
-[DefaultPathTemplateInternalTest3](https://github.com/aaronicsubstances/cskabomu/blob/main/test/Kabomu.Tests/Mediator/Path/DefaultPathTemplateInternalTest3.cs).
+And for examples of default path interpolation see [DefaultPathTemplateInternalTest2](https://github.com/aaronicsubstances/cskabomu/blob/main/test/Kabomu.Tests/Mediator/Path/DefaultPathTemplateInternalTest2.cs).

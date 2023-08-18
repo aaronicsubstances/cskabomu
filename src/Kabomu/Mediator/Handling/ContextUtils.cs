@@ -67,18 +67,6 @@ namespace Kabomu.Mediator.Handling
         public static readonly Type RegistryKeyServerErrorHandler = typeof(IServerErrorHandler);
 
         /// <summary>
-        /// Used to indicate to instances of <see cref="IPathConstraint"/> classes that
-        /// invocation is being done during path matching. It is equal to 1.
-        /// </summary>
-        public static readonly int PathConstraintMatchDirectionMatch = 1;
-
-        /// <summary>
-        /// Used to indicate to instances of <see cref="IPathConstraint"/> classes that
-        /// invocation is being done during path interpolation. It is equal to 2.
-        /// </summary>
-        public static readonly int PathConstraintMatchDirectionFormat = 2;
-
-        /// <summary>
         /// Creates an instance of <see cref="NoSuchParserException"/> class with
         /// error message describing a missing registry key.
         /// </summary>

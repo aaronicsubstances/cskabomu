@@ -1471,7 +1471,7 @@ namespace Kabomu.Tests.Mediator.Path
         public void TestApplyValueConstraints(IList<(string, string[])> constraints,
             Dictionary<string, bool> constraintFunctionConfigMap,
             IContext contextArg, IDictionary<string, object> pathValuesArg,
-            string valueKeyArg, int directionArg,
+            string valueKeyArg,
             ValueTuple<bool, string> expected, List<string> expectedConstraintLogs)
         {
             var pathTemplate = new DefaultPathTemplateInternal
@@ -1486,14 +1486,13 @@ namespace Kabomu.Tests.Mediator.Path
                     ExpectedPathTemplate = pathTemplate,
                     ExpectedContext = contextArg,
                     ExpectedValues = pathValuesArg,
-                    ExpectedDirection = directionArg,
                     ConstraintLogs = constraintLogs,
                     ReturnValue = entry.Value
                 };
                 pathTemplate.ConstraintFunctions.Add(entry.Key, constraintFunction);
             }
             var actual = PathUtilsInternal.ApplyValueConstraints(pathTemplate,
-                contextArg, pathValuesArg, valueKeyArg, constraints, directionArg);
+                contextArg, pathValuesArg, valueKeyArg, constraints);
             Assert.Equal(expected, actual);
             Assert.Equal(expectedConstraintLogs, constraintLogs);
         }
@@ -1507,11 +1506,10 @@ namespace Kabomu.Tests.Mediator.Path
             IContext context = null;
             IDictionary<string, object> pathValues = null;
             string valueKey = null;
-            int direction = 0;
             ValueTuple<bool, string> expected = (true, null);
             List<string> expectedConstraintLogs = new List<string>();
             testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
-                pathValues, valueKey, direction, expected, expectedConstraintLogs });
+                pathValues, valueKey, expected, expectedConstraintLogs });
 
             constraints = new List<(string, string[])>
             {
@@ -1527,14 +1525,13 @@ namespace Kabomu.Tests.Mediator.Path
                 { "test", "t" }
             };
             valueKey = "v";
-            direction = 1;
             expected = (false, "int");
             expectedConstraintLogs = new List<string>
             {
                 "v"
             };
             testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
-                pathValues, valueKey, direction, expected, expectedConstraintLogs });
+                pathValues, valueKey, expected, expectedConstraintLogs });
 
             constraints = new List<(string, string[])>
             {
@@ -1550,14 +1547,13 @@ namespace Kabomu.Tests.Mediator.Path
                 { "test", "t" }
             };
             valueKey = "test";
-            direction = -1;
             expected = (true, null);
             expectedConstraintLogs = new List<string>
             {
                 "test,plain"
             };
             testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
-                pathValues, valueKey, direction, expected, expectedConstraintLogs });
+                pathValues, valueKey, expected, expectedConstraintLogs });
 
             constraints = new List<(string, string[])>
             {
@@ -1575,14 +1571,13 @@ namespace Kabomu.Tests.Mediator.Path
                 { "test", "t" }
             };
             valueKey = "v";
-            direction = 2;
             expected = (false, "float");
             expectedConstraintLogs = new List<string>
             {
                 "v,d"
             };
             testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
-                pathValues, valueKey, direction, expected, expectedConstraintLogs });
+                pathValues, valueKey, expected, expectedConstraintLogs });
 
             constraints = new List<(string, string[])>
             {
@@ -1600,14 +1595,13 @@ namespace Kabomu.Tests.Mediator.Path
                 { "test", "t" }, { "src", "c.py" }
             };
             valueKey = "y";
-            direction = 3;
             expected = (false, "float");
             expectedConstraintLogs = new List<string>
             {
                 "y", "y,d"
             };
             testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
-                pathValues, valueKey, direction, expected, expectedConstraintLogs });
+                pathValues, valueKey, expected, expectedConstraintLogs });
 
             constraints = new List<(string, string[])>
             {
@@ -1625,14 +1619,13 @@ namespace Kabomu.Tests.Mediator.Path
                 { "test", "t" }, { "src", 6 }
             };
             valueKey = "src";
-            direction = 4;
             expected = (true, null);
             expectedConstraintLogs = new List<string>
             {
                 "src,d,e,c", "src,s"
             };
             testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
-                pathValues, valueKey, direction, expected, expectedConstraintLogs });
+                pathValues, valueKey, expected, expectedConstraintLogs });
 
             constraints = new List<(string, string[])>
             {
@@ -1651,14 +1644,13 @@ namespace Kabomu.Tests.Mediator.Path
                 { "test", "t" }, { "src", 6 }
             };
             valueKey = "src";
-            direction = 4;
             expected = (true, null);
             expectedConstraintLogs = new List<string>
             {
                 "src,d,e,c", "src,s", "src,d"
             };
             testData.Add(new object[] { constraints, constraintFunctionConfigMap, context,
-                pathValues, valueKey, direction, expected, expectedConstraintLogs });
+                pathValues, valueKey, expected, expectedConstraintLogs });
 
             return testData;
         }

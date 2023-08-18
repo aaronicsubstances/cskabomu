@@ -16,12 +16,8 @@ namespace Kabomu.Mediator.Path
         /// <param name="values">captured path segments</param>
         /// <param name="valueKey">key of captured path segment in values</param>
         /// <param name="constraintArgs">any constraint args</param>
-        /// <param name="direction">equals <see cref="ContextUtils.PathConstraintMatchDirectionMatch"/> if
-        /// constraint is being applied during path match time; equals
-        /// <see cref="ContextUtils.PathConstraintMatchDirectionFormat"/> if
-        /// constraint is being applied during path interpolation time</param>
         /// <returns>true if and only if constraint passes</returns>
         bool ApplyCheck(IContext context, IPathTemplate pathTemplate, IDictionary<string, object> values, 
-            string valueKey, string[] constraintArgs, int direction);
+            string valueKey, string[] constraintArgs);
     }
 }

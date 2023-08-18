@@ -79,14 +79,14 @@ namespace Kabomu.Mediator.Path
 
         public static (bool, string) ApplyValueConstraints(DefaultPathTemplateInternal pathTemplate,
             IContext context, IDictionary<string, object> pathValues,
-            string valueKey, IList<(string, string[])> constraints, int direction)
+            string valueKey, IList<(string, string[])> constraints)
         {
             foreach (var constraint in constraints)
             {
                 var (constraintFunctionId, constraintFunctionArgs) = constraint;
                 var constraintFxn = pathTemplate.ConstraintFunctions[constraintFunctionId];
                 bool ok = constraintFxn.ApplyCheck(context, pathTemplate, pathValues, valueKey,
-                    constraintFunctionArgs, direction);
+                    constraintFunctionArgs);
                 if (!ok)
                 {
                     return (false, constraintFunctionId);
