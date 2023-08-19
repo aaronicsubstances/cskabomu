@@ -33,7 +33,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var expected = "data bits and bytes";
 
             // act
-            await IOUtils.CopyBytes(instance, writer, 2);
+            await IOUtils.CopyBytes(instance, writer);
 
             // assert
             Assert.Equal(expected, ByteUtils.BytesToString(
@@ -59,7 +59,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var expected = "data bits and byte";
 
             // act
-            await IOUtils.CopyBytes(instance, writer, 5);
+            await IOUtils.CopyBytes(instance, writer);
 
             // assert
             Assert.Equal(expected, ByteUtils.BytesToString(
@@ -87,7 +87,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var expected = "data bits and byte";
 
             // act
-            await IOUtils.CopyBytes(instance, writer, 5);
+            await IOUtils.CopyBytes(instance, writer);
 
             // assert
             Assert.Equal(expected, ByteUtils.BytesToString(

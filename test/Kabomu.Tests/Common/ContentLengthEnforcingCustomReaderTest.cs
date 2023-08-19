@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Tests.Shared.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -24,7 +25,7 @@ namespace Kabomu.Tests.Common
             string expected)
         {
             // arrange
-            var stream = new MemoryStream(ByteUtils.StringToBytes(srcData));
+            var stream = new RandomizedReadSizeBufferReader(ByteUtils.StringToBytes(srcData));
             var instance = new ContentLengthEnforcingCustomReader(stream,
                 contentLength);
 
@@ -69,10 +70,10 @@ namespace Kabomu.Tests.Common
             var actual = await instance.ReadBytes(new byte[0], 0, 0);
             Assert.Equal(0, actual);
 
-            var expected = new byte[3];
-            actual = await instance.ReadBytes(expected, 0, 3);
+            var actual2 = new byte[3];
+            actual = await instance.ReadBytes(actual2, 0, 3);
             Assert.Equal(3, actual);
-            Assert.Equal(expected, new byte[] { 0, 1, 2});
+            Assert.Equal(new byte[] { 0, 1, 2}, actual2);
 
             actual = await instance.ReadBytes(new byte[0], 0, 0);
             Assert.Equal(0, actual);
@@ -87,10 +88,10 @@ namespace Kabomu.Tests.Common
             var actual = await instance.ReadBytes(new byte[0], 0, 0);
             Assert.Equal(0, actual);
 
-            var expected = new byte[3];
-            actual = await instance.ReadBytes(expected, 0, 3);
+            var actual2 = new byte[3];
+            actual = await instance.ReadBytes(actual2, 0, 3);
             Assert.Equal(3, actual);
-            Assert.Equal(expected, new byte[] { 0, 1, 2 });
+            Assert.Equal(new byte[] { 0, 1, 2 }, actual2);
 
             actual = await instance.ReadBytes(new byte[0], 0, 0);
             Assert.Equal(0, actual);
@@ -112,22 +113,43 @@ namespace Kabomu.Tests.Common
                     return stream.ReadAsync(data, offset, length);
                 }
             };
-            var instance = new ContentLengthEnforcingCustomReader(reader, 4);
+            int contentLength = 4;
+            var instance = new ContentLengthEnforcingCustomReader(reader,
+                contentLength);
             int actual;
 
-            await Assert.ThrowsAsync<ArgumentException>(() =>
+            // if reader was buffering, then the only guaranteed way to test
+            // is to first encounter exception before attempting
+            // zero-byte reads.
+            bool readerMayBeBuffering = Random.Shared.Next(2) > 0;
+            Exception actualEx;
+            if (readerMayBeBuffering)
+            {
+                actualEx = await Assert.ThrowsAsync<CustomIOException>(
+                    () => IOUtils.ReadBytesFully(instance,
+                        new byte[contentLength], 0, contentLength));
+                Assert.Contains($"length of {contentLength}", actualEx.Message);
+            }
+            else
+            {
+                await Assert.ThrowsAsync<ArgumentException>(() =>
+                    instance.ReadBytes(new byte[0], 0, 0));
+
+                var actual2 = new byte[3];
+                actual = await instance.ReadBytes(actual2, 0, 3);
+                Assert.Equal(3, actual);
+                Assert.Equal(new byte[] { 0, 1, 2 }, actual2);
+
+                actualEx = await Assert.ThrowsAsync<CustomIOException>(
+                    () => instance.ReadBytes(new byte[2], 0, 2));
+                Assert.Contains($"length of {contentLength}", actualEx.Message);
+            }
+
+            // once an error of content length insufficiency has been encountered,
+            // ensure that it is thrown for all subsequent reads.
+            actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
                 instance.ReadBytes(new byte[0], 0, 0));
-
-            var expected = new byte[3];
-            actual = await instance.ReadBytes(expected, 0, 3);
-            Assert.Equal(3, actual);
-            Assert.Equal(expected, new byte[] { 0, 1, 2 });
-
-            await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.ReadBytes(new byte[2], 0, 2));
-
-            await Assert.ThrowsAsync<ArgumentException>(() =>
-                instance.ReadBytes(new byte[0], 0, 0));
+            Assert.Contains($"length of {contentLength}", actualEx.Message);
         }
 
         [Fact]

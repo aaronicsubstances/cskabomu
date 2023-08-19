@@ -155,15 +155,13 @@ namespace Kabomu.Tests.Common
 
         [Theory]
         [MemberData(nameof(CreateTestReadAllBytesData))]
-        public async Task TestReadAllBytes(int bufferingLimit, int readBufferSize,
-            byte[] expected)
+        public async Task TestReadAllBytes(int bufferingLimit, byte[] expected)
         {
             // arrange
             var reader = new RandomizedReadSizeBufferReader(expected);
             
             // act
-            var actual = await IOUtils.ReadAllBytes(reader, bufferingLimit,
-                readBufferSize);
+            var actual = await IOUtils.ReadAllBytes(reader, bufferingLimit);
             
             // assert
             Assert.Equal(expected, actual);
@@ -177,50 +175,43 @@ namespace Kabomu.Tests.Common
             var testData = new List<object[]>();
 
             int bufferingLimit = 0;
-            int readBufferSize = 0;
             byte[] expected = new byte[0];
-            testData.Add(new object[] { bufferingLimit, readBufferSize, expected });
+            testData.Add(new object[] { bufferingLimit, expected });
 
             bufferingLimit = 0;
-            readBufferSize = 0;
             expected = new byte[] { 2 };
-            testData.Add(new object[] { bufferingLimit, readBufferSize, expected });
+            testData.Add(new object[] { bufferingLimit, expected });
 
             bufferingLimit = 6;
-            readBufferSize = 6;
             expected = new byte[] { 0, 1, 2, 5, 6, 7 };
-            testData.Add(new object[] { bufferingLimit, readBufferSize, expected });
+            testData.Add(new object[] { bufferingLimit, expected });
 
             bufferingLimit = 6;
-            readBufferSize = 2;
             expected = new byte[] { 0, 1, 4, 5, 6, 7 };
-            testData.Add(new object[] { bufferingLimit, readBufferSize, expected });
+            testData.Add(new object[] { bufferingLimit, expected });
 
             bufferingLimit = 10;
-            readBufferSize = 3;
             expected = new byte[] { 0, 1, 2, 4, 5, 6, 7, 9 };
-            testData.Add(new object[] { bufferingLimit, readBufferSize, expected });
+            testData.Add(new object[] { bufferingLimit, expected });
 
             bufferingLimit = -1;
-            readBufferSize = -1;
             expected = new byte[] { 3, 0, 1, 2, 4, 5, 6, 7, 9, 8, 10, 11, 12,
                 113, 114 };
-            testData.Add(new object[] { bufferingLimit, readBufferSize, expected });
+            testData.Add(new object[] { bufferingLimit, expected });
 
             return testData;
         }
 
         [Theory]
         [MemberData(nameof(CreateTestReadAllBytesForErrorsData))]
-        public async Task TestReadAllBytesForErrors(byte[] srcData,
-            int bufferingLimit, int readBufferSize)
+        public async Task TestReadAllBytesForErrors(byte[] srcData, int bufferingLimit)
         {
             // arrange
             var reader = new RandomizedReadSizeBufferReader(srcData);
 
             // act
             var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
-                IOUtils.ReadAllBytes(reader, bufferingLimit, readBufferSize));
+                IOUtils.ReadAllBytes(reader, bufferingLimit));
 
             // assert
             Assert.Contains($"limit of {bufferingLimit}", actualEx.Message);
@@ -232,33 +223,30 @@ namespace Kabomu.Tests.Common
 
             byte[] srcData = new byte[] { 0, 1, 2, 5, 6, 7 };
             int bufferingLimit = 5;
-            int readBufferSize = 6;
-            testData.Add(new object[] { srcData, bufferingLimit, readBufferSize });
+            testData.Add(new object[] { srcData, bufferingLimit });
 
             srcData = new byte[] { 0, 1, 2, 4, 5, 6, 7, 9 };
             bufferingLimit = 7;
-            readBufferSize = 0;
-            testData.Add(new object[] { srcData, bufferingLimit, readBufferSize });
+            testData.Add(new object[] { srcData, bufferingLimit });
 
             srcData = new byte[]{ 0, 1, 2, 3, 4, 5, 6, 7, 9 };
             bufferingLimit = 8;
-            readBufferSize = 3;
-            testData.Add(new object[] { srcData, bufferingLimit, readBufferSize });
+            testData.Add(new object[] { srcData, bufferingLimit });
 
             return testData;
         }
 
-        [InlineData("", 0, true, true)]
-        [InlineData("ab", 1, true, false)]
-        [InlineData("ab", 1, false, false)]
-        [InlineData("ab", 2, false, true)]
-        [InlineData("abc", 2, false, false)]
-        [InlineData("abcd", 3, true, true)]
-        [InlineData("abcde", 0, true, false)]
-        [InlineData("abcde", 0, false, false)]
-        [InlineData("abcdef", -1, false, true)]
+        [InlineData("", true, true)]
+        [InlineData("ab", true, false)]
+        [InlineData("ab", false, false)]
+        [InlineData("ab", false, true)]
+        [InlineData("abc", false, false)]
+        [InlineData("abcd", true, true)]
+        [InlineData("abcde", true, false)]
+        [InlineData("abcde", false, false)]
+        [InlineData("abcdef", false, true)]
         [Theory]
-        public async Task TestCopyBytes(string srcData, int readBufferSize,
+        public async Task TestCopyBytes(string srcData,
             bool wrapReaderStream, bool wrapWriterStream)
         {
             // arrange
@@ -275,7 +263,7 @@ namespace Kabomu.Tests.Common
             // act
             await IOUtils.CopyBytes(wrapReaderStream ? readerStreamWrapper :
                 readerStream, wrapWriterStream ? writerStreamWrapper :
-                writerStream, readBufferSize);
+                writerStream);
 
             // assert
             Assert.Equal(expected, writerStream.ToArray());

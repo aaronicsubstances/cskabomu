@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -21,28 +22,42 @@ namespace Kabomu.Common
     /// </remarks>
     public class MemoryPipeCustomReaderWriter : ICustomReader, ICustomWriter
     {
+        /// <summary>
+        /// The default high water mark. Equal to 8,192 bytes.
+        /// </summary>
+        private static readonly int DefaultHighWaterMark = 8_192;
+
         private readonly object _mutex = new object();
-        private readonly bool _answerZeroByteReadsFromPipe;
-        private ReadWriteRequest _readRequest, _writeRequest;
-        private bool _disposed;
+        private readonly LinkedList<ReadWriteRequest> _readRequests =
+            new LinkedList<ReadWriteRequest>();
+        private readonly LinkedList<ReadWriteRequest> _writeRequests =
+            new LinkedList<ReadWriteRequest>();
+        private readonly int _highWaterMark;
+        private bool _endOfReadWrite;
         private Exception _endOfReadError, _endOfWriteError;
 
         /// <summary>
         /// Creates a new instance.
-        /// <paramref name="answerZeroByteReadsFromPipe">pass true
-        /// if a request to read zero bytes should use or wait on a pending write;
-        /// or pass false to immediately return zero which is the default.</paramref>
         /// </summary>
-        public MemoryPipeCustomReaderWriter(bool answerZeroByteReadsFromPipe = false)
+        /// <param name="highWaterMark">The total number of bytes
+        /// of outstanding write requests, beyond which further writes
+        /// will not be performed. Can pass 0 to use default value of 8,192 bytes
+        /// </param>
+        public MemoryPipeCustomReaderWriter(int highWaterMark = 0)
         {
-            _answerZeroByteReadsFromPipe = answerZeroByteReadsFromPipe;
+            _highWaterMark = highWaterMark;
+            if (_highWaterMark <= 0)
+            {
+                _highWaterMark = DefaultHighWaterMark;
+            }
         }
 
         /// <summary>
-        /// Reads bytes from the last write or waits until a write comes through. If 
-        /// instance has been disposed, then depending on how the disposal occured
-        /// an error will be thrown or just zero will be returned. It is an error
-        /// to call this method if a previous call has not returned.
+        /// Reads bytes from any pending writes or waits until a write comes through. 
+        /// If writes have been ended on the instance, then
+        /// an error may be thrown; otherwise zero will be returned.
+        /// Note that zero-byte reads will also wait for pending writes to become
+        /// available.
         /// </summary>
         /// <param name="data">the destination buffer where bytes read will be stored</param>
         /// <param name="offset">starting position in buffer for storing bytes read</param>
@@ -52,11 +67,15 @@ namespace Kabomu.Common
         /// number of bytes to supply</returns>
         public async Task<int> ReadBytes(byte[] data, int offset, int length)
         {
+            if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
+            {
+                throw new ArgumentException("arguments don't constitute a valid byte slice");
+            }
             Task<int> readTask;
             lock (_mutex)
             {
                 // respond immediately if writes have ended
-                if (_disposed)
+                if (_endOfReadWrite)
                 {
                     if (_endOfReadError != null)
                     {
@@ -65,99 +84,119 @@ namespace Kabomu.Common
                     return 0;
                 }
 
-                if (_readRequest != null)
-                {
-                    throw new CustomIOException("pending read exist");
-                }
-
-                // respond immediately to any zero-byte read, unless
-                // instance was set up to wait for writes even if
-                // zero bytes were requested.
-                if (length == 0 && !_answerZeroByteReadsFromPipe)
-                {
-                    return 0;
-                }
-                _readRequest = new ReadWriteRequest
+                // wait for writes even if zero bytes were requested.
+                var readRequest = new ReadWriteRequest
                 {
                     Data = data,
                     Offset = offset,
-                    Length = length
+                    Length = length,
+                    Callback = new TaskCompletionSource<int>(
+                        TaskCreationOptions.RunContinuationsAsynchronously)
                 };
-
-                if (_writeRequest != null)
+                _readRequests.AddLast(readRequest);
+                readTask = readRequest.Callback.Task;
+                if (_writeRequests.Count > 0)
                 {
-                    return MatchPendingWriteAndRead();
+                    MatchPendingWriteAndRead();
                 }
-
-                _readRequest.Callback = new TaskCompletionSource<int>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
-                readTask = _readRequest.Callback.Task;
             }
 
             return await readTask;
         }
 
         /// <summary>
-        /// Writes bytes by saving for pickups by enough read calls. If 
-        /// instance has been disposed, then an error will be thrown. It is an error
-        /// to call this method if a previous call has not returned.
+        /// Attempts to write bytes by saving for pickups by enough read calls.
+        /// An error is thrown if writes have been ended on the instance, or
+        /// if write cannot be permitted within high water mark setting
+        /// Note that zero-byte writes return immediately if no error occurs.
         /// </summary>
         /// <param name="data">the source buffer of the bytes to be
         /// fetched for writing to this instance</param>
         /// <param name="offset">the starting position in buffer for
         /// fetching the bytes to be written</param>
         /// <param name="length">the number of bytes to write to instance</param>
-        /// <returns>a task representing end of the asynchronous operation</returns>
         public async Task WriteBytes(byte[] data, int offset, int length)
         {
+            if (!await TryWriteBytes(data, offset, length))
+            {
+                throw new CustomIOException("cannot perform further writes " +
+                    "due to high water mark setting");
+            }
+        }
+
+        /// <summary>
+        /// Writes bytes by saving for pickups by enough read calls.
+        /// An error is thrown if writes have been ended on the instance.
+        /// Note that zero-byte writes return immediately if no error occurs.
+        /// </summary>
+        /// <param name="data">the source buffer of the bytes to be
+        /// fetched for writing to this instance</param>
+        /// <param name="offset">the starting position in buffer for
+        /// fetching the bytes to be written</param>
+        /// <param name="length">the number of bytes to write to instance</param>
+        /// <returns>a task whose result is true if and only if
+        /// write was permitted within high water mark setting</returns>
+        public async Task<bool> TryWriteBytes(byte[] data, int offset, int length)
+        {
+            if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
+            {
+                throw new ArgumentException("arguments don't constitute a valid byte slice");
+            }
             Task writeTask;
             lock (_mutex)
             {
-                if (_disposed)
+                if (_endOfReadWrite)
                 {
                     throw _endOfWriteError;
                 }
 
-                if (_writeRequest != null)
-                {
-                    throw new CustomIOException("pending write exist");
-                }
-
-                // respond immediately to any zero-byte write
+                // don't store any zero-byte write
                 if (length == 0)
                 {
-                    return;
+                    return true;
                 }
-                _writeRequest = new ReadWriteRequest
+
+                // check for high water mark.
+                // this setting should apply to only existing pending writes,
+                // so as to ensure that
+                // a write can always be attempted the first time,
+                // and one doesn't have to worry about high water mark
+                // if one is performing serial writes.
+                var totalOutstandingWriteBytes = _writeRequests.Sum(
+                    x => x.Length);
+                if (totalOutstandingWriteBytes >= _highWaterMark)
+                {
+                    return false;
+                }
+
+                var writeRequest = new ReadWriteRequest
                 {
                     Data = data,
                     Offset = offset,
-                    Length = length
+                    Length = length,
+                    Callback = new TaskCompletionSource<int>(
+                        TaskCreationOptions.RunContinuationsAsynchronously)
                 };
+                _writeRequests.AddLast(writeRequest);
+                writeTask = writeRequest.Callback.Task;
 
-                if (_readRequest != null)
+                if (_readRequests.Count > 0)
                 {
                     MatchPendingWriteAndRead();
                 }
-
-                if (_writeRequest == null)
-                {
-                    return;
-                }
-
-                _writeRequest.Callback = new TaskCompletionSource<int>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
-                writeTask = _writeRequest.Callback.Task;
             }
 
             await writeTask;
+            return true;
         }
 
-        private int MatchPendingWriteAndRead()
+        private void MatchPendingWriteAndRead()
         {
-            var bytesToReturn = Math.Min(_readRequest.Length, _writeRequest.Length);
-            Array.Copy(_writeRequest.Data, _writeRequest.Offset,
-                _readRequest.Data, _readRequest.Offset, bytesToReturn);
+            var pendingRead = _readRequests.First.Value;
+            var pendingWrite = _writeRequests.First.Value;
+            var bytesToReturn = Math.Min(pendingRead.Length, pendingWrite.Length);
+            Array.Copy(pendingWrite.Data, pendingWrite.Offset,
+                pendingRead.Data, pendingRead.Offset, bytesToReturn);
 
             // do not invoke callbacks until state of this body is updated,
             // to prevent error of re-entrant read byte requests
@@ -166,27 +205,18 @@ namespace Kabomu.Common
             // in fact as a historical note, problems with re-entrancy and
             // excessive stack size growth during looping callbacks, sped up work to 
             // promisify the entire Kabomu library.
-            if (bytesToReturn < _writeRequest.Length)
+            _readRequests.RemoveFirst();
+            if (bytesToReturn < pendingWrite.Length)
             {
-                _writeRequest.Offset += bytesToReturn;
-                _writeRequest.Length -= bytesToReturn;
+                pendingWrite.Offset += bytesToReturn;
+                pendingWrite.Length -= bytesToReturn;
             }
             else
             {
-                if (_writeRequest.Callback != null)
-                {
-                    _writeRequest.Callback.SetResult(0);
-                }
-                _writeRequest = null;
+                _writeRequests.RemoveFirst();
+                pendingWrite.Callback.SetResult(0);
             }
-
-            if (_readRequest.Callback != null)
-            {
-                _readRequest.Callback.SetResult(bytesToReturn);
-            }
-            _readRequest = null;
-
-            return bytesToReturn;
+            pendingRead.Callback.SetResult(bytesToReturn);
         }
 
         /// <summary>
@@ -202,30 +232,30 @@ namespace Kabomu.Common
         {
             lock (_mutex)
             {
-                if (_disposed)
+                if (_endOfReadWrite)
                 {
                     return Task.CompletedTask;
                 }
-                _disposed = true;
+                _endOfReadWrite = true;
                 _endOfReadError = e;
                 _endOfWriteError = e ?? new CustomIOException("end of write");
-                if (_writeRequest != null)
-                {
-                    _writeRequest.Callback.SetException(_endOfWriteError);
-                    _writeRequest = null;
-                }
-                if (_readRequest != null)
+                foreach (var readRequest in _readRequests)
                 {
                     if (_endOfReadError != null)
                     {
-                        _readRequest.Callback.SetException(_endOfReadError);
+                        readRequest.Callback.SetException(_endOfReadError);
                     }
                     else
                     {
-                        _readRequest.Callback.SetResult(0);
+                        readRequest.Callback.SetResult(0);
                     }
-                    _readRequest = null;
                 }
+                foreach (var writeRequest in _writeRequests)
+                {
+                    writeRequest.Callback.SetException(_endOfWriteError);
+                }
+                _readRequests.Clear();
+                _writeRequests.Clear();
             }
             return Task.CompletedTask;
         }

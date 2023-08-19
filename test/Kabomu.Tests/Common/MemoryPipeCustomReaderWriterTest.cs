@@ -18,22 +18,16 @@ namespace Kabomu.Tests.Common
         public async Task TestReadingAndWriting(string expected)
         {
             // arrange
-            var initialReader = new MemoryStream(
+            var initialReader = new RandomizedReadSizeBufferReader(
                 ByteUtils.StringToBytes(expected));
             var instance = new MemoryPipeCustomReaderWriter();
 
             // act
-            var t1 = IOUtils.ReadAllBytes(instance, 0, 2);
+            var t1 = IOUtils.ReadAllBytes(instance);
             var f2 = async () =>
             {
-                try
-                {
-                    await IOUtils.CopyBytes(initialReader, instance, 5);
-                }
-                finally
-                {
-                    await instance.EndWrites();
-                }
+                await IOUtils.CopyBytes(initialReader, instance);
+                await instance.EndWrites();
             };
             var t2 = f2();
             // just in case error causes t1 or t2 to hang forever,
@@ -56,7 +50,7 @@ namespace Kabomu.Tests.Common
         [Fact]
         public async Task TestInternals1()
         {
-            var instance = new MemoryPipeCustomReaderWriter();
+            var instance = new MemoryPipeCustomReaderWriter(1);
             byte[] readBuffer = new byte[3];
             var readTask = instance.ReadBytes(readBuffer, 0, readBuffer.Length);
 
@@ -66,21 +60,17 @@ namespace Kabomu.Tests.Common
             ComparisonUtils.CompareData(new byte[] { 4, 5, 6 }, 0, 3,
                 readBuffer, 0, readLen);
 
-            readLen = await instance.ReadBytes(readBuffer, 0, 0);
-            Assert.Equal(0, readLen);
+            readTask = instance.ReadBytes(readBuffer, 0, 0);
 
             await instance.WriteBytes(new byte[10], 0, 0);
 
+            var delayTask = Task.Delay(500);
+            Assert.Same(delayTask, await Task.WhenAny(readTask, delayTask));
+
             var writeTask = instance.WriteBytes(new byte[] { 0, 2, 4, 6, 8, 10 },
                 1, 4);
-
-            var actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.WriteBytes(new byte[0], 0, 0));
-            Assert.Contains("pending write", actualEx.Message);
-
-            actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.WriteBytes(new byte[10], 2, 5));
-            Assert.Contains("pending write", actualEx.Message);
+            readLen = await readTask;
+            Assert.Equal(0, readLen);
 
             readLen = await instance.ReadBytes(readBuffer, 0, 3);
             Assert.Equal(3, readLen);
@@ -104,7 +94,7 @@ namespace Kabomu.Tests.Common
                 () => writeTask);
 
             await Assert.ThrowsAsync<NotImplementedException>(
-                () => instance.ReadBytes(readBuffer, 0, 4));
+                () => instance.ReadBytes(readBuffer, 0, 1));
 
             await Assert.ThrowsAsync<NotImplementedException>(
                 () => instance.WriteBytes(new byte[10], 0, 4));
@@ -113,7 +103,7 @@ namespace Kabomu.Tests.Common
         [Fact]
         public async Task TestInternals2()
         {
-            var instance = new MemoryPipeCustomReaderWriter();
+            var instance = new MemoryPipeCustomReaderWriter(2);
             byte[] readBuffer = new byte[3];
             var readTask = instance.ReadBytes(readBuffer, 0, readBuffer.Length);
 
@@ -123,21 +113,17 @@ namespace Kabomu.Tests.Common
             ComparisonUtils.CompareData(new byte[] { 4, 5, 6 }, 0, 3,
                 readBuffer, 0, readLen);
 
-            readLen = await instance.ReadBytes(readBuffer, 0, 0);
-            Assert.Equal(0, readLen);
+            readTask = instance.ReadBytes(readBuffer, 0, 0);
 
             await instance.WriteBytes(new byte[10], 0, 0);
 
+            var delayTask = Task.Delay(500);
+            Assert.Same(delayTask, await Task.WhenAny(readTask, delayTask));
+
             var writeTask = instance.WriteBytes(new byte[] { 0, 2, 4, 6, 8, 10 },
                 1, 4);
-
-            var actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.WriteBytes(new byte[0], 0, 0));
-            Assert.Contains("pending write", actualEx.Message);
-
-            actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.WriteBytes(new byte[10], 2, 5));
-            Assert.Contains("pending write", actualEx.Message);
+            readLen = await readTask;
+            Assert.Equal(0, readLen);
 
             readLen = await instance.ReadBytes(readBuffer, 0, 3);
             Assert.Equal(3, readLen);
@@ -161,7 +147,7 @@ namespace Kabomu.Tests.Common
                 () => readTask);
 
             await Assert.ThrowsAsync<NotSupportedException>(
-                () => instance.ReadBytes(readBuffer, 0, 4));
+                () => instance.ReadBytes(readBuffer, 0, 1));
 
             await Assert.ThrowsAsync<NotSupportedException>(
                 () => instance.WriteBytes(new byte[10], 0, 4));
@@ -170,26 +156,15 @@ namespace Kabomu.Tests.Common
         [Fact]
         public async Task TestInternals3()
         {
-            var instance = new MemoryPipeCustomReaderWriter();
+            var instance = new MemoryPipeCustomReaderWriter(4);
             byte[] readBuffer = new byte[3];
             var readTask = instance.ReadBytes(readBuffer, 0, readBuffer.Length);
-
-            var actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.ReadBytes(readBuffer, 0, readBuffer.Length));
-            Assert.Contains("pending read", actualEx.Message);
-
-            actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.ReadBytes(new byte[0], 0, 0));
-            Assert.Contains("pending read", actualEx.Message);
 
             await instance.WriteBytes(new byte[] { 4, 5, 6 }, 0, 3);
             int readLen = await readTask;
             Assert.Equal(3, readLen);
             ComparisonUtils.CompareData(new byte[] { 4, 5, 6 }, 0, 3,
                 readBuffer, 0, readLen);
-
-            readLen = await instance.ReadBytes(readBuffer, 0, 0);
-            Assert.Equal(0, readLen);
 
             await instance.WriteBytes(new byte[10], 0, 0);
 
@@ -217,124 +192,7 @@ namespace Kabomu.Tests.Common
             readLen = await readTask;
             Assert.Equal(0, readLen);
 
-            actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.WriteBytes(new byte[10], 0, 4));
-            Assert.Contains("end of write", actualEx.Message);
-
-            readLen = await instance.ReadBytes(readBuffer, 0, readBuffer.Length);
-            Assert.Equal(0, readLen);
-
-            readLen = await instance.ReadBytes(readBuffer, 3, 0);
-            Assert.Equal(0, readLen);
-        }
-
-        [Fact]
-        public async Task TestInternals4()
-        {
-            var instance = new MemoryPipeCustomReaderWriter();
-            byte[] readBuffer = new byte[3];
-            var readTask = instance.ReadBytes(readBuffer, 0, readBuffer.Length);
-
             var actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.ReadBytes(readBuffer, 0, readBuffer.Length));
-            Assert.Contains("pending read", actualEx.Message);
-
-            actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.ReadBytes(new byte[0], 0, 0));
-            Assert.Contains("pending read", actualEx.Message);
-
-            await instance.WriteBytes(new byte[] { 4, 5, 6 }, 0, 3);
-            int readLen = await readTask;
-            Assert.Equal(3, readLen);
-            ComparisonUtils.CompareData(new byte[] { 4, 5, 6 }, 0, 3,
-                readBuffer, 0, readLen);
-
-            readLen = await instance.ReadBytes(readBuffer, 0, 0);
-            Assert.Equal(0, readLen);
-
-            await instance.WriteBytes(new byte[10], 0, 0);
-
-            var writeTask = instance.WriteBytes(new byte[] { 0, 2, 4, 6, 8, 10 },
-                1, 4);
-
-            readLen = await instance.ReadBytes(readBuffer, 0, 3);
-            Assert.Equal(3, readLen);
-            ComparisonUtils.CompareData(new byte[] { 2, 4, 6 }, 0, 3,
-                readBuffer, 0, readLen);
-
-            readLen = await instance.ReadBytes(readBuffer, 1, 2);
-            Assert.Equal(1, readLen);
-            ComparisonUtils.CompareData(new byte[] { 8 }, 0, 1,
-                readBuffer, 1, readLen);
-
-            await writeTask;
-
-            // Now test for errors
-            await instance.EndWrites();
-            await instance.EndWrites(new NotSupportedException()); // should have no effect
-
-            actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.WriteBytes(new byte[10], 0, 4));
-            Assert.Contains("end of write", actualEx.Message);
-
-            readLen = await instance.ReadBytes(readBuffer, 0, readBuffer.Length);
-            Assert.Equal(0, readLen);
-
-            readLen = await instance.ReadBytes(readBuffer, 3, 0);
-            Assert.Equal(0, readLen);
-        }
-
-        [Fact]
-        public async Task TestInternals5()
-        {
-            var instance = new MemoryPipeCustomReaderWriter(true);
-            byte[] readBuffer = new byte[3];
-            var readTask = instance.ReadBytes(readBuffer, 0, readBuffer.Length);
-
-            var actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.ReadBytes(readBuffer, 0, readBuffer.Length));
-            Assert.Contains("pending read", actualEx.Message);
-
-            actualEx = await Assert.ThrowsAsync<CustomIOException>(
-                () => instance.ReadBytes(new byte[0], 0, 0));
-            Assert.Contains("pending read", actualEx.Message);
-
-            await instance.WriteBytes(new byte[] { 4, 5, 6 }, 0, 3);
-            int readLen = await readTask;
-            Assert.Equal(3, readLen);
-            ComparisonUtils.CompareData(new byte[] { 4, 5, 6 }, 0, 3,
-                readBuffer, 0, readLen);
-
-            readTask = instance.ReadBytes(readBuffer, 0, 0);
-            var delayTask = Task.Delay(500);
-            Assert.Same(delayTask, await Task.WhenAny(readTask, delayTask)); 
-
-            await instance.WriteBytes(new byte[10], 0, 0);
-            delayTask = Task.Delay(500);
-            Assert.Same(delayTask, await Task.WhenAny(readTask, delayTask));
-
-            var writeTask = instance.WriteBytes(new byte[] { 0, 2, 4, 6, 8, 10 },
-                1, 4);
-            readLen = await readTask;
-            Assert.Equal(0, readLen);
-
-            readLen = await instance.ReadBytes(readBuffer, 0, 3);
-            Assert.Equal(3, readLen);
-            ComparisonUtils.CompareData(new byte[] { 2, 4, 6 }, 0, 3,
-                readBuffer, 0, readLen);
-
-            readLen = await instance.ReadBytes(readBuffer, 1, 2);
-            Assert.Equal(1, readLen);
-            ComparisonUtils.CompareData(new byte[] { 8 }, 0, 1,
-                readBuffer, 1, readLen);
-
-            await writeTask;
-
-            // Now test for errors
-            await instance.EndWrites();
-            await instance.EndWrites(new NotSupportedException()); // should have no effect
-
-            actualEx = await Assert.ThrowsAsync<CustomIOException>(
                 () => instance.WriteBytes(new byte[10], 0, 4));
             Assert.Contains("end of write", actualEx.Message);
 

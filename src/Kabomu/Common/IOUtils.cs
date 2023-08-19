@@ -28,8 +28,9 @@ namespace Kabomu.Common
         /// </summary>
         /// <param name="writer">instance of <see cref="Stream"/>
         /// class or <see cref="ICustomWriter"/> interface</param>
-        /// <param name="data">destination buffer of bytes to write</param>
-        /// <param name="offset">starting position in buffer to begin write from</param>
+        /// <param name="data">source of bytes to be written</param>
+        /// <param name="offset">starting position in buffer from which to
+        /// fetch bytes to be written</param>
         /// <param name="length">number of bytes to write</param>
         /// <returns>a task representing end of asynchronous write operation</returns>
         /// <exception cref="ArgumentNullException">The <see cref="writer"/> argument
@@ -41,6 +42,8 @@ namespace Kabomu.Common
             {
                 throw new ArgumentNullException(nameof(writer));
             }
+            // allow zero-byte writes to proceed to the
+            // stream, rather than just return.
             if (writer is Stream s)
             {
                 return s.WriteAsync(data, offset, length);
@@ -57,8 +60,9 @@ namespace Kabomu.Common
         /// </summary>
         /// <param name="reader">instance of <see cref="Stream"/>
         /// class or <see cref="ICustomReader"/> interface</param>
-        /// <param name="data">source buffer of bytes to read</param>
-        /// <param name="offset">starting position in buffer to begin read from</param>
+        /// <param name="data">destination of bytes to be read</param>
+        /// <param name="offset">starting position in buffer from which to begin
+        /// storing read bytes</param>
         /// <param name="length">number of bytes to read</param>
         /// <returns>a task whose result will be the number of bytes actually read, which
         /// depending of the kind of reader may be less than the number of bytes requested.</returns>
@@ -71,6 +75,8 @@ namespace Kabomu.Common
             {
                 throw new ArgumentNullException(nameof(reader));
             }
+            // allow zero-byte reads to proceed to touch the
+            // stream, rather than just return 0.
             if (reader is Stream s)
             {
                 return s.ReadAsync(data, offset, length);
@@ -96,6 +102,8 @@ namespace Kabomu.Common
         public static async Task ReadBytesFully(object reader,
             byte[] data, int offset, int length)
         {
+            // allow zero-byte reads to proceed to touch the
+            // stream, rather than just return.
             while (true)
             {
                 int bytesRead = await ReadBytes(reader, data, offset, length);
@@ -128,13 +136,11 @@ namespace Kabomu.Common
         /// <param name="bufferingLimit">Indicates the maximum size in bytes of the resulting buffer.
         /// Can pass zero to use default value. Can also pass a negative value which will ignore
         /// imposing a maximum size.</param>
-        /// <param name="readBufferSize">The size in bytes of the read buffer.
-        /// Can pass zero to use default value</param>
         /// <returns>A task whose result is an in-memory buffer which has all of the remaining data in the reader.</returns>
         /// <exception cref="CustomIOException">The <paramref name="bufferingLimit"/> argument indicates a positive value,
         /// and data in <paramref name="body"/> argument exceeded that value.</exception>
         public static async Task<byte[]> ReadAllBytes(object reader,
-            int bufferingLimit = 0, int readBufferSize = 0)
+            int bufferingLimit = 0)
         {
             if (bufferingLimit == 0)
             {
@@ -144,15 +150,11 @@ namespace Kabomu.Common
             var byteStream = new MemoryStream();
             if (bufferingLimit < 0)
             {
-                await CopyBytes(reader, byteStream, readBufferSize);
+                await CopyBytes(reader, byteStream);
                 return byteStream.ToArray();
             }
 
-            if (readBufferSize <= 0)
-            {
-                readBufferSize = DefaultReadBufferSize;
-            }
-            var readBuffer = new byte[readBufferSize];
+            var readBuffer = new byte[DefaultReadBufferSize];
             int totalBytesRead = 0;
 
             while (true)
@@ -192,29 +194,16 @@ namespace Kabomu.Common
         /// acceptable by <see cref="ReadBytes"/> function.</param>
         /// <param name="writer">destination of data being transferred
         /// which is acceptable by <see cref="WriteBytes"/> function</param>
-        /// <param name="readBufferSize">The size in bytes of the read buffer.
-        /// Can pass zero to use default value</param>
         /// <returns>A task that represents the asynchronous copy operation.</returns>
-        public static async Task CopyBytes(object reader, object writer, int readBufferSize = 0)
+        public static async Task CopyBytes(object reader, object writer)
         {
             if (reader is Stream r && writer is Stream w)
             {
-                if (readBufferSize <= 0)
-                {
-                    await r.CopyToAsync(w);
-                }
-                else
-                {
-                    await r.CopyToAsync(w, readBufferSize);
-                }
+                await r.CopyToAsync(w);
                 return;
             }
 
-            if (readBufferSize <= 0)
-            {
-                readBufferSize = DefaultReadBufferSize;
-            }
-            byte[] readBuffer = new byte[readBufferSize];
+            byte[] readBuffer = new byte[DefaultReadBufferSize];
 
             while (true)
             {

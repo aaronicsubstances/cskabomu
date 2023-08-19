@@ -14,7 +14,8 @@ namespace Kabomu.Common
     {
         private readonly object _wrappedReader;
         private readonly long _expectedLength;
-        private long _bytesAlreadyRead;
+        private long _bytesLeftToRead;
+        private CustomIOException _endOfReadError;
 
         /// <summary>
         /// Creates a new instance.
@@ -32,54 +33,44 @@ namespace Kabomu.Common
             }
             _wrappedReader = wrappedReader;
             _expectedLength = expectedLength;
+            _bytesLeftToRead = expectedLength;
         }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int length)
         {
-            int bytesToRead = length;
-            if (_expectedLength >= 0)
+            if (_endOfReadError != null)
             {
-                // just in case content length is changed in between reads
-                // if content length becomes an editable property,
-                // ensure bytesToRead will never become negative.
-                bytesToRead = (int)Math.Max(0,
-                    Math.Min(_expectedLength - _bytesAlreadyRead,
-                    length));
+                throw _endOfReadError;
             }
 
-            // if bytes to read is zero at this stage, decide on whether or
-            // not to go ahead and call backing reader
-            // so that any error in backing reader can be thrown.
-            bool proceedWithUnderlyingRead;
-            if (bytesToRead > 0)
+            if (_bytesLeftToRead < 0)
             {
-                proceedWithUnderlyingRead = true;
+                return await IOUtils.ReadBytes(_wrappedReader, data, offset, length);
             }
-            else if (length > 0)
-            {
-                proceedWithUnderlyingRead = false;
-            }
-            else
-            {
-                proceedWithUnderlyingRead = true;
-            }
+
+            int bytesToRead = Math.Min((int)_bytesLeftToRead, length);
+
+            // if bytes to read is zero at this stage,
+            // go ahead and call backing reader
+            // (e.g. so that any error in backing reader can be thrown) unless,
+            // the length requested is positive.
             int bytesJustRead = 0;
-            if (proceedWithUnderlyingRead)
+            if (bytesToRead > 0 || length == 0)
             {
                 bytesJustRead = await IOUtils.ReadBytes(_wrappedReader,
                     data, offset, bytesToRead);
             }
 
-            // update record of number of bytes read.
-            _bytesAlreadyRead += bytesJustRead;
+            _bytesLeftToRead -= bytesJustRead;
 
             // if end of read is encountered, ensure that all
             // requested bytes have been read.
-            var remainingBytesToRead = _expectedLength - _bytesAlreadyRead;
-            if (bytesToRead > 0 && bytesJustRead == 0 && remainingBytesToRead > 0)
+            bool endOfRead = bytesToRead > 0 && bytesJustRead == 0;
+            if (endOfRead && _bytesLeftToRead > 0)
             {
-                throw CustomIOException.CreateContentLengthNotSatisfiedError(
-                    _expectedLength, remainingBytesToRead);
+                _endOfReadError = CustomIOException.CreateContentLengthNotSatisfiedError(
+                    _expectedLength, _bytesLeftToRead);
+                throw _endOfReadError;
             }
             return bytesJustRead;
         }

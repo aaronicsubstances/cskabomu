@@ -35,7 +35,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             };
 
             // act
-            await IOUtils.CopyBytes(reader, instance, 2);
+            await IOUtils.CopyBytes(reader, instance);
             await instance.EndWrites();
             // assert
             var actual = destStream.ToArray();
@@ -75,7 +75,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             };
 
             // act
-            await IOUtils.CopyBytes(reader, instance, 5);
+            await IOUtils.CopyBytes(reader, instance);
 
             // assert without EndWrites()
             var actual = destStream.ToArray();
