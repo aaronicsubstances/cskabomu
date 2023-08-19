@@ -55,7 +55,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
         {
             var reqChunk = new LeadChunk
             {
-                Version = LeadChunk.Version01,
+                Version = ChunkedTransferCodec.Version01,
                 Method = req.Method,
                 RequestTarget = req.Target,
                 HttpVersion = req.HttpVersion,
@@ -64,7 +64,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
             var helpingReaders = new List<object>();
             var headerStream = new MemoryStream();
-            await ChunkedTransferUtils.WriteLeadChunk(headerStream,
+            await new ChunkedTransferCodec().WriteLeadChunk(headerStream,
                 reqChunk);
             headerStream.Position = 0; // reset for reading.
             helpingReaders.Add(headerStream);
@@ -200,7 +200,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             // set up expected response headers
             var expectedResChunk = new LeadChunk
             {
-                Version = LeadChunk.Version01,
+                Version = ChunkedTransferCodec.Version01,
                 StatusCode = expectedResponse.StatusCode,
                 HttpStatusMessage = expectedResponse.HttpStatusMessage,
                 Headers = expectedResponse.Headers,
@@ -218,7 +218,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             // assert written response
             headerReceiver.Position = 0;
-            var actualResChunk = await ChunkedTransferUtils.ReadLeadChunk(
+            var actualResChunk = await new ChunkedTransferCodec().ReadLeadChunk(
                 headerReceiver, 0);
             // verify all contents of headerReceiver was used
             // before comparing lead chunks
@@ -271,7 +271,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             // set up expected response headers
             var expectedResChunk = new LeadChunk
             {
-                Version = LeadChunk.Version01,
+                Version = ChunkedTransferCodec.Version01,
                 StatusCode = expectedResponse.StatusCode,
                 HttpStatusMessage = expectedResponse.HttpStatusMessage,
                 Headers = expectedResponse.Headers,
@@ -293,7 +293,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             // assert written response
             headerReceiver.Position = 0;
-            var actualResChunk = await ChunkedTransferUtils.ReadLeadChunk(
+            var actualResChunk = await new ChunkedTransferCodec().ReadLeadChunk(
                 headerReceiver, 0);
             // verify all contents of headerReceiver was used
             // before comparing lead chunks

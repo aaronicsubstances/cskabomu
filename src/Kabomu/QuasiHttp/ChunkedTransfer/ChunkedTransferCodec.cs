@@ -1,8 +1,8 @@
 ﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,8 +12,13 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
     /// Contains helper functions for implementing the custom chunked transfer
     /// protocol used by the Kabomu libary.
     /// </summary>
-    public class ChunkedTransferUtils
+    public class ChunkedTransferCodec
     {
+        /// <summary>
+        /// Current version of standard chunk serialization format, which is v1.
+        /// </summary>
+        public const byte Version01 = 1;
+
         /// <summary>
         /// The default value of max chunk size used by quasi http servers and clients.
         /// Equal to 8,192 bytes.
@@ -45,6 +50,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// </summary>
         public static readonly int HardMaxChunkSizeLimit = 8_388_607;
 
+        private byte[] _csvDataPrefix;
+        private IList<IList<string>> _csvData;
         private readonly byte[] _headerBuffer = new byte[
             LengthOfEncodedChunkLength + 2];
 
@@ -66,7 +73,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             ByteUtils.SerializeUpToInt32BigEndian(
                 chunkDataLength + 2, _headerBuffer, 0,
                 LengthOfEncodedChunkLength);
-            _headerBuffer[LengthOfEncodedChunkLength] = LeadChunk.Version01;
+            _headerBuffer[LengthOfEncodedChunkLength] = Version01;
             _headerBuffer[LengthOfEncodedChunkLength + 1] = 0; // flags.
             return IOUtils.WriteBytes(writer, _headerBuffer, 0, LengthOfEncodedChunkLength + 2);
         }
@@ -115,7 +122,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
                 int version = bufferToUse[LengthOfEncodedChunkLength];
                 //int flags = bufferToUse[LengthOfEncodedChunkLength+1];
-                if (version != LeadChunk.Version01)
+                if (version != Version01)
                 {
                     throw new ArgumentException("version not set to v1");
                 }
@@ -144,7 +151,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <exception cref="ArgumentNullException">The <paramref name="reader"/> argument is null</exception>
         /// <exception cref="ChunkDecodingException">If data from reader could not be decoded
         /// into a valid lead chunk.</exception>
-        public static async Task<LeadChunk> ReadLeadChunk(object reader,
+        public async Task<LeadChunk> ReadLeadChunk(object reader,
             int maxChunkSize = 0)
         {
             if (reader == null)
@@ -189,7 +196,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
             try
             {
-                var chunk = LeadChunk.Deserialize(chunkBytes, 0, chunkBytes.Length);
+                var chunk = Deserialize(chunkBytes, 0, chunkBytes.Length);
                 return chunk;
             }
             catch (Exception e)
@@ -228,7 +235,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <exception cref="ArgumentException">The size of the data in <paramref name="chunk"/> argument 
         /// is larger than the <paramref name="maxChunkSize"/> argument, or is larger than value of
         /// <see cref="HardMaxChunkSizeLimit"/> field.</exception>
-        public static async Task WriteLeadChunk(object writer,
+        public async Task WriteLeadChunk(object writer,
             LeadChunk chunk, int maxChunkSize = 0)
         {
             if (writer == null)
@@ -239,8 +246,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 maxChunkSize = DefaultMaxChunkSize;
             }
-            chunk.UpdateSerializedRepresentation();
-            int byteCount = chunk.CalculateSizeInBytesOfSerializedRepresentation();
+            UpdateSerializedRepresentation(chunk);
+            int byteCount = CalculateSizeInBytesOfSerializedRepresentation();
             if (byteCount > maxChunkSize)
             {
                 throw new ArgumentException($"headers larger than max chunk size of {maxChunkSize}");
@@ -253,7 +260,256 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             ByteUtils.SerializeUpToInt32BigEndian(byteCount, encodedLength, 0,
                 encodedLength.Length);
             await IOUtils.WriteBytes(writer, encodedLength, 0, encodedLength.Length);
-            await chunk.WriteOutSerializedRepresentation(writer);
+            await WriteOutSerializedRepresentation(writer);
+        }
+
+        public static void UpdateRequest(IQuasiHttpMutableRequest request,
+            LeadChunk chunk)
+        {
+            request.Method = chunk.Method;
+            request.Target = chunk.RequestTarget;
+            request.Headers = chunk.Headers;
+            request.HttpVersion = chunk.HttpVersion;
+        }
+
+        public static  void UpdateResponse(IQuasiHttpMutableResponse response,
+            LeadChunk chunk)
+        {
+            response.StatusCode = chunk.StatusCode;
+            response.HttpStatusMessage = chunk.HttpStatusMessage;
+            response.Headers = chunk.Headers;
+            response.HttpVersion = chunk.HttpVersion;
+        }
+
+        public static LeadChunk CreateFromRequest(IQuasiHttpRequest request)
+        {
+            var chunk = new LeadChunk
+            {
+                Version = Version01,
+                Method = request.Method,
+                RequestTarget = request.Target,
+                Headers = request.Headers,
+                HttpVersion = request.HttpVersion,
+            };
+            var requestBody = request.Body;
+            if (requestBody != null)
+            {
+                chunk.ContentLength = requestBody.ContentLength;
+            }
+            return chunk;
+        }
+
+        public static LeadChunk CreateFromResponse(IQuasiHttpResponse response)
+        {
+            var chunk = new LeadChunk
+            {
+                Version = Version01,
+                StatusCode = response.StatusCode,
+                HttpStatusMessage = response.HttpStatusMessage,
+                Headers = response.Headers,
+                HttpVersion = response.HttpVersion,
+            };
+            var responseBody = response.Body;
+            if (responseBody != null)
+            {
+                chunk.ContentLength = responseBody.ContentLength;
+            }
+            return chunk;
+        }
+
+        /// <summary>
+        /// Serializes the structure into an internal representation. The serialization format version must be set, or
+        /// else deserialization will fail later on. Also headers without values will be skipped.
+        /// </summary>
+        internal void UpdateSerializedRepresentation(LeadChunk chunk)
+        {
+            _csvDataPrefix = new byte[] { chunk.Version, chunk.Flags };
+
+            _csvData = new List<IList<string>>();
+            var specialHeaderRow = new List<string>();
+            specialHeaderRow.Add((chunk.RequestTarget != null ? 1 : 0).ToString());
+            specialHeaderRow.Add(chunk.RequestTarget ?? "");
+            specialHeaderRow.Add(chunk.StatusCode.ToString());
+            specialHeaderRow.Add(chunk.ContentLength.ToString());
+            specialHeaderRow.Add((chunk.Method != null ? 1 : 0).ToString());
+            specialHeaderRow.Add(chunk.Method ?? "");
+            specialHeaderRow.Add((chunk.HttpVersion != null ? 1 : 0).ToString());
+            specialHeaderRow.Add(chunk.HttpVersion ?? "");
+            specialHeaderRow.Add((chunk.HttpStatusMessage != null ? 1 : 0).ToString());
+            specialHeaderRow.Add(chunk.HttpStatusMessage ?? "");
+            _csvData.Add(specialHeaderRow);
+            if (chunk.Headers != null)
+            {
+                foreach (var header in chunk.Headers)
+                {
+                    if (header.Value.Count == 0)
+                    {
+                        continue;
+                    }
+                    var headerRow = new List<string> { header.Key };
+                    headerRow.AddRange(header.Value);
+                    _csvData.Add(headerRow);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the size of the serialized representation saved internally
+        /// by calling <see cref="UpdateSerializedRepresentation"/>.
+        /// </summary>
+        /// <returns>size of serialized representation</returns>
+        /// <exception cref="InvalidOperationException">If <see cref="UpdateSerializedRepresentation"/>
+        /// has not been called</exception>
+        internal int CalculateSizeInBytesOfSerializedRepresentation()
+        {
+            if (_csvDataPrefix == null || _csvData == null)
+            {
+                throw new InvalidOperationException("missing serialized representation");
+            }
+            int desiredSize = _csvDataPrefix.Length;
+            foreach (var row in _csvData)
+            {
+                var addCommaSeparator = false;
+                foreach (var value in row)
+                {
+                    if (addCommaSeparator)
+                    {
+                        desiredSize++;
+                    }
+                    desiredSize += CalculateSizeInBytesOfEscapedValue(value);
+                    addCommaSeparator = true;
+                }
+                desiredSize++; // for newline
+            }
+            return desiredSize;
+        }
+
+        private static int CalculateSizeInBytesOfEscapedValue(string raw)
+        {
+            var valueContainsSpecialCharacters = false;
+            int doubleQuoteCount = 0;
+            foreach (var c in raw)
+            {
+                if (c == ',' || c == '"' || c == '\r' || c == '\n')
+                {
+                    valueContainsSpecialCharacters = true;
+                    if (c == '"')
+                    {
+                        doubleQuoteCount++;
+                    }
+                }
+            }
+            // escape empty strings with two double quotes to resolve ambiguity
+            // between an empty row and a row containing an empty string - otherwise both
+            // serialize to the same CSV output.
+            int desiredSize = Encoding.UTF8.GetByteCount(raw);
+            if (raw == "" || valueContainsSpecialCharacters)
+            {
+                desiredSize += doubleQuoteCount + 2; // for quoting and surrounding double quotes.
+            }
+            return desiredSize;
+        }
+
+        /// <summary>
+        /// Transfers the serialized representation generated internally by 
+        /// calling <see cref="UpdateSerializedRepresentation"/> to a custom writer.
+        /// </summary>
+        /// <param name="writer">The destination of the bytes to be written
+        /// which is acceptable by <see cref="IOUtils.WriteBytes"/> function</returns>
+        /// <exception cref="InvalidOperationException">If <see cref="UpdateSerializedRepresentation"/>
+        /// has not been called</exception>
+        internal async Task WriteOutSerializedRepresentation(object writer)
+        {
+            if (_csvDataPrefix == null || _csvData == null)
+            {
+                throw new InvalidOperationException("missing serialized representation");
+            }
+            await IOUtils.WriteBytes(writer, _csvDataPrefix, 0, _csvDataPrefix.Length);
+            await CsvUtils.SerializeTo(_csvData, writer);
+        }
+
+        /// <summary>
+        /// Deserializes the structure from byte buffer. The serialization format version must be present.
+        /// Also headers without values will be skipped.
+        /// </summary>
+        /// <param name="data">the source byte buffer</param>
+        /// <param name="offset">the start decoding position in data</param>
+        /// <param name="length">the number of bytes to deserialize</param>
+        /// <returns>deserialized lead chunk structure</returns>
+        /// <exception cref="ArgumentNullException">The <paramref name="data"/> argument is null.</exception>
+        /// <exception cref="ArgumentException">The <paramref name="offset"/> or <paramref name="length"/> arguments 
+        /// genereate invalid positions in source byte buffer.</exception>
+        /// <exception cref="Exception">The byte buffer slice provided does not represent valid
+        /// lead chunk structure, or serialization format version is zero, or deserialization failed.</exception>
+        internal static LeadChunk Deserialize(byte[] data, int offset, int length)
+        {
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+            if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
+            {
+                throw new ArgumentException("invalid payload");
+            }
+
+            if (length < 10)
+            {
+                throw new ArgumentException("too small to be a valid lead chunk");
+            }
+
+            var instance = new LeadChunk();
+            instance.Version = data[offset];
+            if (instance.Version != Version01)
+            {
+                throw new ArgumentException("version not set to v1");
+            }
+            instance.Flags = data[offset + 1];
+
+            var csv = ByteUtils.BytesToString(data, offset + 2, length - 2);
+            var csvData = CsvUtils.Deserialize(csv);
+            if (csvData.Count == 0)
+            {
+                throw new ArgumentException("invalid lead chunk");
+            }
+            var specialHeader = csvData[0];
+            if (specialHeader.Count < 10)
+            {
+                throw new ArgumentException("invalid special header");
+            }
+            if (specialHeader[0] != "0")
+            {
+                instance.RequestTarget = specialHeader[1];
+            }
+            instance.StatusCode = int.Parse(specialHeader[2]);
+            instance.ContentLength = long.Parse(specialHeader[3]);
+            if (specialHeader[4] != "0")
+            {
+                instance.Method = specialHeader[5];
+            }
+            if (specialHeader[6] != "0")
+            {
+                instance.HttpVersion = specialHeader[7];
+            }
+            if (specialHeader[8] != "0")
+            {
+                instance.HttpStatusMessage = specialHeader[9];
+            }
+            for (int i = 1; i < csvData.Count; i++)
+            {
+                var headerRow = csvData[i];
+                if (headerRow.Count < 2)
+                {
+                    continue;
+                }
+                var headerValue = headerRow.Skip(1).ToList();
+                if (instance.Headers == null)
+                {
+                    instance.Headers = new Dictionary<string, IList<string>>();
+                }
+                instance.Headers.Add(headerRow[0], headerValue);
+            }
+
+            return instance;
         }
     }
 }
