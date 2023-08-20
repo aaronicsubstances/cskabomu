@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Examples.Shared
 {
-    public class MemoryBasedAltTransport : IQuasiHttpAltTransport
+    public class MemoryBasedTransport : IQuasiHttpAltTransport
     {
         public IQuasiHttpApplication Application { get; set; }
 
@@ -44,7 +44,30 @@ namespace Kabomu.Examples.Shared
             }
             // todo: ensure disposal of request if it was retrieved
             // from externally supplied request func.
-            return await Application.ProcessRequest(request);
+            return WrapResponse(await Application.ProcessRequest(
+                WrapRequest(request)));
+        }
+
+        private static IQuasiHttpRequest WrapRequest(
+            IQuasiHttpRequest originalRequest)
+        {
+            // todo: decide with some probability
+            // (e.g. 50% in development, 10% in production) not to return
+            // originalRequest, but instead to wrap originalRequest,
+            // originalRequest.Body and originalRequest.Body.Reader
+            // in new instances, to prevent any reliance about their types
+            return originalRequest;
+        }
+
+        private static IQuasiHttpResponse WrapResponse(
+            IQuasiHttpResponse originalResponse)
+        {
+            // todo: decide with some probability
+            // (e.g. 50% in development, 10% in production) not to return
+            // originalResponse, but instead to wrap originalResponse,
+            // originalResponse.Body and originalResponse.Body.Reader
+            // in new instances, to prevent any reliance about their types
+            return originalResponse;
         }
 
         public void CancelSendRequest(object sendCancellationHandle)

@@ -1,8 +1,6 @@
 ﻿using CommandLine;
 using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp.Client;
-using Kabomu.QuasiHttp.Server;
-using Kabomu.QuasiHttp.Transport;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -23,10 +21,6 @@ namespace Memory.FileExchange
             [Option('s', "server-download-dir", Required = false,
                 HelpText = "Path to directory for saving uploaded files. Defaults to current directory")]
             public string ServerDownloadDirPath { get; set; }
-
-            [Option('b', "use-transport-bypass", Required = false, Default = false,
-                HelpText = "Uses transport bypass instead of server/client transports. Defaults to false.")]
-            public bool UseTransportBypass { get; set; }
         }
 
         static void Main(string[] args)
@@ -35,13 +29,11 @@ namespace Memory.FileExchange
                    .WithParsed<Options>(o =>
                    {
                        RunMain(o.ClientUploadDirPath ?? ".",
-                           o.ServerDownloadDirPath ?? ".",
-                           o.UseTransportBypass).Wait();
+                           o.ServerDownloadDirPath ?? ".").Wait();
                    });
         }
 
-        public static async Task RunMain(string uploadDirPath, string downloadDirPath,
-            bool useTransportBypass)
+        public static async Task RunMain(string uploadDirPath, string downloadDirPath)
         {
             var clientEndpoint = "takoradi";
             var serverEndpoint = "kumasi";
@@ -53,33 +45,10 @@ namespace Memory.FileExchange
                 }
             };
             var application = FileReceiver.Create(clientEndpoint, downloadDirPath);
-            if (useTransportBypass)
+            instance.TransportBypass = new MemoryBasedTransport
             {
-                instance.TransportBypass = new MemoryBasedAltTransport
-                {
-                    Application = application
-                };
-            }
-            else
-            {
-                var serverInstance = new StandardQuasiHttpServer
-                {
-                    Application = application
-                };
-                var serverTransport = new MemoryBasedServerTransport
-                {
-                    Server = serverInstance
-                };
-                serverInstance.Transport = serverTransport;
-                var clientTransport = new MemoryBasedClientTransport
-                {
-                    Servers = new Dictionary<object, MemoryBasedServerTransport>
-                    {
-                        { serverEndpoint, serverTransport }
-                    }
-                };
-                instance.Transport = clientTransport;
-            }
+                Application = application
+            };
 
             try
             {
