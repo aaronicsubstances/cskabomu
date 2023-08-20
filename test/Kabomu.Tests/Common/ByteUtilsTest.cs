@@ -89,7 +89,7 @@ namespace Kabomu.Tests.Common
             byte[] actual = new byte[rawBytes.Length];
             Array.Copy(rawBytes, actual, rawBytes.Length);
             ByteUtils.SerializeUpToInt32BigEndian(v, actual, offset, length);
-            Assert.Equal(actual, expected);
+            Assert.Equal(expected, actual);
         }
 
         public static List<object[]> CreateTestSerializeUpToInt32BigEndianData()
@@ -134,7 +134,7 @@ namespace Kabomu.Tests.Common
             int offset, int length, bool signed, int expected)
         {
             var actual = ByteUtils.DeserializeUpToInt32BigEndian(rawBytes, offset, length, signed);
-            Assert.Equal(actual, expected);
+            Assert.Equal(expected, actual);
         }
 
         public static List<object[]> CreateTestDeserializeUpToInt32BigEndianData()
@@ -158,11 +158,8 @@ namespace Kabomu.Tests.Common
                 new object[]{ new byte[] { 0, 0xf, 0x42, 0x40 }, 0, 4, true, 1_000_000 },
                 new object[]{ new byte[] { 0x3b, 0x9a, 0xca, 0, 50 }, 0, 4, true, 1_000_000_000 },
                 new object[]{ new byte[] { 0xc4, 0x65, 0x36, 0 }, 0, 4, false, -1_000_000_000 },
-                /*new object[]{ new byte[] { 8, 2, 0x88, 0xca, 0x6b, 0x9c, 1 }, 2, 4, false, 2_294_967_196 },
-                new object[]{ new byte[] { 8, 2, 0xff, 0xff, 0xff, 0xff, 1 }, 2, 4, false, 4_294_967_295 },
-                new object[]{ new byte[] { 8, 2, 0xff, 0xff, 0xff, 0xff, 1 }, 2, 4, true, -1 },
-                new object[]{ new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }, 0, 7, false, 72_057_594_037_927_935 },
-                new object[]{ new byte[] { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }, 0, 7, true, -1 }*/
+                // the next would have been 2_294_967_196 if deserializing entire 32-bits as unsigned.
+                new object[]{ new byte[] { 8, 2, 0x88, 0xca, 0x6b, 0x9c, 1 }, 2, 4, false, -2_000_000_100 }
             };
         }
 
@@ -175,6 +172,55 @@ namespace Kabomu.Tests.Common
                 ByteUtils.DeserializeUpToInt32BigEndian(new byte[2], 0, -1, false));
             Assert.Throws<ArgumentException>(() =>
                 ByteUtils.DeserializeUpToInt32BigEndian(new byte[20], 0, 10, true));
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestParseInt48Data))]
+        public void TestParseInt48(string input, long expected)
+        {
+            var actual = ByteUtils.ParseInt48(input);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateTestParseInt48Data()
+        {
+            return new List<object[]>
+            {
+                new object[]{ "0", 0 },
+                new object[]{ "1", 1 },
+                new object[]{ "2", 2 },
+                new object[]{ " 20", 20 },
+                new object[]{ " 200 ", 200 },
+                new object[]{ "-1000", -1000 },
+                new object[]{ "1000000", 1_000_000 },
+                new object[]{ "-1000000000", -1_000_000_000 },
+                new object[]{ "4294967295", 4_294_967_295 },
+                new object[]{ "-50000000000000", -50_000_000_000_000 },
+                new object[]{ "100000000000000", 100_000_000_000_000 },
+                new object[]{ "140737488355327", 140_737_488_355_327 },
+                new object[]{ "-140737488355328", -140_737_488_355_328 }
+            };
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData(" ")]
+        [InlineData(null)]
+        [InlineData("false")]
+        [InlineData("xyz")]
+        [InlineData("1.23")]
+        [InlineData("2.0")]
+        [InlineData("140737488355328")]
+        [InlineData("-140737488355329")]
+        [InlineData("72057594037927935")]
+        public void TestParsetInt48ForErrors(string input)
+        {
+            var ex = Assert.ThrowsAny<Exception>(() =>
+                ByteUtils.ParseInt48(input));
+            if (input != null)
+            {
+                Assert.IsAssignableFrom<FormatException>(ex);
+            }
         }
     }
 }

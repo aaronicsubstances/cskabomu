@@ -476,21 +476,35 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 throw new ArgumentException("invalid special header");
             }
-            if (specialHeader[0] != "0")
+            if (specialHeader[0] == "1")
             {
                 instance.RequestTarget = specialHeader[1];
             }
-            instance.StatusCode = int.Parse(specialHeader[2]);
-            instance.ContentLength = long.Parse(specialHeader[3]);
-            if (specialHeader[4] != "0")
+            try
+            {
+                instance.StatusCode = int.Parse(specialHeader[2]);
+            }
+            catch
+            {
+                throw new ArgumentException("invalid status code");
+            }
+            try
+            {
+                instance.ContentLength = ByteUtils.ParseInt48(specialHeader[3]);
+            }
+            catch
+            {
+                throw new ArgumentException("invalid content length");
+            }
+            if (specialHeader[4] == "1")
             {
                 instance.Method = specialHeader[5];
             }
-            if (specialHeader[6] != "0")
+            if (specialHeader[6] == "1")
             {
                 instance.HttpVersion = specialHeader[7];
             }
-            if (specialHeader[8] != "0")
+            if (specialHeader[8] == "1")
             {
                 instance.HttpStatusMessage = specialHeader[9];
             }

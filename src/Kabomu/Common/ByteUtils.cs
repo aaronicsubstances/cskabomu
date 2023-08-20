@@ -149,5 +149,22 @@ namespace Kabomu.Common
             }
             return v;
         }
+
+        /// <summary>
+        /// Parses a string as a valid 48-bit signed integer.
+        /// </summary>
+        /// <param name="input">the string to parse. Can be surrounded by
+        /// whitespace</param>
+        /// <returns>verified 48-bit integer</returns>
+        /// <exception cref="FormatException">if an error occurs</exception>
+        public static long ParseInt48(string input)
+        {
+            var n = long.Parse(input);
+            if (n < -140_737_488_355_328L || n > 140_737_488_355_327L)
+            {
+                throw new FormatException("invalid 48-bit integer: " + input);
+            }
+            return n;
+        }
     }
 }

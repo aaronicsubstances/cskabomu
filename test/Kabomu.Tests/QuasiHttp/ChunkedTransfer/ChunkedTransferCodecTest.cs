@@ -39,7 +39,21 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         }
 
         [Fact]
-        public async Task TestCodecInternalsWithoutChunkLengthEncoding2()
+        public void TestCodecInternalsWithoutChunkLengthEncoding2()
+        {
+            var expectedChunk = new LeadChunk
+            {
+                Version = ChunkedTransferCodec.Version01
+            };
+            var equivalentBytes = ByteUtils.StringToBytes(
+                "\u0001\u0000true,\"\",0,0,false,\"\",\"\",\"\",2,\"\"\n");
+            var actualChunk = ChunkedTransferCodec.Deserialize(
+                equivalentBytes, 0, equivalentBytes.Length);
+            ComparisonUtils.CompareLeadChunks(expectedChunk, actualChunk);
+        }
+
+        [Fact]
+        public async Task TestCodecInternalsWithoutChunkLengthEncoding3()
         {
             var expectedChunk = new LeadChunk
             {
@@ -77,24 +91,72 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         }
 
         [Fact]
-        public void TestDeserializationInternalsWithoutChunkLengthDecodingForErrors()
+        public void TestCodecInternalsWithoutChunkLengthEncoding4()
+        {
+            var expectedChunk = new LeadChunk
+            {
+                Version = ChunkedTransferCodec.Version01,
+                Flags = 0,
+                RequestTarget = "http://www.yoursite.com/category/keyword1,keyword2",
+                HttpStatusMessage = "ok",
+                ContentLength = 140_737_488_355_327,
+                StatusCode = 2_147_483_647,
+                Method = "PUT",
+                Headers = new Dictionary<string, IList<string>>()
+            };
+            expectedChunk.Headers.Add("content-type", new List<string> { "application/json" });
+            expectedChunk.Headers.Add("allow", new List<string> { "GET,POST" });
+
+            var srcBytes = ByteUtils.StringToBytes(
+                "\u0001\u00001,\"http://www.yoursite.com/category/keyword1,keyword2\"," +
+                "2147483647,140737488355327,1,PUT,0,\"\",1,ok\n" +
+                "content-type,application/json\n" +
+                "allow,\"GET,POST\"\n");
+
+            var actualChunk = ChunkedTransferCodec.Deserialize(
+                srcBytes, 0, srcBytes.Length);
+            ComparisonUtils.CompareLeadChunks(expectedChunk, actualChunk);
+        }
+
+        [Fact]
+        public void TestDeserializationInternalsWithoutChunkLengthDecodingForErrors1()
         {
             Assert.Throws<ArgumentNullException>(() =>
             {
                 ChunkedTransferCodec.Deserialize(null, 0, 6);
             });
+        }
+
+        [Fact]
+        public void TestDeserializationInternalsWithoutChunkLengthDecodingForErrors2()
+        {
             Assert.Throws<ArgumentException>(() =>
             {
                 ChunkedTransferCodec.Deserialize(new byte[6], 6, 1);
             });
+        }
+
+        [Fact]
+        public void TestDeserializationInternalsWithoutChunkLengthDecodingForErrors3()
+        {
             Assert.Throws<ArgumentException>(() =>
             {
                 ChunkedTransferCodec.Deserialize(new byte[7], 0, 7);
             });
+        }
+
+        [Fact]
+        public void TestDeserializationInternalsWithoutChunkLengthDecodingForErrors4()
+        {
             Assert.Throws<ArgumentException>(() =>
             {
                 ChunkedTransferCodec.Deserialize(new byte[] { 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 9 }, 0, 11);
             });
+        }
+
+        [Fact]
+        public void TestDeserializationInternalsWithoutChunkLengthDecodingForErrors5()
+        {
             var ex = Assert.Throws<ArgumentException>(() =>
             {
                 var data = new byte[] { 0, 0, (byte)'1', (byte)',', (byte)'1', (byte)',',
@@ -105,6 +167,36 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 ChunkedTransferCodec.Deserialize(data, 0, data.Length);
             });
             Assert.Contains("version", ex.Message);
+        }
+
+        [Fact]
+        public void TestDeserializationInternalsWithoutChunkLengthDecodingForErrors6()
+        {
+            var ex = Assert.Throws<ArgumentException>(() =>
+            {
+                var data = ByteUtils.StringToBytes(
+                    "\u0001\u00001,\"http://www.yoursite.com/category/keyword1,keyword2\"," +
+                    "2147483647,140737488355328,1,PUT,0,\"\",1,ok\n" +
+                    "content-type,application/json\n" +
+                    "allow,\"GET,POST\"\n");
+                ChunkedTransferCodec.Deserialize(data, 0, data.Length);
+            });
+            Assert.Contains("invalid content length", ex.Message);
+        }
+
+        [Fact]
+        public void TestDeserializationInternalsWithoutChunkLengthDecodingForErrors7()
+        {
+            var ex = Assert.Throws<ArgumentException>(() =>
+            {
+                var data = ByteUtils.StringToBytes(
+                    "\u0001\u00001,\"http://www.yoursite.com/category/keyword1,keyword2\"," +
+                    "2147483648,140737488355327,1,PUT,0,\"\",1,ok\n" +
+                    "content-type,application/json\n" +
+                    "allow,\"GET,POST\"\n");
+                ChunkedTransferCodec.Deserialize(data, 0, data.Length);
+            });
+            Assert.Contains("invalid status code", ex.Message);
         }
 
         [Theory]

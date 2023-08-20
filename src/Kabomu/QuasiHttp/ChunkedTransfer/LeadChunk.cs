@@ -34,6 +34,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
         /// <summary>
         /// Gets or sets the equivalent of HTTP response status code.
+        /// 
+        /// NB: Must be valid signed 32-bit integer.
         /// </summary>
         public int StatusCode { get; set; }
 
@@ -53,6 +55,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// lead chunk when serialized.
         /// </item>
         /// </list>
+        /// 
+        /// NB: Must be valid signed 48-bit integer.
         /// </remarks>
         public long ContentLength { get; set; }
 
