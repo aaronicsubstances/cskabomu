@@ -12,17 +12,23 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class LambdaBasedQuasiHttpBodyTest
     {
-        [InlineData("")]
-        [InlineData("ab")]
-        [InlineData("abc")]
-        [InlineData("abcd")]
-        [InlineData("abcde")]
-        [InlineData("abcdef")]
-        [InlineData("Foo \u00c0\u00ff")]
-        [Theory]
-        public async Task TestReading1(string srcData)
+        public static List<object[]> CreateTestData()
         {
-            // arrange
+            return new List<object[]>
+            {
+                new object[]{ "" },
+                new object[]{ "1" },
+                new object[]{ "ab" },
+                new object[]{ "\u0019\u0020\u0021" },
+                new object[]{ "abcd"},
+                new object[]{ "\u0150\u0151\u0169\u0172\u0280"}
+            };
+        }
+
+        [MemberData(nameof(CreateTestData))]
+        [Theory]
+        public async Task TestReading(string srcData)
+        {
             var stream = new MemoryStream(ByteUtils.StringToBytes(srcData));
             var reader = new LambdaBasedCustomReaderWriter
             {
@@ -35,13 +41,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             };
             Assert.Equal(-1, instance.ContentLength);
 
-            // act
             var actual = ByteUtils.BytesToString(await IOUtils.ReadAllBytes(
                 instance.Reader));
-
-            // assert
             Assert.Equal(srcData, actual);
-            Assert.Equal(-1, instance.ContentLength);
 
             // verify that release is a no-op
             await instance.Release();
@@ -52,17 +54,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             Assert.Equal("", actual);
         }
 
-        [InlineData("")]
-        [InlineData("ab")]
-        [InlineData("abc")]
-        [InlineData("abcd")]
-        [InlineData("abcde")]
-        [InlineData("abcdef")]
-        [InlineData("Foo \u00c0\u00ff")]
+        [MemberData(nameof(CreateTestData))]
         [Theory]
-        public async Task TestReading2(string srcData)
+        public async Task TestReadingAndRelease(string srcData)
         {
-            // arrange
             var stream = new MemoryStream(ByteUtils.StringToBytes(srcData));
             var reader = new LambdaBasedCustomReaderWriter
             {
@@ -79,13 +74,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             };
             Assert.Equal(-1, instance.ContentLength);
 
-            // act
             var actual = ByteUtils.BytesToString(await IOUtils.ReadAllBytes(
                 instance.Reader));
-
-            // assert
             Assert.Equal(srcData, actual);
-            Assert.Equal(-1, instance.ContentLength);
 
             // verify that release kicks in
             await instance.Release();
@@ -93,14 +84,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 IOUtils.ReadAllBytes(instance.Reader));
         }
 
+        [MemberData(nameof(CreateTestData))]
         [Theory]
-        [InlineData("")]
-        [InlineData("d")]
-        [InlineData("ds")]
-        [InlineData("data")]
-        [InlineData("datadriven")]
-        [InlineData("Foo \u00c0\u00ff")]
-        public async Task TestWriting1(string expected)
+        public async Task TestWriting(string expected)
         {
             var instance = new LambdaBasedQuasiHttpBody
             {
@@ -108,12 +94,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                     ByteUtils.StringToBytes(expected))
             };
             Assert.Equal(-1, instance.ContentLength);
+
             var writer = new MemoryStream();
 
-            // act
             await instance.WriteBytesTo(writer);
-
-            // assert
             Assert.Equal(expected, ByteUtils.BytesToString(
                 writer.ToArray()));
 
@@ -121,19 +105,15 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             await instance.Release();
 
             // assert repeatability.
+            writer.SetLength(0); // reset
             await instance.WriteBytesTo(writer);
-            Assert.Equal(expected + expected, ByteUtils.BytesToString(
+            Assert.Equal(expected, ByteUtils.BytesToString(
                 writer.ToArray()));
         }
 
+        [MemberData(nameof(CreateTestData))]
         [Theory]
-        [InlineData("")]
-        [InlineData("d")]
-        [InlineData("ds")]
-        [InlineData("data")]
-        [InlineData("datadriven")]
-        [InlineData("Foo \u00c0\u00ff")]
-        public async Task TestWriting2(string expected)
+        public async Task TestWritingAndRelease(string expected)
         {
             var stream = new MemoryStream(ByteUtils.StringToBytes(expected));
             var reader = new LambdaBasedCustomReaderWriter
@@ -150,12 +130,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 }
             };
             Assert.Equal(-1, instance.ContentLength);
+
             var writer = new MemoryStream();
 
-            // act
             await instance.WriteBytesTo(writer);
-
-            // assert
             Assert.Equal(expected, ByteUtils.BytesToString(
                 writer.ToArray()));
 
@@ -166,7 +144,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         }
 
         [Fact]
-        public async Task TestWriting3()
+        public async Task TestDelegateWritable()
         {
             var expected = "sea";
             var srcData = ByteUtils.StringToBytes(expected);
@@ -180,22 +158,28 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
                 Writable = writable
             };
             Assert.Equal(-1, instance.ContentLength);
+
             var writer = new MemoryStream();
 
-            // act
             await instance.WriteBytesTo(writer);
-
-            // assert
             Assert.Equal(expected, ByteUtils.BytesToString(
                 writer.ToArray()));
 
             // verify that release is a no-op
             await instance.Release();
 
-            // assert repeatability.
+            // assert continuation.
             await instance.WriteBytesTo(writer);
             Assert.Equal(expected + expected, ByteUtils.BytesToString(
                 writer.ToArray()));
+        }
+
+        [Fact]
+        public async void TestForErrors()
+        {
+            var instance = new LambdaBasedQuasiHttpBody();
+            await Assert.ThrowsAsync<MissingDependencyException>(() =>
+                instance.WriteBytesTo(new MemoryStream()));
         }
     }
 }

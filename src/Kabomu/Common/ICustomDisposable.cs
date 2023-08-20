@@ -6,7 +6,8 @@ using System.Threading.Tasks;
 namespace Kabomu.Common
 {
     /// <summary>
-    /// Provides hook to implementations to perform resource clean-up operations.
+    /// Common interface of classes in Kabomu library which perform
+    /// resource clean-up operations.
     /// </summary>
     /// <remarks>
     /// This interface exists as a simpler alternative to the Dispose and
@@ -16,7 +17,7 @@ namespace Kabomu.Common
     {
         /// <summary>
         /// Performs any needed clean up operation on resources held
-        /// by instance.
+        /// by the instance.
         /// </summary>
         /// <returns>a task representing asynchronous operation</returns>
         Task Release();

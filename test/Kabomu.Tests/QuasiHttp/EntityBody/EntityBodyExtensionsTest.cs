@@ -70,5 +70,36 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 
             return testData;
         }
+
+        [Fact]
+        public async Task TestAsReaderForErrorOnWritable()
+        {
+            var troublesomeWritable = new LambdaBasedCustomWritable
+            {
+                WritableFunc = async (writer) =>
+                {
+                    await IOUtils.WriteBytes(writer, new byte[1000], 0, 1000);
+                    throw new Exception("enough!");
+ 
+                }
+            };
+            var body = new LambdaBasedQuasiHttpBody
+            {
+                Writable = troublesomeWritable
+            };
+            Exception actualEx = null;
+            var desired = Assert.ThrowsAsync<Exception>(() =>
+                IOUtils.ReadAllBytes(body.AsReader()));
+
+            // just in case error causes desired to hang forever,
+            // impose timeout
+            var first = await Task.WhenAny(Task.Delay(3000),
+                desired);
+            if (first == desired)
+            {
+                actualEx = await desired;
+            }
+            Assert.Equal("enough!", actualEx?.Message);
+        }
     }
 }

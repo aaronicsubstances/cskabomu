@@ -11,27 +11,29 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class StringBodyTest
     {
-        [InlineData("", 0)]
-        [InlineData("ab", 2)]
-        [InlineData("abc", 3)]
-        [InlineData("abcd", 4)]
-        [InlineData("abcde", 5)]
-        [InlineData("abcdef", 6)]
-        [InlineData("Foo \u00c0\u00ff", 8)]
+        public static List<object[]> CreateTestData()
+        {
+            return new List<object[]>
+            {
+                new object[]{ "", 0 },
+                new object[]{ "ab", 2 },
+                new object[]{ "abc", 3 },
+                new object[]{ "\u0001\u0019\u0020\u007e", 4 },
+                new object[]{ "abcdef", 6 },
+                new object[]{ "Foo \u00c0\u00ff", 8 }
+            };
+        }
+
+        [MemberData(nameof(CreateTestData))]
         [Theory]
         public async Task TestReading(string srcData, int expectedContentLength)
         {
-            // arrange
             var instance = new StringBody(srcData);
             Assert.Equal(expectedContentLength, instance.ContentLength);
 
-            // act
             var actual = ByteUtils.BytesToString(await IOUtils.ReadAllBytes(
                 instance.Reader));
-
-            // assert
             Assert.Equal(srcData, actual);
-            Assert.Equal(expectedContentLength, instance.ContentLength);
             
             // verify that release is a no-op
             await instance.Release();
@@ -42,25 +44,16 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             Assert.Equal(srcData, actual);
         }
 
+        [MemberData(nameof(CreateTestData))]
         [Theory]
-        [InlineData("")]
-        [InlineData("d")]
-        [InlineData("ds")]
-        [InlineData("data")]
-        [InlineData("datadriven")]
-        [InlineData("Foo \u00c0\u00ff")]
-        public async Task TestWriting(string expected)
+        public async Task TestWriting(string expected, int expectedContentLength)
         {
-            var instance = new StringBody(expected)
-            {
-                ContentLength = -1
-            };
+            var instance = new StringBody(expected);
+            Assert.Equal(expectedContentLength, instance.ContentLength);
+
             var writer = new MemoryStream();
 
-            // act
             await instance.WriteBytesTo(writer);
-
-            // assert
             Assert.Equal(expected, ByteUtils.BytesToString(
                 writer.ToArray()));
 
@@ -68,8 +61,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             await instance.Release();
 
             // assert repeatability.
+            writer.SetLength(0); // reset
+            instance.ContentLength = -1; // should have no effect on expectations
             await instance.WriteBytesTo(writer);
-            Assert.Equal(expected + expected, ByteUtils.BytesToString(
+            Assert.Equal(expected, ByteUtils.BytesToString(
                 writer.ToArray()));
         }
 

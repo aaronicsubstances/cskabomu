@@ -13,14 +13,14 @@ namespace Kabomu.QuasiHttp.EntityBody
     public interface IQuasiHttpBody : ICustomWritable, ICustomDisposable
     {
         /// <summary>
-        /// Gets the number of bytes that this instance will supply,
+        /// Gets the number of bytes that the instance will supply,
         /// or -1 (actually any negative value) to indicate an unknown number of bytes.
         /// </summary>
         long ContentLength { get; }
 
         /// <summary>
         /// Gets a reader acceptable by <see cref="IOUtils.ReadBytes"/>,
-        /// for reading from body. Can also return null to
+        /// for reading byte representation of the instance. Can also return null to
         /// indicate that direct reading is not supported.
         /// </summary>
         object Reader { get; }

@@ -15,19 +15,14 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public async Task TestReading1()
         {
-            // arrange
             var srcData = new Dictionary<string, IList<string>>();
             var expected = "";
             var instance = new CsvBody(srcData);
             Assert.Equal(-1, instance.ContentLength);
 
-            // act
             var actual = ByteUtils.BytesToString(await IOUtils.ReadAllBytes(
                 instance.Reader));
-
-            // assert
             Assert.Equal(expected, actual);
-            Assert.Equal(-1, instance.ContentLength);
 
             // verify that release is a no-op
             await instance.Release();
@@ -41,7 +36,6 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public async Task TestReading2()
         {
-            // arrange
             var srcData = new Dictionary<string, IList<string>>()
             {
                 { "A", new List<string> {"b", "2"} },
@@ -53,13 +47,9 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             var instance = new CsvBody(srcData);
             Assert.Equal(-1, instance.ContentLength);
 
-            // act
             var actual = ByteUtils.BytesToString(await IOUtils.ReadAllBytes(
                 instance.Reader));
-
-            // assert
             Assert.Equal(expected, actual);
-            Assert.Equal(-1, instance.ContentLength);
 
             // verify that release is a no-op
             await instance.Release();
@@ -73,16 +63,14 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Fact]
         public async Task TestWriting1()
         {
-            // arrange
             var srcData = new Dictionary<string, IList<string>>();
             string expected = "";
             var instance = new CsvBody(srcData);
+            Assert.Equal(-1, instance.ContentLength);
+
             var writer = new MemoryStream();
 
-            // act
             await instance.WriteBytesTo(writer);
-
-            // assert
             Assert.Equal(expected, ByteUtils.BytesToString(
                 writer.ToArray()));
 
@@ -90,15 +78,16 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             await instance.Release();
 
             // assert repeatability.
+            writer.SetLength(0); // reset
+            instance.ContentLength = -1; // should have no effect on expectations
             await instance.WriteBytesTo(writer);
-            Assert.Equal(expected + expected, ByteUtils.BytesToString(
+            Assert.Equal(expected, ByteUtils.BytesToString(
                 writer.ToArray()));
         }
 
         [Fact]
         public async Task TestWriting2()
         {
-            // arrange
             var srcData = new Dictionary<string, IList<string>>()
             {
                 { "A", new List<string> {"b", "2"} },
@@ -108,12 +97,11 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             };
             string expected = "A,b,2\nB,2\nC\nD,Fire\n";
             var instance = new CsvBody(srcData);
+            Assert.Equal(-1, instance.ContentLength);
+
             var writer = new MemoryStream();
 
-            // act
             await instance.WriteBytesTo(writer);
-
-            // assert
             Assert.Equal(expected, ByteUtils.BytesToString(
                 writer.ToArray()));
 
@@ -121,8 +109,10 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             await instance.Release();
 
             // assert repeatability.
+            writer.SetLength(0); // reset
+            instance.ContentLength = -1; // should have no effect on expectations
             await instance.WriteBytesTo(writer);
-            Assert.Equal(expected + expected, ByteUtils.BytesToString(
+            Assert.Equal(expected, ByteUtils.BytesToString(
                 writer.ToArray()));
         }
 

@@ -10,11 +10,12 @@ namespace Kabomu.QuasiHttp.EntityBody
     public static class EntityBodyExtensions
     {
         /// <summary>
-        /// Get a value from the <see cref="IQuasiHttpBody.Reader"/> property of a 
-        /// quasi http body if the value is not null.
-        /// And if that value is null, a custom reader acceptable by
-        /// <see cref="IOUtils.ReadBytes"/> function is setup, to return the bytes
-        /// the body produces by treating it as a writable.
+        /// This function either returns a value from the
+        /// <see cref="IQuasiHttpBody.Reader"/> property of a 
+        /// quasi http body if the value is not null, or it sets up a
+        /// custom reader (acceptable by
+        /// <see cref="IOUtils.ReadBytes"/>) to return the bytes
+        /// the body produces, by treating the body as a writable.
         /// </summary>
         /// <param name="body">the quasi http body</param>
         /// <returns>a reader which can be used to read bytes from the body</returns>

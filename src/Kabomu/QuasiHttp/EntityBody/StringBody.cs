@@ -60,7 +60,9 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// <param name="writer">supplied writer</param>
         public Task WriteBytesTo(object writer)
         {
-            return IOUtils.CopyBytes(Reader, writer);
+            var contentBytes = ByteUtils.StringToBytes(Content);
+            return IOUtils.WriteBytes(writer, contentBytes, 0,
+                contentBytes.Length);
         }
     }
 }

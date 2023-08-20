@@ -11,67 +11,56 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 {
     public class ByteBufferBodyTest
     {
-        [InlineData("", 0)]
-        [InlineData("ab", 2)]
-        [InlineData("abc", 3)]
-        [InlineData("abcd", 4)]
-        [InlineData("abcde", 5)]
-        [InlineData("abcdef", 6)]
-        [InlineData("Foo \u00c0\u00ff", 8)]
-        [Theory]
-        public async Task TestReading(string srcData, int expectedContentLength)
+        public static List<object[]> CreateTestData()
         {
-            // arrange
-            var instance = new ByteBufferBody(ByteUtils.StringToBytes(srcData));
+            return new List<object[]>
+            {
+                new object[]{ new byte[0], 0 },
+                new object[]{ new byte[] { 50 }, 1 },
+                new object[]{ new byte[] { 1, 2 }, 2 },
+                new object[]{ new byte[] { 130, 148, 199 }, 3 },
+                new object[]{ new byte[] { 97, 98, 99, 100 }, 4 },
+            };
+        }
+
+        [MemberData(nameof(CreateTestData))]
+        [Theory]
+        public async Task TestReading(byte[] srcData, int expectedContentLength)
+        {
+            var instance = new ByteBufferBody(srcData);
             Assert.Equal(expectedContentLength, instance.ContentLength);
 
-            // act
-            var actual = ByteUtils.BytesToString(await IOUtils.ReadAllBytes(
-                instance.Reader));
-
-            // assert
+            var actual = await IOUtils.ReadAllBytes(instance.Reader);
             Assert.Equal(srcData, actual);
-            Assert.Equal(expectedContentLength, instance.ContentLength);
 
             // verify that release is a no-op
             await instance.Release();
 
             // assert repeatability.
-            actual = ByteUtils.BytesToString(await IOUtils.ReadAllBytes(
-                instance.Reader));
+            actual = await IOUtils.ReadAllBytes(instance.Reader);
             Assert.Equal(srcData, actual);
         }
 
         [Theory]
-        [InlineData("")]
-        [InlineData("d")]
-        [InlineData("ds")]
-        [InlineData("data")]
-        [InlineData("datadriven")]
-        [InlineData("Foo \u00c0\u00ff")]
-        public async Task TestWriting(string expected)
+        [MemberData(nameof(CreateTestData))]
+        public async Task TestWriting(byte[] srcData, int expectedContentLength)
         {
-            var srcData = ByteUtils.StringToBytes(expected);
-            var instance = new ByteBufferBody(srcData, 0, srcData.Length)
-            {
-                ContentLength = -1
-            };
+            var instance = new ByteBufferBody(srcData, 0, srcData.Length);
+            Assert.Equal(expectedContentLength, instance.ContentLength);
+
             var writer = new MemoryStream();
 
-            // act
             await instance.WriteBytesTo(writer);
-
-            // assert
-            Assert.Equal(expected, ByteUtils.BytesToString(
-                writer.ToArray()));
+            Assert.Equal(srcData, writer.ToArray());
 
             // verify that release is a no-op
             await instance.Release();
 
             // assert repeatability.
+            writer.SetLength(0); // reset
+            instance.ContentLength = -1; // should have no effect on expectations
             await instance.WriteBytesTo(writer);
-            Assert.Equal(expected + expected, ByteUtils.BytesToString(
-                writer.ToArray()));
+            Assert.Equal(srcData, writer.ToArray());
         }
 
         [Fact]

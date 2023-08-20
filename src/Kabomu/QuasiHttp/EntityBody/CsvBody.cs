@@ -21,6 +21,7 @@ namespace Kabomu.QuasiHttp.EntityBody
     {
         /// <summary>
         /// Creates a new instance with the given CSV content.
+        /// Initializes content length to -1.
         /// </summary>
         /// <param name="content">CSV content</param>
         /// <exception cref="ArgumentNullException">if content argument is null</exception>
