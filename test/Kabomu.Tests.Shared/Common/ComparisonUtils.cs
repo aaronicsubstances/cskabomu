@@ -289,5 +289,22 @@ namespace Kabomu.Tests.Shared.Common
             Assert.Equal(expectedSendOptions.MaxChunkSize,
                 actualSendOptions.MaxChunkSize);
         }
+
+        /// <summary>
+        /// Provides equivalent functionality to Promise.all() of NodeJS
+        /// </summary>
+        /// <param name="candiates">tasks</param>
+        /// <returns>asynchronous result which represents successful
+        /// end of all arguments, or failure of one of them</returns>
+        public static async Task WhenAnyFailOrAllSucceed(List<Task> candiates)
+        {
+            var newList = new List<Task>(candiates);
+            while (newList.Count > 0)
+            {
+                var t = await Task.WhenAny(newList);
+                await t;
+                newList.Remove(t);
+            }
+        }
     }
 }
