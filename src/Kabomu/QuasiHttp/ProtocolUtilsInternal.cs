@@ -107,10 +107,7 @@ namespace Kabomu.QuasiHttp
                 }
                 else if (value != null)
                 {
-                    if (bool.TryParse(value as string, out b))
-                    {
-                        return b;
-                    }
+                    return bool.Parse((string)value);
                 }
             }
             return null;
@@ -120,33 +117,20 @@ namespace Kabomu.QuasiHttp
             IQuasiHttpBody body, int bodyBufferingLimit)
         {
             // Assume that body is completely unknown,and as such has nothing
-            // to do with chunk transfer protocol
+            // to do with chunk transfer protocol, or have no need for
+            // content length enforcement.
             var reader = body.AsReader();
-
-            // but still enforce the content length. even if zero,
-            // still pass it on
-            var contentLength = body.ContentLength;
-            if (contentLength >= 0)
-            {
-                reader = new ContentLengthEnforcingCustomReader(reader,
-                    contentLength);
-            }
 
             // now read in entirety of body into memory
             var inMemBuffer = await IOUtils.ReadAllBytes(reader, bodyBufferingLimit);
-            
-            // finally maintain content length for the sake of tests.
-            return new ByteBufferBody(inMemBuffer)
-            {
-                ContentLength = contentLength
-            };
+            return new ByteBufferBody(inMemBuffer);
         }
 
         public static async Task TransferBodyToTransport(
-            object writer, int maxChunkSize, IQuasiHttpBody body)
+            object writer, int maxChunkSize, IQuasiHttpBody body,
+            long contentLength)
         {
-            var contentLength = body?.ContentLength ?? 0;
-            if (body == null || contentLength == 0)
+            if (contentLength == 0)
             {
                 return;
             }
@@ -234,7 +218,7 @@ namespace Kabomu.QuasiHttp
             return await workTask;
         }
 
-        public static (Task<T>, CancellationTokenSource) SetTimeout<T>(int timeoutMillis,
+        public static (Task<T>, CancellationTokenSource) CreateCancellableTimeoutTask<T>(int timeoutMillis,
             string timeoutMsg)
         {
             if (timeoutMillis <= 0)

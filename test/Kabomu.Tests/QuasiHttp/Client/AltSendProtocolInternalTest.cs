@@ -305,7 +305,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             Assert.Equal(1, responseReleaseCallCount);
             Assert.Equal(true, response?.ResponseBufferingApplied);
 
-            await ComparisonUtils.CompareResponses(
+            await ComparisonUtils.CompareResponsesInvolvingUnknownSources(
                 expectedResponse, response?.Response, expectedResBodyBytes);
             Assert.Equal(expectedResponse.Environment,
                 response.Response.Environment);
@@ -333,7 +333,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var response = await instance.Send();
             Assert.Equal(true, response?.ResponseBufferingApplied);
 
-            await ComparisonUtils.CompareResponses(
+            await ComparisonUtils.CompareResponsesInvolvingUnknownSources(
                 expectedResponse, response?.Response, expectedResBodyBytes);
             Assert.Equal(expectedResponse.Environment,
                 response.Response.Environment);

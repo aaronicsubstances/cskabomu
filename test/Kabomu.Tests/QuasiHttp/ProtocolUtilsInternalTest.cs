@@ -164,6 +164,11 @@ namespace Kabomu.Tests.QuasiHttp
             var expected = new Dictionary<string, object>();
             testData.Add(new object[] { preferred, fallback, expected });
 
+            preferred = new Dictionary<string, object>();
+            fallback = new Dictionary<string, object>();
+            expected = new Dictionary<string, object>();
+            testData.Add(new object[] { preferred, fallback, expected });
+
             preferred = new Dictionary<string, object>
             {
                 { "a", 2 }, { "b", 3 }
@@ -302,6 +307,20 @@ namespace Kabomu.Tests.QuasiHttp
             testData.Add(new object[] { preferred, fallback1, defaultValue,
                 expected });
 
+            preferred = true;
+            fallback1 = true;
+            defaultValue = true;
+            expected = true;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = false;
+            fallback1 = false;
+            defaultValue = false;
+            expected = false;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
             return testData;
         }
 
@@ -340,37 +359,23 @@ namespace Kabomu.Tests.QuasiHttp
 
             environment = new Dictionary<string, object>
             {
-                { "d2", "TRUE" }, { "e", "ghana" }
+                { "ty2", "TRUE" }, { "c", new object() }
             };
-            key = "e";
-            testData.Add(new object[] { environment, key, null });
+            key = "ty2";
+            testData.Add(new object[] { environment, key, true });
 
             environment = new Dictionary<string, object>
             {
-                { "d2", "TRUE" }, { "e", new List<string>() }
-            };
-            key = "e";
-            testData.Add(new object[] { environment, key, null });
-
-            environment = new Dictionary<string, object>
-            {
-                { "d2", "TRUE" }, { "e", "ghana" }
+                { "d2", true }, { "e", "ghana" }
             };
             key = "d2";
             testData.Add(new object[] { environment, key, true });
 
             environment = new Dictionary<string, object>
             {
-                { "d2", "true" }, { "e", "ghana" }
+                { "d", "TRue" }, { "e", "ghana" }
             };
-            key = "d2";
-            testData.Add(new object[] { environment, key, true });
-
-            environment = new Dictionary<string, object>
-            {
-                { "d2", "TRUE" }, { "e", "ghana" }
-            };
-            key = "d2";
+            key = "d";
             testData.Add(new object[] { environment, key, true });
 
             environment = new Dictionary<string, object>
@@ -379,6 +384,65 @@ namespace Kabomu.Tests.QuasiHttp
             };
             key = "d";
             testData.Add(new object[] { environment, key, false });
+
+            environment = new Dictionary<string, object>
+            {
+                { "d", "45" }, { "e", "ghana" }, { "ert", "False" }
+            };
+            key = "ert";
+            testData.Add(new object[] { environment, key, false });
+
+            return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestGetEnvVarAsBooleanForErrorsData))]
+        public void TestGetEnvVarAsBooleanForErrors(IDictionary<string, object> environment,
+            string key)
+        {
+            Assert.ThrowsAny<Exception>(() =>
+                ProtocolUtilsInternal.GetEnvVarAsBoolean(environment, key));
+        }
+
+        public static List<object[]> CreateTestGetEnvVarAsBooleanForErrorsData()
+        {
+            var testData = new List<object[]>();
+
+            var environment = new Dictionary<string, object>
+            {
+                { "d", "de" },
+                { "2", false }
+            };
+            string key = "d";
+            testData.Add(new object[] { environment, key });
+
+            environment = new Dictionary<string, object>
+            {
+                { "c", "" }
+            };
+            key = "c";
+            testData.Add(new object[] { environment, key });
+
+            environment = new Dictionary<string, object>
+            {
+                { "d2", "TRUE" }, { "e", new List<string>() }
+            };
+            key = "e";
+            testData.Add(new object[] { environment, key });
+
+            environment = new Dictionary<string, object>
+            {
+                { "k1", 1 }
+            };
+            key = "k1";
+            testData.Add(new object[] { environment, key });
+
+            environment = new Dictionary<string, object>
+            {
+                { "k1", 0 }
+            };
+            key = "k1";
+            testData.Add(new object[] { environment, key });
 
             return testData;
         }
@@ -399,7 +463,8 @@ namespace Kabomu.Tests.QuasiHttp
                 bufferingLimit);
             
             // assert.
-            await ComparisonUtils.CompareBodies(expected, actualResponseBody, expectedBodyBytes);
+            await ComparisonUtils.CompareBodiesInvolvingUnknownSources(
+                expected, actualResponseBody, expectedBodyBytes);
         }
 
         public static List<object[]> CreateTestCreateEquivalentInMemoryBodyData()
@@ -413,7 +478,7 @@ namespace Kabomu.Tests.QuasiHttp
 
             bufferingLimit = 0;
             expectedResBodyBytes = new byte[0];
-            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes));
+            responseBody = new StringBody("");
             testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
@@ -426,29 +491,27 @@ namespace Kabomu.Tests.QuasiHttp
             testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
-                (byte)'e', (byte)'f' };
+                (byte)'e' };
             bufferingLimit = expectedResBodyBytes.Length;
             responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes));
             testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
             bufferingLimit = 8;
-            expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
-                (byte)'e', (byte)'f' };
+            expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d' };
             responseBody = new ByteBufferBody(expectedResBodyBytes)
             {
                 ContentLength = -1
             };
             testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
-            // test that over abundance of data works fine.
-
-            bufferingLimit = 4;
-            responseBody = new ByteBufferBody(new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
-                (byte)'e', (byte)'f' })
+            // test that wrong content length works fine
+            bufferingLimit = 30;
+            responseBody = new StringBody("xyz!")
             {
-                ContentLength = 3
+                ContentLength = 5
             };
-            expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c' };
+            expectedResBodyBytes = new byte[] { (byte)'x', (byte)'y', (byte)'z',
+                (byte)'!' };
             testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
             return testData;
@@ -470,17 +533,20 @@ namespace Kabomu.Tests.QuasiHttp
         [Fact]
         public async Task TestCreateEquivalentInMemoryBodyForErrors2()
         {
-            int bufferingLimit = 30;
-            var responseBody = new StringBody("xyz!")
+            // test that content length is not respected, and so
+            // over abundance of data leads to error
+            int bufferingLimit = 4;
+            var responseBody = new ByteBufferBody(new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
+                (byte)'e', (byte)'f' })
             {
-                ContentLength = 5
+                ContentLength = 3
             };
             var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
             {
                 return ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(responseBody,
                     bufferingLimit);
             });
-            Assert.Contains("length of 5", actualEx.Message);
+            Assert.Contains($"limit of {bufferingLimit}", actualEx.Message);
         }
 
         [Fact]
@@ -496,12 +562,9 @@ namespace Kabomu.Tests.QuasiHttp
                 (byte)'b', (byte)'y', (byte)'t', (byte)'e', 0, 0, 3, 1, 0,
                 (byte)'s', 0, 0, 2, 1, 0
             };
-            var body = new StringBody(srcData)
-            {
-                ContentLength = -1
-            };
+            var body = new StringBody(srcData);
             await ProtocolUtilsInternal.TransferBodyToTransport(writer,
-                maxChunkSize, body);
+                maxChunkSize, body, -1);
 
             Assert.Equal(expected, writer.ToArray());
         }
@@ -509,7 +572,7 @@ namespace Kabomu.Tests.QuasiHttp
         [Fact]
         public async Task TestTransferBodyToTransport2()
         {
-            int maxChunkSize = 6;
+            int maxChunkSize = 14;
             var writer = new MemoryStream();
             var writerWrapper = new LambdaBasedCustomReaderWriter
             {
@@ -519,15 +582,15 @@ namespace Kabomu.Tests.QuasiHttp
             var expected = "camouflage";
             var body = new StringBody(expected);
             await ProtocolUtilsInternal.TransferBodyToTransport(writerWrapper,
-                maxChunkSize, body);
+                maxChunkSize, body, body.ContentLength);
 
             Assert.Equal(expected, ByteUtils.BytesToString(
                 writer.ToArray()));
         }
 
         /// <summary>
-        /// Assert that body with zero content length is not processed,
-        /// and check that dispose is not called.
+        /// Assert that zero content length causes body not to be processed,
+        /// and check that release is not called on body.
         /// </summary>
         [Fact]
         public async Task TestTransferBodyToTransport3()
@@ -546,16 +609,15 @@ namespace Kabomu.Tests.QuasiHttp
             var body = new LambdaBasedQuasiHttpBody
             {
                 ReaderFunc = () => reader,
-                ContentLength = 0,
                 ReleaseFunc = async () => await reader.DisposeAsync()
             };
             await ProtocolUtilsInternal.TransferBodyToTransport(writerWrapper,
-                maxChunkSize, body);
+                maxChunkSize, body, 0);
 
             Assert.Equal(new byte[0], writer.ToArray());
 
             // check that release is not called on body during transfer.
-            var actual = await IOUtils.ReadAllBytes(reader);
+            var actual = await IOUtils.ReadAllBytes(body.AsReader());
             Assert.Equal(srcData, ByteUtils.BytesToString(actual));
         }
 
@@ -574,28 +636,31 @@ namespace Kabomu.Tests.QuasiHttp
 
             var body = new LambdaBasedQuasiHttpBody
             {
-                ReaderFunc = () => reader,
-                ContentLength = 456
+                ReaderFunc = () => reader
             };
             await ProtocolUtilsInternal.TransferBodyToTransport(writer,
-                maxChunkSize, body);
+                maxChunkSize, body, 456);
 
             Assert.Equal(expected, ByteUtils.BytesToString(
                 writer.ToArray()));
         }
 
         /// <summary>
-        /// Assert that no error occurs with null body.
+        /// Assert that no error occurs with null body due to zero
+        /// content length.
         /// </summary>
         [Fact]
         public async Task TestTransferBodyToTransport5()
         {
-            int maxChunkSize = 6;
-            var writer = new MemoryStream();
-            await ProtocolUtilsInternal.TransferBodyToTransport(writer,
-                maxChunkSize, null);
+            int maxChunkSize = 8;
+            var writer = new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = async (data, offset, length) =>
+                    throw new Exception("should not be called")
+            };
 
-            Assert.Equal(new byte[0], writer.ToArray());
+            await ProtocolUtilsInternal.TransferBodyToTransport(writer,
+                maxChunkSize, null, 0);
         }
 
         [Fact]
@@ -610,21 +675,18 @@ namespace Kabomu.Tests.QuasiHttp
             int maxChunkSize = 6;
             bool bufferingEnabled = false;
             int bodyBufferingSizeLimit = 2;
+            var expected = new ByteBufferBody(expectedData);
 
             // act
-            var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
+            var actual = await ProtocolUtilsInternal.CreateBodyFromTransport(
                 reader, contentLength, releaseFunc, maxChunkSize,
                 bufferingEnabled, bodyBufferingSizeLimit);
 
             // assert
-            Assert.Equal(contentLength, body.ContentLength);
-            var actualData = new byte[body.ContentLength];
-            await IOUtils.ReadBytesFully(body.Reader,
-                actualData, 0, actualData.Length);
-            Assert.Equal(expectedData, actualData);
+            await ComparisonUtils.CompareBodies(expected, actual, expectedData);
 
             // assert no errors on release
-            await body.Release();
+            await actual.Release();
         }
 
         [Fact]
@@ -646,24 +708,21 @@ namespace Kabomu.Tests.QuasiHttp
                 releaseCallCount++;
                 return Task.CompletedTask;
             };
-            int maxChunkSize = 6;
+            int maxChunkSize = 15;
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 4;
+            var expected = new ByteBufferBody(expectedData);
 
             // act
-            var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
+            var actual = await ProtocolUtilsInternal.CreateBodyFromTransport(
                 reader, contentLength, releaseFunc, maxChunkSize,
                 bufferingEnabled, bodyBufferingSizeLimit);
 
             // assert
-            Assert.Equal(contentLength, body.ContentLength);
-            var actualData = new byte[body.ContentLength];
-            await IOUtils.ReadBytesFully(body.Reader,
-                actualData, 0, actualData.Length);
-            Assert.Equal(expectedData, actualData);
+            await ComparisonUtils.CompareBodies(expected, actual, expectedData);
 
             // assert that transport wasn't released due to buffering.
-            await body.Release();
+            await actual.Release();
             Assert.Equal(0, releaseCallCount);
         }
 
@@ -686,22 +745,25 @@ namespace Kabomu.Tests.QuasiHttp
             };
             long contentLength = -1;
             Func<Task> releaseFunc = null;
-            int maxChunkSize = 6;
+            int maxChunkSize = 2; // should have no effect since it is
+                                  // less than hard limit
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 30;
+            var expected = new ByteBufferBody(expectedData)
+            {
+                ContentLength = -1
+            };
 
             // act
-            var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
+            var actual = await ProtocolUtilsInternal.CreateBodyFromTransport(
                 reader, contentLength, releaseFunc, maxChunkSize,
                 bufferingEnabled, bodyBufferingSizeLimit);
 
             // assert
-            Assert.Equal(contentLength, body.ContentLength);
-            var actualData = await IOUtils.ReadAllBytes(body.Reader);
-            Assert.Equal(expectedData, actualData);
+            await ComparisonUtils.CompareBodies(expected, actual, expectedData);
 
             // assert no errors on release
-            await body.Release();
+            await actual.Release();
         }
 
         [Fact]
@@ -715,29 +777,31 @@ namespace Kabomu.Tests.QuasiHttp
             };
             var expectedData = ByteUtils.StringToBytes("bits and bytes");
             var reader = new MemoryStream(srcData);
-            long contentLength = -1;
+            long contentLength = -2;
             var releaseCallCount = 0;
             Func<Task> releaseFunc = () =>
             {
                 releaseCallCount++;
                 return Task.CompletedTask;
             };
-            int maxChunkSize = 60;
+            int maxChunkSize = 50;
             bool bufferingEnabled = false;
             int bodyBufferingSizeLimit = 3;
+            var expected = new ByteBufferBody(expectedData)
+            {
+                ContentLength = -2
+            };
 
             // act
-            var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
+            var actual = await ProtocolUtilsInternal.CreateBodyFromTransport(
                 reader, contentLength, releaseFunc, maxChunkSize,
                 bufferingEnabled, bodyBufferingSizeLimit);
 
             // assert
-            Assert.Equal(contentLength, body.ContentLength);
-            var actualData = await IOUtils.ReadAllBytes(body.Reader);
-            Assert.Equal(expectedData, actualData);
+            await ComparisonUtils.CompareBodies(expected, actual, expectedData);
 
             // assert that transport was released.
-            await body.Release();
+            await actual.Release();
             Assert.Equal(1, releaseCallCount);
         }
 
@@ -748,7 +812,29 @@ namespace Kabomu.Tests.QuasiHttp
         public async Task TestCreateBodyFromTransport5()
         {
             // arrange
-            var srcData = "ice";
+            var srcData = "";
+            var expectedData = ByteUtils.StringToBytes(srcData);
+            var reader = new MemoryStream(expectedData);
+            long contentLength = 0;
+            Func<Task> releaseFunc = null;
+            int maxChunkSize = 0;
+            bool bufferingEnabled = false;
+            int bodyBufferingSizeLimit = 0;
+
+            // act
+            var body = await ProtocolUtilsInternal.CreateBodyFromTransport(
+                reader, contentLength, releaseFunc, maxChunkSize,
+                bufferingEnabled, bodyBufferingSizeLimit);
+
+            // assert
+            Assert.Null(body);
+        }
+
+        [Fact]
+        public async Task TestCreateBodyFromTransport6()
+        {
+            // arrange
+            var srcData = "dump inuendo";
             var expectedData = ByteUtils.StringToBytes(srcData);
             var reader = new MemoryStream(expectedData);
             long contentLength = 0;
@@ -758,7 +844,7 @@ namespace Kabomu.Tests.QuasiHttp
                 releaseCallCount++;
                 return Task.CompletedTask;
             };
-            int maxChunkSize = 6;
+            int maxChunkSize = 10;
             bool bufferingEnabled = true;
             int bodyBufferingSizeLimit = 4;
 
@@ -785,7 +871,7 @@ namespace Kabomu.Tests.QuasiHttp
             };
             var expectedData = ByteUtils.StringToBytes("bits and bytes");
             var reader = new MemoryStream(srcData);
-            long contentLength = -1;
+            long contentLength = -3;
             Func<Task> releaseFunc = null;
             int maxChunkSize = 60;
             bool bufferingEnabled = true;
@@ -999,26 +1085,26 @@ namespace Kabomu.Tests.QuasiHttp
         }
 
         [Fact]
-        public void TestSetTimeout1()
+        public void TestCreateCancellableTimeoutTask1()
         {
-            var actual = ProtocolUtilsInternal.SetTimeout<string>(0, null);
+            var actual = ProtocolUtilsInternal.CreateCancellableTimeoutTask<string>(0, "");
             Assert.Equal((null, null), actual);
         }
 
         [Fact]
-        public void TestSetTimeout2()
+        public void TestCreateCancellableTimeoutTask2()
         {
-            var actual = ProtocolUtilsInternal.SetTimeout<string>(-3, null);
+            var actual = ProtocolUtilsInternal.CreateCancellableTimeoutTask<string>(-3, "");
             Assert.Equal((null, null), actual);
         }
 
         [Fact]
-        public async Task TestSetTimeout3()
+        public async Task TestCreateCancellableTimeoutTask3()
         {
             var expectedMsg = "sea";
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
             {
-                return ProtocolUtilsInternal.SetTimeout<int>(50, expectedMsg).Item1;
+                return ProtocolUtilsInternal.CreateCancellableTimeoutTask<int>(50, expectedMsg).Item1;
             });
             Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeTimeout,
                 actualEx.ReasonCode);
@@ -1026,10 +1112,11 @@ namespace Kabomu.Tests.QuasiHttp
         }
 
         [Fact]
-        public async Task TestSetTimeout4()
+        public async Task TestCreateCancellableTimeoutTask4()
         {
-            var (actualTask, timeoutId) = ProtocolUtilsInternal.SetTimeout<string>(500, null);
+            var (actualTask, timeoutId) = ProtocolUtilsInternal.CreateCancellableTimeoutTask<string>(500, "");
             await Task.Delay(100);
+            Assert.NotNull(timeoutId);
             timeoutId.Cancel();
             var actual = await actualTask;
             Assert.Null(actual);

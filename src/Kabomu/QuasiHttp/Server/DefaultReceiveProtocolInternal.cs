@@ -92,11 +92,11 @@ namespace Kabomu.QuasiHttp.Server
                 return;
             }
 
-            var chunk = ChunkedTransferCodec.CreateFromResponse(response);
+            var leadChunk = ChunkedTransferCodec.CreateFromResponse(response);
             var writer = Transport.GetWriter(Connection);
-            await new ChunkedTransferCodec().WriteLeadChunk(writer, chunk, MaxChunkSize);
+            await new ChunkedTransferCodec().WriteLeadChunk(writer, leadChunk, MaxChunkSize);
             await ProtocolUtilsInternal.TransferBodyToTransport(
-                writer, MaxChunkSize, response.Body);
+                writer, MaxChunkSize, response.Body, leadChunk.ContentLength);
         }
     }
 }

@@ -108,8 +108,40 @@ namespace Kabomu.Tests.Shared.Common
             }
             Assert.NotNull(actual);
             Assert.Equal(expected.ContentLength, actual.ContentLength);
-            var actualResBodyBytes = await IOUtils.ReadAllBytes(actual.AsReader());
-            Assert.Equal(expectedBodyBytes, actualResBodyBytes);
+            var actualBodyBytes = await IOUtils.ReadAllBytes(actual.AsReader());
+            Assert.Equal(expectedBodyBytes, actualBodyBytes);
+        }
+
+        public static async Task CompareResponsesInvolvingUnknownSources(
+            IQuasiHttpResponse expected, IQuasiHttpResponse actual,
+            byte[] expectedResBodyBytes)
+        {
+            if (expected == null)
+            {
+                Assert.Null(actual);
+                return;
+            }
+            Assert.NotNull(actual);
+            Assert.Equal(expected.StatusCode, actual.StatusCode);
+            Assert.Equal(expected.HttpVersion, actual.HttpVersion);
+            Assert.Equal(expected.HttpStatusMessage, actual.HttpStatusMessage);
+            CompareHeaders(expected.Headers, actual.Headers);
+            //Assert.Equal(expected.Environment, actual.Environment);
+            await CompareBodiesInvolvingUnknownSources(expected.Body, actual.Body, expectedResBodyBytes);
+        }
+
+        public static async Task CompareBodiesInvolvingUnknownSources(IQuasiHttpBody expected,
+            IQuasiHttpBody actual, byte[] expectedBodyBytes)
+        {
+            if (expectedBodyBytes == null)
+            {
+                Assert.Same(expected, actual);
+                return;
+            }
+            Assert.NotNull(actual);
+            Assert.Equal(expectedBodyBytes.Length, actual.ContentLength);
+            var actualBodyBytes = await IOUtils.ReadAllBytes(actual.AsReader());
+            Assert.Equal(expectedBodyBytes, actualBodyBytes);
         }
 
         public static void CompareHeaders(IDictionary<string, IList<string>> expected,

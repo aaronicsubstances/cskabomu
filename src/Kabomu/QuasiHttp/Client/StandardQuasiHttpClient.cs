@@ -183,7 +183,7 @@ namespace Kabomu.QuasiHttp.Client
             Task<ProtocolSendResultInternal> timeoutTask = null;
             if (!skipSettingTimeouts)
             {
-                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.SetTimeout<ProtocolSendResultInternal>(
+                (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.CreateCancellableTimeoutTask<ProtocolSendResultInternal>(
                     mergedSendOptions.TimeoutMillis, "send timeout");
             }
 
