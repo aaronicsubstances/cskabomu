@@ -14,14 +14,27 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
     public class ChunkDecodingCustomReaderTest
     {
         [Fact]
+        public void TestForConstructionSuccess()
+        {
+            var reader = new MemoryStream();
+            _ = new ChunkDecodingCustomReader(reader, 10_000_000);
+        }
+
+        [Fact]
+        public void TestForConstructionErrors()
+        {
+            Assert.Throws<ArgumentNullException>(() =>
+                new ChunkDecodingCustomReader(null, 1));
+        }
+
+        [Fact]
         public async Task TestReading1()
         {
             // arrange
             var srcData = new byte[] { 0, 0, 2, 1, 0 };
             var backingReader = new MemoryStream(srcData);
-            int maxChunkSize = 2;
             var instance = new ChunkDecodingCustomReader(
-                backingReader, maxChunkSize);
+                backingReader);
             var writer = new MemoryStream();
             var expected = "";
 
@@ -112,6 +125,34 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 backingReader, maxChunkSize);
             var writer = new MemoryStream();
             var expected = "data bits and byte";
+
+            // act
+            await IOUtils.CopyBytes(instance, writer);
+
+            // assert
+            Assert.Equal(expected, ByteUtils.BytesToString(
+                writer.ToArray()));
+
+            // ensure subsequent reading attempts return 0
+            Assert.Equal(0, await instance.ReadBytes(new byte[1], 0, 1));
+        }
+
+        [Fact]
+        public async Task TestReading5()
+        {
+            // arrange
+            var srcData = new byte[] { 0 ,0, 17, 1, 0, (byte)'i',
+                (byte)'t', (byte)' ', (byte)'i', (byte)'s', (byte)' ',
+                (byte)'f', (byte)'i', (byte)'n', (byte)'i', (byte)'s',
+                (byte)'h', (byte)'e', (byte)'d', (byte)'.',
+                0, 0, 2, 1, 0
+            };
+            var backingReader = new MemoryStream(srcData);
+            int maxChunkSize = -8;
+            var instance = new ChunkDecodingCustomReader(
+                backingReader, maxChunkSize);
+            var writer = new MemoryStream();
+            var expected = "it is finished.";
 
             // act
             await IOUtils.CopyBytes(instance, writer);

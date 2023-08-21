@@ -45,10 +45,10 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
         /// <summary>
         /// Constant which communicates the largest chunk size possible with the standard chunk transfer 
-        /// implementation in the Kabomu library, and that is currently the largest
-        /// signed integer that can fit into 3 bytes.
+        /// implementation in the Kabomu library, and that is currently almost equal to
+        /// the largest signed integer that can fit into 3 bytes.
         /// </summary>
-        public static readonly int HardMaxChunkSizeLimit = 8_388_607;
+        public static readonly int HardMaxChunkSizeLimit = 8_388_500;
 
         private byte[] _csvDataPrefix;
         private IList<IList<string>> _csvData;
@@ -233,8 +233,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <exception cref="ArgumentNullException">The <paramref name="writer"/> or
         /// the <paramref name="chunk"/> argument is null.</exception>
         /// <exception cref="ArgumentException">The size of the data in <paramref name="chunk"/> argument 
-        /// is larger than the <paramref name="maxChunkSize"/> argument, or is larger than value of
-        /// <see cref="HardMaxChunkSizeLimit"/> field.</exception>
+        /// is larger than the <paramref name="maxChunkSize"/> argument.</exception>
         public async Task WriteLeadChunk(object writer,
             LeadChunk chunk, int maxChunkSize = 0)
         {
@@ -250,11 +249,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             int byteCount = CalculateSizeInBytesOfSerializedRepresentation();
             if (byteCount > maxChunkSize)
             {
-                throw new ArgumentException($"headers larger than max chunk size of {maxChunkSize}");
-            }
-            if (byteCount > HardMaxChunkSizeLimit)
-            {
-                throw new ArgumentException($"headers larger than max chunk size limit of {HardMaxChunkSizeLimit}");
+                throw new ArgumentException($"headers exceed max chunk size of {maxChunkSize}");
             }
             var encodedLength = new byte[LengthOfEncodedChunkLength];
             ByteUtils.SerializeUpToInt32BigEndian(byteCount, encodedLength, 0,
@@ -263,6 +258,14 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             await WriteOutSerializedRepresentation(writer);
         }
 
+        /// <summary>
+        /// Updates an instance of <see cref="IQuasiHttpMutableRequest"/>
+        /// with corresponding properties on a <see cref="LeadChunk"/> instance,
+        /// in particular: method, target, http version and headers.
+        /// </summary>
+        /// <param name="request">request instance to be updated</param>
+        /// <param name="chunk">lead chunk instance which will be used
+        /// to update request instance</param>
         public static void UpdateRequest(IQuasiHttpMutableRequest request,
             LeadChunk chunk)
         {
@@ -272,6 +275,14 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             request.HttpVersion = chunk.HttpVersion;
         }
 
+        /// <summary>
+        /// Updates an instance of <see cref="IQuasiHttpMutableResponse"/>
+        /// with corresponding properties on a <see cref="LeadChunk"/> instance,
+        /// in particular: status code, http status message, http version and headers.
+        /// </summary>
+        /// <param name="response">response instance to be updated</param>
+        /// <param name="chunk">lead chunk instance which will be used
+        /// to update response instance</param>
         public static  void UpdateResponse(IQuasiHttpMutableResponse response,
             LeadChunk chunk)
         {
@@ -281,6 +292,15 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             response.HttpVersion = chunk.HttpVersion;
         }
 
+        /// <summary>
+        /// Creates a new <see cref="LeadChunk"/> instance which is initialized
+        /// with the corresponding properties on an instance of the
+        /// <see cref="IQuasiHttpRequest"/> interface.
+        /// </summary>
+        /// <param name="request">request instance which will be used
+        /// to initialize newly created lead chunk.</param>
+        /// <returns>new instance of lead chunk with version set to v1, and
+        /// request-related properties initialized</returns>
         public static LeadChunk CreateFromRequest(IQuasiHttpRequest request)
         {
             var chunk = new LeadChunk
@@ -290,6 +310,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 RequestTarget = request.Target,
                 Headers = request.Headers,
                 HttpVersion = request.HttpVersion,
+                ContentLength = 0
             };
             var requestBody = request.Body;
             if (requestBody != null)
@@ -299,6 +320,15 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             return chunk;
         }
 
+        /// <summary>
+        /// Creates a new <see cref="LeadChunk"/> instance which is initialized
+        /// with the corresponding properties on an instance of the
+        /// <see cref="IQuasiHttpResponse"/> interface.
+        /// </summary>
+        /// <param name="response">response instance which will be used
+        /// to initialize newly created lead chunk.</param>
+        /// <returns>new instance of lead chunk with version set to v1, and
+        /// response-related properties initialized</returns>
         public static LeadChunk CreateFromResponse(IQuasiHttpResponse response)
         {
             var chunk = new LeadChunk
@@ -308,6 +338,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 HttpStatusMessage = response.HttpStatusMessage,
                 Headers = response.Headers,
                 HttpVersion = response.HttpVersion,
+                ContentLength = 0
             };
             var responseBody = response.Body;
             if (responseBody != null)

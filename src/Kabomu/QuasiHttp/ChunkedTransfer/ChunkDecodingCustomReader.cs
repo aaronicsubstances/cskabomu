@@ -36,10 +36,6 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 throw new ArgumentNullException(nameof(wrappedReader));
             }
-            if (maxChunkSize < ChunkedTransferCodec.DefaultMaxChunkSizeLimit)
-            {
-                maxChunkSize = ChunkedTransferCodec.DefaultMaxChunkSizeLimit;
-            }
             _wrappedReader = wrappedReader;
             _maxChunkSize = maxChunkSize;
         }
