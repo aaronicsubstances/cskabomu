@@ -198,7 +198,8 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 {
                     CancellationTokenSource = new CancellationTokenSource()
                 },
-                Protocol = protocol
+                Protocol = protocol,
+                Request = request
             };
             instance.TrySetAborted();
             var responseReleaseCallCount = 0;

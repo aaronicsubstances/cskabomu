@@ -97,6 +97,72 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var expectedChunk = new LeadChunk
             {
                 Version = ChunkedTransferCodec.Version01,
+                Flags = 2,
+                RequestTarget = "/detail",
+                HttpStatusMessage = "ok",
+                ContentLength = 20,
+                StatusCode = 200,
+                HttpVersion = "1.0",
+                Method = "POST",
+                Headers = new Dictionary<string, IList<string>>()
+            };
+            expectedChunk.Headers.Add("accept", new List<string> { "text/plain", "", "text/xml" });
+            expectedChunk.Headers.Add("b", new List<string> { "myinside\u00c6.team" });
+
+            var equivalentBytes = ByteUtils.StringToBytes(
+                "\u0001\u00021,/detail,200,20,1,POST,1,1.0,1,ok\n" +
+                "accept,text/plain\n" +
+                "accept,\"\"\n" +
+                "accept\n" +
+                "a\n" +
+                "b,myinside\u00c6.team\n" +
+                "accept,text/xml\n");
+
+            var actualChunk = ChunkedTransferCodec.Deserialize(
+                equivalentBytes, 0, equivalentBytes.Length);
+            ComparisonUtils.CompareLeadChunks(expectedChunk, actualChunk);
+        }
+
+        [Fact]
+        public async Task TestCodecInternalsWithoutChunkLengthEncoding5()
+        {
+            var expectedChunk = new LeadChunk
+            {
+                Version = ChunkedTransferCodec.Version01,
+                Flags = 2,
+                RequestTarget = "/detail",
+                HttpStatusMessage = "ok",
+                ContentLength = 20,
+                StatusCode = 200,
+                HttpVersion = "1.0",
+                Method = "POST",
+                Headers = new Dictionary<string, IList<string>>()
+            };
+            expectedChunk.Headers.Add("accept", new List<string> { null, "text/plain", "text/xml" });
+            expectedChunk.Headers.Add("a", null);
+            expectedChunk.Headers.Add("b", new List<string> { "myinside\u00c6.team" });
+
+            var inputStream = new MemoryStream();
+            var instance = new ChunkedTransferCodec();
+            instance.UpdateSerializedRepresentation(expectedChunk);
+            int computedByteCount = instance.CalculateSizeInBytesOfSerializedRepresentation();
+            await instance.WriteOutSerializedRepresentation(inputStream);
+            var actualBytes = inputStream.ToArray();
+
+            var expectedBytes = ByteUtils.StringToBytes(
+                "\u0001\u00021,/detail,200,20,1,POST,1,1.0,1,ok\n" +
+                "accept,\"\",text/plain,text/xml\n" +
+                "b,myinside\u00c6.team\n");
+            Assert.Equal(expectedBytes, actualBytes);
+            Assert.Equal(expectedBytes.Length, computedByteCount);
+        }
+
+        [Fact]
+        public void TestCodecInternalsWithoutChunkLengthEncoding6()
+        {
+            var expectedChunk = new LeadChunk
+            {
+                Version = ChunkedTransferCodec.Version01,
                 Flags = 0,
                 RequestTarget = "http://www.yoursite.com/category/keyword1,keyword2",
                 HttpStatusMessage = "ok",

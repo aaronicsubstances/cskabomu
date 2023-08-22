@@ -48,10 +48,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
         public async Task TestReceive()
         {
             var request = new DefaultQuasiHttpRequest();
-            var reqEnv = new Dictionary<string, object>
-            {
-                { "shared", true }
-            };
             var expectedResponse = new DefaultQuasiHttpResponse();
             IQuasiHttpRequest actualRequest = null;
             var app = new ConfigurableQuasiHttpApplication

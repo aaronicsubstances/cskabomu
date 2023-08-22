@@ -57,7 +57,7 @@ namespace Kabomu.QuasiHttp.Transport
         /// Send() method, ie the instance method which initiated the send processing request.</param>
         /// <returns>an object containing a task whose result will be the quasi http response
         /// processed by the tranport instance.</returns>
-        QuasiHttpSendResponse ProcessSendRequest(
+        QuasiHttpSendResponse ProcessSendRequest2(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions);

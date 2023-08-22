@@ -62,12 +62,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             IQuasiHttpRequest request,
             IQuasiHttpSendOptions sendOptions)
         {
-            return ProcessSendRequest(remoteEndpoint,
+            return ProcessSendRequest2(remoteEndpoint,
                 _ => Task.FromResult(request),
                 sendOptions);
         }
 
-        public QuasiHttpSendResponse ProcessSendRequest(
+        public QuasiHttpSendResponse ProcessSendRequest2(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions)

@@ -48,7 +48,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             await Assert.ThrowsAsync<ArgumentNullException>(() =>
                 instance.Send(3, (IQuasiHttpRequest)null, new DefaultQuasiHttpSendOptions()));
             Assert.Throws<ArgumentNullException>(() =>
-                instance.Send(3, (Func<IDictionary<string, object>, Task<IQuasiHttpRequest>>)null, new DefaultQuasiHttpSendOptions()));
+                instance.Send2(3, (Func<IDictionary<string, object>, Task<IQuasiHttpRequest>>)null, new DefaultQuasiHttpSendOptions()));
 
             // test that Cancel doesn't complain when given invalid arguments.
             instance.CancelSend(null);

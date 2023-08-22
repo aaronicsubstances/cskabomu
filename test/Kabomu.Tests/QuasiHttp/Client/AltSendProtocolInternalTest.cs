@@ -237,7 +237,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var instance = new AltSendProtocolInternal
             {
                 ResponseTask = Task.FromResult<IQuasiHttpResponse>(expectedResponse),
-                ResponseBufferingEnabled = false,
+                ResponseBufferingEnabled = true,
                 TransportBypass = transport,
                 EnsureNonNullResponse = true
             };
@@ -446,7 +446,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 throw new NotImplementedException();
             }
 
-            public QuasiHttpSendResponse ProcessSendRequest(
+            public QuasiHttpSendResponse ProcessSendRequest2(
                 object remoteEndpoint,
                 Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
                 IQuasiHttpSendOptions sendOptions)

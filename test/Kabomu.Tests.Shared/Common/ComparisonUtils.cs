@@ -153,7 +153,7 @@ namespace Kabomu.Tests.Shared.Common
                 foreach (var key in expected.Keys)
                 {
                     var value = expected[key];
-                    if (value != null & value.Count > 0)
+                    if (value != null && value.Count > 0)
                     {
                         expectedKeys.Add(key);
                     }
@@ -166,7 +166,7 @@ namespace Kabomu.Tests.Shared.Common
                 foreach (var key in actual.Keys)
                 {
                     var value = actual[key];
-                    if (value != null & value.Count > 0)
+                    if (value != null && value.Count > 0)
                     {
                         actualKeys.Add(key);
                     }

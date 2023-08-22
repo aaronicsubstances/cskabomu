@@ -115,7 +115,7 @@ namespace Kabomu.QuasiHttp.Client
         /// <exception cref="ArgumentNullException">The <paramref name="requestFunc"/> argument is null</exception>
         /// <exception cref="MissingDependencyException">The <see cref="Transport"/>
         /// property is null.</exception>
-        public QuasiHttpSendResponse Send(object remoteEndpoint,
+        public QuasiHttpSendResponse Send2(object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions options)
         {
@@ -251,7 +251,7 @@ namespace Kabomu.QuasiHttp.Client
             QuasiHttpSendResponse response;
             if (requestFunc != null)
             {
-                response = transportBypass.ProcessSendRequest(remoteEndpoint,
+                response = transportBypass.ProcessSendRequest2(remoteEndpoint,
                         requestFunc, mergedSendOptions);
             }
             else

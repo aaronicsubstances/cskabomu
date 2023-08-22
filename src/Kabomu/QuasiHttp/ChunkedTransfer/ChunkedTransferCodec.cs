@@ -373,12 +373,12 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 foreach (var header in chunk.Headers)
                 {
-                    if (header.Value.Count == 0)
+                    if (header.Value == null || header.Value.Count == 0)
                     {
                         continue;
                     }
-                    var headerRow = new List<string> { header.Key };
-                    headerRow.AddRange(header.Value);
+                    var headerRow = new List<string> { header.Key ?? "" };
+                    headerRow.AddRange(header.Value.Select(v => v ?? ""));
                     _csvData.Add(headerRow);
                 }
             }
@@ -417,6 +417,11 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
         private static int CalculateSizeInBytesOfEscapedValue(string raw)
         {
+            if (raw == null)
+            {
+                return 2;  // due to how CsvUtils escapes empty strings as
+                            // two double quotes
+            }
             var valueContainsSpecialCharacters = false;
             int doubleQuoteCount = 0;
             foreach (var c in raw)
@@ -546,12 +551,20 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 {
                     continue;
                 }
-                var headerValue = headerRow.Skip(1).ToList();
                 if (instance.Headers == null)
                 {
                     instance.Headers = new Dictionary<string, IList<string>>();
                 }
-                instance.Headers.Add(headerRow[0], headerValue);
+                string headerName = headerRow[0];
+                if (!instance.Headers.ContainsKey(headerName))
+                {
+                    instance.Headers.Add(headerName, new List<string>());
+                }
+                var headerValues = instance.Headers[headerName];
+                foreach (var headerValue in headerRow.Skip(1))
+                {
+                    headerValues.Add(headerValue);
+                }
             }
 
             return instance;

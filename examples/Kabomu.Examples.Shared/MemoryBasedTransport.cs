@@ -26,7 +26,7 @@ namespace Kabomu.Examples.Shared
             };
         }
 
-        public QuasiHttpSendResponse ProcessSendRequest(
+        public QuasiHttpSendResponse ProcessSendRequest2(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions)
