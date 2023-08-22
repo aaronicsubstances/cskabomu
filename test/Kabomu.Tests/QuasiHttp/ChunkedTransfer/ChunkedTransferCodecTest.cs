@@ -659,7 +659,8 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         [Fact]
         public async Task TestReadLeadChunkForInsuffcientDataForLengthError()
         {
-            var srcStream = new MemoryStream(new byte[ChunkedTransferCodec.LengthOfEncodedChunkLength - 1]);
+            var srcStream = new MemoryStream(
+                new byte[2]); // insufficient because even prefix length is 3 bytes
             int maxChunkSize = 40;
 
             var decodingError = await Assert.ThrowsAsync<ChunkDecodingException>(async () =>

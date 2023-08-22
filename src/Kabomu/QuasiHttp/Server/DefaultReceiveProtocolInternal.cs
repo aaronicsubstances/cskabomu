@@ -87,7 +87,7 @@ namespace Kabomu.QuasiHttp.Server
         private async Task TransferResponseToTransport(IQuasiHttpResponse response)
         {
             if (ProtocolUtilsInternal.GetEnvVarAsBoolean(response.Environment,
-                TransportUtils.ResEnvKeySkipResponseSending) == true)
+                QuasiHttpUtils.ResEnvKeySkipResponseSending) == true)
             {
                 return;
             }

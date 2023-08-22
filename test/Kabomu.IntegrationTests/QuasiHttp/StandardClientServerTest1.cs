@@ -82,7 +82,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                         {
                             Environment = new Dictionary<string, object>
                             {
-                                { TransportUtils.ResEnvKeySkipResponseSending, true }
+                                { QuasiHttpUtils.ResEnvKeySkipResponseSending, true }
                             }
                         };
                     }
@@ -114,7 +114,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 ExtraConnectivityParams = new Dictionary<string, object>
                 {
-                    { TransportUtils.ConnectivityParamFireAndForget, true }
+                    { QuasiHttpUtils.ConnectivityParamFireAndForget, true }
                 }
             };
             var requestReleaseCallCount = 0;

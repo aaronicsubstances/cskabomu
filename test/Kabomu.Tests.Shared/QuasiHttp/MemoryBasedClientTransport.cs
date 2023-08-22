@@ -34,7 +34,7 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             var connection = new MemoryBasedTransportConnectionInternal(
                 ProtocolUtilsInternal.GetEnvVarAsBoolean(
                     sendOptions?.ExtraConnectivityParams,
-                    TransportUtils.ConnectivityParamFireAndForget));
+                    QuasiHttpUtils.ConnectivityParamFireAndForget));
             IConnectionAllocationResponse c = new DefaultConnectionAllocationResponse
             {
                 Connection = connection,

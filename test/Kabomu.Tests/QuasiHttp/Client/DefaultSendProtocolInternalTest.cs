@@ -25,7 +25,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
         }
 
         private static ICustomWriter SetUpReceivingOfRequestToBeWritten(
-            IQuasiHttpMutableRequest request, ICustomWritable delegateWritableForBody,
+            IQuasiHttpMutableRequest request, ISelfWritable delegateWritableForBody,
             MemoryStream headerReceiver, MemoryStream bodyReceiver)
         {
             var backingWriters = new List<object>();
@@ -38,7 +38,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 backingWriters.Add(bodyReceiver);
                 // update body with writable.
-                ((LambdaBasedQuasiHttpBody)request.Body).Writable = new LambdaBasedCustomWritable
+                ((LambdaBasedQuasiHttpBody)request.Body).SelfWritable = new LambdaBasedCustomWritable
                 {
                     WritableFunc = async writer =>
                     {
@@ -120,7 +120,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             // prepare to receive request to be written
             var headerReceiver = new MemoryStream();
             var bodyReceiver = new MemoryStream();
-            ICustomWritable bodyWritable = null;
+            ISelfWritable bodyWritable = null;
             if (expectedReqBodyBytes != null)
             {
                 bodyWritable = new LambdaBasedCustomWritable
@@ -255,7 +255,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
-                StatusCode = DefaultQuasiHttpResponse.StatusCodeClientError,
+                StatusCode = QuasiHttpUtils.StatusCodeClientErrorBadRequest,
                 HttpStatusMessage = "not found"
             };
             expectedResBodyBytes = null;
@@ -281,7 +281,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
-                StatusCode = DefaultQuasiHttpResponse.StatusCodeServerError,
+                StatusCode = QuasiHttpUtils.StatusCodeServerError,
                 HttpStatusMessage = "server error",
                 Headers = new Dictionary<string, IList<string>>
                 {
@@ -387,7 +387,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
             request.Body = new LambdaBasedQuasiHttpBody
             {
-                Writable = writable
+                SelfWritable = writable
             };
 
             // set up instance
@@ -623,7 +623,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var expectedResponse = new DefaultQuasiHttpResponse
             {
                 HttpVersion = "1.0",
-                StatusCode = DefaultQuasiHttpResponse.StatusCodeOk,
+                StatusCode = QuasiHttpUtils.StatusCodeOk,
                 HttpStatusMessage = "ok"
             };
             // prepare response for reading.

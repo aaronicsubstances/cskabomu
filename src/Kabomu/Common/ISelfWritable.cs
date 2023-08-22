@@ -10,7 +10,7 @@ namespace Kabomu.Common
     /// Represents an instance that can transfer bytes by itself
     /// to a destination of bytes.
     /// </summary>
-    public interface ICustomWritable
+    public interface ISelfWritable
     {
         /// <summary>
         /// Transfers some byte representation of the instance to

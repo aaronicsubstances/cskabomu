@@ -136,7 +136,7 @@ namespace Kabomu.Mediator.Handling
         /// <returns>new handler which represents deferred execution of handlers conditional on request method equals "GET"</returns>
         public static Handler ByGet(params Handler[] handlers)
         {
-            return ByMethod(DefaultQuasiHttpRequest.MethodGet, handlers);
+            return ByMethod(QuasiHttpUtils.MethodGet, handlers);
         }
 
         /// <summary>
@@ -150,7 +150,7 @@ namespace Kabomu.Mediator.Handling
         /// <returns>new handler which represents deferred execution of handlers conditional on request method equals "POST"</returns>
         public static Handler ByPost(params Handler[] handlers)
         {
-            return ByMethod(DefaultQuasiHttpRequest.MethodPost, handlers);
+            return ByMethod(QuasiHttpUtils.MethodPost, handlers);
         }
 
         /// <summary>
@@ -164,7 +164,7 @@ namespace Kabomu.Mediator.Handling
         /// <returns>new handler which represents deferred execution of handlers conditional on request method equals "PUT"</returns>
         public static Handler ByPut(params Handler[] handlers)
         {
-            return ByMethod(DefaultQuasiHttpRequest.MethodPut, handlers);
+            return ByMethod(QuasiHttpUtils.MethodPut, handlers);
         }
 
         /// <summary>
@@ -178,7 +178,7 @@ namespace Kabomu.Mediator.Handling
         /// <returns>new handler which represents deferred execution of handlers conditional on request method equals "DELETE"</returns>
         public static Handler ByDelete(params Handler[] handlers)
         {
-            return ByMethod(DefaultQuasiHttpRequest.MethodDelete, handlers);
+            return ByMethod(QuasiHttpUtils.MethodDelete, handlers);
         }
 
         /// <summary>

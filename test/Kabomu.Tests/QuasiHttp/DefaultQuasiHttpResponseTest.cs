@@ -35,22 +35,5 @@ namespace Kabomu.Tests.QuasiHttp
 
             await instance.Release();
         }
-
-        [Fact]
-        public void TestClassConstants()
-        {
-            Assert.Equal(200, DefaultQuasiHttpResponse.StatusCodeOk);
-            Assert.Equal(500, DefaultQuasiHttpResponse.StatusCodeServerError);
-            Assert.Equal(400, DefaultQuasiHttpResponse.StatusCodeClientError);
-            Assert.Equal(400, DefaultQuasiHttpResponse.StatusCodeClientErrorBadRequest);
-            Assert.Equal(401, DefaultQuasiHttpResponse.StatusCodeClientErrorUnauthorized);
-            Assert.Equal(403, DefaultQuasiHttpResponse.StatusCodeClientErrorForbidden);
-            Assert.Equal(404, DefaultQuasiHttpResponse.StatusCodeClientErrorNotFound);
-            Assert.Equal(413, DefaultQuasiHttpResponse.StatusCodeClientErrorPayloadTooLarge);
-            Assert.Equal(414, DefaultQuasiHttpResponse.StatusCodeClientErrorURITooLong);
-            Assert.Equal(415, DefaultQuasiHttpResponse.StatusCodeClientErrorUnsupportedMediaType);
-            Assert.Equal(422, DefaultQuasiHttpResponse.StatusCodeClientErrorUnprocessableEntity);
-            Assert.Equal(429, DefaultQuasiHttpResponse.StatusCodeClientErrorTooManyRequests);
-        }
     }
 }

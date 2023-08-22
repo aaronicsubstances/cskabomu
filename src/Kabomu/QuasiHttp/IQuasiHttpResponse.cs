@@ -22,7 +22,10 @@ namespace Kabomu.QuasiHttp
         /// Gets the equivalent of HTTP response headers.
         /// </summary>
         /// <remarks>
-        /// Unlike in HTTP, headers are case-sensitive. Also setting a Content-Length header
+        /// Unlike in HTTP/1.1, headers are case-sensitive and lower-cased
+        /// header names are recommended
+        /// <para></para>
+        /// Also setting a Content-Length header
         /// here will have no bearing on how to transmit or receive the response body.
         /// </remarks>
         IDictionary<string, IList<string>> Headers { get; }

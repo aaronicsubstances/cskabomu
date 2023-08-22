@@ -38,17 +38,17 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         public static readonly int DefaultMaxChunkSizeLimit = 65_536;
 
         /// <summary>
-        /// Constant used internally to indicate the number of bytes used to encode the length
-        /// of a lead or subsequent chunk, which is 3.
-        /// </summary>
-        public static readonly int LengthOfEncodedChunkLength = 3;
-
-        /// <summary>
         /// Constant which communicates the largest chunk size possible with the standard chunk transfer 
         /// implementation in the Kabomu library, and that is currently almost equal to
         /// the largest signed integer that can fit into 3 bytes.
         /// </summary>
         public static readonly int HardMaxChunkSizeLimit = 8_388_500;
+
+        /// <summary>
+        /// Constant used internally to indicate the number of bytes used to encode the length
+        /// of a lead or subsequent chunk, which is 3.
+        /// </summary>
+        private static readonly int LengthOfEncodedChunkLength = 3;
 
         private byte[] _csvDataPrefix;
         private IList<IList<string>> _csvData;

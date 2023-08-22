@@ -32,7 +32,7 @@ namespace Kabomu.QuasiHttp.Client
 
         /// <summary>
         /// Gets or sets a value that imposes a maximum size on response bodies when they are being buffered,
-        /// i.e. in situations where response streaming is disabled.
+        /// i.e. in situations where response buffering is enabled.
         /// </summary>
         public int ResponseBodyBufferingSizeLimit { get; set; }
 

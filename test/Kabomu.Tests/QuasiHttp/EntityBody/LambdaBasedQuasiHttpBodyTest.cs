@@ -155,7 +155,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             };
             var instance = new LambdaBasedQuasiHttpBody
             {
-                Writable = writable
+                SelfWritable = writable
             };
             Assert.Equal(-1, instance.ContentLength);
 

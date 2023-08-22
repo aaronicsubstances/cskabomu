@@ -53,7 +53,7 @@ namespace Kabomu.QuasiHttp.Client
             try
             {
                 var originalResponseBufferingApplied = ProtocolUtilsInternal.GetEnvVarAsBoolean(
-                    response.Environment, TransportUtils.ResEnvKeyResponseBufferingApplied);
+                    response.Environment, QuasiHttpUtils.ResEnvKeyResponseBufferingApplied);
 
                 var responseBody = response.Body;
                 bool responseBufferingApplied = false;

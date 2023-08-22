@@ -37,7 +37,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             {
                 backingWriters.Add(bodyReceiver);
                 // update body with writable.
-                ((LambdaBasedQuasiHttpBody)response.Body).Writable = new LambdaBasedCustomWritable
+                ((LambdaBasedQuasiHttpBody)response.Body).SelfWritable = new LambdaBasedCustomWritable
                 {
                     WritableFunc = async writer =>
                     {
@@ -374,7 +374,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
-                StatusCode = DefaultQuasiHttpResponse.StatusCodeClientError,
+                StatusCode = QuasiHttpUtils.StatusCodeClientErrorBadRequest,
                 HttpStatusMessage = "not found"
             };
             expectedResBodyBytes = null;
@@ -399,7 +399,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             expectedResponse = new DefaultQuasiHttpResponse
             {
                 HttpVersion = "1.1",
-                StatusCode = DefaultQuasiHttpResponse.StatusCodeServerError,
+                StatusCode = QuasiHttpUtils.StatusCodeServerError,
                 HttpStatusMessage = "server error"
             };
             expectedResBodyBytes = null;
@@ -428,7 +428,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
-                StatusCode = DefaultQuasiHttpResponse.StatusCodeServerError,
+                StatusCode = QuasiHttpUtils.StatusCodeServerError,
                 HttpStatusMessage = "server error",
                 Headers = new Dictionary<string, IList<string>>
                 {
@@ -464,7 +464,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             {
                 Environment = new Dictionary<string, object>
                 {
-                    { TransportUtils.ResEnvKeySkipResponseSending, true }
+                    { QuasiHttpUtils.ResEnvKeySkipResponseSending, true }
                 },
                 ReleaseFunc = async () =>
                 {

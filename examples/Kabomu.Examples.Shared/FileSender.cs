@@ -68,7 +68,7 @@ namespace Kabomu.Examples.Shared
                 LOG.Warn("Received no response.");
                 return;
             }
-            if (res.StatusCode == DefaultQuasiHttpResponse.StatusCodeOk)
+            if (res.StatusCode == QuasiHttpUtils.StatusCodeOk)
             {
                 LOG.Info("File {0} sent successfully", f.FullName);
             }

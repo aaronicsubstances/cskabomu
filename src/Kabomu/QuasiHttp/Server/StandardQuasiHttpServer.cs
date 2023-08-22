@@ -70,8 +70,9 @@ namespace Kabomu.QuasiHttp.Server
                 else
                 {
                     var abortError = new QuasiHttpRequestProcessingException(
+                        "encountered error during receive request processing",
                         QuasiHttpRequestProcessingException.ReasonCodeGeneral,
-                        "encountered error during receive request processing", e);
+                        e);
                     throw abortError;
                 }
             }
@@ -146,8 +147,9 @@ namespace Kabomu.QuasiHttp.Server
                 else
                 {
                     var abortError = new QuasiHttpRequestProcessingException(
+                        "encountered error during receive request processing",
                         QuasiHttpRequestProcessingException.ReasonCodeGeneral,
-                        "encountered error during receive request processing", e);
+                        e);
                     throw abortError;
                 }
             }

@@ -232,8 +232,8 @@ namespace Kabomu.QuasiHttp
                 {
                     if (!t.IsCanceled)
                     {
-                        var timeoutError = new QuasiHttpRequestProcessingException(
-                            QuasiHttpRequestProcessingException.ReasonCodeTimeout, timeoutMsg);
+                        var timeoutError = new QuasiHttpRequestProcessingException(timeoutMsg,
+                            QuasiHttpRequestProcessingException.ReasonCodeTimeout);
                         throw timeoutError;
                     }
                     return default;

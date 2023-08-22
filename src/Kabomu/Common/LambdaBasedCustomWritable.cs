@@ -4,10 +4,10 @@ using System.Threading.Tasks;
 namespace Kabomu.Common
 {
     /// <summary>
-    /// Implementation of <see cref="ICustomWritable"/> which delegates
+    /// Implementation of <see cref="ISelfWritable"/> which delegates
     /// to externally supplied lambda functions.
     /// </summary>
-    public class LambdaBasedCustomWritable : ICustomWritable
+    public class LambdaBasedCustomWritable : ISelfWritable
     {
         /// <summary>
         /// Gets or sets lambda function for performing write operation.

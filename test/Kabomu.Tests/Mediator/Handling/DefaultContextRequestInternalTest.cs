@@ -30,7 +30,7 @@ namespace Kabomu.Tests.Mediator.Handling
         {
             var rawRequest = new DefaultQuasiHttpRequest
             {
-                Method = DefaultQuasiHttpRequest.MethodPost,
+                Method = QuasiHttpUtils.MethodPost,
                 Target = "/",
                 Body = new StringBody("yes"),
                 Headers = new Dictionary<string, IList<string>>

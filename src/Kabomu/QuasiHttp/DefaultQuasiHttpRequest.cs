@@ -14,51 +14,6 @@ namespace Kabomu.QuasiHttp
     public class DefaultQuasiHttpRequest : IQuasiHttpMutableRequest
     {
         /// <summary>
-        /// Equals HTTP method "GET".
-        /// </summary>
-        public static readonly string MethodGet = "GET";
-
-        /// <summary>
-        /// Equals HTTP method "POST".
-        /// </summary>
-        public static readonly string MethodPost = "POST";
-
-        /// <summary>
-        /// Equals HTTP method "PUT".
-        /// </summary>
-        public static readonly string MethodPut = "PUT";
-
-        /// <summary>
-        /// Equals HTTP method "DELETE".
-        /// </summary>
-        public static readonly string MethodDelete = "DELETE";
-
-        /// <summary>
-        /// Equals HTTP method "HEAD".
-        /// </summary>
-        public static readonly string MethodHead = "HEAD";
-
-        /// <summary>
-        /// Equals HTTP method "OPTIONS".
-        /// </summary>
-        public static readonly string MethodOptions = "OPTIONS";
-
-        /// <summary>
-        /// Equals HTTP method "PATCH".
-        /// </summary>
-        public static readonly string MethodPatch = "PATCH";
-
-        /// <summary>
-        /// Equals HTTP method "TRACE".
-        /// </summary>
-        public static readonly string MethodTrace = "TRACE";
-
-        /// <summary>
-        /// Equals HTTP method "CONNECT".
-        /// </summary>
-        public static readonly string MethodConnect = "CONNECT";
-
-        /// <summary>
         /// Gets or sets the equivalent of request target component of HTTP request line.
         /// </summary>
         public string Target { get; set; }
@@ -92,7 +47,8 @@ namespace Kabomu.QuasiHttp
         public IDictionary<string, object> Environment { get; set; }
 
         /// <summary>
-        /// Releases the Body property.
+        /// Releases the <see cref="Body"/> property.
+        /// Nothing is done if body is null.
         /// </summary>
         /// <returns>a task representing the asynchronous release operation</returns>
         public Task Release()

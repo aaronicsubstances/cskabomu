@@ -298,7 +298,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 Environment = new Dictionary<string, object>
                 {
-                    { TransportUtils.ResEnvKeyResponseBufferingApplied, "TRUE" }
+                    { QuasiHttpUtils.ResEnvKeyResponseBufferingApplied, "TRUE" }
                 },
                 Body = new StringBody("tie")
                 {
@@ -369,7 +369,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 Environment = new Dictionary<string, object>
                 {
-                    { TransportUtils.ResEnvKeyResponseBufferingApplied, "TRUE" }
+                    { QuasiHttpUtils.ResEnvKeyResponseBufferingApplied, "TRUE" }
                 },
                 Body = new StringBody("tie")
                 {
@@ -466,7 +466,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { "1", "one" },
                     { "2", "two" },
                     { "4", "four" },
-                    { TransportUtils.ConnectivityParamFireAndForget, true }
+                    { QuasiHttpUtils.ConnectivityParamFireAndForget, true }
                 }
             };
             var expectedConnectivityParams = new DefaultQuasiHttpSendOptions
@@ -477,7 +477,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { "2", "two" },
                     { "3", "3,3,3" },
                     { "4", "four" },
-                    { TransportUtils.ConnectivityParamFireAndForget, true }
+                    { QuasiHttpUtils.ConnectivityParamFireAndForget, true }
                 },
                 TimeoutMillis = 3_000,
                 MaxChunkSize = 0,
@@ -537,7 +537,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { "11", "eleven" },
                     { "12", "twelve" },
                     { "4", "four" },
-                    { TransportUtils.ConnectivityParamFireAndForget, true }
+                    { QuasiHttpUtils.ConnectivityParamFireAndForget, true }
                 }
             };
             var expectedConnectivityParams = new DefaultQuasiHttpSendOptions
@@ -550,7 +550,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { "4", "four" },
                     { "11", "eleven" },
                     { "12", "twelve" },
-                    { TransportUtils.ConnectivityParamFireAndForget, true }
+                    { QuasiHttpUtils.ConnectivityParamFireAndForget, true }
                 },
                 TimeoutMillis = 3_000,
                 MaxChunkSize = 0,

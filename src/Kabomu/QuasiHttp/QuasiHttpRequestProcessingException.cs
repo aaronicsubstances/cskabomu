@@ -45,32 +45,32 @@ namespace Kabomu.QuasiHttp
         /// </summary>
         /// <param name="message">the error message.</param>
         public QuasiHttpRequestProcessingException(string message) :
-            this(ReasonCodeGeneral, message, null)
+            this(message, ReasonCodeGeneral, null)
         {
         }
 
         /// <summary>
         /// Creates a new instance with an error message and a reason code.
         /// </summary>
-        /// <param name="reasonCode">reason code to use</param>
         /// <param name="message">error message</param>
+        /// <param name="reasonCode">reason code to use</param>
         /// <exception cref="ArgumentException">The <paramref name="reasonCode"/> argument is reserved for future use
         /// by this class</exception>
-        public QuasiHttpRequestProcessingException(int reasonCode, string message) :
-            this(reasonCode, message, null)
+        public QuasiHttpRequestProcessingException(string message, int reasonCode) :
+            this(message, reasonCode, null)
         {
         }
 
         /// <summary>
         /// Creates a new instance with an error message, a reason code and
-        /// a reference to the inner exception that is the cause of this exception..
+        /// a reference to the inner exception that is the cause of this exception.
         /// </summary>
-        /// <param name="reasonCode">reason code to use</param>
         /// <param name="message">the error message</param>
+        /// <param name="reasonCode">reason code to use</param>
         /// <param name="innerException">cause of this exception</param>
         /// <exception cref="ArgumentException">The <paramref name="reasonCode"/> argument is reserved for future use
         /// by this class</exception>
-        public QuasiHttpRequestProcessingException(int reasonCode, string message, Exception innerException) :
+        public QuasiHttpRequestProcessingException(string message, int reasonCode, Exception innerException) :
             base(message, innerException)
         {
             switch (reasonCode)

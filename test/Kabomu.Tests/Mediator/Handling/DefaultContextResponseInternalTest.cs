@@ -33,7 +33,7 @@ namespace Kabomu.Tests.Mediator.Handling
             Assert.Null(rawResponse.Headers);
 
             // modify response.
-            instance.SetStatusCode(DefaultQuasiHttpResponse.StatusCodeClientErrorMethodNotAllowed);
+            instance.SetStatusCode(QuasiHttpUtils.StatusCodeClientErrorMethodNotAllowed);
             Assert.Equal(405, instance.StatusCode);
             Assert.Equal(405, rawResponse.StatusCode);
             Assert.False(instance.IsSuccessStatusCode);
@@ -237,7 +237,7 @@ namespace Kabomu.Tests.Mediator.Handling
                 rawResponse.Headers["hour"]);
 
             // modify response.
-            instance.SetStatusCode(DefaultQuasiHttpResponse.StatusCodeClientErrorNotFound);
+            instance.SetStatusCode(QuasiHttpUtils.StatusCodeClientErrorNotFound);
             Assert.Equal(404, instance.StatusCode);
             Assert.Equal(404, rawResponse.StatusCode);
             Assert.False(instance.IsSuccessStatusCode);

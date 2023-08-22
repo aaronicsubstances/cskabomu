@@ -34,7 +34,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// be delegated to. Default implementation kicks in only
         /// if this property is null.
         /// </summary>
-        public ICustomWritable Writable { get; set; }
+        public ISelfWritable SelfWritable { get; set; }
 
         /// <summary>
         /// Lambda function which can be used to provide a
@@ -49,7 +49,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         public Func<Task> ReleaseFunc { get; set; }
 
         /// <summary>
-        /// Invokes the <see cref="Writable"/> property, and
+        /// Invokes the <see cref="SelfWritable"/> property, and
         /// if that property is null, falls back to copying over
         /// value retrieved from <see cref="Reader"/> property to supplied writer.
         /// </summary>
@@ -60,7 +60,7 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// if <see cref="Reader"/> property returns null for use as fallback</exception>
         public virtual Task WriteBytesTo(object writer)
         {
-            var writable = Writable;
+            var writable = SelfWritable;
             if (writable != null)
             {
                 return writable.WriteBytesTo(writer);

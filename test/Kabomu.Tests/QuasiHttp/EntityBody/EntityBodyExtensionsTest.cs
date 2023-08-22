@@ -22,12 +22,12 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
         [Theory]
         [MemberData(nameof(CreateTestAsReaderData))]
         public async Task TestAsReader(object reader,
-            ICustomWritable fallback, byte[] expected)
+            ISelfWritable fallback, byte[] expected)
         {
             var body = new LambdaBasedQuasiHttpBody
             {
                 ReaderFunc = () => reader,
-                Writable = fallback,
+                SelfWritable = fallback,
             };
             byte[] actual = null;
             var desired = IOUtils.ReadAllBytes(body.AsReader());
@@ -48,7 +48,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
 
             var expected = new byte[0];
             object reader = new MemoryStream();
-            ICustomWritable fallback = null;
+            ISelfWritable fallback = null;
             testData.Add(new object[] { reader, fallback, expected });
 
             expected = new byte[] { 0, 1, 2, 3 };
@@ -85,7 +85,7 @@ namespace Kabomu.Tests.QuasiHttp.EntityBody
             };
             var body = new LambdaBasedQuasiHttpBody
             {
-                Writable = troublesomeWritable
+                SelfWritable = troublesomeWritable
             };
             Exception actualEx = null;
             var desired = Assert.ThrowsAsync<Exception>(() =>

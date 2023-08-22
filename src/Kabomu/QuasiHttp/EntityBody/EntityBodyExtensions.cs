@@ -15,7 +15,8 @@ namespace Kabomu.QuasiHttp.EntityBody
         /// quasi http body if the value is not null, or it sets up a
         /// custom reader (acceptable by
         /// <see cref="IOUtils.ReadBytes"/>) to return the bytes
-        /// the body produces, by treating the body as a writable.
+        /// the body produces, by treating the body as an instance of
+        /// <see cref="ISelfWritable"/>.
         /// </summary>
         /// <param name="body">the quasi http body</param>
         /// <returns>a reader which can be used to read bytes from the body</returns>
@@ -37,7 +38,7 @@ namespace Kabomu.QuasiHttp.EntityBody
             return memoryPipe;
         }
 
-        private static async Task ExhaustWritable(ICustomWritable writable,
+        private static async Task ExhaustWritable(ISelfWritable writable,
             MemoryPipeCustomReaderWriter memoryPipe)
         {
             try

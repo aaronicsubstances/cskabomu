@@ -70,7 +70,8 @@ namespace Kabomu.QuasiHttp.Client
             if (sendCancellationHandle is SendTransferInternal transfer)
             {
                 var cancellationError = new QuasiHttpRequestProcessingException(
-                    QuasiHttpRequestProcessingException.ReasonCodeCancelled, "send cancelled");
+                     "send cancelled",
+                    QuasiHttpRequestProcessingException.ReasonCodeCancelled);
                 transfer.CancellationTcs?.TrySetException(cancellationError);
             }
         }
@@ -160,8 +161,9 @@ namespace Kabomu.QuasiHttp.Client
                 else
                 {
                     var abortError = new QuasiHttpRequestProcessingException(
+                        "encountered error during send request processing",
                         QuasiHttpRequestProcessingException.ReasonCodeGeneral,
-                        "encountered error during send request processing", e);
+                        e);
                     throw abortError;
                 }
             }
@@ -213,7 +215,7 @@ namespace Kabomu.QuasiHttp.Client
 
             var connectivityParamFireAndForget = ProtocolUtilsInternal.GetEnvVarAsBoolean(
                 mergedSendOptions.ExtraConnectivityParams,
-                TransportUtils.ConnectivityParamFireAndForget);
+                QuasiHttpUtils.ConnectivityParamFireAndForget);
             var defaultForEnsureNonNullResponse = true;
             if (connectivityParamFireAndForget == true)
             {

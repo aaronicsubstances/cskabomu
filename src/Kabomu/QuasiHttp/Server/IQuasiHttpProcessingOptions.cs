@@ -11,7 +11,7 @@ namespace Kabomu.QuasiHttp.Server
     {
         /// <summary>
         /// Gets the wait time period in milliseconds for the processing of a request to succeed. To indicate
-        /// forever wait or infinite timeout, use -1 or any negative value. 
+        /// forever wait or infinite timeout, use -1 or any negative value.
         /// </summary>
         /// <remarks>
         /// Note that value of zero will be interpreted as unspecified, and in the absence of any overriding options

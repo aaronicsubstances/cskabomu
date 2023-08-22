@@ -156,7 +156,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 Body = new StringBody("tea"),
                 Environment = new Dictionary<string, object>
                 {
-                    { TransportUtils.ResEnvKeyResponseBufferingApplied, true }
+                    { QuasiHttpUtils.ResEnvKeyResponseBufferingApplied, true }
                 },
                 ReleaseFunc = async () =>
                 {
@@ -195,7 +195,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 },
                 Environment = new Dictionary<string, object>
                 {
-                    { TransportUtils.ResEnvKeyResponseBufferingApplied, null }
+                    { QuasiHttpUtils.ResEnvKeyResponseBufferingApplied, null }
                 }
             };
             var transport = new HelperQuasiHttpAltTransport();
@@ -230,7 +230,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 },
                 Environment = new Dictionary<string, object>
                 {
-                    { TransportUtils.ResEnvKeyResponseBufferingApplied, true }
+                    { QuasiHttpUtils.ResEnvKeyResponseBufferingApplied, true }
                 }
             };
             var transport = new HelperQuasiHttpAltTransport();

@@ -41,13 +41,13 @@ namespace Kabomu.QuasiHttp.Client
         /// by generating equivalent responses with buffered bodies.
         /// <para></para>
         /// Else a value of null means it is unspecified whether response buffering is enabled or not, and in the absence of
-        /// any overriding options a client-specific default value will be used.
+        /// any overriding options a client-specific default action will be taken.
         /// </summary>
         bool? ResponseBufferingEnabled { get; }
 
         /// <summary>
         /// Gets the value that imposes a maximum size on response bodies when they are being buffered,
-        /// i.e. in situations where response streaming is disabled.
+        /// i.e. in situations where response buffering is enabled.
         /// </summary>
         /// <remarks>
         /// Note that zero and negative values will be interpreted as unspecified, and in the absence of any overriding options

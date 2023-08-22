@@ -5,9 +5,9 @@ using System.Text;
 namespace Kabomu.QuasiHttp.Transport
 {
     /// <summary>
-    /// Contains connection and other connection-related information created by a
-    /// <see cref="IQuasiHttpServerTransport"/> or <see cref="IQuasiHttpClientTransport"/> instance,
-    /// in response to a connection allocation or receive request.
+    /// Contains connection and other connection-related information created by
+    /// <see cref="IQuasiHttpServerTransport"/> or <see cref="IQuasiHttpClientTransport"/>
+    /// instances, in response to a connection allocation or receive request.
     /// </summary>
     public interface IConnectionAllocationResponse
     {

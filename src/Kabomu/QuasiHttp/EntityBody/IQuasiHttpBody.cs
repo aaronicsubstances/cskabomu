@@ -10,7 +10,7 @@ namespace Kabomu.QuasiHttp.EntityBody
     /// <summary>
     /// Represents the body of a quasi HTTP request or response.
     /// </summary>
-    public interface IQuasiHttpBody : ICustomWritable, ICustomDisposable
+    public interface IQuasiHttpBody : ISelfWritable, ICustomDisposable
     {
         /// <summary>
         /// Gets the number of bytes that the instance will supply,
