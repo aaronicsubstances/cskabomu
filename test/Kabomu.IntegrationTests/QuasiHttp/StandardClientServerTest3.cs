@@ -132,7 +132,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
 
             // act
             var result = client.Send(remoteEndpoint, requestFunc, null);
-            var actualResponse = await result.Item1;
+            var actualResponse = await result.ResponseTask;
 
             // assert
             Assert.Same(request, actualRequest);
@@ -203,7 +203,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
 
             // act
             var result = client.Send(remoteEndpoint, requestFunc, sendOptions);
-            var actualResponse = await result.Item1;
+            var actualResponse = await result.ResponseTask;
 
             // assert
             Assert.Same(request, actualRequest);
@@ -562,7 +562,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             // act
             var result = client.Send(remoteEndpoint,
                 _ => Task.FromResult<IQuasiHttpRequest>(request), sendOptions);
-            var actualResponse = await result.Item1;
+            var actualResponse = await result.ResponseTask;
 
             // assert
             Assert.Same(request, actualRequest);
@@ -637,7 +637,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             // act
             var result = client.Send(remoteEndpoint,
                 _ => Task.FromResult<IQuasiHttpRequest>(request), sendOptions);
-            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() => result.Item1);
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(
+                () => result.ResponseTask);
 
             // assert
             Assert.Same(request, actualRequest);
@@ -850,11 +851,11 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 Task.FromResult<IQuasiHttpRequest>(null), null);
             await Task.Delay(1_000);
             Assert.False(transportBypass.IsCancellationRequested);
-            client.CancelSend(result.Item2);
+            client.CancelSend(result.CancellationHandle);
 
             // assert
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
-                result.Item1);
+                result.ResponseTask);
             Log.Info(actualEx, "actual error from TestClientBypassCancellation");
             ComparisonUtils.CompareConnectivityParams(
                 remoteEndpoint, transportBypass.ActualRemoteEndpoint,
@@ -865,9 +866,9 @@ namespace Kabomu.IntegrationTests.QuasiHttp
 
             // test that a second cancel does not do anything.
             transportBypass.IsCancellationRequested = false;
-            client.CancelSend(result.Item2);
+            client.CancelSend(result.CancellationHandle);
             actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
-                result.Item1);
+                result.ResponseTask);
             Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeCancelled,
                 actualEx.ReasonCode);
             Assert.False(transportBypass.IsCancellationRequested);
@@ -911,11 +912,11 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 Task.FromResult<IQuasiHttpRequest>(null), null);
             await Task.Delay(1_000);
             Assert.False(transportBypass.IsCancellationRequested);
-            client.CancelSend(result.Item2);
+            client.CancelSend(result.CancellationHandle);
 
             // assert
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
-                result.Item1);
+                result.ResponseTask);
             Log.Info(actualEx, "actual error from TestClientBypassNoTimeoutDueToCancellation");
             ComparisonUtils.CompareConnectivityParams(
                 remoteEndpoint, transportBypass.ActualRemoteEndpoint,

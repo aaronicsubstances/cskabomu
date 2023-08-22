@@ -1088,38 +1088,52 @@ namespace Kabomu.Tests.QuasiHttp
         public void TestCreateCancellableTimeoutTask1()
         {
             var actual = ProtocolUtilsInternal.CreateCancellableTimeoutTask<string>(0, "");
-            Assert.Equal((null, null), actual);
+            Assert.Null(actual.Task);
+            Assert.False(actual.IsCancellationRequested());
         }
 
         [Fact]
         public void TestCreateCancellableTimeoutTask2()
         {
             var actual = ProtocolUtilsInternal.CreateCancellableTimeoutTask<string>(-3, "");
-            Assert.Equal((null, null), actual);
+            Assert.Null(actual.Task);
+            Assert.False(actual.IsCancellationRequested());
         }
 
         [Fact]
         public async Task TestCreateCancellableTimeoutTask3()
         {
             var expectedMsg = "sea";
+            var p = ProtocolUtilsInternal.CreateCancellableTimeoutTask<int>(50, expectedMsg);
+            Assert.NotNull(p.Task);
+            Assert.False(p.IsCancellationRequested());
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
             {
-                return ProtocolUtilsInternal.CreateCancellableTimeoutTask<int>(50, expectedMsg).Item1;
+                return p.Task;
             });
             Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeTimeout,
                 actualEx.ReasonCode);
             Assert.Equal(expectedMsg, actualEx.Message);
+            Assert.False(p.IsCancellationRequested());
+            p.Cancel();
+            Assert.True(p.IsCancellationRequested());
+            p.Cancel();
+            Assert.True(p.IsCancellationRequested());
         }
 
         [Fact]
         public async Task TestCreateCancellableTimeoutTask4()
         {
-            var (actualTask, timeoutId) = ProtocolUtilsInternal.CreateCancellableTimeoutTask<string>(500, "");
+            var p = ProtocolUtilsInternal.CreateCancellableTimeoutTask<string>(500, "");
+            Assert.NotNull(p.Task);
+            Assert.False(p.IsCancellationRequested());
             await Task.Delay(100);
-            Assert.NotNull(timeoutId);
-            timeoutId.Cancel();
-            var actual = await actualTask;
+            p.Cancel();
+            Assert.True(p.IsCancellationRequested());
+            var actual = await p.Task;
             Assert.Null(actual);
+            p.Cancel();
+            Assert.True(p.IsCancellationRequested());
         }
     }
 }

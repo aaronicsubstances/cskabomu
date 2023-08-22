@@ -85,10 +85,9 @@ namespace Kabomu.QuasiHttp.Server
             // concurrent modifications.
             var defaultProcessingOptions = DefaultProcessingOptions;
 
-            Task<IQuasiHttpResponse> timeoutTask;
             var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                 null, defaultProcessingOptions?.TimeoutMillis, 0);
-            (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.CreateCancellableTimeoutTask<IQuasiHttpResponse>(timeoutMillis,
+            transfer.TimeoutId = ProtocolUtilsInternal.CreateCancellableTimeoutTask<IQuasiHttpResponse>(timeoutMillis,
                 "receive timeout");
 
             int maxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
@@ -104,7 +103,7 @@ namespace Kabomu.QuasiHttp.Server
             };
             var workTask = transfer.StartProtocol();
             await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
-                timeoutTask, null);
+                transfer.TimeoutId.Task, null);
         }
 
         /// <summary>
@@ -158,10 +157,9 @@ namespace Kabomu.QuasiHttp.Server
         private async Task<IQuasiHttpResponse> ProcessAcceptRequest(
             ReceiveTransferInternal transfer, IQuasiHttpProcessingOptions options)
         {
-            Task<IQuasiHttpResponse> timeoutTask;
             var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                 options?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
-            (timeoutTask, transfer.TimeoutId) = ProtocolUtilsInternal.CreateCancellableTimeoutTask<IQuasiHttpResponse>(timeoutMillis,
+            transfer.TimeoutId = ProtocolUtilsInternal.CreateCancellableTimeoutTask<IQuasiHttpResponse>(timeoutMillis,
                 "receive timeout");
 
             transfer.Protocol = new AltReceiveProtocolInternal
@@ -171,7 +169,7 @@ namespace Kabomu.QuasiHttp.Server
             };
             var workTask = transfer.StartProtocol();
             return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
-                timeoutTask, null);
+                transfer.TimeoutId.Task, null);
         }
     }
 }

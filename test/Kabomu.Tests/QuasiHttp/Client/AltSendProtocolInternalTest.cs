@@ -438,7 +438,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 ActualCancellationHandle = sendCancellationHandle;
             }
 
-            public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+            public QuasiHttpSendResponse ProcessSendRequest(
                 object remoteEndpoint,
                 IQuasiHttpRequest request,
                 IQuasiHttpSendOptions sendOptions)
@@ -446,7 +446,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 throw new NotImplementedException();
             }
 
-            public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+            public QuasiHttpSendResponse ProcessSendRequest(
                 object remoteEndpoint,
                 Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
                 IQuasiHttpSendOptions sendOptions)

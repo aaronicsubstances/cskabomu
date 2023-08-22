@@ -57,7 +57,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             return await SendRequestCallback(request);
         }
 
-        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+        public QuasiHttpSendResponse ProcessSendRequest(
             object remoteEndpoint,
             IQuasiHttpRequest request,
             IQuasiHttpSendOptions sendOptions)
@@ -67,14 +67,21 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 sendOptions);
         }
 
-        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+        public QuasiHttpSendResponse ProcessSendRequest(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions)
         {
             var task = ProcessSendRequestInternal(remoteEndpoint, requestFunc, sendOptions);
-            return (task, CreateCancellationHandles ?
-                new object() : null);
+            var result = new QuasiHttpSendResponse
+            {
+                ResponseTask = task
+            };
+            if (CreateCancellationHandles)
+            {
+                result.CancellationHandle = new object();
+            }
+            return result;
         }
     }
 }

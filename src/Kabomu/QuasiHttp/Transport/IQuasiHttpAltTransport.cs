@@ -32,11 +32,13 @@ namespace Kabomu.QuasiHttp.Transport
         /// </summary>
         /// <param name="remoteEndpoint">the destination endpoint of the request</param>
         /// <param name="request">the quasi http request to send.</param>
-        /// <param name="sendOptions">communication endpoint information</param>
-        /// <returns>a pair whose first item is a task whose result will be the quasi http response
-        /// processed by this tranport instance; and whose second task is handle that can be used
-        /// to attempt cancelling the send request.</returns>
-        (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+        /// <param name="sendOptions">communication endpoint information. When used with a
+        /// <see cref="Client.StandardQuasiHttpClient"/> instance, this will be the result of merging
+        /// the default send options of the instance with the particular send options specified in the
+        /// Send() method, ie the instance method which initiated the send processing request.</param>
+        /// <returns>an object containing a task whose result will be the quasi http response
+        /// processed by the tranport instance.</returns>
+        QuasiHttpSendResponse ProcessSendRequest(
             object remoteEndpoint, IQuasiHttpRequest request,
             IQuasiHttpSendOptions sendOptions);
 
@@ -49,17 +51,19 @@ namespace Kabomu.QuasiHttp.Transport
         /// <param name="requestFunc">a callback which receives any environment
         /// associated with how the request is to be created, and returns a promise of
         /// the request to send</param>
-        /// <param name="sendOptions">communication endpoint information</param>
-        /// <returns>a pair whose first item is a task whose result will be the quasi http response
-        /// processed by this tranport instance; and whose second task is handle that can be used
-        /// to attempt cancelling the send request.</returns>
-        (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+        /// <param name="sendOptions">communication endpoint information. When used with a
+        /// <see cref="Client.StandardQuasiHttpClient"/> instance, this will be the result of merging
+        /// the default send options of the instance with the particular send options specified in the
+        /// Send() method, ie the instance method which initiated the send processing request.</param>
+        /// <returns>an object containing a task whose result will be the quasi http response
+        /// processed by the tranport instance.</returns>
+        QuasiHttpSendResponse ProcessSendRequest(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions);
 
         /// <summary>
-        /// Attempts to cancel an ongoing send request task.
+        /// Attempts to cancel an ongoing send request.
         /// </summary>
         /// <param name="sendCancellationHandle">the cancellation handle that was 
         /// returned by ProcessSendRequest() for the task to be cancelled.</param>

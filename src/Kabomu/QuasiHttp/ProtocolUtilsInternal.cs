@@ -218,12 +218,13 @@ namespace Kabomu.QuasiHttp
             return await workTask;
         }
 
-        public static (Task<T>, CancellationTokenSource) CreateCancellableTimeoutTask<T>(int timeoutMillis,
+        public static CancellablePromiseInternal<T> CreateCancellableTimeoutTask<T>(
+                int timeoutMillis,
             string timeoutMsg)
         {
             if (timeoutMillis <= 0)
             {
-                return (null, null);
+                return new CancellablePromiseInternal<T>();
             }
             var timeoutId = new CancellationTokenSource();
             var timeoutTask = Task.Delay(timeoutMillis, timeoutId.Token)
@@ -237,7 +238,24 @@ namespace Kabomu.QuasiHttp
                     }
                     return default;
                 });
-            return (timeoutTask, timeoutId);
+            return new CancellablePromiseInternal<T>
+            {
+                Task = timeoutTask,
+                CancellationTokenSource = timeoutId
+            };
+        }
+    }
+
+    internal struct CancellablePromiseInternal<T>
+    {
+        public Task<T> Task { get; set; }
+        public CancellationTokenSource CancellationTokenSource { get; set; }
+        public bool IsCancellationRequested() =>
+            CancellationTokenSource?.IsCancellationRequested ?? false;
+
+        public void Cancel()
+        {
+            CancellationTokenSource?.Cancel();
         }
     }
 }

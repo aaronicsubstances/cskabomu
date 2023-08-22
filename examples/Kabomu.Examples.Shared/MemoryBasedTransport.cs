@@ -4,6 +4,7 @@ using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.Examples.Shared
@@ -12,32 +13,53 @@ namespace Kabomu.Examples.Shared
     {
         public IQuasiHttpApplication Application { get; set; }
 
-        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+        public QuasiHttpSendResponse ProcessSendRequest(
             object remoteEndpoint,
             IQuasiHttpRequest request,
             IQuasiHttpSendOptions sendOptions)
         {
-            return ProcessSendRequest(remoteEndpoint,
-                _ => Task.FromResult(request),
-                sendOptions);
+            var resTask = ProcessSendRequestInternal(remoteEndpoint,
+                request, sendOptions);
+            return new QuasiHttpSendResponse
+            {
+                ResponseTask = resTask,
+            };
         }
 
-        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+        public QuasiHttpSendResponse ProcessSendRequest(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions)
         {
-            var resTask = ProcessSendRequestInternal(remoteEndpoint, requestFunc,
-                sendOptions);
-            return (resTask, null);
+            var resTask = ProcessSendRequestInternal(remoteEndpoint,
+                requestFunc, sendOptions);
+            return new QuasiHttpSendResponse
+            {
+                ResponseTask = resTask,
+            };
         }
 
-        public async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
+        public void CancelSendRequest(object sendCancellationHandle)
+        {
+            // do nothing.
+        }
+
+        private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
             object remoteEndpoint,
-            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
+            object requestOrRequestFunc,
             IQuasiHttpSendOptions sendOptions)
         {
-            var request = await requestFunc.Invoke(sendOptions?.ExtraConnectivityParams);
+            IQuasiHttpRequest request;
+            if (requestOrRequestFunc is IQuasiHttpRequest r)
+            {
+                request = r;
+            }
+            else
+            {
+                var requestFunc =
+                    (Func<IDictionary<string, object>, Task<IQuasiHttpRequest>>)requestOrRequestFunc;
+                request = await requestFunc.Invoke(null);
+            }
             if (request == null)
             {
                 throw new QuasiHttpRequestProcessingException("no request");
@@ -68,11 +90,6 @@ namespace Kabomu.Examples.Shared
             // originalResponse.Body and originalResponse.Body.Reader
             // in new instances, to prevent any reliance about their types
             return originalResponse;
-        }
-
-        public void CancelSendRequest(object sendCancellationHandle)
-        {
-            // do nothing.
         }
     }
 }

@@ -21,18 +21,20 @@ namespace Kabomu.Examples.Shared
             _httpClient = httpClient;
         }
 
-        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+        public QuasiHttpSendResponse ProcessSendRequest(
             object remoteEndpoint,
             IQuasiHttpRequest request,
             IQuasiHttpSendOptions sendOptions)
         {
-            return ProcessSendRequest(
-                remoteEndpoint,
-                _ => Task.FromResult(request),
-                sendOptions);
+            var resTask = ProcessSendRequestInternal(remoteEndpoint,
+                request, sendOptions);
+            return new QuasiHttpSendResponse
+            {
+                ResponseTask = resTask,
+            };
         }
 
-        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+        public QuasiHttpSendResponse ProcessSendRequest(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions)
@@ -41,7 +43,11 @@ namespace Kabomu.Examples.Shared
             var resTask = ProcessSendRequestInternal(remoteEndpoint,
                 requestFunc, sendOptions, cts);
             object sendCancellationHandle = cts;
-            return (resTask, sendCancellationHandle);
+            return new QuasiHttpSendResponse
+            {
+                ResponseTask = resTask,
+                CancellationHandle = sendCancellationHandle
+            };
         }
 
         public void CancelSendRequest(object sendCancellationHandle)
@@ -54,11 +60,20 @@ namespace Kabomu.Examples.Shared
 
         private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
             object remoteEndpoint,
-            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
+            object requestOrRequestFunc,
             IQuasiHttpSendOptions sendOptions,
-            CancellationTokenSource cancellationTokenSource)
+            CancellationTokenSource cancellationTokenSource = null)
         {
-            var request = await requestFunc.Invoke(null);
+            IQuasiHttpRequest request;
+            if (requestOrRequestFunc is IQuasiHttpRequest r)
+            {
+                request = r;
+            }
+            else {
+                var requestFunc =
+                    (Func<IDictionary<string, object>, Task<IQuasiHttpRequest>>)requestOrRequestFunc;
+                request = await requestFunc.Invoke(null);
+            }
             if (request == null)
             {
                 throw new QuasiHttpRequestProcessingException("no request");

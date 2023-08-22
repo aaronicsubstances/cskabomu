@@ -24,38 +24,57 @@ namespace ZeroMQ.FileClient
             _socket = socket;
         }
 
-        public void CancelSendRequest(object sendCancellationHandle)
-        {
-
-        }
-
-        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+        public QuasiHttpSendResponse ProcessSendRequest(
             object remoteEndpoint,
             IQuasiHttpRequest request,
             IQuasiHttpSendOptions sendOptions)
         {
-            var task = ProcessSendRequestInternal(
-                remoteEndpoint,
-                _ => Task.FromResult(request),
-                sendOptions);
-            return (task, null);
+            var resTask = ProcessSendRequestInternal(remoteEndpoint,
+                request, sendOptions);
+            return new QuasiHttpSendResponse
+            {
+                ResponseTask = resTask,
+            };
         }
 
-        public (Task<IQuasiHttpResponse>, object) ProcessSendRequest(
+        public QuasiHttpSendResponse ProcessSendRequest(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions)
         {
-            var task = ProcessSendRequestInternal(remoteEndpoint, requestFunc, sendOptions);
-            return (task, null);
+            var resTask = ProcessSendRequestInternal(remoteEndpoint,
+                requestFunc, sendOptions);
+            return new QuasiHttpSendResponse
+            {
+                ResponseTask = resTask,
+            };
+        }
+
+        public void CancelSendRequest(object sendCancellationHandle)
+        {
+            // do nothing.
         }
 
         private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
             object remoteEndpoint,
-            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
+            object requestOrRequestFunc,
             IQuasiHttpSendOptions sendOptions)
         {
-            var request = await requestFunc.Invoke(null);
+            IQuasiHttpRequest request;
+            if (requestOrRequestFunc is IQuasiHttpRequest r)
+            {
+                request = r;
+            }
+            else
+            {
+                var requestFunc =
+                    (Func<IDictionary<string, object>, Task<IQuasiHttpRequest>>)requestOrRequestFunc;
+                request = await requestFunc.Invoke(null);
+            }
+            if (request == null)
+            {
+                throw new QuasiHttpRequestProcessingException("no request");
+            }
             // todo: ensure disposal of request if it was retrieved
             // from externally supplied request func.
             var leadChunk = ChunkedTransferCodec.CreateFromRequest(request);

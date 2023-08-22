@@ -152,7 +152,10 @@ namespace Kabomu.Tests.QuasiHttp.Server
             var protocol = new HelperReceiveProtocol();
             var instance = new ReceiveTransferInternal
             {
-                TimeoutId = new CancellationTokenSource(),
+                TimeoutId = new CancellablePromiseInternal<IQuasiHttpResponse>
+                {
+                    CancellationTokenSource = new CancellationTokenSource()
+                },
                 Protocol = protocol,
                 Request = request
             };
@@ -171,7 +174,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             // assert
             Assert.True(protocol.Cancelled);
-            Assert.True(instance.TimeoutId.IsCancellationRequested);
+            Assert.True(instance.TimeoutId.IsCancellationRequested());
             Assert.Equal(1, requestReleaseCallCount);
             Assert.Equal(0, responseReleaseCallCount);
         }
@@ -191,7 +194,10 @@ namespace Kabomu.Tests.QuasiHttp.Server
             var protocol = new HelperReceiveProtocol();
             var instance = new ReceiveTransferInternal
             {
-                TimeoutId = new CancellationTokenSource(),
+                TimeoutId = new CancellablePromiseInternal<IQuasiHttpResponse>
+                {
+                    CancellationTokenSource = new CancellationTokenSource()
+                },
                 Protocol = protocol
             };
             instance.TrySetAborted();
@@ -211,7 +217,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             // assert
             Assert.False(protocol.Cancelled);
-            Assert.False(instance.TimeoutId.IsCancellationRequested);
+            Assert.False(instance.TimeoutId.IsCancellationRequested());
             Assert.Equal(0, requestReleaseCallCount);
             Assert.Equal(1, responseReleaseCallCount);
         }
@@ -229,7 +235,10 @@ namespace Kabomu.Tests.QuasiHttp.Server
             {
                 Protocol = protocol,
                 Request = request,
-                TimeoutId = new CancellationTokenSource(),
+                TimeoutId = new CancellablePromiseInternal<IQuasiHttpResponse>
+                {
+                    CancellationTokenSource = new CancellationTokenSource()
+                },
             };
             var res = new DefaultQuasiHttpResponse
             {
@@ -240,7 +249,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             await instance.Abort(res);
 
             // assert
-            Assert.True(instance.TimeoutId.IsCancellationRequested);
+            Assert.True(instance.TimeoutId.IsCancellationRequested());
             Assert.True(protocol.Cancelled);
         }
 

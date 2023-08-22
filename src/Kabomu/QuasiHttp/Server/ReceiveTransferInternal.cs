@@ -10,7 +10,7 @@ namespace Kabomu.QuasiHttp.Server
         private int _abortCalled;
 
         public IReceiveProtocolInternal Protocol { get; set; }
-        public CancellationTokenSource TimeoutId { get; set; }
+        public CancellablePromiseInternal<IQuasiHttpResponse> TimeoutId { get; set; }
         public bool IsAborted => _abortCalled != 0;
         public IQuasiHttpRequest Request { get; set; }
 
@@ -30,7 +30,7 @@ namespace Kabomu.QuasiHttp.Server
         {
             if (TrySetAborted())
             {
-                TimeoutId?.Cancel();
+                TimeoutId.Cancel();
 
                 try
                 {
