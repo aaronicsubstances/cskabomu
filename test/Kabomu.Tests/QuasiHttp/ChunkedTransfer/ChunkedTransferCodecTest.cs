@@ -480,6 +480,34 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         }
 
         [Fact]
+        public async Task TestWriteLeadChunk4()
+        {
+            // arrange
+            var leadChunk = new LeadChunk
+            {
+                Version = ChunkedTransferCodec.Version01,
+                Flags = 0
+            };
+            leadChunk.Headers = new Dictionary<string, IList<string>>();
+            leadChunk.Headers.Add("h".PadLeft(70_000), new List<string> { "1" });
+
+            var expected = new MemoryStream();
+            expected.Write(new byte[] { 1, 0x11, 0x8d, 1, 0 });
+            expected.Write(ByteUtils.StringToBytes("0,\"\",0,0,0,\"\",0,\"\",0,\"\"\n"));
+            expected.Write(ByteUtils.StringToBytes(("h".PadLeft(70_000) + ",1\n")));
+
+            var destStream = new MemoryStream();
+
+            // act.
+            await new ChunkedTransferCodec().WriteLeadChunk(
+                destStream, leadChunk,
+                ChunkedTransferCodec.HardMaxChunkSizeLimit);
+
+            // assert
+            Assert.Equal(expected.ToArray(), destStream.ToArray());
+        }
+
+        [Fact]
         public async Task TestWriteLeadChunkForError1()
         {
             // arrange.
