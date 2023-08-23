@@ -98,9 +98,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         public async Task<int> DecodeSubsequentChunkV1Header(
             byte[] bufferToUse, object reader, int maxChunkSize = 0)
         {
-            if (maxChunkSize <= 0)
+            if (maxChunkSize < DefaultMaxChunkSizeLimit)
             {
-                maxChunkSize = DefaultMaxChunkSize;
+                maxChunkSize = DefaultMaxChunkSizeLimit;
             }
             if (bufferToUse == null && reader == null)
             {
@@ -158,9 +158,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 throw new ArgumentNullException(nameof(reader));
             }
-            if (maxChunkSize <= 0)
+            if (maxChunkSize < DefaultMaxChunkSizeLimit)
             {
-                maxChunkSize = DefaultMaxChunkSize;
+                maxChunkSize = DefaultMaxChunkSizeLimit;
             }
             byte[] chunkBytes;
             try
@@ -215,8 +215,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 throw new ArgumentException(
                     $"received chunk size of {chunkLen} exceeds" +
-                    $" default limit on max chunk size ({DefaultMaxChunkSizeLimit})" +
-                    $" as well as maximum configured chunk size of {maxChunkSize}");
+                    $" default limit on max chunk size of {DefaultMaxChunkSizeLimit}");
             }
         }
 
@@ -241,7 +240,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 throw new ArgumentNullException(nameof(writer));
             }
-            if (maxChunkSize <= 0)
+            if (maxChunkSize <= 0 || maxChunkSize > HardMaxChunkSizeLimit)
             {
                 maxChunkSize = DefaultMaxChunkSize;
             }

@@ -53,15 +53,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
         private static async Task<ICustomReader> SerializeRequestToBeRead(
             IQuasiHttpRequest req, byte[] reqBodyBytes)
         {
-            var reqChunk = new LeadChunk
-            {
-                Version = ChunkedTransferCodec.Version01,
-                Method = req.Method,
-                RequestTarget = req.Target,
-                HttpVersion = req.HttpVersion,
-                Headers = req.Headers,
-                ContentLength = req.Body?.ContentLength ?? 0
-            };
+            var reqChunk = ChunkedTransferCodec.CreateFromRequest(req);
             var helpingReaders = new List<object>();
             var headerStream = new MemoryStream();
             await new ChunkedTransferCodec().WriteLeadChunk(headerStream,
@@ -198,15 +190,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
 
             // set up expected response headers
-            var expectedResChunk = new LeadChunk
-            {
-                Version = ChunkedTransferCodec.Version01,
-                StatusCode = expectedResponse.StatusCode,
-                HttpStatusMessage = expectedResponse.HttpStatusMessage,
-                Headers = expectedResponse.Headers,
-                ContentLength = expectedResponse.Body?.ContentLength ?? 0,
-                HttpVersion = expectedResponse.HttpVersion,
-            };
+            var expectedResChunk = ChunkedTransferCodec.CreateFromResponse(expectedResponse);
 
             await Assert.ThrowsAsync<NotImplementedException>(() =>
             {
@@ -219,7 +203,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             // assert written response
             headerReceiver.Position = 0;
             var actualResChunk = await new ChunkedTransferCodec().ReadLeadChunk(
-                headerReceiver, 0);
+                headerReceiver);
             // verify all contents of headerReceiver was used
             // before comparing lead chunks
             Assert.Equal(0, await IOUtils.ReadBytes(headerReceiver,
@@ -269,15 +253,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
 
             // set up expected response headers
-            var expectedResChunk = new LeadChunk
-            {
-                Version = ChunkedTransferCodec.Version01,
-                StatusCode = expectedResponse.StatusCode,
-                HttpStatusMessage = expectedResponse.HttpStatusMessage,
-                Headers = expectedResponse.Headers,
-                ContentLength = expectedResponse.Body?.ContentLength ?? 0,
-                HttpVersion = expectedResponse.HttpVersion,
-            };
+            var expectedResChunk = ChunkedTransferCodec.CreateFromResponse(expectedResponse);
 
             // act
             var recvResult = await instance.Receive();
@@ -294,7 +270,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             // assert written response
             headerReceiver.Position = 0;
             var actualResChunk = await new ChunkedTransferCodec().ReadLeadChunk(
-                headerReceiver, 0);
+                headerReceiver);
             // verify all contents of headerReceiver was used
             // before comparing lead chunks
             Assert.Equal(0, await IOUtils.ReadBytes(headerReceiver,
@@ -308,13 +284,13 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 resBodyReader = new ChunkDecodingCustomReader(resBodyReader);
             }
             var actualResBodyBytes = await IOUtils.ReadAllBytes(resBodyReader);
-            if (expectedResponse.Body == null)
+            if (expectedResponse.Body != null)
             {
-                Assert.Empty(actualResBodyBytes);
+                Assert.Equal(expectedResponseBodyBytes, actualResBodyBytes);
             }
             else
             {
-                Assert.Equal(expectedResponseBodyBytes, actualResBodyBytes);
+                Assert.Empty(actualResBodyBytes);
             }
 
             // verify cancel expectations
@@ -374,7 +350,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
-                StatusCode = QuasiHttpUtils.StatusCodeClientErrorBadRequest,
+                StatusCode = 400,
                 HttpStatusMessage = "not found"
             };
             expectedResBodyBytes = null;
@@ -399,7 +375,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             expectedResponse = new DefaultQuasiHttpResponse
             {
                 HttpVersion = "1.1",
-                StatusCode = QuasiHttpUtils.StatusCodeServerError,
+                StatusCode = 500,
                 HttpStatusMessage = "server error"
             };
             expectedResBodyBytes = null;
@@ -428,8 +404,8 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             expectedResponse = new DefaultQuasiHttpResponse
             {
-                StatusCode = QuasiHttpUtils.StatusCodeServerError,
-                HttpStatusMessage = "server error",
+                StatusCode = 200,
+                HttpStatusMessage = "ok",
                 Headers = new Dictionary<string, IList<string>>
                 {
                     { "x", new List<string>{ "A" } },

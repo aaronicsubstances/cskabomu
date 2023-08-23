@@ -39,13 +39,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 throw new ArgumentNullException(nameof(wrappedWriter));
             }
-            if (maxChunkSize <= 0)
+            if (maxChunkSize <= 0 || maxChunkSize > ChunkedTransferCodec.HardMaxChunkSizeLimit)
             {
                 maxChunkSize = ChunkedTransferCodec.DefaultMaxChunkSize;
-            }
-            if (maxChunkSize > ChunkedTransferCodec.HardMaxChunkSizeLimit)
-            {
-                throw new ArgumentException($"max chunk size cannot exceed {ChunkedTransferCodec.HardMaxChunkSizeLimit}. received: {maxChunkSize}");
             }
             _wrappedWriter = wrappedWriter;
             _buffer = new byte[maxChunkSize];

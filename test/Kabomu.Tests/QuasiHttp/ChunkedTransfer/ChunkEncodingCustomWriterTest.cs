@@ -34,14 +34,6 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         }
 
         [Fact]
-        public void TestForConstructionErrors2()
-        {
-            Assert.Throws<ArgumentException>(() =>
-                new ChunkEncodingCustomWriter(new MemoryStream(),
-                    10_000_000));
-        }
-
-        [Fact]
         public async Task TestWriting1()
         {
             // arrange.
@@ -225,6 +217,112 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             // assert
             var actual = destStream.ToArray();
             Assert.Equal(expected, actual);
+        }
+
+        /// <summary>
+        /// Test hard limit usage for data exceeding default limit.
+        /// </summary>
+        [Fact]
+        public async Task TestWriting7()
+        {
+            // arrange.
+            var destStream = new MemoryStream();
+            int maxChunkSize = ChunkedTransferCodec.HardMaxChunkSizeLimit;
+            var instance = new ChunkEncodingCustomWriter(destStream,
+                maxChunkSize);
+
+            var reader = new MemoryStream();
+            reader.Write(ByteUtils.StringToBytes("1".PadRight(10_000)));
+            reader.Write(ByteUtils.StringToBytes("2".PadRight(10_000)));
+            reader.Write(ByteUtils.StringToBytes("3".PadRight(10_000)));
+            reader.Write(ByteUtils.StringToBytes("4".PadRight(10_000)));
+            reader.Write(ByteUtils.StringToBytes("5".PadRight(10_000)));
+            reader.Write(ByteUtils.StringToBytes("6".PadRight(10_000)));
+            reader.Write(ByteUtils.StringToBytes("7".PadRight(10_000)));
+            reader.Write(ByteUtils.StringToBytes("8".PadRight(10_000)));
+            reader.Position = 0; // reset for reading
+
+            // create expectation
+            var expected = new MemoryStream();
+            expected.Write(new byte[] { 1, 0x38, 0x82, 1, 0 });
+            expected.Write(ByteUtils.StringToBytes("1".PadRight(10_000)));
+            expected.Write(ByteUtils.StringToBytes("2".PadRight(10_000)));
+            expected.Write(ByteUtils.StringToBytes("3".PadRight(10_000)));
+            expected.Write(ByteUtils.StringToBytes("4".PadRight(10_000)));
+            expected.Write(ByteUtils.StringToBytes("5".PadRight(10_000)));
+            expected.Write(ByteUtils.StringToBytes("6".PadRight(10_000)));
+            expected.Write(ByteUtils.StringToBytes("7".PadRight(10_000)));
+            expected.Write(ByteUtils.StringToBytes("8".PadRight(10_000)));
+            expected.Write(new byte[] { 0, 0, 2, 1, 0 });
+            expected.Position = 0; // reset for reading
+
+            // act
+            await IOUtils.CopyBytes(reader, instance);
+            await instance.EndWrites();
+
+            // assert
+            var actual = destStream.ToArray();
+            Assert.Equal(expected.ToArray(), actual);
+        }
+
+        /// <summary>
+        /// Test truncation of hard limit excesses to default max chunk size
+        /// </summary>
+        [Fact]
+        public async Task TestWriting8()
+        {
+            // arrange first with default max chunk size
+            var destStream = new MemoryStream();
+            int maxChunkSize = 8_192;
+            var instance = new ChunkEncodingCustomWriter(destStream,
+                maxChunkSize);
+
+            var reader = new MemoryStream();
+            reader.Write(ByteUtils.StringToBytes("1".PadRight(1_000)));
+            reader.Write(ByteUtils.StringToBytes("2".PadRight(1_000)));
+            reader.Write(ByteUtils.StringToBytes("3".PadRight(1_000)));
+            reader.Write(ByteUtils.StringToBytes("4".PadRight(1_000)));
+            reader.Write(ByteUtils.StringToBytes("5".PadRight(1_000)));
+            reader.Write(ByteUtils.StringToBytes("6".PadRight(1_000)));
+            reader.Write(ByteUtils.StringToBytes("7".PadRight(1_000)));
+            reader.Write(ByteUtils.StringToBytes("8".PadRight(1_000)));
+            reader.Write(ByteUtils.StringToBytes("9".PadRight(1_000)));
+            reader.Position = 0; // reset for reading
+
+            // create expectation
+            var expected = new MemoryStream();
+            expected.Write(new byte[] { 0, 0x20, 0x02, 1, 0 });
+            expected.Write(ByteUtils.StringToBytes("1".PadRight(1_000)));
+            expected.Write(ByteUtils.StringToBytes("2".PadRight(1_000)));
+            expected.Write(ByteUtils.StringToBytes("3".PadRight(1_000)));
+            expected.Write(ByteUtils.StringToBytes("4".PadRight(1_000)));
+            expected.Write(ByteUtils.StringToBytes("5".PadRight(1_000)));
+            expected.Write(ByteUtils.StringToBytes("6".PadRight(1_000)));
+            expected.Write(ByteUtils.StringToBytes("7".PadRight(1_000)));
+            expected.Write(ByteUtils.StringToBytes("8".PadRight(1_000)));
+            expected.Write(ByteUtils.StringToBytes("9".PadRight(192)));
+            expected.Write(new byte[] { 0, 0x03, 0x2a, 1, 0 });
+            expected.Write(ByteUtils.StringToBytes("".PadRight(808)));
+            expected.Write(new byte[] { 0, 0, 2, 1, 0 });
+            expected.Position = 0; // reset for reading
+
+            // act
+            await IOUtils.CopyBytes(reader, instance);
+            await instance.EndWrites();
+
+            // assert
+            var actual = destStream.ToArray();
+            Assert.Equal(expected.ToArray(), actual);
+
+            // try again with too large max chunk size.
+            reader.Position = 0; // reset for another reading.
+            destStream.SetLength(0); // reset for writing
+            instance = new ChunkEncodingCustomWriter(destStream,
+                ChunkedTransferCodec.HardMaxChunkSizeLimit + 1);
+            await IOUtils.CopyBytes(reader, instance);
+            await instance.EndWrites();
+            actual = destStream.ToArray();
+            Assert.Equal(expected.ToArray(), actual);
         }
     }
 }
