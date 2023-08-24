@@ -385,7 +385,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
         {
             var testData = new List<object[]>();
 
-            // all request bodies are specified with LambdaBasedQuasiHttpBody class
+            // NB: all request bodies are specified with LambdaBasedQuasiHttpBody class
             // through just the ContentLength property.
             // body will be created as an ISelfWritable from any reqBodyBytes
             // as long as ContentLength is not zero.

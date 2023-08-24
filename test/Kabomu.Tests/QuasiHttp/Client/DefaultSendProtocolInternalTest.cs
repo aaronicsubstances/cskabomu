@@ -57,7 +57,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             var helpingReaders = new List<object>();
             var headerStream = new MemoryStream();
             await new CustomChunkedTransferCodec().WriteLeadChunk(headerStream,
-                resChunk);
+                resChunk, CustomChunkedTransferCodec.HardMaxChunkSizeLimit);
             headerStream.Position = 0; // reset for reading.
             helpingReaders.Add(headerStream);
             if (res.Body != null)
@@ -85,6 +85,30 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
         }
 
+        private static async Task<MemoryStream> CreateResponseStream(IQuasiHttpResponse res,
+            int maxChunkSize, int bodyMaxChunkSize)
+        {
+            var resWriter = new MemoryStream();
+            await new CustomChunkedTransferCodec().WriteLeadChunk(resWriter,
+                CustomChunkedTransferCodec.CreateFromResponse(res), maxChunkSize);
+            if (res.Body != null)
+            {
+                if (res.Body.ContentLength < 0)
+                {
+                    var encoder = new ChunkEncodingCustomWriter(resWriter,
+                        bodyMaxChunkSize);
+                    await res.Body.WriteBytesTo(encoder);
+                    await encoder.EndWrites();
+                }
+                else
+                {
+                    await res.Body.WriteBytesTo(resWriter);
+                }
+            }
+            resWriter.Position = 0; // reset for reading.
+            return resWriter;
+        }
+
         [Fact]
         public async Task TestSendForDependencyErrors()
         {
@@ -106,16 +130,59 @@ namespace Kabomu.Tests.QuasiHttp.Client
             });
         }
 
+        [Fact]
+        public async Task TestNoWriterForRequestHeadersError()
+        {
+            object connection = new object();
+            var resStream = await CreateResponseStream(new DefaultQuasiHttpResponse(),
+                0, 0);
+            var transport = new DemoQuasiHttpTransport(connection,
+                resStream, null);
+            var instance = new DefaultSendProtocolInternal
+            {
+                Request = new DefaultQuasiHttpRequest(),
+                Transport = transport,
+                Connection = connection
+            };
+
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+                instance.Send());
+            Assert.Contains("no writer for connection", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestNoReaderForResponseHeadersError()
+        {
+            object connection = new List<object>();
+            var reqStream = new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = (data, offset, length)
+                    => Task.CompletedTask
+            };
+            var transport = new DemoQuasiHttpTransport(connection,
+                null, reqStream);
+            var instance = new DefaultSendProtocolInternal
+            {
+                Request = new DefaultQuasiHttpRequest(),
+                Transport = transport,
+                Connection = connection
+            };
+
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+                instance.Send());
+            Assert.Contains("no reader for connection", actualEx.Message);
+        }
+
         [Theory]
         [MemberData(nameof(CreateTestSendData))]
         public async Task TestSend(
             object connection, int maxChunkSize, bool responseBufferingEnabled,
-            IQuasiHttpMutableRequest request, byte[] expectedReqBodyBytes,
-            DefaultQuasiHttpResponse expectedResponse, byte[] expectedResBodyBytes)
+            IQuasiHttpMutableRequest expectedRequest, byte[] expectedReqBodyBytes,
+            DefaultQuasiHttpResponse response, byte[] resBodyBytes)
         {
             // prepare response for reading.
             var helpingReader = await SerializeResponseToBeRead(
-                expectedResponse, expectedResBodyBytes);
+                response, resBodyBytes);
 
             // prepare to receive request to be written
             var headerReceiver = new MemoryStream();
@@ -133,7 +200,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 };
             }
             var helpingWriter = SetUpReceivingOfRequestToBeWritten(
-                request, bodyWritable, headerReceiver,
+                expectedRequest, bodyWritable, headerReceiver,
                 bodyReceiver);
 
             // set up instance
@@ -141,7 +208,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
                 helpingReader, helpingWriter);
             var instance = new DefaultSendProtocolInternal
             {
-                Request = request,
+                Request = expectedRequest,
                 Transport = transport,
                 Connection = connection,
                 MaxChunkSize = maxChunkSize,
@@ -151,7 +218,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = CustomChunkedTransferCodec.CreateFromRequest(request);
+            var expectedReqChunk = CustomChunkedTransferCodec.CreateFromRequest(expectedRequest);
 
             // act.
             var actualResponse = await instance.Send();
@@ -163,13 +230,13 @@ namespace Kabomu.Tests.QuasiHttp.Client
             Assert.Equal(responseBufferingEnabled, actualResponse.ResponseBufferingApplied);
 
             // assert read response.
-            await ComparisonUtils.CompareResponses(expectedResponse, actualResponse.Response,
-                expectedResBodyBytes);
+            await ComparisonUtils.CompareResponses(response, actualResponse.Response,
+                resBodyBytes);
 
             // assert written request.
             headerReceiver.Position = 0;
             var actualReqChunk = await new CustomChunkedTransferCodec().ReadLeadChunk(
-                headerReceiver, 0);
+                headerReceiver, CustomChunkedTransferCodec.HardMaxChunkSizeLimit);
             // verify all contents of headerReceiver was used
             // before comparing lead chunks
             Assert.Equal(0, await IOUtils.ReadBytes(headerReceiver,
@@ -180,16 +247,17 @@ namespace Kabomu.Tests.QuasiHttp.Client
             object reqBodyReader = bodyReceiver;
             if (expectedReqChunk.ContentLength < 0)
             {
-                reqBodyReader = new ChunkDecodingCustomReader(bodyReceiver);
+                reqBodyReader = new ChunkDecodingCustomReader(bodyReceiver,
+                    CustomChunkedTransferCodec.HardMaxChunkSizeLimit);
             }
             var actualReqBodyBytes = await IOUtils.ReadAllBytes(reqBodyReader);
-            if (request.Body == null)
+            if (expectedRequest.Body != null)
             {
-                Assert.Empty(actualReqBodyBytes);
+                Assert.Equal(expectedReqBodyBytes, actualReqBodyBytes);
             }
             else
             {
-                Assert.Equal(expectedReqBodyBytes, actualReqBodyBytes);
+                Assert.Empty(actualReqBodyBytes);
             }
 
             // verify cancel expectations
@@ -210,11 +278,16 @@ namespace Kabomu.Tests.QuasiHttp.Client
         {
             var testData = new List<object[]>();
 
+            // NB: all response bodies are specified with LambdaBasedQuasiHttpBody class
+            // through just the ContentLength property.
+            // body will be created as an ISelfWritable from any resBodyBytes
+            // as long as ContentLength is not zero.
+
             // next...
             object connection = "vgh";
             int maxChunkSize = 115;
-            bool responseBufferingEnabled = true;
-            var request = new DefaultQuasiHttpRequest
+            bool responseBufferingEnabled = false;
+            var expectedRequest = new DefaultQuasiHttpRequest
             {
                 Method = "POST",
                 Target = "/koobi",
@@ -223,13 +296,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     { "variant", new List<string>{ "sea", "drive" } }
                 }
             };
-            var reqBodyBytes = ByteUtils.StringToBytes("this is our king");
-            request.Body = new LambdaBasedQuasiHttpBody
+            byte[] expectedReqBodyBytes = null;
+            /*var expectedReqBodyBytes = ByteUtils.StringToBytes("this is our king");
+            expectedRequest.Body = new LambdaBasedQuasiHttpBody
             {
-                ContentLength = reqBodyBytes.Length
-            };
+                ContentLength = expectedReqBodyBytes.Length
+            };*/
 
-            var expectedResponse = new DefaultQuasiHttpResponse
+            var response = new DefaultQuasiHttpResponse
             {
                 StatusCode = 200,
                 HttpStatusMessage = "ok",
@@ -238,35 +312,35 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     { "dkt", new List<string>{ "bb" } }
                 },
             };
-            byte[] expectedResBodyBytes = ByteUtils.StringToBytes("and this is our queen");
-            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes);
-            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                expectedResponse, expectedResBodyBytes });
+            byte[] resBodyBytes = ByteUtils.StringToBytes("and this is our queen");
+            response.Body = new ByteBufferBody(resBodyBytes);
+            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, expectedRequest, expectedReqBodyBytes,
+                response, resBodyBytes });
 
             // next...
             connection = 123;
             maxChunkSize = 90;
             responseBufferingEnabled = false;
-            request = new DefaultQuasiHttpRequest
+            expectedRequest = new DefaultQuasiHttpRequest
             {
                 Target = "/p"
             };
-            reqBodyBytes = null;
+            expectedReqBodyBytes = null;
 
-            expectedResponse = new DefaultQuasiHttpResponse
+            response = new DefaultQuasiHttpResponse
             {
-                StatusCode = QuasiHttpUtils.StatusCodeClientErrorBadRequest,
+                StatusCode = 400,
                 HttpStatusMessage = "not found"
             };
-            expectedResBodyBytes = null;
-            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                expectedResponse, expectedResBodyBytes });
+            resBodyBytes = null;
+            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, expectedRequest, expectedReqBodyBytes,
+                response, resBodyBytes });
 
             // next...
             connection = new object();
             maxChunkSize = 100;
             responseBufferingEnabled = true;
-            request = new DefaultQuasiHttpRequest
+            expectedRequest = new DefaultQuasiHttpRequest
             {
                 Target = "/fxn",
                 Headers = new Dictionary<string, IList<string>>
@@ -277,11 +351,11 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     { "ccc", new List<string>{ "C1", "C2", "C3" } }
                 }
             };
-            reqBodyBytes = null;
+            expectedReqBodyBytes = null;
 
-            expectedResponse = new DefaultQuasiHttpResponse
+            response = new DefaultQuasiHttpResponse
             {
-                StatusCode = QuasiHttpUtils.StatusCodeServerError,
+                StatusCode = 500,
                 HttpStatusMessage = "server error",
                 Headers = new Dictionary<string, IList<string>>
                 {
@@ -289,56 +363,82 @@ namespace Kabomu.Tests.QuasiHttp.Client
                     { "y", new List<string>{ "B1", "B2", "C1", "C2", "C3" } }
                 }
             };
-            expectedResBodyBytes = ByteUtils.StringToBytes("<a>this is news</a>");
-            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
+            resBodyBytes = ByteUtils.StringToBytes("<a>this is news</a>");
+            response.Body = new ByteBufferBody(resBodyBytes)
             {
                 ContentLength = -1
             };
-            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                expectedResponse, expectedResBodyBytes });
+            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, expectedRequest, expectedReqBodyBytes,
+                response, resBodyBytes });
 
             // next...
             // zero content length in request
             connection = "..";
             maxChunkSize = 50;
             responseBufferingEnabled = false;
-            request = new DefaultQuasiHttpRequest();
-            reqBodyBytes = new byte[0];
-            request.Body = new LambdaBasedQuasiHttpBody
+            expectedRequest = new DefaultQuasiHttpRequest();
+            expectedReqBodyBytes = new byte[0];
+            expectedRequest.Body = new LambdaBasedQuasiHttpBody
             {
                 ContentLength = 0
             };
 
-            expectedResponse = new DefaultQuasiHttpResponse
+            response = new DefaultQuasiHttpResponse
             {
                 StatusCode = 200,
                 Headers = new Dictionary<string, IList<string>>()
             };
-            expectedResBodyBytes = new byte[1];
-            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes);
-            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                expectedResponse, expectedResBodyBytes });
+            resBodyBytes = new byte[1];
+            response.Body = new ByteBufferBody(resBodyBytes);
+            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, expectedRequest, expectedReqBodyBytes,
+                response, resBodyBytes });
 
             // next...
             // exceed buffering limit of 100 specified in test method
             connection = true;
             maxChunkSize = 40;
             responseBufferingEnabled = false;
-            request = new DefaultQuasiHttpRequest();
-            reqBodyBytes = null;
+            expectedRequest = new DefaultQuasiHttpRequest();
+            expectedReqBodyBytes = null;
 
-            expectedResponse = new DefaultQuasiHttpResponse
+            response = new DefaultQuasiHttpResponse
             {
                 StatusCode = 200,
                 Headers = new Dictionary<string, IList<string>>()
             };
-            expectedResBodyBytes = ByteUtils.StringToBytes("dk".PadRight(120));
-            expectedResponse.Body = new ByteBufferBody(expectedResBodyBytes)
+            resBodyBytes = ByteUtils.StringToBytes("dk".PadRight(120));
+            response.Body = new ByteBufferBody(resBodyBytes)
             {
                 ContentLength = -1
             };
-            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, request, reqBodyBytes,
-                expectedResponse, expectedResBodyBytes });
+            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, expectedRequest, expectedReqBodyBytes,
+                response, resBodyBytes });
+
+            // next...
+            connection = new List<object>();
+            maxChunkSize = 150_000;
+            responseBufferingEnabled = false;
+            expectedRequest = new DefaultQuasiHttpRequest
+            {
+                Target = "/fxn".PadLeft(70_000)
+            };
+            /*expectedReqBodyBytes = new byte[80_000];
+            expectedRequest.Body = new LambdaBasedQuasiHttpBody
+            {
+                ContentLength = -1
+            };*/
+
+            response = new DefaultQuasiHttpResponse
+            {
+                HttpStatusMessage = "ok".PadLeft(90_000),
+            };
+            resBodyBytes = new byte[100_000];
+            response.Body = new ByteBufferBody(resBodyBytes)
+            {
+                ContentLength = -1
+            };
+            testData.Add(new object[] { connection, maxChunkSize, responseBufferingEnabled, expectedRequest, expectedReqBodyBytes,
+                response, resBodyBytes });
 
             return testData;
         }
