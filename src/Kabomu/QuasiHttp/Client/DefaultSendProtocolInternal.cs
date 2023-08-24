@@ -4,6 +4,7 @@ using Kabomu.QuasiHttp.Transport;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,6 +46,10 @@ namespace Kabomu.QuasiHttp.Client
             }
 
             var writer = Transport.GetWriter(Connection);
+            if (writer == null)
+            {
+                throw new QuasiHttpRequestProcessingException("no writer for connection");
+            }
 
             // send lead chunk first, before racing sending of request body
             // and receiving of response.
@@ -64,6 +69,11 @@ namespace Kabomu.QuasiHttp.Client
         private async Task<ProtocolSendResultInternal> StartFetchingResponse()
         {
             var reader = Transport.GetReader(Connection);
+            if (reader == null)
+            {
+                throw new QuasiHttpRequestProcessingException("no reader for connection");
+            }
+
             var chunk = await new CustomChunkedTransferCodec().ReadLeadChunk(reader,
                 MaxChunkSize);
             if (chunk == null)

@@ -85,7 +85,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
         }
 
-        private static async Task<MemoryStream> createRequestStream(IQuasiHttpRequest req,
+        private static async Task<MemoryStream> CreateRequestStream(IQuasiHttpRequest req,
             int maxChunkSize, int bodyMaxChunkSize)
         {
             var reqWriter = new MemoryStream();
@@ -129,6 +129,64 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 };
                 return instance.Receive();
             });
+        }
+
+        [Fact]
+        public async Task TestNoReaderForRequestHeadersError()
+        {
+            object connection = new List<object>();
+            var application = new ConfigurableQuasiHttpApplication
+            {
+                ProcessRequestCallback = async (request) =>
+                {
+                    return new DefaultQuasiHttpResponse();
+                }
+            };
+            var resStream = new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = (data, offset, length)
+                    => Task.CompletedTask
+            };
+            var transport = new DemoQuasiHttpTransport(connection,
+                null, resStream);
+            var instance = new DefaultReceiveProtocolInternal
+            {
+                Application = application,
+                Transport = transport,
+                Connection = connection
+            };
+
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+                instance.Receive());
+            Assert.Contains("no reader for connection", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestNoWriterForResponseHeadersError()
+        {
+            object connection = new List<object>();
+            var request = new DefaultQuasiHttpRequest();
+            var reqStream = await CreateRequestStream(request,
+                0, 0);
+            var application = new ConfigurableQuasiHttpApplication
+            {
+                ProcessRequestCallback = async (request) =>
+                {
+                    return new DefaultQuasiHttpResponse();
+                }
+            };
+            var transport = new DemoQuasiHttpTransport(connection,
+                reqStream, null);
+            var instance = new DefaultReceiveProtocolInternal
+            {
+                Application = application,
+                Transport = transport,
+                Connection = connection
+            };
+
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
+                instance.Receive());
+            Assert.Contains("no writer for connection", actualEx.Message);
         }
 
         [Fact]
@@ -536,7 +594,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             {
                 Target = "/fxn".PadLeft(70_000)
             };
-            var reqStream = await createRequestStream(request,
+            var reqStream = await CreateRequestStream(request,
                 100_000, 0);
             var application = new ConfigurableQuasiHttpApplication
             {
@@ -578,7 +636,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                     ContentLength = -1
                 }
             };
-            var reqStream = await createRequestStream(request,
+            var reqStream = await CreateRequestStream(request,
                 0, 100_000);
             var application = new ConfigurableQuasiHttpApplication
             {
@@ -616,7 +674,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
         {
             object connection = new List<object>();
             var request = new DefaultQuasiHttpRequest();
-            var reqStream = await createRequestStream(request,
+            var reqStream = await CreateRequestStream(request,
                 0, 0);
             var application = new ConfigurableQuasiHttpApplication
             {
@@ -669,7 +727,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                     ContentLength = -1
                 }
             };
-            var reqStream = await createRequestStream(request,
+            var reqStream = await CreateRequestStream(request,
                 0, 100_000);
             var application = new ConfigurableQuasiHttpApplication
             {

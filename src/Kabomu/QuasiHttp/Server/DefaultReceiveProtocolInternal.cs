@@ -68,6 +68,11 @@ namespace Kabomu.QuasiHttp.Server
         private async Task<IQuasiHttpRequest> ReadRequestLeadChunk()
         {
             var reader = Transport.GetReader(Connection);
+            if (reader == null)
+            {
+                throw new QuasiHttpRequestProcessingException("no reader for connection");
+            }
+
             var chunk = await new CustomChunkedTransferCodec().ReadLeadChunk(reader, MaxChunkSize);
             if (chunk == null)
             {
@@ -92,8 +97,12 @@ namespace Kabomu.QuasiHttp.Server
                 return;
             }
 
-            var leadChunk = CustomChunkedTransferCodec.CreateFromResponse(response);
             var writer = Transport.GetWriter(Connection);
+            if (writer == null)
+            {
+                throw new QuasiHttpRequestProcessingException("no writer for connection");
+            }
+            var leadChunk = CustomChunkedTransferCodec.CreateFromResponse(response);
             await new CustomChunkedTransferCodec().WriteLeadChunk(writer, leadChunk, MaxChunkSize);
             await ProtocolUtilsInternal.TransferBodyToTransport(
                 writer, MaxChunkSize, response.Body, leadChunk.ContentLength);

@@ -31,6 +31,10 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             {
                 throw new ArgumentException("unexpected connection");
             }
+            if (_backingWriter == null)
+            {
+                return null;
+            }
             return new LambdaBasedCustomReaderWriter
             {
                 WriteFunc = async (data, offset, length) =>
@@ -46,6 +50,10 @@ namespace Kabomu.Tests.Shared.QuasiHttp
             if (connection != _expectedConnection)
             {
                 throw new ArgumentException("unexpected connection");
+            }
+            if (_backingReader == null)
+            {
+                return null;
             }
             return new LambdaBasedCustomReaderWriter
             {
