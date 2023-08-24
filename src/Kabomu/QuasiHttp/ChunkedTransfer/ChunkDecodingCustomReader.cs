@@ -17,7 +17,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
     {
         private readonly object _wrappedReader;
         private readonly int _maxChunkSize;
-        private readonly ChunkedTransferCodec _chunkTransferUtils = new ChunkedTransferCodec();
+        private readonly CustomChunkedTransferCodec _chunkTransferUtils = new CustomChunkedTransferCodec();
         private int _chunkDataLenRem;
         private bool _lastChunkSeen;
 
@@ -67,8 +67,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
             catch (Exception e)
             {
-                throw new ChunkDecodingException("Error encountered while " +
-                    "decoding a subsequent chunk body", e);
+                throw new ChunkDecodingException("Failed to decode quasi http body while " +
+                    "reading in chunk data", e);
             }
             _chunkDataLenRem -= bytesToRead;
 

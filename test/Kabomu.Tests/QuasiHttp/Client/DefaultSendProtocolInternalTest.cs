@@ -53,10 +53,10 @@ namespace Kabomu.Tests.QuasiHttp.Client
         private static async Task<SequenceCustomReader> SerializeResponseToBeRead(
             IQuasiHttpResponse res, byte[] resBodyBytes)
         {
-            var resChunk = ChunkedTransferCodec.CreateFromResponse(res);
+            var resChunk = CustomChunkedTransferCodec.CreateFromResponse(res);
             var helpingReaders = new List<object>();
             var headerStream = new MemoryStream();
-            await new ChunkedTransferCodec().WriteLeadChunk(headerStream,
+            await new CustomChunkedTransferCodec().WriteLeadChunk(headerStream,
                 resChunk);
             headerStream.Position = 0; // reset for reading.
             helpingReaders.Add(headerStream);
@@ -151,7 +151,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = ChunkedTransferCodec.CreateFromRequest(request);
+            var expectedReqChunk = CustomChunkedTransferCodec.CreateFromRequest(request);
 
             // act.
             var actualResponse = await instance.Send();
@@ -168,7 +168,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // assert written request.
             headerReceiver.Position = 0;
-            var actualReqChunk = await new ChunkedTransferCodec().ReadLeadChunk(
+            var actualReqChunk = await new CustomChunkedTransferCodec().ReadLeadChunk(
                 headerReceiver, 0);
             // verify all contents of headerReceiver was used
             // before comparing lead chunks
@@ -402,7 +402,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = ChunkedTransferCodec.CreateFromRequest(request);
+            var expectedReqChunk = CustomChunkedTransferCodec.CreateFromRequest(request);
 
             // act.
             await Assert.ThrowsAsync<NotImplementedException>(() =>
@@ -410,7 +410,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // assert written request
             headerReceiver.Position = 0;
-            var actualReqChunk = await new ChunkedTransferCodec().ReadLeadChunk(
+            var actualReqChunk = await new CustomChunkedTransferCodec().ReadLeadChunk(
                 headerReceiver, 0);
             // verify all contents of headerReceiver was used
             // before comparing lead chunks
@@ -463,7 +463,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = ChunkedTransferCodec.CreateFromRequest(request);
+            var expectedReqChunk = CustomChunkedTransferCodec.CreateFromRequest(request);
 
             // act.
             var actualEx = await Assert.ThrowsAsync<CustomIOException>(() => instance.Send());
@@ -473,7 +473,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // assert written request
             headerReceiver.Position = 0;
-            var actualReqChunk = await new ChunkedTransferCodec().ReadLeadChunk(
+            var actualReqChunk = await new CustomChunkedTransferCodec().ReadLeadChunk(
                 headerReceiver, 0);
             // verify all contents of headerReceiver was used
             // before comparing lead chunks
@@ -519,7 +519,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = ChunkedTransferCodec.CreateFromRequest(request);
+            var expectedReqChunk = CustomChunkedTransferCodec.CreateFromRequest(request);
 
             // act.
             var actualResponse = await instance.Send();
@@ -529,7 +529,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // assert written request.
             headerReceiver.Position = 0;
-            var actualReqChunk = await new ChunkedTransferCodec().ReadLeadChunk(
+            var actualReqChunk = await new CustomChunkedTransferCodec().ReadLeadChunk(
                 headerReceiver, 0);
             // verify all contents of headerReceiver was used
             // before comparing lead chunks
@@ -575,7 +575,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = ChunkedTransferCodec.CreateFromRequest(request);
+            var expectedReqChunk = CustomChunkedTransferCodec.CreateFromRequest(request);
 
             // act.
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
@@ -586,7 +586,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // assert written reques.
             headerReceiver.Position = 0;
-            var actualReqChunk = await new ChunkedTransferCodec().ReadLeadChunk(
+            var actualReqChunk = await new CustomChunkedTransferCodec().ReadLeadChunk(
                 headerReceiver, 0);
             // verify all contents of headerReceiver was used
             // before comparing lead chunks
@@ -678,7 +678,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
             };
 
             // set up expected request headers
-            var expectedReqChunk = ChunkedTransferCodec.CreateFromRequest(request);
+            var expectedReqChunk = CustomChunkedTransferCodec.CreateFromRequest(request);
 
             // act.
             var actualResponse = await instance.Send();
@@ -695,7 +695,7 @@ namespace Kabomu.Tests.QuasiHttp.Client
 
             // assert written request
             headerReceiver.Position = 0;
-            var actualReqChunk = await new ChunkedTransferCodec().ReadLeadChunk(
+            var actualReqChunk = await new CustomChunkedTransferCodec().ReadLeadChunk(
                 headerReceiver, 0);
             // verify all contents of headerReceiver was used
             // before comparing lead chunks

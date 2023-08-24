@@ -51,9 +51,9 @@ namespace ZeroMQ.FileServer
             {
                 var (data, more) = await _socket.ReceiveFrameBytesAsync();
                 var headerReader = new MemoryStream(data);
-                var leadChunk = await new ChunkedTransferCodec().ReadLeadChunk(headerReader);
+                var leadChunk = await new CustomChunkedTransferCodec().ReadLeadChunk(headerReader);
                 var request = new DefaultQuasiHttpRequest();
-                ChunkedTransferCodec.UpdateRequest(request, leadChunk);
+                CustomChunkedTransferCodec.UpdateRequest(request, leadChunk);
                 if (more)
                 {
                     (data, more) = await _socket.ReceiveFrameBytesAsync();

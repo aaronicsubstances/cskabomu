@@ -18,7 +18,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
     {
         private readonly object _wrappedWriter;
         private readonly byte[] _buffer;
-        private readonly ChunkedTransferCodec _chunkTransferUtils = new ChunkedTransferCodec();
+        private readonly CustomChunkedTransferCodec _chunkTransferUtils = new CustomChunkedTransferCodec();
         private int _usedBufferOffset;
 
         /// <summary>
@@ -39,9 +39,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 throw new ArgumentNullException(nameof(wrappedWriter));
             }
-            if (maxChunkSize <= 0 || maxChunkSize > ChunkedTransferCodec.HardMaxChunkSizeLimit)
+            if (maxChunkSize <= 0 || maxChunkSize > CustomChunkedTransferCodec.HardMaxChunkSizeLimit)
             {
-                maxChunkSize = ChunkedTransferCodec.DefaultMaxChunkSize;
+                maxChunkSize = CustomChunkedTransferCodec.DefaultMaxChunkSize;
             }
             _wrappedWriter = wrappedWriter;
             _buffer = new byte[maxChunkSize];

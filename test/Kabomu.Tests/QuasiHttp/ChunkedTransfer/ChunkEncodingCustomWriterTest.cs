@@ -194,7 +194,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         {
             // arrange.
             var destStream = new MemoryStream();
-            int maxChunkSize = ChunkedTransferCodec.HardMaxChunkSizeLimit;
+            int maxChunkSize = CustomChunkedTransferCodec.HardMaxChunkSizeLimit;
             var instance = new ChunkEncodingCustomWriter(destStream,
                 maxChunkSize);
 
@@ -227,7 +227,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         {
             // arrange.
             var destStream = new MemoryStream();
-            int maxChunkSize = ChunkedTransferCodec.HardMaxChunkSizeLimit;
+            int maxChunkSize = CustomChunkedTransferCodec.HardMaxChunkSizeLimit;
             var instance = new ChunkEncodingCustomWriter(destStream,
                 maxChunkSize);
 
@@ -318,7 +318,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             reader.Position = 0; // reset for another reading.
             destStream.SetLength(0); // reset for writing
             instance = new ChunkEncodingCustomWriter(destStream,
-                ChunkedTransferCodec.HardMaxChunkSizeLimit + 1);
+                CustomChunkedTransferCodec.HardMaxChunkSizeLimit + 1);
             await IOUtils.CopyBytes(reader, instance);
             await instance.EndWrites();
             actual = destStream.ToArray();

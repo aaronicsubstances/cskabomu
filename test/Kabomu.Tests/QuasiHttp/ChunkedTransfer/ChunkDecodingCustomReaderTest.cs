@@ -179,7 +179,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             // act and assert
             var actualEx = await Assert.ThrowsAsync<ChunkDecodingException>(() =>
                 IOUtils.CopyBytes(instance, writer));
-            Assert.Contains("subsequent chunk header", actualEx.Message);
+            Assert.Contains("quasi http body", actualEx.Message);
         }
 
         [Fact]
@@ -198,7 +198,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             // act and assert
             var actualEx = await Assert.ThrowsAsync<ChunkDecodingException>(() =>
                 IOUtils.CopyBytes(instance, writer));
-            Assert.Contains("subsequent chunk body", actualEx.Message);
+            Assert.Contains("quasi http body", actualEx.Message);
         }
     }
 }

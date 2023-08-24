@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using static System.Net.WebRequestMethods;
 
 namespace Kabomu.QuasiHttp.ChunkedTransfer
 {
@@ -12,7 +13,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
     /// Contains helper functions for implementing the custom chunked transfer
     /// protocol used by the Kabomu libary.
     /// </summary>
-    public class ChunkedTransferCodec
+    public class CustomChunkedTransferCodec
     {
         /// <summary>
         /// Current version of standard chunk serialization format, which is v1.
@@ -132,8 +133,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             }
             catch (Exception e)
             {
-                throw new ChunkDecodingException("Error encountered while " +
-                    "decoding a subsequent chunk header", e);
+                throw new ChunkDecodingException("Failed to decode quasi http body while " +
+                    "decoding a chunk header", e);
             }
         }
 
@@ -209,13 +210,13 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         {
             if (chunkLen < 0)
             {
-                throw new ArgumentException($"received negative chunk size of {chunkLen}");
+                throw new ArgumentException($"encountered negative chunk size of {chunkLen}");
             }
             if (chunkLen > DefaultMaxChunkSizeLimit && chunkLen > maxChunkSize)
             {
                 throw new ArgumentException(
-                    $"received chunk size of {chunkLen} exceeds" +
-                    $" default limit on max chunk size of {DefaultMaxChunkSizeLimit}");
+                    $"encountered chunk size exceeding " +
+                    $"max chunk size ({chunkLen} > {maxChunkSize})");
             }
         }
 
@@ -248,7 +249,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             int byteCount = CalculateSizeInBytesOfSerializedRepresentation();
             if (byteCount > maxChunkSize)
             {
-                throw new ArgumentException($"headers exceed max chunk size of {maxChunkSize}");
+                throw new ChunkEncodingException("quasi http headers exceed " +
+                    $"max chunk size ({byteCount} > {maxChunkSize})");
             }
             var encodedLength = new byte[LengthOfEncodedChunkLength];
             ByteUtils.SerializeUpToInt32BigEndian(byteCount, encodedLength, 0,

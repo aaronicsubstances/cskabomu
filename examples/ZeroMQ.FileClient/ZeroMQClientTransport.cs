@@ -77,7 +77,7 @@ namespace ZeroMQ.FileClient
             }
             // todo: ensure disposal of request if it was retrieved
             // from externally supplied request func.
-            var leadChunk = ChunkedTransferCodec.CreateFromRequest(request);
+            var leadChunk = CustomChunkedTransferCodec.CreateFromRequest(request);
             var requestBody = request.Body;
             byte[] requestBodyBytes = null;
             if (requestBody != null)
@@ -86,7 +86,7 @@ namespace ZeroMQ.FileClient
                     request.Body.AsReader(), sendOptions.ResponseBodyBufferingSizeLimit);
             }
             var headerStream = new MemoryStream();
-            await new ChunkedTransferCodec().WriteLeadChunk(headerStream, leadChunk);
+            await new CustomChunkedTransferCodec().WriteLeadChunk(headerStream, leadChunk);
 
             if (requestBodyBytes == null)
             {

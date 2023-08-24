@@ -68,7 +68,7 @@ namespace Kabomu.QuasiHttp.Server
         private async Task<IQuasiHttpRequest> ReadRequestLeadChunk()
         {
             var reader = Transport.GetReader(Connection);
-            var chunk = await new ChunkedTransferCodec().ReadLeadChunk(reader, MaxChunkSize);
+            var chunk = await new CustomChunkedTransferCodec().ReadLeadChunk(reader, MaxChunkSize);
             if (chunk == null)
             {
                 throw new QuasiHttpRequestProcessingException("no request");
@@ -77,7 +77,7 @@ namespace Kabomu.QuasiHttp.Server
             {
                 Environment = RequestEnvironment
             };
-            ChunkedTransferCodec.UpdateRequest(request, chunk);
+            CustomChunkedTransferCodec.UpdateRequest(request, chunk);
             request.Body = await ProtocolUtilsInternal.CreateBodyFromTransport(
                 reader, chunk.ContentLength, null,
                 MaxChunkSize, false, 0);
@@ -92,9 +92,9 @@ namespace Kabomu.QuasiHttp.Server
                 return;
             }
 
-            var leadChunk = ChunkedTransferCodec.CreateFromResponse(response);
+            var leadChunk = CustomChunkedTransferCodec.CreateFromResponse(response);
             var writer = Transport.GetWriter(Connection);
-            await new ChunkedTransferCodec().WriteLeadChunk(writer, leadChunk, MaxChunkSize);
+            await new CustomChunkedTransferCodec().WriteLeadChunk(writer, leadChunk, MaxChunkSize);
             await ProtocolUtilsInternal.TransferBodyToTransport(
                 writer, MaxChunkSize, response.Body, leadChunk.ContentLength);
         }
