@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.Common;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -7,7 +8,7 @@ namespace Kabomu.Mediator
     /// <summary>
     /// Parent exception class for all exceptions thrown in Kabomu.Mediator quasi web framework.
     /// </summary>
-    public abstract class MediatorQuasiWebException : Exception
+    public abstract class MediatorQuasiWebException : KabomuException
     {
         /// <summary>
         /// Creates an instance without a message.
