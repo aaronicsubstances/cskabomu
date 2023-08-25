@@ -18,15 +18,16 @@ namespace Kabomu.Tests.Shared.Common
             _stream.Position = 0; // rewind for reading
         }
 
-        public Task<int> ReadBytes(byte[] data, int offset, int length)
+        public async Task<int> ReadBytes(byte[] data, int offset, int length)
         {
+            await Task.Yield();
             var bytesToCopy = (int)Math.Min(_stream.Length - _stream.Position, length);
             if (bytesToCopy > 0)
             {
                 // copy just a random quantity out of the remaining bytes
                 bytesToCopy = _randGen.Next(bytesToCopy) + 1;
             }
-            return _stream.ReadAsync(data, offset, bytesToCopy);
+            return await _stream.ReadAsync(data, offset, bytesToCopy);
         }
     }
 }

@@ -3,6 +3,7 @@ using Kabomu.Tests.Shared.Common;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -236,23 +237,39 @@ namespace Kabomu.Tests.Common
             return testData;
         }
 
-        [InlineData("", true, true)]
-        [InlineData("ab", true, false)]
-        [InlineData("ab", false, false)]
-        [InlineData("ab", false, true)]
-        [InlineData("abc", false, false)]
-        [InlineData("abcd", true, true)]
-        [InlineData("abcde", true, false)]
-        [InlineData("abcde", false, false)]
-        [InlineData("abcdef", false, true)]
         [Theory]
-        public async Task TestCopyBytes(string srcData,
-            bool wrapReaderStream, bool wrapWriterStream)
+        [MemberData(nameof(CreateTestCopyBytesData))]
+        public async Task TestCopyBytesWithStreams(string srcData)
         {
             // arrange
             var expected = ByteUtils.StringToBytes(srcData);
             var readerStream = new MemoryStream(expected);
-            var readerStreamWrapper = new RandomizedReadSizeBufferReader(expected);
+            var writerStream = new MemoryStream();
+
+            // act
+            await IOUtils.CopyBytes(readerStream, writerStream);
+
+            // assert
+            Assert.Equal(expected, writerStream.ToArray());
+        }
+
+        [MemberData(nameof(CreateTestCopyBytesData))]
+        [Theory]
+        public async Task TestCopyBytesWithRemainingBytes(string srcData)
+        {
+            // arrange
+            var expected = ByteUtils.StringToBytes(srcData);
+
+            // double the expectation and read half way,
+            // to test that remaining bytes are correctly copied
+            var reader = new RandomizedReadSizeBufferReader(
+                expected.Concat(expected).ToArray());
+            var temp = new byte[expected.Length];
+            await IOUtils.ReadBytesFully(reader, temp, 0, temp.Length);
+            Assert.Equal(expected, temp);
+            
+            // now continue to test copyBytes() on
+            // remaining data
             var writerStream = new MemoryStream();
             var writerStreamWrapper = new LambdaBasedCustomReaderWriter
             {
@@ -261,12 +278,102 @@ namespace Kabomu.Tests.Common
             };
 
             // act
-            await IOUtils.CopyBytes(wrapReaderStream ? readerStreamWrapper :
-                readerStream, wrapWriterStream ? writerStreamWrapper :
-                writerStream);
+            await IOUtils.CopyBytes(reader, writerStreamWrapper);
 
             // assert
             Assert.Equal(expected, writerStream.ToArray());
+
+            // assert that reader has been exhausted.
+            var actual2 = await IOUtils.ReadBytes(reader, new byte[1], 0, 1);
+            Assert.Equal(0, actual2);
+        }
+
+        public static List<object[]> CreateTestCopyBytesData()
+        {
+            return new List<object[]>
+            {
+                new object[]{ "" },
+                new object[]{ "ab" },
+                new object[]{ "abc" },
+                new object[]{ "abcd" },
+                new object[]{ "abcde" },
+                new object[]{ "abcdef" }
+            };
+        }
+
+        [Fact]
+        public async Task TestCopyBytesWithEmptyReaderAndProblematicWriter()
+        {
+            var reader = new MemoryStream();
+            var writer = new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = (data, offset, length) =>
+                    throw new Exception("broken!")
+            };
+            await IOUtils.CopyBytes(reader, writer);
+        }
+
+        [Fact]
+        public async Task TestCopyBytesForErrors1()
+        {
+            var reader = new MemoryStream(new byte[17]);
+            var writer = new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = (data, offset, length) =>
+                    throw new Exception("broken!")
+            };
+
+            var actualEx = await Assert.ThrowsAsync<Exception>(() =>
+                IOUtils.CopyBytes(reader, writer));
+            Assert.Equal("broken!", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestCopyBytesForErrors2()
+        {
+            var firstReader = new MemoryStream(new byte[2000]); 
+            var readerWrapper = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = async (data, offset, length) =>
+                {
+                    var result = firstReader.Read(data, offset, length);
+                    if (result > 0)
+                    {
+                        return result;
+                    }
+                    throw new Exception("killed in action");
+                }
+            };
+            var writer = new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = (data, offset, length) =>
+                    Task.CompletedTask
+            };
+
+            var actualEx = await Assert.ThrowsAsync<Exception>(() =>
+                IOUtils.CopyBytes(readerWrapper, writer));
+            Assert.Equal("killed in action", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestCopyBytesForErrors3()
+        {
+            var reader = new LambdaBasedCustomReaderWriter
+            {
+                ReadFunc = async (data, offset, length) =>
+                {
+                    throw new Exception("killed in action");
+                }
+            };
+            var writer = new LambdaBasedCustomReaderWriter
+            {
+                WriteFunc = (data, offset, length) =>
+                    throw new Exception("broken!")
+            };
+
+            var actualEx = await Assert.ThrowsAsync<Exception>(() =>
+                IOUtils.CopyBytes(reader, writer));
+            Assert.Equal("killed in action", actualEx.Message);
         }
     }
 }
