@@ -724,16 +724,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 WritableFunc = async (writer) =>
                 {
-                    await Task.Delay(200);
-                    try
-                    {
-                        await IOUtils.WriteBytes(writer,
-                            expectedReqBodyBytes, 0, expectedReqBodyBytes.Length);
-                    }
-                    finally
+                    await IOUtils.WriteBytes(writer,
+                        expectedReqBodyBytes, 0, expectedReqBodyBytes.Length);
+                    // wait for enough time for EndWrites() call
+                    // inside SetUpReceivingOfRequestToBeWritten() to take effect.
+                    _ = Task.Delay(200).ContinueWith(_ =>
                     {
                         tcs.SetResult(0);
-                    }
+                    });
                 }
             };
             var helpingWriter = SetUpReceivingOfRequestToBeWritten(
@@ -841,16 +839,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 WritableFunc = async (writer) =>
                 {
-                    await Task.Delay(200);
-                    try
-                    {
-                        await IOUtils.WriteBytes(writer,
-                            expectedReqBodyBytes, 0, expectedReqBodyBytes.Length);
-                    }
-                    finally
+                    await IOUtils.WriteBytes(writer,
+                        expectedReqBodyBytes, 0, expectedReqBodyBytes.Length);
+                    // wait for enough time for EndWrites() call
+                    // inside SetUpReceivingOfRequestToBeWritten() to take effect.
+                    _ = Task.Delay(200).ContinueWith(_ =>
                     {
                         tcs.SetResult(0);
-                    }
+                    });
                 }
             };
             var helpingWriter = SetUpReceivingOfRequestToBeWritten(
@@ -1059,16 +1055,14 @@ namespace Kabomu.Tests.QuasiHttp.Client
             {
                 WritableFunc = async (writer) =>
                 {
-                    await Task.Delay(200);
-                    try
-                    {
-                        await IOUtils.WriteBytes(writer,
-                            expectedReqBodyBytes, 0, expectedReqBodyBytes.Length);
-                    }
-                    finally
+                    await IOUtils.WriteBytes(writer,
+                        expectedReqBodyBytes, 0, expectedReqBodyBytes.Length);
+                    // wait for enough time for EndWrites() call
+                    // inside SetUpReceivingOfRequestToBeWritten() to take effect.
+                    _ = Task.Delay(200).ContinueWith(_ =>
                     {
                         tcs.SetResult(0);
-                    }
+                    });
                 }
             };
             var helpingWriter = SetUpReceivingOfRequestToBeWritten(

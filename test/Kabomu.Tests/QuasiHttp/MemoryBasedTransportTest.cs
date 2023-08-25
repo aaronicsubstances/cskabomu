@@ -85,13 +85,6 @@ namespace Kabomu.Tests.QuasiHttp
         {
             var transportReader = transport.GetReader(connection);
             var transportWriter = transport.GetWriter(connection);
-            var readerWriter = new LambdaBasedCustomReaderWriter
-            {
-                ReadFunc = (data, offset, length) =>
-                    IOUtils.ReadBytes(transportReader, data, offset, length),
-                WriteFunc = (data, offset, length) =>
-                    IOUtils.WriteBytes(transportWriter, data, offset, length)
-            };
 
             var randGen = new Random();
 
@@ -143,8 +136,8 @@ namespace Kabomu.Tests.QuasiHttp
                         CannotAnswerQuestions = numOfQuestionsAnswered >= maxQuestionsToAnswer
                     };
                     LogMsg(DescribeMsg(connection, outgoingQuestion, true, true, isClient, isAtAccra, 0, 0));
-                    await WriteMsg(readerWriter, outgoingQuestion);
-                    var incomingAnswer = await ReadMsg(readerWriter);
+                    await WriteMsg(transportWriter, outgoingQuestion);
+                    var incomingAnswer = await ReadMsg(transportReader);
                     LogMsg(DescribeMsg(connection, incomingAnswer, false, false, isClient, isAtAccra, 0, 0));
                     // check answer.
                     Assert.Equal(outgoingQuestion.Input % 2 != localCalculationResult,
@@ -154,7 +147,7 @@ namespace Kabomu.Tests.QuasiHttp
                 }
                 else
                 {
-                    var incomingQuestion = await ReadMsg(readerWriter);
+                    var incomingQuestion = await ReadMsg(transportReader);
                     LogMsg(DescribeMsg(connection, incomingQuestion, true, false, isClient, isAtAccra,
                         numOfQuestionsAnswered, maxQuestionsToAnswer));
                     peerPriority = incomingQuestion.Priority;
@@ -171,7 +164,7 @@ namespace Kabomu.Tests.QuasiHttp
                     };
                     LogMsg(DescribeMsg(connection, outgoingAnswer, false, true, isClient, isAtAccra,
                         numOfQuestionsAnswered - 1, maxQuestionsToAnswer));
-                    await WriteMsg(readerWriter, outgoingAnswer);
+                    await WriteMsg(transportWriter, outgoingAnswer);
                 }
             }
             LogMsg(DescribeRelease(connection, isClient, isAtAccra));
@@ -246,7 +239,7 @@ namespace Kabomu.Tests.QuasiHttp
                 $"(Input={msg.Input},Output={msg.Output},Priority={msg.Priority},CAQ={msg.CannotAnswerQuestions})";
         }
 
-        private static async Task<TestMessage> ReadMsg(ICustomReader reader)
+        private static async Task<TestMessage> ReadMsg(object reader)
         {
             var msgBytes = new byte[10];
             await IOUtils.ReadBytesFully(reader, msgBytes, 0, msgBytes.Length);
@@ -258,7 +251,7 @@ namespace Kabomu.Tests.QuasiHttp
             return msg;
         }
 
-        private static async Task WriteMsg(ICustomWriter writer,
+        private static async Task WriteMsg(object writer,
             TestMessage msg)
         {
             var msgBytes = new byte[10];
@@ -266,7 +259,7 @@ namespace Kabomu.Tests.QuasiHttp
             ByteUtils.SerializeUpToInt32BigEndian(msg.Priority, msgBytes, 4, 4);
             msgBytes[8] = msg.CannotAnswerQuestions ? (byte)1 : (byte)0;
             msgBytes[9] = msg.Output ? (byte)1 : (byte)0;
-            await writer.WriteBytes(msgBytes, 0, msgBytes.Length);
+            await IOUtils.WriteBytes(writer, msgBytes, 0, msgBytes.Length);
         }
 
         class TestMessage

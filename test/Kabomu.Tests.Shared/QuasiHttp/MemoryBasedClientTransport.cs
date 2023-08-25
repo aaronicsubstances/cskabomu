@@ -40,8 +40,12 @@ namespace Kabomu.Tests.Shared.QuasiHttp
                 Connection = connection,
                 Environment = sendOptions?.ExtraConnectivityParams
             };
-            server.AcceptConnectionFunc.Invoke(c);
-            return Task.FromResult(c);
+            if (server.AcceptConnectionFunc != null)
+            {
+                server.AcceptConnectionFunc.Invoke(c);
+                return Task.FromResult(c);
+            }
+            throw new Exception("no function available to accept connections");
         }
 
         public object GetReader(object connection)
