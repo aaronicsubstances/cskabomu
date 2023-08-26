@@ -18,7 +18,7 @@ namespace Kabomu.Examples.Shared
 
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
         {
-            return IOUtils.CopyBytes(_backingBody.AsReader(), stream);
+            return _backingBody.WriteBytesTo(stream);
         }
 
         protected override bool TryComputeLength(out long length)

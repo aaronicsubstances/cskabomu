@@ -21,65 +21,62 @@ namespace Kabomu.Examples.Shared
             _httpClient = httpClient;
         }
 
-        public QuasiHttpSendResponse ProcessSendRequest(
+        public async Task<QuasiHttpSendResponse> ProcessSendRequest(
             object remoteEndpoint,
             IQuasiHttpRequest request,
             IQuasiHttpSendOptions sendOptions)
         {
+            var cts = new CancellationTokenSource();
             var resTask = ProcessSendRequestInternal(remoteEndpoint,
-                request, sendOptions);
+                request, sendOptions, cts);
             return new QuasiHttpSendResponse
             {
                 ResponseTask = resTask,
+                CancellationHandle = new RequestCancellationHandle
+                {
+                    CancellationTokenSource = cts
+                }
             };
         }
 
-        public QuasiHttpSendResponse ProcessSendRequest2(
+        public async Task<QuasiHttpSendResponse> ProcessSendRequest2(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions)
         {
+            var request = await requestFunc.Invoke(null);
+            if (request == null)
+            {
+                throw new QuasiHttpRequestProcessingException("no request");
+            }
             var cts = new CancellationTokenSource();
             var resTask = ProcessSendRequestInternal(remoteEndpoint,
-                requestFunc, sendOptions, cts);
-            object sendCancellationHandle = cts;
+                request, sendOptions, cts);;
             return new QuasiHttpSendResponse
             {
                 ResponseTask = resTask,
-                CancellationHandle = sendCancellationHandle
+                CancellationHandle = new RequestCancellationHandle
+                {
+                    Request = request,
+                    CancellationTokenSource = cts
+                }
             };
         }
 
-        public void CancelSendRequest(object sendCancellationHandle)
+        public async Task CancelSendRequest(object sendCancellationHandle)
         {
-            if (sendCancellationHandle is CancellationTokenSource cts)
+            if (sendCancellationHandle is RequestCancellationHandle r)
             {
-                cts.Cancel();
+                await r.Release();
             }
         }
 
         private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
             object remoteEndpoint,
-            object requestOrRequestFunc,
+            IQuasiHttpRequest request,
             IQuasiHttpSendOptions sendOptions,
             CancellationTokenSource cancellationTokenSource = null)
         {
-            IQuasiHttpRequest request;
-            if (requestOrRequestFunc is IQuasiHttpRequest r)
-            {
-                request = r;
-            }
-            else {
-                var requestFunc =
-                    (Func<IDictionary<string, object>, Task<IQuasiHttpRequest>>)requestOrRequestFunc;
-                request = await requestFunc.Invoke(null);
-            }
-            if (request == null)
-            {
-                throw new QuasiHttpRequestProcessingException("no request");
-            }
-            // todo: ensure disposal of request if it was retrieved
-            // from externally supplied request func.
             var requestWrapper = new HttpRequestMessage
             {
                 Method = HttpMethod.Post,

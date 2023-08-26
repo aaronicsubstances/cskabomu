@@ -1,4 +1,5 @@
 ﻿using Kabomu.Common;
+using Kabomu.Examples.Shared;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.Client;
@@ -24,7 +25,7 @@ namespace ZeroMQ.FileClient
             _socket = socket;
         }
 
-        public QuasiHttpSendResponse ProcessSendRequest(
+        public async Task<QuasiHttpSendResponse> ProcessSendRequest(
             object remoteEndpoint,
             IQuasiHttpRequest request,
             IQuasiHttpSendOptions sendOptions)
@@ -37,46 +38,41 @@ namespace ZeroMQ.FileClient
             };
         }
 
-        public QuasiHttpSendResponse ProcessSendRequest2(
+        public async Task<QuasiHttpSendResponse> ProcessSendRequest2(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions)
         {
-            var resTask = ProcessSendRequestInternal(remoteEndpoint,
-                requestFunc, sendOptions);
-            return new QuasiHttpSendResponse
-            {
-                ResponseTask = resTask,
-            };
-        }
-
-        public void CancelSendRequest(object sendCancellationHandle)
-        {
-            // do nothing.
-        }
-
-        private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
-            object remoteEndpoint,
-            object requestOrRequestFunc,
-            IQuasiHttpSendOptions sendOptions)
-        {
-            IQuasiHttpRequest request;
-            if (requestOrRequestFunc is IQuasiHttpRequest r)
-            {
-                request = r;
-            }
-            else
-            {
-                var requestFunc =
-                    (Func<IDictionary<string, object>, Task<IQuasiHttpRequest>>)requestOrRequestFunc;
-                request = await requestFunc.Invoke(null);
-            }
+            var request = await requestFunc.Invoke(null);
             if (request == null)
             {
                 throw new QuasiHttpRequestProcessingException("no request");
             }
-            // todo: ensure disposal of request if it was retrieved
-            // from externally supplied request func.
+            var resTask = ProcessSendRequestInternal(remoteEndpoint,
+                request, sendOptions);
+            return new QuasiHttpSendResponse
+            {
+                ResponseTask = resTask,
+                CancellationHandle = new RequestCancellationHandle
+                {
+                    Request = request
+                }
+            };
+        }
+
+        public async Task CancelSendRequest(object sendCancellationHandle)
+        {
+            if (sendCancellationHandle is RequestCancellationHandle r)
+            {
+                await r.Release();
+            }
+        }
+
+        private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
+            object remoteEndpoint,
+            IQuasiHttpRequest request,
+            IQuasiHttpSendOptions sendOptions)
+        {
             var leadChunk = CustomChunkedTransferCodec.CreateFromRequest(request);
             var requestBody = request.Body;
             byte[] requestBodyBytes = null;
@@ -115,7 +111,8 @@ namespace ZeroMQ.FileClient
                 {
                     break;
                 }
-                // give chance for StandardQuasiHttpClient's timeout logic to kick in.
+                // give chance for other tasks to run, so as to avoid
+                // spinning the CPU.
                 await Task.Yield();
             }
         }

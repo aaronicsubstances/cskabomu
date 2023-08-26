@@ -36,9 +36,10 @@ namespace Kabomu.QuasiHttp.Transport
         /// <see cref="Client.StandardQuasiHttpClient"/> instance, this will be the result of merging
         /// the default send options of the instance with the particular send options specified in the
         /// Send() method, ie the instance method which initiated the send processing request.</param>
-        /// <returns>an object containing a task whose result will be the quasi http response
-        /// processed by the tranport instance.</returns>
-        QuasiHttpSendResponse ProcessSendRequest(
+        /// <returns>promise of an object containing (1) a task whose result will be the quasi http response
+        /// processed by the tranport instance, and (2) a handle which can be
+        /// used to cancel the request.</returns>
+        Task<QuasiHttpSendResponse> ProcessSendRequest(
             object remoteEndpoint, IQuasiHttpRequest request,
             IQuasiHttpSendOptions sendOptions);
 
@@ -55,9 +56,10 @@ namespace Kabomu.QuasiHttp.Transport
         /// <see cref="Client.StandardQuasiHttpClient"/> instance, this will be the result of merging
         /// the default send options of the instance with the particular send options specified in the
         /// Send() method, ie the instance method which initiated the send processing request.</param>
-        /// <returns>an object containing a task whose result will be the quasi http response
-        /// processed by the tranport instance.</returns>
-        QuasiHttpSendResponse ProcessSendRequest2(
+        /// <returns>promise of an object containing (1) a task whose result will be the quasi http response
+        /// processed by the tranport instance, and (2) a handle which can be
+        /// used to cancel the request.</returns>
+        Task<QuasiHttpSendResponse> ProcessSendRequest2(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions);
@@ -66,7 +68,8 @@ namespace Kabomu.QuasiHttp.Transport
         /// Attempts to cancel an ongoing send request.
         /// </summary>
         /// <param name="sendCancellationHandle">the cancellation handle that was 
-        /// returned by ProcessSendRequest() for the task to be cancelled.</param>
-        void CancelSendRequest(object sendCancellationHandle);
+        /// returned by <see cref="ProcessSendRequest"/> or
+        /// <see cref="ProcessSendRequest2"/> for the task to be cancelled.</param>
+        Task CancelSendRequest(object sendCancellationHandle);
     }
 }

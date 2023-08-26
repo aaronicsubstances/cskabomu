@@ -20,14 +20,13 @@ namespace Kabomu.QuasiHttp.Client
         public int ResponseBodyBufferingSizeLimit { get; set; }
         public bool EnsureNonNullResponse { get; set; }
 
-        public Task Cancel()
+        public async Task Cancel()
         {
-            if (SendCancellationHandle != null)
+            // check for case in which TransportBypass was incorrectly set to null.
+            if (SendCancellationHandle != null && TransportBypass != null)
             {
-                // check for case in which TransportBypass was incorrectly set to null.
-                TransportBypass?.CancelSendRequest(SendCancellationHandle);
+                await TransportBypass.CancelSendRequest(SendCancellationHandle);
             }
-            return Task.CompletedTask;
         }
 
         public async Task<ProtocolSendResultInternal> Send()

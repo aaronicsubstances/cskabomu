@@ -38,12 +38,13 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         public IQuasiHttpSendOptions ActualSendOptions { get; set; }
         public object ActualRemoteEndpoint { get; set; }
 
-        public void CancelSendRequest(object sendCancellationHandle)
+        public Task CancelSendRequest(object sendCancellationHandle)
         {
             lock (_mutex)
             {
                 _cancellationRequested = true;
             }
+            return Task.CompletedTask;
         }
 
         private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
@@ -57,7 +58,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             return await SendRequestCallback(request);
         }
 
-        public QuasiHttpSendResponse ProcessSendRequest(
+        public Task<QuasiHttpSendResponse> ProcessSendRequest(
             object remoteEndpoint,
             IQuasiHttpRequest request,
             IQuasiHttpSendOptions sendOptions)
@@ -67,7 +68,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 sendOptions);
         }
 
-        public QuasiHttpSendResponse ProcessSendRequest2(
+        public Task<QuasiHttpSendResponse> ProcessSendRequest2(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions)
@@ -81,7 +82,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 result.CancellationHandle = new object();
             }
-            return result;
+            return Task.FromResult(result);
         }
     }
 }

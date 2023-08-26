@@ -11,9 +11,9 @@ namespace Kabomu.Examples.Shared
 {
     public class MemoryBasedTransport : IQuasiHttpAltTransport
     {
-        public IQuasiHttpApplication Application { get; set; }
+        public IDictionary<object, IQuasiHttpApplication> Applications { get; set; }
 
-        public QuasiHttpSendResponse ProcessSendRequest(
+        public async Task<QuasiHttpSendResponse> ProcessSendRequest(
             object remoteEndpoint,
             IQuasiHttpRequest request,
             IQuasiHttpSendOptions sendOptions)
@@ -26,47 +26,43 @@ namespace Kabomu.Examples.Shared
             };
         }
 
-        public QuasiHttpSendResponse ProcessSendRequest2(
+        public async Task<QuasiHttpSendResponse> ProcessSendRequest2(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions sendOptions)
         {
-            var resTask = ProcessSendRequestInternal(remoteEndpoint,
-                requestFunc, sendOptions);
-            return new QuasiHttpSendResponse
-            {
-                ResponseTask = resTask,
-            };
-        }
-
-        public void CancelSendRequest(object sendCancellationHandle)
-        {
-            // do nothing.
-        }
-
-        private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
-            object remoteEndpoint,
-            object requestOrRequestFunc,
-            IQuasiHttpSendOptions sendOptions)
-        {
-            IQuasiHttpRequest request;
-            if (requestOrRequestFunc is IQuasiHttpRequest r)
-            {
-                request = r;
-            }
-            else
-            {
-                var requestFunc =
-                    (Func<IDictionary<string, object>, Task<IQuasiHttpRequest>>)requestOrRequestFunc;
-                request = await requestFunc.Invoke(null);
-            }
+            var request = await requestFunc.Invoke(null);
             if (request == null)
             {
                 throw new QuasiHttpRequestProcessingException("no request");
             }
-            // todo: ensure disposal of request if it was retrieved
-            // from externally supplied request func.
-            return WrapResponse(await Application.ProcessRequest(
+            var resTask = ProcessSendRequestInternal(remoteEndpoint,
+                request, sendOptions);
+            return new QuasiHttpSendResponse
+            {
+                ResponseTask = resTask,
+                CancellationHandle = new RequestCancellationHandle
+                {
+                    Request = request
+                }
+            };
+        }
+
+        public async Task CancelSendRequest(object sendCancellationHandle)
+        {
+            if (sendCancellationHandle is RequestCancellationHandle r)
+            {
+                await r.Release();
+            }
+        }
+
+        private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
+            object remoteEndpoint,
+            IQuasiHttpRequest request,
+            IQuasiHttpSendOptions sendOptions)
+        {
+            var application = Applications[remoteEndpoint];
+            return WrapResponse(await application.ProcessRequest(
                 WrapRequest(request)));
         }
 

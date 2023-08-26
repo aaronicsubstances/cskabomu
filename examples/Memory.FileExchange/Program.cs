@@ -1,5 +1,6 @@
 ﻿using CommandLine;
 using Kabomu.Examples.Shared;
+using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Client;
 using NLog;
 using System;
@@ -47,7 +48,10 @@ namespace Memory.FileExchange
             var application = FileReceiver.Create(clientEndpoint, downloadDirPath);
             instance.TransportBypass = new MemoryBasedTransport
             {
-                Application = application
+                Applications = new Dictionary<object, IQuasiHttpApplication>
+                {
+                    { serverEndpoint, application }
+                }
             };
 
             try
