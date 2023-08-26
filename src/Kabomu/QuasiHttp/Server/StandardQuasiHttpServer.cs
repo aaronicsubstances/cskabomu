@@ -11,7 +11,7 @@ namespace Kabomu.QuasiHttp.Server
     /// The standard implementation of the server side of the quasi http protocol defined by the Kabomu library.
     /// </summary>
     /// <remarks>
-    /// This clas provides the server facing side of networking for end users. It is the complement to the 
+    /// This class provides the server facing side of networking for end users. It is the complement to the 
     /// <see cref="Client.StandardQuasiHttpClient"/> class for providing HTTP semantics for web application frameworks
     /// whiles enabling underlying transport options beyond TCP.
     /// <para></para>
@@ -51,7 +51,7 @@ namespace Kabomu.QuasiHttp.Server
         /// <returns>a task representing asynchronous operation</returns>
         public async Task AcceptConnection(IConnectionAllocationResponse connectionAllocationResponse)
         {
-            if (connectionAllocationResponse == null)
+            if (connectionAllocationResponse?.Connection == null)
             {
                 throw new ArgumentNullException(nameof(connectionAllocationResponse));
             }
