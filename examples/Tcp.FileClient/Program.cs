@@ -49,7 +49,7 @@ namespace Tcp.FileClient
 
             try
             {
-                LOG.Info("Created Tcp.FileClient to {0}", serverPort);
+                LOG.Info("Connecting Tcp.FileClient to {0}...", serverPort);
 
                 await FileSender.StartTransferringFiles(instance, serverPort, uploadDirPath);
             }

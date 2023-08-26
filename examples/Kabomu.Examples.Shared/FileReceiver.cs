@@ -41,7 +41,7 @@ namespace Kabomu.Examples.Shared
         {
             var remoteEndpoint = context.Get("remoteEndpoint");
             var downloadDirPath = (string)context.Get("downloadDirPath");
-            var fileName = context.Request.Headers.Get("f");
+            var fileName = Path.GetFileName(context.Request.Headers.Get("f"));
             LOG.Debug("Starting receipt of file {0} from {1}...", fileName, remoteEndpoint);
 
             Exception transferError = null;
