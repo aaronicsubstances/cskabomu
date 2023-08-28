@@ -185,7 +185,10 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     Log.Error(e, $"Error occured in {nameof(TestSuccess)} with a server task");
                 }
             }
-            await Task.WhenAll(clientTasks.Concat(serverTasks));
+            // passing serverTasks first is preferred since
+            // the errors at the server end are more informative
+            await ComparisonUtils.WhenAnyFailOrAllSucceed(
+                serverTasks.Concat(clientTasks).ToList());
             Log.Info($"{nameof(TestSuccess)} completed sucessfully.\n\n");
         }
 
@@ -195,18 +198,9 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             Log.Info($"Starting {nameof(TestSuccess)} with data#{{0}}...", index);
             var actualResponse = await client.Send(testDataItem.RemoteEndpoint,
                 testDataItem.Request, testDataItem.SendOptions);
-            try
-            {
-                await ComparisonUtils.CompareResponses(testDataItem.ExpectedResponse,
-                    actualResponse, testDataItem.ExpectedResponseBodyBytes);
-                Log.Info($"Sucessfully tested {nameof(TestSuccess)} with data#{{0}}", index);
-            }
-            finally
-            {
-                // needed to prevent server tasks from hanging when
-                // response buffering is disabled.
-                await actualResponse.Release();
-            }
+            await ComparisonUtils.CompareResponses(testDataItem.ExpectedResponse,
+                actualResponse, testDataItem.ExpectedResponseBodyBytes);
+            Log.Info($"Sucessfully tested {nameof(TestSuccess)} with data#{{0}}", index);
         }
 
         private static List<Test1Data> CreateTest1Data()
@@ -324,7 +318,13 @@ namespace Kabomu.IntegrationTests.QuasiHttp
 
             // next...
             remoteEndpoint = EndpointPascal;
-            sendOptions = null;
+            sendOptions = new DefaultQuasiHttpSendOptions
+            {
+                ExtraConnectivityParams = new Dictionary<string, object>
+                {
+                    { KeyTransportDelayMs, 1500 }
+                }
+            };
             request = new DefaultQuasiHttpRequest
             {
                 Method = "POST",
@@ -333,8 +333,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 {
                     { KeyMathOp, new List<string>{ "invalid" } },
                     { KeyMathArg1, new List<string>{ "70" } },
-                    { KeyMathArg2, new List<string>{ "2" } },
-                    { KeyTransportDelayMs, new List<string>{ "1500" } }
+                    { KeyMathArg2, new List<string>{ "2" } }
                 }
             };
             expectedResponseBodyBytes = null;
@@ -478,8 +477,9 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 status = int.Parse(request.Headers[KeyStatusCode][0]);
                 statusReason = request.Headers[KeyStatusPhrase][0];
             }
-            catch (Exception)
+            catch (Exception e)
             {
+                Log.Warn(e, "error in echo app server");
                 status = 200;
                 statusReason = KeyStatusMessageOK;
             }

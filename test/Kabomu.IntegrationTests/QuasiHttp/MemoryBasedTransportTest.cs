@@ -8,13 +8,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.QuasiHttp
+namespace Kabomu.IntegrationTests.QuasiHttp
 {
-    /// <summary>
-    /// Decided to have this test in this project instead of in
-    /// integration tests, so that the integration tests can have
-    /// exclusive access to log files.
-    /// </summary>
     public class MemoryBasedTransportTest
     {
         private static readonly Logger Log = LogManager.GetCurrentClassLogger();
@@ -167,6 +162,7 @@ namespace Kabomu.Tests.QuasiHttp
                     await WriteMsg(transportWriter, outgoingAnswer);
                 }
             }
+            await transport.ReleaseConnection(connection);
             LogMsg(DescribeRelease(connection, isClient, isAtAccra));
         }
 
