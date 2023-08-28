@@ -224,7 +224,7 @@ namespace Kabomu.QuasiHttp
         {
             if (timeoutMillis <= 0)
             {
-                return new CancellablePromiseInternal<T>();
+                return default;
             }
             var timeoutId = new CancellationTokenSource();
             var timeoutTask = Task.Delay(timeoutMillis, timeoutId.Token)

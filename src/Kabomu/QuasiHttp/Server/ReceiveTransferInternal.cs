@@ -30,7 +30,7 @@ namespace Kabomu.QuasiHttp.Server
         {
             if (TrySetAborted())
             {
-                TimeoutId.Cancel();
+                TimeoutId.Cancel(); // TimeoutId?.Cancel()
 
                 try
                 {

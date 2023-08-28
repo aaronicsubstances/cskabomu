@@ -32,7 +32,7 @@ namespace Kabomu.QuasiHttp.Client
         {
             if (TrySetAborted())
             {
-                TimeoutId.Cancel();
+                TimeoutId.Cancel(); // TimeoutId?.Cancel()
 
                 if (cancellationError != null)
                 {

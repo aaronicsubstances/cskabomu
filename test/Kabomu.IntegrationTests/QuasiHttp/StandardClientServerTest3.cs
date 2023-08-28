@@ -3,7 +3,6 @@ using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Kabomu.QuasiHttp.Server;
-using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared.Common;
 using Kabomu.Tests.Shared.QuasiHttp;
 using NLog;
@@ -131,7 +130,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
 
             // act
-            var result = await client.Send2(remoteEndpoint, requestFunc, null);
+            var result = client.Send2(remoteEndpoint, requestFunc, null);
             var actualResponse = await result.ResponseTask;
 
             // assert
@@ -202,7 +201,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
 
             // act
-            var result = await client.Send2(remoteEndpoint, requestFunc, sendOptions);
+            var result = client.Send2(remoteEndpoint, requestFunc, sendOptions);
             var actualResponse = await result.ResponseTask;
 
             // assert
@@ -560,7 +559,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
 
             // act
-            var result = await client.Send2(remoteEndpoint,
+            var result = client.Send2(remoteEndpoint,
                 _ => Task.FromResult<IQuasiHttpRequest>(request), sendOptions);
             var actualResponse = await result.ResponseTask;
 
@@ -635,7 +634,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
 
             // act
-            var result = await client.Send2(remoteEndpoint,
+            var result = client.Send2(remoteEndpoint,
                 _ => Task.FromResult<IQuasiHttpRequest>(request), sendOptions);
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(
                 () => result.ResponseTask);
@@ -847,7 +846,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
 
             // act
-            var result = await client.Send2(remoteEndpoint, _ =>
+            var result = client.Send2(remoteEndpoint, _ =>
                 Task.FromResult<IQuasiHttpRequest>(null), null);
             await Task.Delay(1_000);
             Assert.False(transportBypass.IsCancellationRequested);
@@ -908,7 +907,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
 
             // act
-            var result = await client.Send2(remoteEndpoint, _ =>
+            var result = client.Send2(remoteEndpoint, _ =>
                 Task.FromResult<IQuasiHttpRequest>(null), null);
             await Task.Delay(1_000);
             Assert.False(transportBypass.IsCancellationRequested);

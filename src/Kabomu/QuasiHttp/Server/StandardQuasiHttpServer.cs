@@ -105,7 +105,8 @@ namespace Kabomu.QuasiHttp.Server
             };
             var workTask = transfer.StartProtocol();
             await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
-                transfer.TimeoutId.Task, null);
+                transfer.TimeoutId.Task, // transfer.TimeoutId?.Task
+                null);
         }
 
         /// <summary>
@@ -172,7 +173,8 @@ namespace Kabomu.QuasiHttp.Server
             };
             var workTask = transfer.StartProtocol();
             return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
-                transfer.TimeoutId.Task, null);
+                transfer.TimeoutId.Task, // transfer.TimeoutId?.Task
+                null);
         }
     }
 }
