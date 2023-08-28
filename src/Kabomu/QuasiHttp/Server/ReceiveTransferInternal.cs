@@ -12,7 +12,6 @@ namespace Kabomu.QuasiHttp.Server
         public IReceiveProtocolInternal Protocol { get; set; }
         public CancellablePromiseInternal<IQuasiHttpResponse> TimeoutId { get; set; }
         public bool IsAborted => _abortCalled != 0;
-        public IQuasiHttpRequest Request { get; set; }
 
         public bool TrySetAborted()
         {
@@ -37,16 +36,6 @@ namespace Kabomu.QuasiHttp.Server
                     await Protocol.Cancel();
                 }
                 catch (Exception) { } // ignore
-
-                // dispose request received for direct send to application
-                if (Request != null)
-                {
-                    try
-                    {
-                        await Request.Release();
-                    }
-                    catch (Exception) { }
-                }
             }
             else
             {

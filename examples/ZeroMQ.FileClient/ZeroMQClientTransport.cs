@@ -52,20 +52,13 @@ namespace ZeroMQ.FileClient
                 request, sendOptions);
             return new QuasiHttpSendResponse
             {
-                ResponseTask = resTask,
-                CancellationHandle = new RequestCancellationHandle
-                {
-                    Request = request
-                }
+                ResponseTask = resTask
             };
         }
 
         public async Task CancelSendRequest(object sendCancellationHandle)
         {
-            if (sendCancellationHandle is RequestCancellationHandle r)
-            {
-                await r.Release();
-            }
+            // do nothing
         }
 
         private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(

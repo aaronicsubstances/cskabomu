@@ -32,10 +32,7 @@ namespace Kabomu.Examples.Shared
             return new QuasiHttpSendResponse
             {
                 ResponseTask = resTask,
-                CancellationHandle = new RequestCancellationHandle
-                {
-                    CancellationTokenSource = cts
-                }
+                CancellationHandle = cts
             };
         }
 
@@ -55,19 +52,15 @@ namespace Kabomu.Examples.Shared
             return new QuasiHttpSendResponse
             {
                 ResponseTask = resTask,
-                CancellationHandle = new RequestCancellationHandle
-                {
-                    Request = request,
-                    CancellationTokenSource = cts
-                }
+                CancellationHandle = cts
             };
         }
 
         public async Task CancelSendRequest(object sendCancellationHandle)
         {
-            if (sendCancellationHandle is RequestCancellationHandle r)
+            if (sendCancellationHandle is CancellationTokenSource cts)
             {
-                await r.Release();
+                cts.Cancel();
             }
         }
 

@@ -56,26 +56,7 @@ namespace Kabomu.QuasiHttp.Server
                 throw new ArgumentNullException(nameof(connectionAllocationResponse));
             }
             var transfer = new ReceiveTransferInternal();
-            try
-            {
-                await ProcessAcceptConnection(transfer, connectionAllocationResponse);
-            }
-            catch (Exception e)
-            {
-                await transfer.Abort(null);
-                if (e is QuasiHttpRequestProcessingException)
-                {
-                    throw;
-                }
-                else
-                {
-                    var abortError = new QuasiHttpRequestProcessingException(
-                        "encountered error during receive request processing",
-                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
-                        e);
-                    throw abortError;
-                }
-            }
+            await ProcessAcceptConnection(transfer, connectionAllocationResponse);
         }
 
         private async Task ProcessAcceptConnection(ReceiveTransferInternal transfer,
@@ -103,10 +84,27 @@ namespace Kabomu.QuasiHttp.Server
                 Connection = connectionResponse.Connection,
                 RequestEnvironment = connectionResponse.Environment
             };
-            var workTask = transfer.StartProtocol();
-            await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
-                transfer.TimeoutId.Task, // transfer.TimeoutId?.Task
-                null);
+
+            try
+            {
+                var workTask = transfer.StartProtocol();
+                await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
+                    transfer.TimeoutId.Task, // transfer.TimeoutId?.Task
+                    null);
+            }
+            catch (Exception e)
+            {
+                await transfer.Abort(null);
+                if (e is QuasiHttpRequestProcessingException)
+                {
+                    throw;
+                }
+                var abortError = new QuasiHttpRequestProcessingException(
+                    "encountered error during receive request processing",
+                    QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                    e);
+                throw abortError;
+            }
         }
 
         /// <summary>
@@ -130,36 +128,14 @@ namespace Kabomu.QuasiHttp.Server
             {
                 throw new ArgumentNullException(nameof(request));
             }
-            var transfer = new ReceiveTransferInternal
-            {
-                Request = request,
-            };
-            IQuasiHttpResponse res = null;
-            try
-            {
-                res = await ProcessAcceptRequest(transfer, options);
-            }
-            catch (Exception e)
-            {
-                await transfer.Abort(res);
-                if (e is QuasiHttpRequestProcessingException)
-                {
-                    throw;
-                }
-                else
-                {
-                    var abortError = new QuasiHttpRequestProcessingException(
-                        "encountered error during receive request processing",
-                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
-                        e);
-                    throw abortError;
-                }
-            }
-            return res;
+            var transfer = new ReceiveTransferInternal();
+            return await ProcessAcceptRequest(request, options, transfer);
         }
 
         private async Task<IQuasiHttpResponse> ProcessAcceptRequest(
-            ReceiveTransferInternal transfer, IQuasiHttpProcessingOptions options)
+            IQuasiHttpRequest request,
+            IQuasiHttpProcessingOptions options,
+            ReceiveTransferInternal transfer)
         {
             var timeoutMillis = ProtocolUtilsInternal.DetermineEffectiveNonZeroIntegerOption(
                 options?.TimeoutMillis, DefaultProcessingOptions?.TimeoutMillis, 0);
@@ -169,12 +145,28 @@ namespace Kabomu.QuasiHttp.Server
             transfer.Protocol = new AltReceiveProtocolInternal
             {
                 Application = Application,
-                Request = transfer.Request
+                Request = request
             };
-            var workTask = transfer.StartProtocol();
-            return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
-                transfer.TimeoutId.Task, // transfer.TimeoutId?.Task
-                null);
+            try
+            {
+                var workTask = transfer.StartProtocol();
+                return await ProtocolUtilsInternal.CompleteRequestProcessing(workTask,
+                    transfer.TimeoutId.Task, // transfer.TimeoutId?.Task
+                    null);
+            }
+            catch (Exception e)
+            {
+                await transfer.Abort(null);
+                if (e is QuasiHttpRequestProcessingException)
+                {
+                    throw;
+                }
+                var abortError = new QuasiHttpRequestProcessingException(
+                    "encountered error during receive request processing",
+                    QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                    e);
+                throw abortError;
+            }
         }
     }
 }

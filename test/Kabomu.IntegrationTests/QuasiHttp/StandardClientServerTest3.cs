@@ -928,15 +928,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         [Fact]
         public async Task TestServerBypass1()
         {
-            var requestReleaseCallCount = 0;
             var remoteEndpoint = new object();
-            var request = new ConfigurableQuasiHttpRequest
-            {
-                ReleaseFunc = async () =>
-                {
-                    requestReleaseCallCount++;
-                }
-            };
+            var request = new DefaultQuasiHttpRequest();
             var expectedResponse = new DefaultQuasiHttpResponse();
             IQuasiHttpRequest actualRequest = null;
             var server = new StandardQuasiHttpServer
@@ -957,23 +950,13 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             // test that it is not disposed.
             await ComparisonUtils.CompareResponses(expectedResponse,
                 actualResponse, null);
-            // test that transfer was aborted.
-            Assert.Equal(1, requestReleaseCallCount);
         }
 
         [Fact]
         public async Task TestServerBypass2()
         {
-            var requestReleaseCallCount = 0;
             var remoteEndpoint = new object();
-            var request = new ConfigurableQuasiHttpRequest
-            {
-                ReleaseFunc = async () =>
-                {
-                    requestReleaseCallCount++;
-                    throw new Exception("should be ignored");
-                }
-            };
+            var request = new DefaultQuasiHttpRequest();
             IQuasiHttpRequest actualRequest = null;
             var server = new StandardQuasiHttpServer
             {
@@ -990,8 +973,6 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             var actualResponse = await server.AcceptRequest(request, null);
             Assert.Same(request, actualRequest);
             Assert.Null(actualResponse);
-            // test that transfer was aborted.
-            Assert.Equal(1, requestReleaseCallCount);
         }
 
         [Fact]
@@ -1052,21 +1033,12 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 TimeoutMillis = 1_500
             };
-            var requestReleaseCallCount = 0;
-            var request = new ConfigurableQuasiHttpRequest
-            {
-                ReleaseFunc = async () =>
-                {
-                    requestReleaseCallCount++;
-                }
-            };
+            var request = new DefaultQuasiHttpRequest();
             var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
                 server.AcceptRequest(request, receiveOptions));
             Log.Info(actualEx, "actual error from TestServerBypassTimeout1");
             Assert.Equal(QuasiHttpRequestProcessingException.ReasonCodeTimeout,
                 actualEx.ReasonCode);
-            // test that transfer was aborted.
-            Assert.Equal(1, requestReleaseCallCount);
         }
 
         [Fact]

@@ -80,18 +80,9 @@ namespace Kabomu.Tests.QuasiHttp.Server
         public async Task TestAbort1()
         {
             // arrange
-            var requestReleaseCallCount = 0;
-            var request = new ConfigurableQuasiHttpRequest
-            {
-                ReleaseFunc = async () =>
-                {
-                    requestReleaseCallCount++;
-                }
-            };
             var protocol = new HelperReceiveProtocol();
             var instance = new ReceiveTransferInternal
             {
-                Request = request,
                 Protocol = protocol
             };
             var responseReleaseCallCount = 0;
@@ -107,7 +98,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             await instance.Abort(res);
 
             // assert
-            Assert.Equal(1, requestReleaseCallCount);
             Assert.Equal(0, responseReleaseCallCount);
             Assert.True(protocol.Cancelled);
         }
@@ -140,15 +130,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
         public async Task TestAbort4()
         {
             // arrange
-            var requestReleaseCallCount = 0;
-            var request = new ConfigurableQuasiHttpRequest
-            {
-                ReleaseFunc = async () =>
-                {
-                    requestReleaseCallCount++;
-                    throw new Exception("should be ignored");
-                }
-            };
             var protocol = new HelperReceiveProtocol();
             var instance = new ReceiveTransferInternal
             {
@@ -157,7 +138,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
                     CancellationTokenSource = new CancellationTokenSource()
                 },
                 Protocol = protocol,
-                Request = request
             };
             var responseReleaseCallCount = 0;
             var response = new ConfigurableQuasiHttpResponse
@@ -175,7 +155,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             // assert
             Assert.True(protocol.Cancelled);
             Assert.True(instance.TimeoutId.IsCancellationRequested());
-            Assert.Equal(1, requestReleaseCallCount);
             Assert.Equal(0, responseReleaseCallCount);
         }
 
@@ -183,14 +162,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
         public async Task TestAbort5()
         {
             // arrange
-            var requestReleaseCallCount = 0;
-            var request = new ConfigurableQuasiHttpRequest
-            {
-                ReleaseFunc = async () =>
-                {
-                    requestReleaseCallCount++;
-                }
-            };
             var protocol = new HelperReceiveProtocol();
             var instance = new ReceiveTransferInternal
             {
@@ -198,8 +169,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 {
                     CancellationTokenSource = new CancellationTokenSource()
                 },
-                Protocol = protocol,
-                Request = request
+                Protocol = protocol
             };
             instance.TrySetAborted();
             var responseReleaseCallCount = 0;
@@ -219,7 +189,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             // assert
             Assert.False(protocol.Cancelled);
             Assert.False(instance.TimeoutId.IsCancellationRequested());
-            Assert.Equal(0, requestReleaseCallCount);
             Assert.Equal(1, responseReleaseCallCount);
         }
 
@@ -227,7 +196,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
         public async Task TestAbort6()
         {
             // arrange
-            var request = new DefaultQuasiHttpRequest();
             var protocol = new HelperReceiveProtocol
             {
                 ExpectedCancelError = new InvalidOperationException()
@@ -235,7 +203,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             var instance = new ReceiveTransferInternal
             {
                 Protocol = protocol,
-                Request = request,
                 TimeoutId = new CancellablePromiseInternal<IQuasiHttpResponse>
                 {
                     CancellationTokenSource = new CancellationTokenSource()

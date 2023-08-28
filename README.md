@@ -33,13 +33,13 @@ limiting body sizes to some maximum value).
    1. use Kabomu.Mediator: it is a quasi web microframework that was inspired by [Ratpack](https://ratpack.io/) and meant to be implemented in multiple programming languages. It is called "quasi web microframework" because it does not assume the use of TCP, and delegates networking security, parsing of query strings and common HTTP headers, parsing of HTTP request bodies with common content types, and rendering of HTTP responses to other libraries.
    2. use an existing web server gateway interface (e.g. Python WSGI, C#.NET OWIN, Java Servlet, Ruby Rack, NodeJS Connect) and hook it to a quasi web transport. Existing web frameworks can then be used as usual.
 
-4. For networks entirely within a single host (e.g. memory, IPC, localhost TCP), Kabomu.Mediator can be sufficient for all quasi
+4. For situations where quasi http network lies entirely within a single host (e.g. memory, IPC, localhost TCP), Kabomu.Mediator can be sufficient for all quasi
 web development needs.
 
 3. For HTTP and interhost networks, an actual web framework or a networking library or framework dealing with networking security will be needed. Even then Kabomu.Mediator can be leveraged to separate concerns between services and access points:
-       1. Assume that the services to be developed with favourite web framework can be accesssed by different web framework or networking protocol aside HTTP, with different security policies and serialization mechanisms.
-       2. Then design the services independently of favourite web framework by using data transfer objects based on types provided by the Kabomu.Mediator framework, and custom types as needed.
-       3. It should then be easier to switch networks without impacting services implementing business logic.
+   1. Assume that the services to be developed with favourite web framework can be accesssed by different web framework or networking protocol aside HTTP, with different security policies and serialization mechanisms.
+   2. Then design the services independently of favourite web framework by using data transfer objects based on types provided by the Kabomu.Mediator framework, and custom types as needed.
+   3. It should then be easier to switch networks without impacting services implementing business logic.
 
 
 ## Usage

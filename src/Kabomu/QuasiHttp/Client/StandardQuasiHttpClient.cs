@@ -96,11 +96,8 @@ namespace Kabomu.QuasiHttp.Client
             {
                 throw new ArgumentNullException(nameof(request));
             }
-            var transfer = new SendTransferInternal
-            {
-                Request = request
-            };
-            return await SendInternal(remoteEndpoint, null, options,
+            var transfer = new SendTransferInternal();
+            return await SendInternal(remoteEndpoint, request, null, options,
                 transfer);
         }
 
@@ -135,7 +132,7 @@ namespace Kabomu.QuasiHttp.Client
                 CancellationTcs = new TaskCompletionSource<ProtocolSendResultInternal>(
                     TaskCreationOptions.RunContinuationsAsynchronously)
             };
-            var sendTask = SendInternal(remoteEndpoint, requestFunc,
+            var sendTask = SendInternal(remoteEndpoint, null, requestFunc,
                 options, transfer);
             return new QuasiHttpSendResponse
             {
@@ -146,39 +143,33 @@ namespace Kabomu.QuasiHttp.Client
 
         private async Task<IQuasiHttpResponse> SendInternal(
             object remoteEndpoint,
+            IQuasiHttpRequest request,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions options, SendTransferInternal transfer)
         {
-            ProtocolSendResultInternal result = null;
-            IQuasiHttpResponse response;
             try
             {
                 options = PrepareSend(options, transfer);
-                var workTask = ProcessSend(remoteEndpoint,
+                var workTask = ProcessSend(remoteEndpoint, request,
                     requestFunc, options, transfer);
-                result = await ProtocolUtilsInternal.CompleteRequestProcessing(
+                var result = await ProtocolUtilsInternal.CompleteRequestProcessing(
                     workTask,
                     transfer.TimeoutId.Task, // transfer.TimeoutId?.Task
                     transfer.CancellationTcs?.Task);
-                response = result?.Response;
+                return result?.Response;
             }
             catch (Exception e)
             {
-                await transfer.Abort(e, result);
                 if (e is QuasiHttpRequestProcessingException)
                 {
                     throw;
                 }
-                else
-                {
-                    var abortError = new QuasiHttpRequestProcessingException(
-                        "encountered error during send request processing",
-                        QuasiHttpRequestProcessingException.ReasonCodeGeneral,
-                        e);
-                    throw abortError;
-                }
+                var abortError = new QuasiHttpRequestProcessingException(
+                    "encountered error during send request processing",
+                    QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                    e);
+                throw abortError;
             }
-            return response;
         }
 
         private IQuasiHttpSendOptions PrepareSend(
@@ -240,6 +231,7 @@ namespace Kabomu.QuasiHttp.Client
 
         private async Task<ProtocolSendResultInternal> ProcessSend(
             object remoteEndpoint,
+            IQuasiHttpRequest request,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions mergedSendOptions, SendTransferInternal transfer)
         {
@@ -250,19 +242,41 @@ namespace Kabomu.QuasiHttp.Client
 
             if (transportBypass != null)
             {
-                await InitiateDirectSend(remoteEndpoint, requestFunc,
+                await InitiateDirectSend(remoteEndpoint, request, requestFunc,
                     mergedSendOptions, transfer, transportBypass);
             }
             else
             {
-                await AllocateConnection(remoteEndpoint, requestFunc,
+                await AllocateConnection(remoteEndpoint, request, requestFunc,
                     mergedSendOptions, transfer, Transport);
             }
-            return await transfer.StartProtocol();
+
+            try
+            {
+                var workTask = transfer.StartProtocol();
+                return await ProtocolUtilsInternal.CompleteRequestProcessing(
+                    workTask,
+                    transfer.TimeoutId.Task, // transfer.TimeoutId?.Task
+                    transfer.CancellationTcs?.Task);
+            }
+            catch (Exception e)
+            {
+                await transfer.Abort(e, null);
+                if (e is QuasiHttpRequestProcessingException)
+                {
+                    throw;
+                }
+                var abortError = new QuasiHttpRequestProcessingException(
+                    "encountered error during send request processing",
+                    QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                    e);
+                throw abortError;
+            }
         }
 
         private async static Task InitiateDirectSend(
             object remoteEndpoint,
+            IQuasiHttpRequest request,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions mergedSendOptions,
             SendTransferInternal transfer,
@@ -277,7 +291,7 @@ namespace Kabomu.QuasiHttp.Client
             else
             {
                 response = await transportBypass.ProcessSendRequest(remoteEndpoint,
-                    transfer.Request, mergedSendOptions);
+                    request, mergedSendOptions);
             }
             transfer.Protocol = new AltSendProtocolInternal
             {
@@ -292,6 +306,7 @@ namespace Kabomu.QuasiHttp.Client
 
         private static async Task AllocateConnection(
             object remoteEndpoint,
+            IQuasiHttpRequest request,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpSendOptions mergedSendOptions,
             SendTransferInternal transfer,
@@ -310,19 +325,18 @@ namespace Kabomu.QuasiHttp.Client
                 throw new QuasiHttpRequestProcessingException("no connection");
             }
 
-            if (transfer.Request == null)
+            if (request == null)
             {
-                var request = await requestFunc.Invoke(connectionResponse.Environment);
+                request = await requestFunc.Invoke(connectionResponse.Environment);
                 if (request == null)
                 {
                     throw new QuasiHttpRequestProcessingException("no request");
                 }
-                transfer.Request = request;
             }
 
             transfer.Protocol = new DefaultSendProtocolInternal
             {
-                Request = transfer.Request,
+                Request = request,
                 Transport = transport,
                 Connection = connection,
                 ResponseBufferingEnabled = mergedSendOptions.ResponseBufferingEnabled.Value,

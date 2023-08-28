@@ -14,7 +14,6 @@ namespace Kabomu.QuasiHttp.Client
         public CancellablePromiseInternal<ProtocolSendResultInternal> TimeoutId { get; set; }
         public bool IsAborted => _abortCalled != 0;
         public TaskCompletionSource<ProtocolSendResultInternal> CancellationTcs { get; set; }
-        public IQuasiHttpRequest Request { get; set; }
 
         public bool TrySetAborted()
         {
@@ -49,16 +48,6 @@ namespace Kabomu.QuasiHttp.Client
                     try
                     {
                         await Protocol.Cancel();
-                    }
-                    catch (Exception) { } // ignore
-                }
-
-                // dispose request
-                if (Request != null)
-                {
-                    try
-                    {
-                        await Request.Release();
                     }
                     catch (Exception) { } // ignore
                 }
