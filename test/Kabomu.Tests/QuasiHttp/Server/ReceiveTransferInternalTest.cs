@@ -85,20 +85,11 @@ namespace Kabomu.Tests.QuasiHttp.Server
             {
                 Protocol = protocol
             };
-            var responseReleaseCallCount = 0;
-            var res = new ConfigurableQuasiHttpResponse
-            {
-                ReleaseFunc = async () =>
-                {
-                    responseReleaseCallCount++;
-                }
-            };
 
             // act
-            await instance.Abort(res);
+            await instance.Abort();
 
             // assert
-            Assert.Equal(0, responseReleaseCallCount);
             Assert.True(protocol.Cancelled);
         }
 
@@ -111,7 +102,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             // act to verify no errors are raised with
             // the missing props
-            await instance.Abort(res);
+            await instance.Abort();
         }
 
         [Fact]
@@ -123,7 +114,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             // act to verify no errors are raised with
             // the missing props
-            await instance.Abort(null);
+            await instance.Abort();
         }
 
         [Fact]
@@ -139,23 +130,13 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 },
                 Protocol = protocol,
             };
-            var responseReleaseCallCount = 0;
-            var response = new ConfigurableQuasiHttpResponse
-            {
-                Body = new StringBody("unbuffered"),
-                ReleaseFunc = async () =>
-                {
-                    responseReleaseCallCount++;
-                }
-            };
 
             // act
-            await instance.Abort(response);
+            await instance.Abort();
 
             // assert
             Assert.True(protocol.Cancelled);
             Assert.True(instance.TimeoutId.IsCancellationRequested());
-            Assert.Equal(0, responseReleaseCallCount);
         }
 
         [Fact]
@@ -172,24 +153,13 @@ namespace Kabomu.Tests.QuasiHttp.Server
                 Protocol = protocol
             };
             instance.TrySetAborted();
-            var responseReleaseCallCount = 0;
-            var response = new ConfigurableQuasiHttpResponse
-            {
-                Body = new StringBody("unbuffered"),
-                ReleaseFunc = async () =>
-                {
-                    responseReleaseCallCount++;
-                    throw new Exception("should be ignored");
-                }
-            };
 
             // act
-            await instance.Abort(response);
+            await instance.Abort();
 
             // assert
             Assert.False(protocol.Cancelled);
             Assert.False(instance.TimeoutId.IsCancellationRequested());
-            Assert.Equal(1, responseReleaseCallCount);
         }
 
         [Fact]
@@ -214,7 +184,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
 
             // act
-            await instance.Abort(res);
+            await instance.Abort();
 
             // assert
             Assert.True(instance.TimeoutId.IsCancellationRequested());

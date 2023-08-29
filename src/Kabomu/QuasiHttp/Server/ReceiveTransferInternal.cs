@@ -21,11 +21,11 @@ namespace Kabomu.QuasiHttp.Server
         public async Task<IQuasiHttpResponse> StartProtocol()
         {
             var res = await Protocol.Receive();
-            await Abort(res);
+            await Abort();
             return res;
         }
 
-        public async Task Abort(IQuasiHttpResponse res)
+        public async Task Abort()
         {
             if (TrySetAborted())
             {
@@ -36,19 +36,6 @@ namespace Kabomu.QuasiHttp.Server
                     await Protocol.Cancel();
                 }
                 catch (Exception) { } // ignore
-            }
-            else
-            {
-                // dispose off response
-                try
-                {
-                    var resDisposeTask = res?.Release();
-                    if (resDisposeTask != null)
-                    {
-                        await resDisposeTask;
-                    }
-                }
-                catch (Exception) { } // ignore.
             }
         }
     }

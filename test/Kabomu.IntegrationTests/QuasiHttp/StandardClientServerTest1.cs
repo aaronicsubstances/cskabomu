@@ -140,7 +140,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             // cause any client or server task to hang when
             // we are awaiting them to log errors for debugging.
             var servers = new Dictionary<object, MemoryBasedServerTransport>();
-            var serverTasks = new List<Task>();
+            var serverTasks = new List<Task>(); // make synchronized?
             CreateServer1(servers, serverTasks);
             CreateServer2(servers, serverTasks);
             CreateServer3(servers, serverTasks);
@@ -161,33 +161,40 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
             Log.Info($"{nameof(TestSuccess)} starting...\n\n");
             var clientTasks = new List<Task>();
-            for (int i = 0; i < testData.Count; i++)
+            int i = 0;
+            foreach (var testDataItem in testData)
             {
-                var testDataItem = testData[i];
                 clientTasks.Add(RunTestDataItem(client, i, testDataItem));
+                i++;
             }
-            for (int i = 0; i < clientTasks.Count; i++)
+            i = 0;
+            foreach (var task in clientTasks)
             {
-                var task = clientTasks[i];
                 try
                 {
                     await task;
+                    Log.Info($"{nameof(TestSuccess)} - done waiting for client task#{i}");
                 }
                 catch (Exception e)
                 {
-                    Log.Error(e, $"Error occured in {nameof(TestSuccess)} with client task#{i}");
+                    Log.Error(e, $"{nameof(TestSuccess)} - error occured with client task#{i}");
                 }
+                i++;
             }
             // record any server errors.
+            i = 0;
             foreach (var task in serverTasks)
             {
+                i++;
                 try
                 {
                     await task;
+                    Log.Info($"{nameof(TestSuccess)} - done waiting for a server task " +
+                        $"({serverTasks.Count - i} more left)");
                 }
                 catch (Exception e)
                 {
-                    Log.Error(e, $"Error occured in {nameof(TestSuccess)} with a server task");
+                    Log.Error(e, $"{nameof(TestSuccess)} - error occured with a server task");
                 }
             }
             // passing serverTasks first is preferred since
@@ -441,7 +448,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 },
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
-                    TimeoutMillis = 4_000
+                    TimeoutMillis = 3_000
                 }
             };
             var serverTransport = new MemoryBasedServerTransport
@@ -469,7 +476,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     MaxChunkSize = 300_000,
-                    TimeoutMillis = 5_000
+                    TimeoutMillis = 3_500
                 }
             };
             var serverTransport = new MemoryBasedServerTransport
