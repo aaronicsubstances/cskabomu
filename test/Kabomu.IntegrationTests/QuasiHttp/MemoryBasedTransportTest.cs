@@ -1,7 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared.QuasiHttp;
-using NLog;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -12,8 +11,6 @@ namespace Kabomu.IntegrationTests.QuasiHttp
 {
     public class MemoryBasedTransportTest
     {
-        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
-
         [Fact]
         public async Task TestOperations()
         {
@@ -168,7 +165,6 @@ namespace Kabomu.IntegrationTests.QuasiHttp
 
         private static void LogMsg(string msg)
         {
-            Log.Info(msg);
         }
 
         private static string DescribeMaxQuestionsToAnswer(object connection,

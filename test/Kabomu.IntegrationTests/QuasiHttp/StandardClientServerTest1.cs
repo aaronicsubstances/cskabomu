@@ -134,6 +134,11 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         public async Task TestSuccess()
         {
             var testData = CreateTest1Data();
+
+            // NB: ensure timeouts on quasi http servers and
+            // clients, so that if an error occurs it won't
+            // cause any client or server task to hang when
+            // we are awaiting them to log errors for debugging.
             var servers = new Dictionary<object, MemoryBasedServerTransport>();
             var serverTasks = new List<Task>();
             CreateServer1(servers, serverTasks);
@@ -170,7 +175,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 }
                 catch (Exception e)
                 {
-                    Log.Error(e, "Error occured in Test1 with client task#{0}", i);
+                    Log.Error(e, $"Error occured in {nameof(TestSuccess)} with client task#{i}");
                 }
             }
             // record any server errors.
@@ -266,7 +271,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             expectedResponse = new DefaultQuasiHttpResponse
             {
                 StatusCode = 0,
-                HttpStatusMessage = null,
+                HttpStatusMessage = "/returjn/dude",
                 HttpVersion = null,
                 Body = new ByteBufferBody(expectedResponseBodyBytes)
                 {
@@ -386,6 +391,41 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 SendOptions = sendOptions
             });
 
+            // next...
+            remoteEndpoint = EndpointLang;
+            sendOptions = new DefaultQuasiHttpSendOptions
+            {
+                MaxChunkSize = 200_000,
+                ResponseBufferingEnabled = false
+            };
+            request = new DefaultQuasiHttpRequest
+            {
+                Method = "GET",
+                Target = "really long".PadRight(70_000),
+                HttpVersion = KeyHttpVersion1_0,
+                Body = new StringBody("long indeed".PadRight(100_000))
+            };
+            expectedResponseBodyBytes = ByteUtils.StringToBytes(
+                "LONG INDEED".PadRight(100_000));
+            expectedResponse = new DefaultQuasiHttpResponse
+            {
+                StatusCode = 0,
+                HttpStatusMessage = "really long".PadRight(70_000),
+                HttpVersion = null,
+                Body = new ByteBufferBody(expectedResponseBodyBytes)
+                {
+                    ContentLength = -1
+                }
+            };
+            testData.Add(new Test1Data
+            {
+                Request = request,
+                ExpectedResponse = expectedResponse,
+                ExpectedResponseBodyBytes = expectedResponseBodyBytes,
+                RemoteEndpoint = remoteEndpoint,
+                SendOptions = sendOptions
+            });
+
             return testData;
         }
 
@@ -425,6 +465,11 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 Application = new ConfigurableQuasiHttpApplication
                 {
                     ProcessRequestCallback = CapitalizationApplicationServer
+                },
+                DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
+                {
+                    MaxChunkSize = 300_000,
+                    TimeoutMillis = 5_000
                 }
             };
             var serverTransport = new MemoryBasedServerTransport
@@ -514,6 +559,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             bodyAsString = bodyAsString.ToUpperInvariant();
             return new DefaultQuasiHttpResponse
             {
+                HttpStatusMessage = request.Target,
                 Body = new StringBody(bodyAsString)
                 {
                     ContentLength = -1
