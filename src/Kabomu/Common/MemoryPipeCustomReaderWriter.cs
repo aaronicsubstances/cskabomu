@@ -32,24 +32,15 @@ namespace Kabomu.Common
             new LinkedList<ReadWriteRequest>();
         private readonly LinkedList<ReadWriteRequest> _writeRequests =
             new LinkedList<ReadWriteRequest>();
-        private readonly int _highWaterMark;
+        private readonly int _highWaterMark = 1;
         private bool _endOfReadWrite;
         private Exception _endOfReadError, _endOfWriteError;
 
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        /// <param name="highWaterMark">The total number of bytes
-        /// of outstanding write requests, beyond which further writes
-        /// will not be performed. Can pass 0 to use default value of 8,192 bytes
-        /// </param>
-        public MemoryPipeCustomReaderWriter(int highWaterMark = 0)
+        public MemoryPipeCustomReaderWriter()
         {
-            _highWaterMark = highWaterMark;
-            if (_highWaterMark <= 0)
-            {
-                _highWaterMark = DefaultHighWaterMark;
-            }
         }
 
         /// <summary>

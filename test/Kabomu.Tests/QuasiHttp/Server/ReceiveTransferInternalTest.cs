@@ -87,7 +87,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
 
             // act
-            await instance.Abort();
+            await instance.Abort(false);
 
             // assert
             Assert.True(protocol.Cancelled);
@@ -102,7 +102,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             // act to verify no errors are raised with
             // the missing props
-            await instance.Abort();
+            await instance.Abort(false);
         }
 
         [Fact]
@@ -114,7 +114,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
 
             // act to verify no errors are raised with
             // the missing props
-            await instance.Abort();
+            await instance.Abort(false);
         }
 
         [Fact]
@@ -132,7 +132,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
 
             // act
-            await instance.Abort();
+            await instance.Abort(false);
 
             // assert
             Assert.True(protocol.Cancelled);
@@ -155,7 +155,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             instance.TrySetAborted();
 
             // act
-            await instance.Abort();
+            await instance.Abort(false);
 
             // assert
             Assert.False(protocol.Cancelled);
@@ -184,7 +184,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             };
 
             // act
-            await instance.Abort();
+            await instance.Abort(false);
 
             // assert
             Assert.True(instance.TimeoutId.IsCancellationRequested());

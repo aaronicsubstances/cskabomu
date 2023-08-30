@@ -47,7 +47,14 @@ namespace Kabomu.QuasiHttp.Client
                 {
                     try
                     {
-                        await Protocol.Cancel();
+                        if (cancellationError != null)
+                        {
+                            await Protocol.Cancel();
+                        }
+                        else
+                        {
+                            _ = Protocol.Cancel();
+                        }
                     }
                     catch (Exception) { } // ignore
                 }
@@ -58,7 +65,7 @@ namespace Kabomu.QuasiHttp.Client
                 try
                 {
                     var resDisposeTask = res?.Response?.Release();
-                    if (resDisposeTask != null)
+                    if (resDisposeTask != null && cancellationError != null)
                     {
                         await resDisposeTask;
                     }

@@ -94,7 +94,7 @@ namespace Kabomu.QuasiHttp.Server
             }
             catch (Exception e)
             {
-                await transfer.Abort();
+                await transfer.Abort(true);
                 if (e is QuasiHttpRequestProcessingException)
                 {
                     throw;
@@ -156,7 +156,7 @@ namespace Kabomu.QuasiHttp.Server
             }
             catch (Exception e)
             {
-                await transfer.Abort();
+                await transfer.Abort(true);
                 if (e is QuasiHttpRequestProcessingException)
                 {
                     throw;

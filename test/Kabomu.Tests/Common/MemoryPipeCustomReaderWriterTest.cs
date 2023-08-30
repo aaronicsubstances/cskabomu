@@ -50,7 +50,7 @@ namespace Kabomu.Tests.Common
         [Fact]
         public async Task TestInternals1()
         {
-            var instance = new MemoryPipeCustomReaderWriter(1);
+            var instance = new MemoryPipeCustomReaderWriter();
             byte[] readBuffer = new byte[3];
             var readTask = instance.ReadBytes(readBuffer, 0, readBuffer.Length);
 
@@ -103,7 +103,7 @@ namespace Kabomu.Tests.Common
         [Fact]
         public async Task TestInternals2()
         {
-            var instance = new MemoryPipeCustomReaderWriter(2);
+            var instance = new MemoryPipeCustomReaderWriter();
             byte[] readBuffer = new byte[3];
             var readTask = instance.ReadBytes(readBuffer, 0, readBuffer.Length);
 
@@ -156,7 +156,7 @@ namespace Kabomu.Tests.Common
         [Fact]
         public async Task TestInternals3()
         {
-            var instance = new MemoryPipeCustomReaderWriter(4);
+            var instance = new MemoryPipeCustomReaderWriter();
             byte[] readBuffer = new byte[3];
             var readTask = instance.ReadBytes(readBuffer, 0, readBuffer.Length);
 
