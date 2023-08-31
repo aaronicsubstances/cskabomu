@@ -260,34 +260,6 @@ namespace Kabomu.Common
         }
 
         /// <summary>
-        /// Serializes CSV data to a custom writer.
-        /// </summary>
-        /// <param name="rows">CSV data</param>
-        /// <param name="writer">writer object acceptable by <see cref="IOUtils.WriteBytes"/>,
-        /// which serves as destination of CSV data to be written</param>
-        /// <returns>task representing end of serialization</returns>
-        public static async Task SerializeTo(IList<IList<string>> rows,
-            object writer)
-        {
-            foreach (var row in rows)
-            {
-                var addCommaSeparator = false;
-                foreach (var value in row)
-                {
-                    if (addCommaSeparator)
-                    {
-                        await IOUtils.WriteBytes(writer, CommaConstant, 0,
-                            CommaConstant.Length);
-                    }
-                    await EscapeValueTo(value, writer);
-                    addCommaSeparator = true;
-                }
-                await IOUtils.WriteBytes(writer, NewlineConstant, 0,
-                    NewlineConstant.Length);
-            }
-        }
-
-        /// <summary>
         /// Generates a CSV string.
         /// </summary>
         /// <param name="rows">Data for CSV generation. Each row is a list whose entries will be treated as the values of
@@ -311,26 +283,6 @@ namespace Kabomu.Common
                 csvBuilder.Append("\n");
             }
             return csvBuilder.ToString();
-        }
-
-        /// <summary>
-        /// Escapes a string to a custom writer. for use as a CSV column value
-        /// </summary>
-        /// <param name="raw">value to escape. Note that empty strings are always escaped as two double quotes.</param>
-        /// <param name="writer">writer object acceptable by <see cref="IOUtils.WriteBytes"/>,
-        /// which serves as destination of escaped value</param>
-        /// <returns>task representing end of escape</returns>
-        public static async Task EscapeValueTo(string raw, object writer)
-        {
-            // escape empty strings with two double quotes to resolve ambiguity
-            // between an empty row and a row containing an empty string - otherwise both
-            // serialize to the same CSV output.
-            if (raw == "" || DoesValueContainSpecialCharacters(raw))
-            {
-                raw = '"' + raw.Replace("\"", "\"\"") + '"';
-            }
-            var rawBytes = ByteUtils.StringToBytes(raw);
-            await IOUtils.WriteBytes(writer, rawBytes, 0, rawBytes.Length);
         }
 
         /// <summary>

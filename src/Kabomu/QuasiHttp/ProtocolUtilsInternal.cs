@@ -127,7 +127,7 @@ namespace Kabomu.QuasiHttp
         }
 
         public static async Task TransferBodyToTransport(
-            object writer, int maxChunkSize, IQuasiHttpBody body,
+            object writer, IQuasiHttpBody body,
             long contentLength)
         {
             if (contentLength == 0)
@@ -136,7 +136,7 @@ namespace Kabomu.QuasiHttp
             }
             if (contentLength < 0)
             {
-                var chunkWriter = new ChunkEncodingCustomWriter(writer, maxChunkSize);
+                var chunkWriter = new ChunkEncodingCustomWriter(writer);
                 await body.WriteBytesTo(chunkWriter);
                 // important for chunked transfer to write out final empty chunk
                 await chunkWriter.EndWrites();
@@ -149,7 +149,7 @@ namespace Kabomu.QuasiHttp
 
         public static async Task<IQuasiHttpBody> CreateBodyFromTransport(
             object reader, long contentLength, Func<Task> releaseFunc,
-            int maxChunkSize, bool bufferingEnabled, int bodyBufferingSizeLimit)
+            bool bufferingEnabled, int bodyBufferingSizeLimit)
         {
             if (contentLength == 0)
             {
@@ -158,8 +158,7 @@ namespace Kabomu.QuasiHttp
 
             if (contentLength < 0)
             {
-                reader = new ChunkDecodingCustomReader(reader,
-                    maxChunkSize);
+                reader = new ChunkDecodingCustomReader(reader);
             }
             else
             {

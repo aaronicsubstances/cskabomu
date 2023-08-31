@@ -16,9 +16,8 @@ This enables programming the same HTTP semantics at the level of web application
 
 This library has the goal of letting the software community have their cake and eat it, by enforcing monolithic architectures with serializable inter module communications, so that monolithic architectures remain simple to manage, and at the same time become straightforward to evolve into distributed systems.</Description>
     <Copyright>Copyright ©2022 Aaronic Substances</Copyright>
-    <Version>5.1.0</Version>
-    <PackageReleaseNotes>- Fixed possible issue with timeout on StandardQuasiHttpClient instances not including connection setup.
-- Reverted StandardQuasiHttpClient .Send2() behaviour to generate return value synchronously</PackageReleaseNotes>
+    <Version>5.2.0</Version>
+    <PackageReleaseNotes>- Removed restrictions on size of chunks of quasi http bodies</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

@@ -71,7 +71,7 @@ namespace Kabomu.QuasiHttp.Server
                 null, defaultProcessingOptions?.TimeoutMillis, 0);
 
             int maxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
-                null, defaultProcessingOptions?.MaxChunkSize, 0);
+                null, defaultProcessingOptions?.MaxHeadersSize, 0);
 
             transfer.TimeoutId = ProtocolUtilsInternal.CreateCancellableTimeoutTask<IQuasiHttpResponse>(timeoutMillis,
                 "receive timeout");

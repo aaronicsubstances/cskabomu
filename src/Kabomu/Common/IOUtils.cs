@@ -68,7 +68,7 @@ namespace Kabomu.Common
         /// depending of the kind of reader may be less than the number of bytes requested.</returns>
         /// <exception cref="ArgumentNullException">The <see cref="reader"/> argument
         /// is null</exception>
-        public static Task<int> ReadBytes(object reader,
+        public static async Task<int> ReadBytes(object reader,
             byte[] data, int offset, int length)
         {
             if (reader == null)
@@ -77,14 +77,22 @@ namespace Kabomu.Common
             }
             // allow zero-byte reads to proceed to touch the
             // stream, rather than just return 0.
+            int bytesRead;
             if (reader is Stream s)
             {
-                return s.ReadAsync(data, offset, length);
+                bytesRead = await s.ReadAsync(data, offset, length);
             }
             else
             {
-                return ((ICustomReader)reader).ReadBytes(data, offset, length);
+                bytesRead = await ((ICustomReader)reader).ReadBytes(data, offset, length);
             }
+            if (bytesRead > length)
+            {
+                throw new ExpectationViolationException(
+                    "read beyond requested length: " +
+                    $"({bytesRead} > {length})");
+            }
+            return bytesRead;
         }
 
         /// <summary>
@@ -107,7 +115,12 @@ namespace Kabomu.Common
             while (true)
             {
                 int bytesRead = await ReadBytes(reader, data, offset, length);
-
+                if (bytesRead > length)
+                {
+                    throw new ExpectationViolationException(
+                        "read beyond requested length: " +
+                        $"({bytesRead} > {length})");
+                }
                 if (bytesRead < length)
                 {
                     if (bytesRead <= 0)

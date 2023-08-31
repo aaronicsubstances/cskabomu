@@ -18,20 +18,6 @@ namespace Kabomu.Tests.Common
             Assert.Equal(expected, actual);
         }
 
-        [Theory]
-        [MemberData(nameof(CreateTestEscapeValueData))]
-        public async Task TestEscapeValueTo(string raw, string expected)
-        {
-            var stream = new MemoryStream();
-            await CsvUtils.EscapeValueTo(raw, new LambdaBasedCustomReaderWriter
-            {
-                WriteFunc = (data, offset, length) =>
-                    stream.WriteAsync(data, offset, length)
-            });
-            var actual = ByteUtils.BytesToString(stream.ToArray());
-            Assert.Equal(expected, actual);
-        }
-
         public static List<object[]> CreateTestEscapeValueData()
         {
             return new List<object[]>
@@ -94,20 +80,6 @@ namespace Kabomu.Tests.Common
         public void TestSerialize(IList<IList<string>> rows, string expected)
         {
             var actual = CsvUtils.Serialize(rows);
-            Assert.Equal(expected, actual);
-        }
-
-        [Theory]
-        [MemberData(nameof(CreateTestSerializeData))]
-        public async Task TestSerializeTo(IList<IList<string>> rows, string expected)
-        {
-            var stream = new MemoryStream();
-            await CsvUtils.SerializeTo(rows, new LambdaBasedCustomReaderWriter
-            {
-                WriteFunc = (data, offset, length) =>
-                    stream.WriteAsync(data, offset, length)
-            });
-            var actual = ByteUtils.BytesToString(stream.ToArray());
             Assert.Equal(expected, actual);
         }
 

@@ -16,7 +16,6 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
     public class ChunkDecodingCustomReader : ICustomReader
     {
         private readonly object _wrappedReader;
-        private readonly int _maxChunkSize;
         private readonly CustomChunkedTransferCodec _chunkTransferUtils = new CustomChunkedTransferCodec();
         private int _chunkDataLenRem;
         private bool _lastChunkSeen;
@@ -26,18 +25,14 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// </summary>
         /// <param name="wrappedReader">the source of bytes to decode which
         /// is acceptable by <see cref="IOUtils.ReadBytes"/> function.</param>
-        /// <param name="maxChunkSize">the maximum allowable size of a chunk seen in the body instance being decoded.
-        /// NB: values less than 64KB are always accepted, and so this parameter imposes a maximum only on chunks
-        /// with lengths greater than 64KB.</param>
         /// <exception cref="ArgumentNullException">The <paramref name="wrappedReader"/> argument is null.</exception>
-        public ChunkDecodingCustomReader(object wrappedReader, int maxChunkSize = 0)
+        public ChunkDecodingCustomReader(object wrappedReader)
         {
             if (wrappedReader == null)
             {
                 throw new ArgumentNullException(nameof(wrappedReader));
             }
             _wrappedReader = wrappedReader;
-            _maxChunkSize = maxChunkSize;
         }
 
         public async Task<int> ReadBytes(byte[] data, int offset, int bytesToRead)
@@ -51,7 +46,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             if (_chunkDataLenRem == 0)
             {
                 _chunkDataLenRem = await _chunkTransferUtils.DecodeSubsequentChunkV1Header(
-                    null, _wrappedReader, _maxChunkSize);
+                    null, _wrappedReader);
                 if (_chunkDataLenRem == 0)
                 {
                     _lastChunkSeen = true;

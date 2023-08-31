@@ -197,9 +197,9 @@ namespace Kabomu.QuasiHttp.Client
                 defaultSendOptions?.ResponseBufferingEnabled,
                 true);
 
-            mergedSendOptions.MaxChunkSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
-                options?.MaxChunkSize,
-                defaultSendOptions?.MaxChunkSize,
+            mergedSendOptions.MaxHeadersSize = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
+                options?.MaxHeadersSize,
+                defaultSendOptions?.MaxHeadersSize,
                 0);
 
             mergedSendOptions.ResponseBodyBufferingSizeLimit = ProtocolUtilsInternal.DetermineEffectivePositiveIntegerOption(
@@ -341,7 +341,7 @@ namespace Kabomu.QuasiHttp.Client
                 Connection = connection,
                 ResponseBufferingEnabled = mergedSendOptions.ResponseBufferingEnabled.Value,
                 ResponseBodyBufferingSizeLimit = mergedSendOptions.ResponseBodyBufferingSizeLimit,
-                MaxChunkSize = mergedSendOptions.MaxChunkSize,
+                MaxChunkSize = mergedSendOptions.MaxHeadersSize,
                 EnsureNonNullResponse = mergedSendOptions.EnsureNonNullResponse.Value,
             };
         }

@@ -27,16 +27,10 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         public static readonly int DefaultMaxChunkSize = 8_192;
 
         /// <summary>
-        /// The maximum value of a max chunk size that can be tolerated during chunk decoding even if it
-        /// exceeds the value used for sending. Equal to 65,536 bytes.
+        /// The maximum value of quasi http headers which will be tolerated regardless
+        /// of any lower limit.
         /// </summary>
-        /// <remarks>
-        /// Practically this means that communicating parties can safely send chunks not exceeding 64KB without
-        /// fear of rejection and without prior negotiation. Beyond 64KB however, communicating parties must have
-        /// some prior negotiation (manual or automated) on max chunk sizes, or else chunks may be rejected
-        /// by receivers as too large.
-        /// </remarks>
-        public static readonly int DefaultMaxChunkSizeLimit = 65_536;
+        public static readonly int DefaultHeadersSizeLimit = 65_536;
 
         /// <summary>
         /// Constant which communicates the largest chunk size possible with the standard chunk transfer 
@@ -87,9 +81,6 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <param name="reader">source of bytes representing subsequent
         /// chunk header which is acceptable by <see cref="IOUtils.ReadBytes"/> function.
         /// Must be specified if <paramref name="bufferToUse"/> argument is null.</param>
-        /// <param name="maxChunkSize">the maximum allowable size of the subsequent chunk to be decoded.
-        /// NB: This parameter imposes a maximum only on lead chunks exceeding 64KB in size. Can
-        /// pass zero to use default value.</param>
         /// <returns>a task whose result will be the number of bytes in the
         /// data following the decoded header.</returns>
         /// <exception cref="ChunkDecodingException">the bytes in the
@@ -97,12 +88,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
         /// <see cref="reader"/> argument do not represent a valid subsequent
         /// chunk header in version 1 format.</exception>
         public async Task<int> DecodeSubsequentChunkV1Header(
-            byte[] bufferToUse, object reader, int maxChunkSize = 0)
+            byte[] bufferToUse, object reader)
         {
-            if (maxChunkSize < DefaultMaxChunkSizeLimit)
-            {
-                maxChunkSize = DefaultMaxChunkSizeLimit;
-            }
             if (bufferToUse == null && reader == null)
             {
                 throw new ArgumentException("reader arg cannot be null if " +
@@ -119,7 +106,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 var chunkLen = ByteUtils.DeserializeUpToInt32BigEndian(
                     bufferToUse, 0, LengthOfEncodedChunkLength,
                     true);
-                ValidateChunkLength(chunkLen, maxChunkSize);
+                // skip check for maximum.
+                ValidateChunkLength(chunkLen, chunkLen);
 
                 int version = bufferToUse[LengthOfEncodedChunkLength];
                 //int flags = bufferToUse[LengthOfEncodedChunkLength+1];
@@ -159,9 +147,9 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 throw new ArgumentNullException(nameof(reader));
             }
-            if (maxChunkSize < DefaultMaxChunkSizeLimit)
+            if (maxChunkSize < DefaultHeadersSizeLimit)
             {
-                maxChunkSize = DefaultMaxChunkSizeLimit;
+                maxChunkSize = DefaultHeadersSizeLimit;
             }
             byte[] chunkBytes;
             try
@@ -212,7 +200,7 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             {
                 throw new ArgumentException($"encountered negative chunk size of {chunkLen}");
             }
-            if (chunkLen > DefaultMaxChunkSizeLimit && chunkLen > maxChunkSize)
+            if (chunkLen > DefaultHeadersSizeLimit && chunkLen > maxChunkSize)
             {
                 throw new ArgumentException(
                     $"encountered chunk size exceeding " +
@@ -462,7 +450,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
                 throw new InvalidOperationException("missing serialized representation");
             }
             await IOUtils.WriteBytes(writer, _csvDataPrefix, 0, _csvDataPrefix.Length);
-            await CsvUtils.SerializeTo(_csvData, writer);
+            var serialized = ByteUtils.StringToBytes(CsvUtils.Serialize(_csvData));
+            await IOUtils.WriteBytes(writer, serialized, 0, serialized.Length);
         }
 
         /// <summary>
@@ -491,7 +480,8 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
 
             if (length < 10)
             {
-                throw new ArgumentException("too small to be a valid lead chunk");
+                throw new ArgumentException("too small to be a valid " +
+                    "lead chunk: " + length);
             }
 
             var instance = new LeadChunk();

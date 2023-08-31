@@ -85,7 +85,7 @@ namespace Kabomu.QuasiHttp.Server
             CustomChunkedTransferCodec.UpdateRequest(request, chunk);
             request.Body = await ProtocolUtilsInternal.CreateBodyFromTransport(
                 reader, chunk.ContentLength, null,
-                MaxChunkSize, false, 0);
+                false, 0);
             return request;
         }
 
@@ -105,7 +105,7 @@ namespace Kabomu.QuasiHttp.Server
             var leadChunk = CustomChunkedTransferCodec.CreateFromResponse(response);
             await new CustomChunkedTransferCodec().WriteLeadChunk(writer, leadChunk, MaxChunkSize);
             await ProtocolUtilsInternal.TransferBodyToTransport(
-                writer, MaxChunkSize, response.Body, leadChunk.ContentLength);
+                writer, response.Body, leadChunk.ContentLength);
         }
     }
 }

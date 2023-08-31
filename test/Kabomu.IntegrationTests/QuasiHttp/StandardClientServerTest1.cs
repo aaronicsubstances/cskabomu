@@ -264,7 +264,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             remoteEndpoint = EndpointLang;
             sendOptions = new DefaultQuasiHttpSendOptions
             {
-                MaxChunkSize = 200,
+                MaxHeadersSize = 200,
                 ResponseBufferingEnabled = false
             };
             request = new DefaultQuasiHttpRequest
@@ -402,22 +402,22 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             remoteEndpoint = EndpointLang;
             sendOptions = new DefaultQuasiHttpSendOptions
             {
-                MaxChunkSize = 200_000,
+                MaxHeadersSize = 30_000,
                 ResponseBufferingEnabled = false
             };
             request = new DefaultQuasiHttpRequest
             {
                 Method = "GET",
-                Target = "really long".PadRight(70_000),
+                Target = "really long".PadRight(28_000),
                 HttpVersion = KeyHttpVersion1_0,
-                Body = new StringBody("long indeed".PadRight(100_000))
+                Body = new StringBody("long indeed".PadRight(400_000))
             };
             expectedResponseBodyBytes = ByteUtils.StringToBytes(
-                "LONG INDEED".PadRight(100_000));
+                "LONG INDEED".PadRight(400_000));
             expectedResponse = new DefaultQuasiHttpResponse
             {
                 StatusCode = 0,
-                HttpStatusMessage = "really long".PadRight(70_000),
+                HttpStatusMessage = "really long".PadRight(28_000),
                 HttpVersion = null,
                 Body = new ByteBufferBody(expectedResponseBodyBytes)
                 {
@@ -475,7 +475,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 },
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
-                    MaxChunkSize = 300_000,
+                    MaxHeadersSize = 40_000,
                     TimeoutMillis = 3_500
                 }
             };
@@ -503,7 +503,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 },
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
-                    MaxChunkSize = 100,
+                    MaxHeadersSize = 100,
                     TimeoutMillis = 2_000
                 }
             };

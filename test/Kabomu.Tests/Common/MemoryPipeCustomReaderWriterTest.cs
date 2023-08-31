@@ -64,7 +64,7 @@ namespace Kabomu.Tests.Common
 
             await instance.WriteBytes(new byte[10], 0, 0);
 
-            var delayTask = Task.Delay(500);
+            var delayTask = Task.Delay(200);
             Assert.Same(delayTask, await Task.WhenAny(readTask, delayTask));
 
             var writeTask = instance.WriteBytes(new byte[] { 0, 2, 4, 6, 8, 10 },
@@ -117,7 +117,7 @@ namespace Kabomu.Tests.Common
 
             await instance.WriteBytes(new byte[10], 0, 0);
 
-            var delayTask = Task.Delay(500);
+            var delayTask = Task.Delay(200);
             Assert.Same(delayTask, await Task.WhenAny(readTask, delayTask));
 
             var writeTask = instance.WriteBytes(new byte[] { 0, 2, 4, 6, 8, 10 },
@@ -157,10 +157,11 @@ namespace Kabomu.Tests.Common
         public async Task TestInternals3()
         {
             var instance = new MemoryPipeCustomReaderWriter();
+
+            var writeTask = instance.WriteBytes(new byte[] { 4, 5, 6 }, 0, 3);
+
             byte[] readBuffer = new byte[3];
             var readTask = instance.ReadBytes(readBuffer, 0, readBuffer.Length);
-
-            await instance.WriteBytes(new byte[] { 4, 5, 6 }, 0, 3);
             int readLen = await readTask;
             Assert.Equal(3, readLen);
             ComparisonUtils.CompareData(new byte[] { 4, 5, 6 }, 0, 3,
@@ -168,8 +169,23 @@ namespace Kabomu.Tests.Common
 
             await instance.WriteBytes(new byte[10], 0, 0);
 
-            var writeTask = instance.WriteBytes(new byte[] { 0, 2, 4, 6, 8, 10 },
+            readBuffer = new byte[4];
+            readTask = instance.ReadBytes(readBuffer, 0, 4);
+
+            writeTask = instance.WriteBytes(new byte[] { 0, 2, 4, 6, 8, 10 },
                 1, 4);
+            var delayTask = Task.Delay(200);
+            Assert.Same(writeTask, await Task.WhenAny(writeTask, delayTask));
+            
+            readLen = await readTask;
+            Assert.Equal(4, readLen);
+            ComparisonUtils.CompareData(new byte[] { 2, 4, 6, 8 }, 0, 4,
+                readBuffer, 0, readLen);
+
+            writeTask = instance.WriteBytes(new byte[] { 0, 2, 4, 6, 8, 10 },
+                1, 4);
+            delayTask = Task.Delay(200);
+            Assert.Same(delayTask, await Task.WhenAny(writeTask, delayTask));
 
             readLen = await instance.ReadBytes(readBuffer, 0, 3);
             Assert.Equal(3, readLen);
@@ -196,7 +212,7 @@ namespace Kabomu.Tests.Common
                 () => instance.WriteBytes(new byte[10], 0, 4));
             Assert.Contains("end of write", actualEx.Message);
 
-            readLen = await instance.ReadBytes(readBuffer, 0, readBuffer.Length);
+            readLen = await instance.ReadBytes(readBuffer, 0, 3);
             Assert.Equal(0, readLen);
 
             readLen = await instance.ReadBytes(readBuffer, 3, 0);

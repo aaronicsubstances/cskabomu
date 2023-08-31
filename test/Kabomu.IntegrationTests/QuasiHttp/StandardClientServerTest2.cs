@@ -515,7 +515,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             };
             var sendOptions = new DefaultQuasiHttpSendOptions
             {
-                MaxChunkSize = 200,
+                MaxHeadersSize = 200,
                 ResponseBodyBufferingSizeLimit = 20_000,
                 ResponseBufferingEnabled = false,
                 EnsureNonNullResponse = true,
@@ -540,7 +540,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 EnsureNonNullResponse = true,
                 ExtraConnectivityParams = new Dictionary<string, object>(),
                 TimeoutMillis = -1,
-                MaxChunkSize = 200,
+                MaxHeadersSize = 200,
                 ResponseBodyBufferingSizeLimit = 20_000,
                 ResponseBufferingEnabled = false
             };
@@ -703,7 +703,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 DefaultSendOptions = new DefaultQuasiHttpSendOptions
                 {
                     TimeoutMillis = 30_000,
-                    MaxChunkSize = 200,
+                    MaxHeadersSize = 200,
                     ResponseBodyBufferingSizeLimit = 20_000,
                     ResponseBufferingEnabled = true
                 }
@@ -728,7 +728,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 ExtraConnectivityParams = new Dictionary<string, object>(),
                 TimeoutMillis = 3_000,
-                MaxChunkSize = 200,
+                MaxHeadersSize = 200,
                 ResponseBodyBufferingSizeLimit = 20_000,
                 ResponseBufferingEnabled = true,
                 EnsureNonNullResponse = false

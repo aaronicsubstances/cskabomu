@@ -52,8 +52,8 @@ namespace Kabomu.Common
 
             // if bytes to read is zero at this stage,
             // go ahead and call backing reader
-            // (e.g. so that any error in backing reader can be thrown) unless,
-            // the length requested is positive.
+            // (e.g. so that any error in backing reader can be thrown),
+            // unless the length requested is positive.
             int bytesJustRead = 0;
             if (bytesToRead > 0 || length == 0)
             {

@@ -301,15 +301,15 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         [Theory]
         [MemberData(nameof(CreateTestDecodeSubsequentChunkV1HeaderData))]
         public async Task TestDecodeSubsequentChunkV1Header(byte[] srcData,
-            int maxChunkSize, int expected)
+            int expected)
         {
             var actual = await new CustomChunkedTransferCodec().DecodeSubsequentChunkV1Header(
-                srcData, null, maxChunkSize);
+                srcData, null);
             Assert.Equal(expected, actual);
 
             // should work indirectly with reader
             actual = await new CustomChunkedTransferCodec().DecodeSubsequentChunkV1Header(
-                null, new MemoryStream(srcData), maxChunkSize);
+                null, new MemoryStream(srcData));
             Assert.Equal(expected, actual);
         }
 
@@ -318,29 +318,24 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var testData = new List<object[]>();
 
             var srcData = new byte[] { 0, 0, 2, 1, 0 };
-            int maxChunkSize = 40;
             int expected = 0;
-            testData.Add(new object[] { srcData, maxChunkSize, expected });
+            testData.Add(new object[] { srcData, expected });
 
             srcData = new byte[] { 0, 0xea, 0x62, 1, 0 };
-            maxChunkSize = -1;
             expected = 60_000;
-            testData.Add(new object[] { srcData, maxChunkSize, expected });
+            testData.Add(new object[] { srcData, expected });
 
             srcData = new byte[] { 0, 0, 3, 1, 0 };
-            maxChunkSize = 0;
             expected = 1;
-            testData.Add(new object[] { srcData, maxChunkSize, expected });
+            testData.Add(new object[] { srcData, expected });
 
             srcData = new byte[] { 0, 2, 0x2d, 1, 0 };
-            maxChunkSize = 400; // ok because it is below hard limit
             expected = 555;
-            testData.Add(new object[] { srcData, maxChunkSize, expected });
+            testData.Add(new object[] { srcData, expected });
 
             srcData = new byte[] { 7, 0xce, 0xb3, 1, 0 };
-            maxChunkSize = 600_000;
             expected = 511_665;
-            testData.Add(new object[] { srcData, maxChunkSize, expected });
+            testData.Add(new object[] { srcData, expected });
 
             return testData;
         }
@@ -350,34 +345,27 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         {
             await Assert.ThrowsAsync<ArgumentException>(() =>
                 new CustomChunkedTransferCodec().DecodeSubsequentChunkV1Header(
-                    null, null, 0));
+                    null, null));
         }
 
         [Theory]
         [MemberData(nameof(CreateTestDecodeSubsequentChunkV1HeaderForErrorsData))]
-        public async Task TestDecodeSubsequentChunkV1HeaderForErrors(byte[] srcData,
-            int maxChunkSize)
+        public async Task TestDecodeSubsequentChunkV1HeaderForErrors(byte[] srcData)
         {
             await Assert.ThrowsAsync<ChunkDecodingException>(() =>
                 new CustomChunkedTransferCodec().DecodeSubsequentChunkV1Header(
-                    srcData, null, maxChunkSize));
+                    srcData, null));
         }
 
         public static List<object[]> CreateTestDecodeSubsequentChunkV1HeaderForErrorsData()
         {
             var testData = new List<object[]>();
 
-            var srcData = new byte[] { 7, 0xce, 0xb3, 1, 0 }; // 511,665
-            var maxChunkSize = 65_536;
-            testData.Add(new object[] { srcData, maxChunkSize });
-
-            srcData = new byte[] { 0xf7, 2, 9, 1, 0 }; // negative
-            maxChunkSize = 30_000;
-            testData.Add(new object[] { srcData, maxChunkSize });
+            var srcData = new byte[] { 0xf7, 2, 9, 1, 0 }; // negative
+            testData.Add(new object[] { srcData });
 
             srcData = new byte[] { 0, 2, 9, 0, 0 }; // version not set
-            maxChunkSize = 15_437;
-            testData.Add(new object[] { srcData, maxChunkSize });
+            testData.Add(new object[] { srcData });
 
             return testData;
         }

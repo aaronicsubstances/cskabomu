@@ -363,8 +363,7 @@ namespace Kabomu.Tests.QuasiHttp.Server
             object resBodyReader = bodyReceiver;
             if (expectedResChunk.ContentLength < 0)
             {
-                resBodyReader = new ChunkDecodingCustomReader(resBodyReader,
-                    CustomChunkedTransferCodec.HardMaxChunkSizeLimit);
+                resBodyReader = new ChunkDecodingCustomReader(resBodyReader);
             }
             var actualResBodyBytes = await IOUtils.ReadAllBytes(resBodyReader);
             if (expectedResponse.Body != null)
@@ -626,50 +625,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
         }
 
         [Fact]
-        public async Task TestRequestBodyWithChunksExceedingMaxChunkSizeError()
-        {
-            object connection = new List<object>();
-            var request = new DefaultQuasiHttpRequest
-            {
-                Body = new StringBody("data".PadLeft(70_000))
-                {
-                    ContentLength = -1
-                }
-            };
-            var reqStream = await CreateRequestStream(request,
-                0, 100_000);
-            var application = new ConfigurableQuasiHttpApplication
-            {
-                ProcessRequestCallback = async (request) =>
-                {
-                    // ReadAllBytes should throw error
-                    await IOUtils.ReadAllBytes(request.Body.AsReader());
-                    return new DefaultQuasiHttpResponse();
-                }
-            };
-            var resStream = new LambdaBasedCustomReaderWriter
-            {
-                WriteFunc = (data, offset, length)
-                    => Task.CompletedTask
-            };
-            var transport = new DemoQuasiHttpTransport(connection,
-                reqStream, resStream);
-            var instance = new DefaultReceiveProtocolInternal
-            {
-                Application = application,
-                Transport = transport,
-                Connection = connection,
-                MaxChunkSize = 69_000
-            };
-
-            var actualEx = await Assert.ThrowsAsync<ChunkDecodingException>(() =>
-                instance.Receive());
-            Assert.Contains("quasi http body", actualEx.Message);
-            Assert.NotNull(actualEx.InnerException);
-            Assert.Contains("chunk size exceeding max", actualEx.InnerException.Message);
-        }
-
-        [Fact]
         public async Task TestResponseHeadersExceedMaxChunkSizeError()
         {
             object connection = new List<object>();
@@ -707,68 +662,6 @@ namespace Kabomu.Tests.QuasiHttp.Server
             var actualEx = await Assert.ThrowsAsync<ChunkEncodingException>(() =>
                 instance.Receive());
             Assert.Contains("quasi http headers exceed max", actualEx.Message);
-        }
-
-        [Theory]
-        [InlineData(0, false)]
-        [InlineData(8_192, false)]
-        [InlineData(10_000, false)]
-        [InlineData(100_000, true)]
-        [InlineData(8_000_000, true)]
-        [InlineData(10_000_000, true)]
-        public async Task TestResponseBodyWithVariousMaxChunkSizes(int maxChunkSize,
-                bool shouldWork)
-        {
-            object connection = new object();
-            var request = new DefaultQuasiHttpRequest
-            {
-                Body = new StringBody("data".PadLeft(70_000))
-                {
-                    ContentLength = -1
-                }
-            };
-            var reqStream = await CreateRequestStream(request,
-                0, 100_000);
-            var application = new ConfigurableQuasiHttpApplication
-            {
-                ProcessRequestCallback = async (request) =>
-                {
-                    return new DefaultQuasiHttpResponse
-                    {
-                        Body = new StringBody("data".PadLeft(95_000))
-                        {
-                            ContentLength = -1
-                        }
-                    };
-                }
-            };
-            object resStream = new MemoryStream();
-            var transport = new DemoQuasiHttpTransport(connection,
-                reqStream, resStream);
-            var instance = new DefaultReceiveProtocolInternal
-            {
-                Application = application,
-                Transport = transport,
-                Connection = connection,
-                MaxChunkSize = 82_000
-            };
-
-            await instance.Receive();
-
-            ((MemoryStream)resStream).Position = 0; // reset for reading.
-            resStream = new ChunkDecodingCustomReader(resStream, maxChunkSize);
-
-            if (shouldWork)
-            {
-                await IOUtils.ReadAllBytes(resStream);
-                return;
-            }
-
-            var actualEx = await Assert.ThrowsAsync<ChunkDecodingException>(() =>
-                IOUtils.ReadAllBytes(resStream));
-            Assert.Contains("quasi http body", actualEx.Message);
-            Assert.NotNull(actualEx.InnerException);
-            Assert.Contains("chunk size exceeding max", actualEx.InnerException.Message);
         }
     }
 }

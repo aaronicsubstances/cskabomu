@@ -17,14 +17,14 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         public void TestForConstructionSuccess()
         {
             var reader = new MemoryStream();
-            _ = new ChunkDecodingCustomReader(reader, 10_000_000);
+            _ = new ChunkDecodingCustomReader(reader);
         }
 
         [Fact]
         public void TestForConstructionErrors()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                new ChunkDecodingCustomReader(null, 1));
+                new ChunkDecodingCustomReader(null));
         }
 
         [Fact]
@@ -61,9 +61,8 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 0, 0, 2, 1, 0
             };
             var backingReader = new MemoryStream(srcData);
-            int maxChunkSize = 25;
             var instance = new ChunkDecodingCustomReader(
-                backingReader, maxChunkSize);
+                backingReader);
             var writer = new MemoryStream();
             var expected = "data bits and places";
 
@@ -91,9 +90,8 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             };
             // get randomized read request sizes.
             var backingReader = new RandomizedReadSizeBufferReader(srcData);
-            int maxChunkSize = 6;
             var instance = new ChunkDecodingCustomReader(
-                backingReader, maxChunkSize);
+                backingReader);
             var writer = new MemoryStream();
             var expected = "data bits and bytes";
 
@@ -120,9 +118,8 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             };
             // get randomized read request sizes.
             var backingReader = new RandomizedReadSizeBufferReader(srcData);
-            int maxChunkSize = 9;
             var instance = new ChunkDecodingCustomReader(
-                backingReader, maxChunkSize);
+                backingReader);
             var writer = new MemoryStream();
             var expected = "data bits and byte";
 
@@ -148,9 +145,8 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 0, 0, 2, 1, 0
             };
             var backingReader = new MemoryStream(srcData);
-            int maxChunkSize = -8;
             var instance = new ChunkDecodingCustomReader(
-                backingReader, maxChunkSize);
+                backingReader);
             var writer = new MemoryStream();
             var expected = "it is finished.";
 
@@ -171,9 +167,8 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             // arrange
             var srcData = new byte[] { 0 ,0, 11, 1 };
             var backingReader = new MemoryStream(srcData);
-            int maxChunkSize = 9;
             var instance = new ChunkDecodingCustomReader(
-                backingReader, maxChunkSize);
+                backingReader);
             var writer = new MemoryStream();
 
             // act and assert
@@ -190,9 +185,8 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',
                 (byte)'i'};
             var backingReader = new MemoryStream(srcData);
-            int maxChunkSize = 9;
             var instance = new ChunkDecodingCustomReader(
-                backingReader, maxChunkSize);
+                backingReader);
             var writer = new MemoryStream();
 
             // act and assert

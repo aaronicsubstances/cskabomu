@@ -318,8 +318,8 @@ namespace Kabomu.Tests.Shared.Common
                 actualSendOptions.TimeoutMillis);
             Assert.Equal(expectedSendOptions.ExtraConnectivityParams,
                 actualSendOptions.ExtraConnectivityParams);
-            Assert.Equal(expectedSendOptions.MaxChunkSize,
-                actualSendOptions.MaxChunkSize);
+            Assert.Equal(expectedSendOptions.MaxHeadersSize,
+                actualSendOptions.MaxHeadersSize);
         }
 
         /// <summary>

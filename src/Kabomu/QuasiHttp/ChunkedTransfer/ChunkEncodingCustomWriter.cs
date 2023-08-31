@@ -83,6 +83,10 @@ namespace Kabomu.QuasiHttp.ChunkedTransfer
             return chunkRem;
         }
 
+        /// <summary>
+        /// Flushes out any buffered data and writes out final ending chunk to
+        /// backing writer.
+        /// </summary>
         public async Task EndWrites()
         {
             // write out remaining data.

@@ -127,7 +127,7 @@ namespace Kabomu.Common
         /// <param name="length">the number of bytes to write to instance</param>
         /// <returns>a task whose result is true if and only if
         /// write was permitted within high water mark setting</returns>
-        public async Task<bool> TryWriteBytes(byte[] data, int offset, int length)
+        private async Task<bool> TryWriteBytes(byte[] data, int offset, int length)
         {
             if (!ByteUtils.IsValidByteBufferSlice(data, offset, length))
             {
@@ -189,7 +189,7 @@ namespace Kabomu.Common
             Array.Copy(pendingWrite.Data, pendingWrite.Offset,
                 pendingRead.Data, pendingRead.Offset, bytesToReturn);
 
-            // do not invoke callbacks until state of this body is updated,
+            // do not invoke callbacks until state is updated,
             // to prevent error of re-entrant read byte requests
             // matching previous writes.
             // NB: not really necessary for promise-based implementations.
