@@ -1,9 +1,5 @@
 ﻿using Kabomu.Common;
-using Kabomu.Mediator;
-using Kabomu.Mediator.Handling;
-using Kabomu.Mediator.Registry;
 using Kabomu.QuasiHttp;
-using Kabomu.QuasiHttp.EntityBody;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -14,34 +10,21 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Examples.Shared
 {
-    public class FileReceiver
+    public class FileReceiver : IQuasiHttpApplication
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
+        private readonly object remoteEndpoint;
+        private readonly string downloadDirPath;
 
-        private FileReceiver() { }
-
-        public static IQuasiHttpApplication Create(object remoteEndpoint, string downloadDirPath)
-        {
-            var appConstants = new DefaultMutableRegistry();
-            appConstants.Add("remoteEndpoint", remoteEndpoint);
-            appConstants.Add("downloadDirPath", downloadDirPath);
-            var initialHandlers = new Handler[]
-            {
-                context => ReceiveFileTransfer(context)
-            };
-            var app = new MediatorQuasiWebApplication
-            {
-                InitialHandlers = initialHandlers,
-                HandlerConstants = appConstants
-            };
-            return app;
+        public FileReceiver(object remoteEndpoint,
+                string downloadDirPath) {
+            this.remoteEndpoint = remoteEndpoint;
+            this.downloadDirPath = downloadDirPath;
         }
 
-        private static async Task ReceiveFileTransfer(IContext context)
+        public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request)
         {
-            var remoteEndpoint = context.Get("remoteEndpoint");
-            var downloadDirPath = (string)context.Get("downloadDirPath");
-            var fileName = Path.GetFileName(context.Request.Headers.Get("f"));
+            var fileName = Path.GetFileName(request.Headers.Headers["f"][0]);
             LOG.Debug("Starting receipt of file {0} from {1}...", fileName, remoteEndpoint);
 
             Exception transferError = null;
@@ -55,8 +38,7 @@ namespace Kabomu.Examples.Shared
                 string p = Path.Combine(directory.Name, fileName);
                 using (var fileStream = new FileStream(p, FileMode.Create))
                 {
-                    var reader = context.Request.Body.AsReader();
-                    await IOUtils.CopyBytes(reader, fileStream);
+                    await IOUtils.CopyBytes(request.Body, fileStream);
                 }
             }
             catch (Exception e)
@@ -64,19 +46,23 @@ namespace Kabomu.Examples.Shared
                 transferError = e;
             }
 
-            LOG.Info(transferError, "File {0} received {1}", fileName, transferError == null ? "successfully" : "with error");
+            LOG.Info(transferError, "File {0} received {1}", fileName,
+                transferError == null ? "successfully" : "with error");
 
+            var responseHeaders = new DefaultQuasiHttpResponseHeaderPart();
             if (transferError == null)
             {
-                context.Response.SetSuccessStatusCode();
+                responseHeaders.StatusCode = QuasiHttpUtils.StatusCodeOk;
             }
             else
             {
-                context.Response.SetServerErrorStatusCode();
-                context.Response.RawResponse.HttpStatusMessage = transferError.Message;
+                responseHeaders.StatusCode = QuasiHttpUtils.StatusCodeServerError;
+                responseHeaders.HttpStatusMessage = transferError.Message;
             }
-
-            context.Response.Send();
+            return new DefaultQuasiHttpResponse
+            {
+                Headers = responseHeaders
+            };
         }
     }
 }

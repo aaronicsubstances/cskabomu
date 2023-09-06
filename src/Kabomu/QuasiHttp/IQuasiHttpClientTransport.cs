@@ -20,7 +20,7 @@ namespace Kabomu.QuasiHttp
         /// the <see cref="StandardQuasiHttpClient"/> class</param>
         /// <returns>a task whose result is ready for use as a duplex
         /// stream of data for reading and writing</returns>
-        Task<IConnectionAllocationResponse> AllocateConnection(
+        Task<IQuasiTcpConnection> AllocateConnection(
             object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions);
     }
 }

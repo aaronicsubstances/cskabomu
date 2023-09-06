@@ -26,11 +26,6 @@ namespace Kabomu.QuasiHttp
         /// </summary>
         public const int ReasonCodeTimeout = 2;
 
-        /// <summary>
-        /// Indicates that request processing has been explicitly cancelled by an end user.
-        /// </summary>
-        public const int ReasonCodeCancelled = 3;
-
         // the following codes are reserved for future use.
         private const int ReasonCodeReserved4 = 4;
         private const int ReasonCodeReserved5 = 5;

@@ -143,7 +143,7 @@ namespace Kabomu.QuasiHttp
         internal static async Task<IQuasiHttpResponse> ProcessSend(
             IQuasiHttpRequest request,
             IQuasiHttpTransport transport,
-            IConnectionAllocationResponse connection)
+            IQuasiTcpConnection connection)
         {
             if (transport == null)
             {
@@ -164,8 +164,8 @@ namespace Kabomu.QuasiHttp
 
                 var requestBodyReader = ProtocolUtilsInternal.CreateReaderToTransport(
                     headers.ContentLength, request.Body);
-                await transport.Write(connection,
-                    encodedHeaders, requestBodyReader, false);
+                await transport.Write(connection, false,
+                    encodedHeaders, requestBodyReader);
             }
 
             var encodedResponse = await transport.Read(connection, true);
@@ -176,18 +176,26 @@ namespace Kabomu.QuasiHttp
 
             var responseHeaders = HeadersCodec.DecodeResponseHeaders(
                 encodedResponse.Headers);
+            var rawResBody = encodedResponse.Body;
             Func<Task> releaseFunc = () => transport.ReleaseConnection(connection);
             var response = new DefaultQuasiHttpResponse
             {
                 Headers = responseHeaders,
-                Disposer = releaseFunc
+                Disposer = releaseFunc,
+                Environment = new Dictionary<string, object>
+                {
+                    {
+                        QuasiHttpUtils.EnvKeyRawBody,
+                        rawResBody
+                    }
+                }
             };
             response.Body = ProtocolUtilsInternal.CreateBodyFromTransport(
-                headers.ContentLength, encodedResponse.Body);
+                headers.ContentLength, rawResBody);
             return response;
         }
 
-        internal Task Abort(IConnectionAllocationResponse connection,
+        internal Task Abort(IQuasiTcpConnection connection,
             bool errorOccured)
         {
             if (errorOccured)

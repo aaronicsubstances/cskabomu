@@ -1,7 +1,6 @@
 ﻿using CommandLine;
 using Kabomu.Examples.Shared;
-using Kabomu.QuasiHttp.Client;
-using Kabomu.QuasiHttp.Transport;
+using Kabomu.QuasiHttp;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -36,14 +35,15 @@ namespace Tcp.FileClient
 
         static async Task RunMain(int serverPort, string uploadDirPath)
         {
-            var transport = new LocalhostTcpClientTransport();
-            var defaultSendOptions = new DefaultQuasiHttpSendOptions
+            var transport = new LocalhostTcpClientTransport
             {
-                TimeoutMillis = 5_000
+                DefaultSendOptions = new DefaultQuasiHttpProcessingOptions
+                {
+                    TimeoutMillis = 5_000
+                }
             };
             var instance = new StandardQuasiHttpClient
             {
-                DefaultSendOptions = defaultSendOptions,
                 Transport = transport
             };
 

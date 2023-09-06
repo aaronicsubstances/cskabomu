@@ -11,33 +11,47 @@ namespace Kabomu.Examples.Shared
 {
     public class LocalhostTcpClientTransport : IQuasiHttpClientTransport
     {
-        public async Task<IConnectionAllocationResponse> AllocateConnection(
+        public async Task<IQuasiTcpConnection> AllocateConnection(
             object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions)
         {
             int port = (int)remoteEndpoint;
-            var clientSocket = new Socket(IPAddress.Loopback.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            clientSocket.NoDelay = true;
-            await clientSocket.ConnectAsync(IPAddress.Loopback, port);
-            var response = new DefaultConnectionAllocationResponse
-            {
-                Connection = new SocketWrapper(clientSocket)
-            };
-            return response;
+            var socket = new Socket(IPAddress.Loopback.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            socket.NoDelay = true;
+            await socket.ConnectAsync(IPAddress.Loopback, port);
+            return new SocketConnection(socket, true,
+                sendOptions, DefaultSendOptions);
         }
 
-        public object GetWriter(object connection)
+        public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }
+
+        public object GetWriter(IQuasiTcpConnection connection)
         {
-            return LocalhostTcpServerTransport.GetWriterInternal(connection);
+            return ((SocketConnection)connection).Writer;
         }
 
-        public object GetReader(object connection)
+        public object GetReader(IQuasiTcpConnection connection)
         {
-            return LocalhostTcpServerTransport.GetReaderInternal(connection);
+            return ((SocketConnection)connection).Reader;
         }
 
-        public Task ReleaseConnection(object connection)
+        public Task ReleaseConnection(IQuasiTcpConnection connection)
         {
-            return LocalhostTcpServerTransport.ReleaseConnectionInternal(connection);
+            return ((SocketConnection)connection).Release();
+        }
+
+        public Task Write(IQuasiTcpConnection connection, bool isResponse,
+            byte[] encodedHeaders, object requestBodyReader)
+        {
+            return ((SocketConnection)connection).Write(isResponse,
+                encodedHeaders, requestBodyReader);
+        }
+
+        public Task<IEncodedReadRequest> Read(
+            IQuasiTcpConnection connection,
+            bool isResponse)
+        {
+            return ((SocketConnection)connection).Read(
+                isResponse);
         }
     }
 }

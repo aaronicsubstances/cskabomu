@@ -46,8 +46,16 @@ namespace Kabomu.QuasiHttp
 
             if (_chunkDataLenRem == 0)
             {
-                _chunkDataLenRem = await Decoder.DecodeSubsequentChunkV1Header(
-                    _wrappedReader);
+                try
+                {
+                    _chunkDataLenRem = await Decoder.DecodeBodyChunkV1Header(
+                        _wrappedReader);
+                }
+                catch (Exception e)
+                {
+                    throw new ChunkDecodingException("Failed to decode quasi http body while " +
+                        "decoding a chunk header", e);
+                }
                 if (_chunkDataLenRem == 0)
                 {
                     _lastChunkSeen = true;

@@ -1,6 +1,5 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
-using Kabomu.QuasiHttp.EntityBody;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -39,19 +38,20 @@ namespace Kabomu.Examples.Shared
 
         private static async Task TransferFile(StandardQuasiHttpClient instance, object serverEndpoint, FileInfo f)
         {
-            var request = new DefaultQuasiHttpRequest
+            var requestHeaders = new DefaultQuasiHttpRequestHeaderPart
             {
                 Headers = new Dictionary<string, IList<string>>()
             };
-            request.Headers.Add("f", new List<string> { f.Name });
+            var request = new DefaultQuasiHttpRequest
+            {
+                Headers = requestHeaders
+            };
+            requestHeaders.Headers.Add("f", new List<string> { f.Name });
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
-            long fLen = RandGen.NextDouble() < 0.5 ? -1 : f.Length;
-            request.Body = new LambdaBasedQuasiHttpBody
-            {
-                ReaderFunc = () => fileStream,
-                ContentLength = fLen
-            };
+            requestHeaders.ContentLength = RandGen.NextDouble() < 0.5 ? -1 : f.Length;
+            //requestHeaders.ContentLength = f.Length;
+            request.Body = fileStream;
             IQuasiHttpResponse res;
             try
             {
@@ -67,7 +67,7 @@ namespace Kabomu.Examples.Shared
                 LOG.Warn("Received no response.");
                 return;
             }
-            if (res.StatusCode == QuasiHttpUtils.StatusCodeOk)
+            if (res.Headers.StatusCode == QuasiHttpUtils.StatusCodeOk)
             {
                 LOG.Info("File {0} sent successfully", f.FullName);
             }
@@ -78,8 +78,8 @@ namespace Kabomu.Examples.Shared
                 {
                     try
                     {
-                        var responseMsgBytes = await IOUtils.ReadAllBytes(res.Body.AsReader());
-                        responseMsg = MiscUtils.BytesToString(responseMsgBytes);
+                        var responseMsgBytes = await IOUtils.ReadAllBytes(res.Body);
+                        responseMsg = Encoding.UTF8.GetString(responseMsgBytes);
                     }
                     catch (Exception)
                     {
@@ -87,7 +87,7 @@ namespace Kabomu.Examples.Shared
                     }
                 }
                 throw new Exception(string.Format("status code indicates error: {0}\n{1}",
-                    res.StatusCode, responseMsg));
+                    res.Headers.StatusCode, responseMsg));
             }
         }
     }

@@ -37,7 +37,7 @@ namespace Kabomu.QuasiHttp
         /// </summary>
         /// <param name="connection">the connection associated with the writer</param>
         /// <returns>a writer which can be used to write bytes to the connection argument</returns>
-        object GetWriter(IConnectionAllocationResponse connection);
+        object GetWriter(IQuasiTcpConnection connection);
 
         /// <summary>
         /// Gets a reader acceptable by <see cref="IOUtils.ReadBytes"/>,
@@ -46,17 +46,17 @@ namespace Kabomu.QuasiHttp
         /// </summary>
         /// <param name="connection">the connection associated with the reader</param>
         /// <returns>a reader which can be used to read bytes from the connection argument</returns>
-        object GetReader(IConnectionAllocationResponse connection);
+        object GetReader(IQuasiTcpConnection connection);
 
         /// <summary>
         /// Releases resources held by a connection of a quasi http transport instance.
         /// </summary>
         /// <param name="connection">the connection to release</param>
         /// <returns>a task representing the asynchronous connection release operation</returns>
-        Task ReleaseConnection(IConnectionAllocationResponse connection);
-        Task Write(IConnectionAllocationResponse connection,
-            byte[] encodedHeaders, object requestBodyReader, bool releaseConnection);
-        Task<IEncodedReadRequest> Read(IConnectionAllocationResponse connection,
-            bool canReleaseConnection);
+        Task ReleaseConnection(IQuasiTcpConnection connection);
+        Task Write(IQuasiTcpConnection connection, bool isResponse,
+            byte[] encodedHeaders, object requestBodyReader);
+        Task<IEncodedReadRequest> Read(IQuasiTcpConnection connection,
+            bool isResponse);
     }
 }

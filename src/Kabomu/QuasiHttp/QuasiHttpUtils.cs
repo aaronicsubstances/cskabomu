@@ -21,22 +21,23 @@ namespace Kabomu.QuasiHttp
         /// <summary>
         /// Request environment variable for remote client endpoint.
         /// </summary>
-        public static readonly string ReqEnvKeyRemotePeerEndpoint = "kabomu.remote_peer_endpoint";
+        public static readonly string EnvKeyRemotePeerEndpoint = "kabomu.remote_peer_endpoint";
 
         /// <summary>
         /// Request environment variable for the transport instance from which a request was received.
         /// </summary>
-        public static readonly string ReqEnvKeyTransportInstance = "kabomu.transport";
+        public static readonly string EnvKeyTransportInstance = "kabomu.transport";
 
         /// <summary>
         /// Request environment variable for the connection from which a request was received.
         /// </summary>
-        public static readonly string ReqEnvKeyConnection = "kabomu.connection";
+        public static readonly string EnvKeyConnection = "kabomu.connection";
 
         /// <summary>
-        /// Response environment variable for indicating whether or not response has been bufferred already.
+        /// Response environment variable indicating raw body received from transport
+        /// without any decoding applied.
         /// </summary>
-        public static readonly string ResEnvKeyResponseBufferingApplied = "kabomu.response_buffering_enabled";
+        public static readonly string EnvKeyRawBody = "kabomu.raw_body";
 
         /// <summary>
         /// Equals HTTP method "GET".

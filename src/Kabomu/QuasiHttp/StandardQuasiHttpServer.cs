@@ -47,7 +47,7 @@ namespace Kabomu.QuasiHttp
         /// </summary>
         /// <param name="connection">represents a connection and any associated information</param>
         /// <returns>a task representing asynchronous operation</returns>
-        public async Task AcceptConnection(IConnectionAllocationResponse connection)
+        public async Task AcceptConnection(IQuasiTcpConnection connection)
         {
             if (connection == null)
             {
@@ -58,7 +58,7 @@ namespace Kabomu.QuasiHttp
 
             try
             {
-                await ProcessReceive(Application, Transport,
+                await ProcessAccept(Application, Transport,
                     connection);
                 await Abort(transport, connection, false);
             }
@@ -76,10 +76,11 @@ namespace Kabomu.QuasiHttp
                 throw abortError;
             }
         }
-        internal static async Task ProcessReceive(
+
+        internal static async Task ProcessAccept(
             IQuasiHttpApplication application,
             IQuasiHttpTransport transport,
-            IConnectionAllocationResponse connection)
+            IQuasiTcpConnection connection)
         {
             if (transport == null)
             {
@@ -118,7 +119,7 @@ namespace Kabomu.QuasiHttp
 
         private static async Task<IQuasiHttpRequest> ReadRequest(
             IQuasiHttpTransport transport,
-            IConnectionAllocationResponse connection)
+            IQuasiTcpConnection connection)
         {
             var encodedRequest = await transport.Read(connection, false);
             if (encodedRequest?.Headers == null)
@@ -142,7 +143,7 @@ namespace Kabomu.QuasiHttp
         private static async Task WriteResponse(
             IQuasiHttpResponse response,
             IQuasiHttpTransport transport,
-            IConnectionAllocationResponse connection)
+            IQuasiTcpConnection connection)
         {
             var headers = response.Headers;
             if (headers == null)
@@ -155,12 +156,13 @@ namespace Kabomu.QuasiHttp
 
             var responseBodyReader = ProtocolUtilsInternal.CreateReaderToTransport(
                 headers.ContentLength, response.Body);
-            await transport.Write(connection,
-                encodedHeaders, responseBodyReader, true);
+
+            await transport.Write(connection, true,
+                encodedHeaders, responseBodyReader);
         }
 
         internal static async Task Abort(IQuasiHttpTransport transport,
-            IConnectionAllocationResponse connection, bool errorOccured)
+            IQuasiTcpConnection connection, bool errorOccured)
         {
             if (!errorOccured)
             {

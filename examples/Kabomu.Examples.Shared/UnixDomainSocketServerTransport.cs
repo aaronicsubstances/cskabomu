@@ -26,6 +26,8 @@ namespace Kabomu.Examples.Shared
 
         public StandardQuasiHttpServer Server { get; set; }
 
+        public IQuasiHttpProcessingOptions DefaultProcessingOptions { get; set; }
+
         public Task Start()
         {
             _serverSocket.Listen();
@@ -69,12 +71,9 @@ namespace Kabomu.Examples.Shared
         {
             try
             {
-                await Server.AcceptConnection(
-                    new DefaultConnectionAllocationResponse
-                    {
-                        Connection = new SocketWrapper(socket)
-                    }
-                );
+                var connection = new SocketConnection(socket, false,
+                    DefaultProcessingOptions);
+                await Server.AcceptConnection(connection);
             }
             catch (Exception ex)
             {
@@ -82,36 +81,34 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        public object GetWriter(object connection)
+        public object GetWriter(IQuasiTcpConnection connection)
         {
-            return GetWriterInternal(connection);
+            return ((SocketConnection)connection).Writer;
         }
 
-        public object GetReader(object connection)
+        public object GetReader(IQuasiTcpConnection connection)
         {
-            return GetReaderInternal(connection);
+            return ((SocketConnection)connection).Reader;
         }
 
-        public Task ReleaseConnection(object connection)
+        public Task ReleaseConnection(IQuasiTcpConnection connection)
         {
-            return ReleaseConnectionInternal(connection);
+            return ((SocketConnection)connection).Release();
         }
 
-        internal static object GetWriterInternal(object connection)
+        public Task Write(IQuasiTcpConnection connection, bool isResponse,
+            byte[] encodedHeaders, object requestBodyReader)
         {
-            return ((SocketWrapper)connection).Writer;
+            return ((SocketConnection)connection).Write(isResponse,
+                encodedHeaders, requestBodyReader);
         }
 
-        internal static object GetReaderInternal(object connection)
+        public Task<IEncodedReadRequest> Read(
+            IQuasiTcpConnection connection,
+            bool isResponse)
         {
-            return ((SocketWrapper)connection).Reader;
-        }
-
-        internal static Task ReleaseConnectionInternal(object connection)
-        {
-            var socket = ((SocketWrapper)connection).Socket;
-            socket.Dispose();
-            return Task.CompletedTask;
+            return ((SocketConnection)connection).Read(
+                isResponse);
         }
     }
 }

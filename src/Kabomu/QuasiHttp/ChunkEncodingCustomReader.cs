@@ -35,13 +35,21 @@ namespace Kabomu.QuasiHttp
             {
                 return 0;
             }
-            var (bytesRead, lastChunkSeen) = await Encoder.EncodeSubsequentChunkV1(
-                _wrappedReader, data, offset, length);
-            if (lastChunkSeen)
+            try
             {
-                _endOfReadSeen = true;
+                var (bytesRead, lastChunkSeen) = await Encoder.EncodeBodyChunkV1(
+                    _wrappedReader, data, offset, length);
+                if (lastChunkSeen)
+                {
+                    _endOfReadSeen = true;
+                }
+                return bytesRead;
             }
-            return bytesRead;
+            catch (Exception e)
+            {
+                throw new ChunkEncodingException("Failed to encode quasi http body chunk",
+                    e);
+            }
         }
     }
 }

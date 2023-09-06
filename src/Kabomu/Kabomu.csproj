@@ -1,23 +1,20 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net6.0;netcoreapp3.1;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net6.0</TargetFrameworks>
     <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/aaronicsubstances/cskabomu</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/aaronicsubstances/cskabomu.git</RepositoryUrl>
-    <PackageTags>quasi,http,networking,ipc,monolith,web,application,message queue</PackageTags>
+    <PackageTags>quasi,http,networking,ipc</PackageTags>
     <PackageId>AaronicSubstances.Kabomu</PackageId>
     <Authors>Aaron Baffour-Awuah</Authors>
     <Company>Aaronic Substances</Company>
-    <Description>Kabomu is a simple networking library that enables running HTTP semantics transparently over IPC mechanisms including but not limited to TCP. It makes it straightforward to even build web application semantics which are abstracted from the underlying IPC mechanism of choice.
-
-This enables programming the same HTTP semantics at the level of web applications, as quasi HTTP from small scale in memory, through medium scale on localhost between processes, to real HTTP at Internet scale, in a transport-agnostic way.
-
-This library has the goal of letting the software community have their cake and eat it, by enforcing monolithic architectures with serializable inter module communications, so that monolithic architectures remain simple to manage, and at the same time become straightforward to evolve into distributed systems.</Description>
+    <Description>Kabomu is a simple networking library that enables running HTTP semantics transparently over IPC mechanisms including but not limited to TCP. It makes it straightforward to even build web application semantics which are abstracted from the underlying IPC mechanism of choice.</Description>
     <Copyright>Copyright ©2022 Aaronic Substances</Copyright>
-    <Version>5.2.0</Version>
-    <PackageReleaseNotes>- Removed restrictions on size of chunks of quasi http bodies</PackageReleaseNotes>
+    <Version>6.0.0</Version>
+    <PackageReleaseNotes>- Restricted focus of project to just providing HTTP-like protocol over IPC
+- Removed Mediator quasi web microframework</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

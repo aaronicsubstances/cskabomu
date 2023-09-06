@@ -16,5 +16,4 @@ LocalhostTcpTransport
 -consider demonstrating connect/read timeout usage
 UnixSocketDomainTransport
 WindowsNamedPipeTransport
-HttpTransport
-MemoryTransport
+

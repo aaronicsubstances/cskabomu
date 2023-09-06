@@ -1,6 +1,6 @@
 ﻿using CommandLine;
 using Kabomu.Examples.Shared;
-using Kabomu.QuasiHttp.Server;
+using Kabomu.QuasiHttp;
 using NLog;
 using System;
 using System.Threading.Tasks;
@@ -35,15 +35,15 @@ namespace WindowsNamedPipe.FileServer
         {
             var instance = new StandardQuasiHttpServer
             {
+                Application = new FileReceiver(path, uploadDirPath)
+            };
+            var transport = new WindowsNamedPipeServerTransport(path)
+            {
+                Server = instance,
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     TimeoutMillis = 5_000
                 }
-            };
-            instance.Application = FileReceiver.Create(path, uploadDirPath);
-            var transport = new WindowsNamedPipeServerTransport(path)
-            {
-                Server = instance
             };
             instance.Transport = transport;
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.QuasiHttp;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -28,6 +29,7 @@ namespace Kabomu.Common
             }
             return n;
         }
+
         /// <summary>
         /// The limit of data buffering when reading byte streams into memory. Equal to 128 MB.
         /// </summary>
@@ -269,6 +271,125 @@ namespace Kabomu.Common
                     CsvUtils.Serialize(csv)));
             }
             return (ICustomReader)body;
+        }
+
+        public static IQuasiHttpProcessingOptions MergeProcessingOptions(
+            IQuasiHttpProcessingOptions preferred,
+            IQuasiHttpProcessingOptions fallback)
+        {
+            var mergedOptions = new DefaultQuasiHttpProcessingOptions();
+            mergedOptions.TimeoutMillis =
+                DetermineEffectiveNonZeroIntegerOption(
+                    preferred?.TimeoutMillis,
+                    fallback?.TimeoutMillis,
+                    0);
+
+            mergedOptions.ExtraConnectivityParams =
+                DetermineEffectiveOptions(
+                    preferred?.ExtraConnectivityParams,
+                    fallback?.ExtraConnectivityParams);
+
+            mergedOptions.ResponseBufferingEnabled =
+                DetermineEffectiveBooleanOption(
+                    preferred?.ResponseBufferingEnabled,
+                    fallback?.ResponseBufferingEnabled,
+                    true);
+
+            mergedOptions.MaxHeadersSize =
+                DetermineEffectivePositiveIntegerOption(
+                    preferred?.MaxHeadersSize,
+                    fallback?.MaxHeadersSize,
+                    0);
+
+            mergedOptions.ResponseBodyBufferingSizeLimit =
+                DetermineEffectivePositiveIntegerOption(
+                    preferred?.ResponseBodyBufferingSizeLimit,
+                    fallback?.ResponseBodyBufferingSizeLimit,
+                    0);
+            return mergedOptions;
+        }
+
+        internal static int DetermineEffectiveNonZeroIntegerOption(int? preferred,
+            int? fallback1, int defaultValue)
+        {
+            if (preferred.HasValue)
+            {
+                int effectiveValue = preferred.Value;
+                if (effectiveValue != 0)
+                {
+                    return effectiveValue;
+                }
+            }
+            if (fallback1.HasValue)
+            {
+                int effectiveValue = fallback1.Value;
+                if (effectiveValue != 0)
+                {
+                    return effectiveValue;
+                }
+            }
+            return defaultValue;
+        }
+
+        internal static int DetermineEffectivePositiveIntegerOption(int? preferred,
+            int? fallback1, int defaultValue)
+        {
+            if (preferred.HasValue)
+            {
+                int effectiveValue = preferred.Value;
+                if (effectiveValue > 0)
+                {
+                    return effectiveValue;
+                }
+            }
+            if (fallback1.HasValue)
+            {
+                int effectiveValue = fallback1.Value;
+                if (effectiveValue > 0)
+                {
+                    return effectiveValue;
+                }
+            }
+            return defaultValue;
+        }
+
+        internal static IDictionary<string, object> DetermineEffectiveOptions(
+            IDictionary<string, object> preferred, IDictionary<string, object> fallback)
+        {
+            var dest = new Dictionary<string, object>();
+            // since we want preferred options to overwrite fallback options,
+            // set fallback options first.
+            if (fallback != null)
+            {
+                foreach (var item in fallback)
+                {
+                    dest.Add(item.Key, item.Value);
+                }
+            }
+            if (preferred != null)
+            {
+                foreach (var item in preferred)
+                {
+                    if (dest.ContainsKey(item.Key))
+                    {
+                        dest[item.Key] = item.Value;
+                    }
+                    else
+                    {
+                        dest.Add(item.Key, item.Value);
+                    }
+                }
+            }
+            return dest;
+        }
+
+        internal static bool DetermineEffectiveBooleanOption(bool? preferred, bool? fallback1, bool defaultValue)
+        {
+            if (preferred.HasValue)
+            {
+                return preferred.Value;
+            }
+            return fallback1 ?? defaultValue;
         }
     }
 }

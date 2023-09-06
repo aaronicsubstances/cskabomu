@@ -6,17 +6,12 @@ namespace Kabomu.QuasiHttp
 {
     /// <summary>
     /// Contains connection-related information created by
-    /// <see cref="IQuasiHttpServerTransport"/> or <see cref="IQuasiHttpClientTransport"/>
-    /// instances, in response to a connection allocation or receive request.
+    /// <see cref="IQuasiHttpClientTransport"/> instances,
+    /// or acceptable by <see cref="IQuasiHttpServerTransport"/>
+    /// instances.
     /// </summary>
-    public interface IConnectionAllocationResponse
+    public interface IQuasiTcpConnection
     {
-        /// <summary>
-        /// Stores any objects which a quasi http transport will need
-        /// to respond to reads and writes from instances.
-        /// </summary>
-        object Connection { get; }
-
         IQuasiHttpProcessingOptions ProcessingOptions { get; }
 
         /// <summary>

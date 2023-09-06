@@ -23,6 +23,7 @@ namespace Kabomu.Examples.Shared
         }
 
         public StandardQuasiHttpServer Server { get; set; }
+        public IQuasiHttpProcessingOptions DefaultProcessingOptions { get; set; }
 
         public Task Start()
         {
@@ -68,12 +69,9 @@ namespace Kabomu.Examples.Shared
         {
             try
             {
-                await Server.AcceptConnection(
-                    new DefaultConnectionAllocationResponse
-                    {
-                        Connection = pipeServer
-                    }
-                );
+                var connection = new DuplexStreamConnection(pipeServer, false,
+                    DefaultProcessingOptions);
+                await Server.AcceptConnection(connection);
             }
             catch (Exception ex)
             {
@@ -81,36 +79,34 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        public object GetWriter(object connection)
+        public object GetWriter(IQuasiTcpConnection connection)
         {
-            return GetWriterInternal(connection);
+            return ((DuplexStreamConnection)connection).Writer;
         }
 
-        public object GetReader(object connection)
+        public object GetReader(IQuasiTcpConnection connection)
         {
-            return GetReaderInternal(connection);
+            return ((DuplexStreamConnection)connection).Reader;
         }
 
-        public Task ReleaseConnection(object connection)
+        public Task ReleaseConnection(IQuasiTcpConnection connection)
         {
-            return ReleaseConnectionInternal(connection);
+            return ((DuplexStreamConnection)connection).Release();
         }
 
-        internal static object GetWriterInternal(object connection)
+        public Task Write(IQuasiTcpConnection connection, bool isResponse,
+            byte[] encodedHeaders, object requestBodyReader)
         {
-            return (PipeStream)connection;
+            return ((DuplexStreamConnection)connection).Write(isResponse,
+                encodedHeaders, requestBodyReader);
         }
 
-        internal static object GetReaderInternal(object connection)
+        public Task<IEncodedReadRequest> Read(
+            IQuasiTcpConnection connection,
+            bool isResponse)
         {
-            return (PipeStream)connection;
-        }
-
-        internal static Task ReleaseConnectionInternal(object connection)
-        {
-            var pipeStream = (PipeStream)connection;
-            pipeStream.Dispose();
-            return Task.CompletedTask;
+            return ((DuplexStreamConnection)connection).Read(
+                isResponse);
         }
     }
 }

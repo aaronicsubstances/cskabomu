@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 namespace Kabomu.Common
 {
     /// <summary>
-    /// Implementation of <see cref="ICustomReader"/> and
-    /// <see cref="ICustomWriter"/> interfaces which delegates
-    /// to externally supplied lambda functions.
+    /// Implementation of <see cref="ICustomDisposable"/>,
+    /// <see cref="ICustomReader"/> and <see cref="ICustomWriter"/>
+    /// interfaces which delegates to externally supplied lambda functions.
     /// </summary>
     public class LambdaBasedCustomReaderWriter : ICustomReader, ICustomWriter, ICustomDisposable
     {
