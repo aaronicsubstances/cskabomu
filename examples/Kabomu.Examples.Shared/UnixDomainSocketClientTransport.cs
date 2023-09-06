@@ -1,5 +1,4 @@
-﻿using Kabomu.QuasiHttp.Client;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,7 +11,7 @@ namespace Kabomu.Examples.Shared
     public class UnixDomainSocketClientTransport : IQuasiHttpClientTransport
     {
         public async Task<IConnectionAllocationResponse> AllocateConnection(
-            object remoteEndpoint, IQuasiHttpSendOptions sendOptions)
+            object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions)
         {
             var path = (string)remoteEndpoint;
             var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);

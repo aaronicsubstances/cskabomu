@@ -13,7 +13,7 @@ namespace Kabomu.Tests.Common
         [MemberData(nameof(CreateTestIsValidByteBufferSliceData))]
         public void TestIsValidByteBufferSlice(byte[] data, int offset, int length, bool expected)
         {
-            bool actual = ByteUtils.IsValidByteBufferSlice(data, offset, length);
+            bool actual = MiscUtils.IsValidByteBufferSlice(data, offset, length);
             Assert.Equal(expected, actual);
         }
 
@@ -38,13 +38,13 @@ namespace Kabomu.Tests.Common
         [Fact]
         public void TestStringToBytes()
         {
-            var actual = ByteUtils.StringToBytes("");
+            var actual = MiscUtils.StringToBytes("");
             Assert.Equal(new byte[0], actual);
 
-            actual = ByteUtils.StringToBytes("abc");
+            actual = MiscUtils.StringToBytes("abc");
             Assert.Equal(new byte[] { (byte)'a', (byte)'b', (byte)'c' }, actual);
 
-            actual = ByteUtils.StringToBytes("Foo \u00a9 bar \U0001d306 baz \u2603 qux");
+            actual = MiscUtils.StringToBytes("Foo \u00a9 bar \U0001d306 baz \u2603 qux");
             Assert.Equal(new byte[] { 0x46, 0x6f, 0x6f, 0x20, 0xc2, 0xa9, 0x20, 0x62, 0x61, 0x72, 0x20,
                 0xf0, 0x9d, 0x8c, 0x86, 0x20, 0x62, 0x61, 0x7a, 0x20, 0xe2, 0x98, 0x83,
                 0x20, 0x71, 0x75, 0x78 }, actual);
@@ -57,18 +57,18 @@ namespace Kabomu.Tests.Common
             int offset = 0;
             int length = 0;
             var expected = "";
-            var actual = ByteUtils.BytesToString(data, offset, length);
+            var actual = MiscUtils.BytesToString(data, offset, length);
             Assert.Equal(expected, actual);
-            actual = ByteUtils.BytesToString(data);
+            actual = MiscUtils.BytesToString(data);
             Assert.Equal(expected, actual);
 
             offset = 0;
             data = new byte[] { (byte)'a', (byte)'b', (byte)'c' };
             length = data.Length;
             expected = "abc";
-            actual = ByteUtils.BytesToString(data, offset, length);
+            actual = MiscUtils.BytesToString(data, offset, length);
             Assert.Equal(expected, actual);
-            actual = ByteUtils.BytesToString(data);
+            actual = MiscUtils.BytesToString(data);
             Assert.Equal(expected, actual);
 
             offset = 1;
@@ -77,7 +77,7 @@ namespace Kabomu.Tests.Common
                 0x20, 0x71, 0x75, 0x78 };
             length = data.Length - 2;
             expected = "oo \u00a9 bar \U0001d306 baz \u2603 qu";
-            actual = ByteUtils.BytesToString(data, offset, length);
+            actual = MiscUtils.BytesToString(data, offset, length);
             Assert.Equal(expected, actual);
         }
 
@@ -88,7 +88,7 @@ namespace Kabomu.Tests.Common
         {
             byte[] actual = new byte[rawBytes.Length];
             Array.Copy(rawBytes, actual, rawBytes.Length);
-            ByteUtils.SerializeUpToInt32BigEndian(v, actual, offset, length);
+            MiscUtils.SerializeUpToInt32BigEndian(v, actual, offset, length);
             Assert.Equal(expected, actual);
         }
 
@@ -123,9 +123,9 @@ namespace Kabomu.Tests.Common
         [Fact]
         public void TestSerializeUpToInt32BigEndianForErrors()
         {
-            Assert.Throws<ArgumentException>(() => ByteUtils.SerializeUpToInt32BigEndian(1, new byte[2], -1, 0));
-            Assert.Throws<ArgumentException>(() => ByteUtils.SerializeUpToInt32BigEndian(2, new byte[2], 0, -1));
-            Assert.Throws<ArgumentException>(() => ByteUtils.SerializeUpToInt32BigEndian(3, new byte[20], 0, 10));
+            Assert.Throws<ArgumentException>(() => MiscUtils.SerializeUpToInt32BigEndian(1, new byte[2], -1, 0));
+            Assert.Throws<ArgumentException>(() => MiscUtils.SerializeUpToInt32BigEndian(2, new byte[2], 0, -1));
+            Assert.Throws<ArgumentException>(() => MiscUtils.SerializeUpToInt32BigEndian(3, new byte[20], 0, 10));
         }
 
         [Theory]
@@ -133,7 +133,7 @@ namespace Kabomu.Tests.Common
         public void TestDeserializeUpToInt32BigEndian(byte[] rawBytes,
             int offset, int length, bool signed, int expected)
         {
-            var actual = ByteUtils.DeserializeUpToInt32BigEndian(rawBytes, offset, length, signed);
+            var actual = MiscUtils.DeserializeUpToInt32BigEndian(rawBytes, offset, length, signed);
             Assert.Equal(expected, actual);
         }
 
@@ -167,18 +167,18 @@ namespace Kabomu.Tests.Common
         public void TestDeserializeUpToInt32BigEndianForErrors()
         {
             Assert.Throws<ArgumentException>(() =>
-                ByteUtils.DeserializeUpToInt32BigEndian(new byte[2], -1, 0, false));
+                MiscUtils.DeserializeUpToInt32BigEndian(new byte[2], -1, 0, false));
             Assert.Throws<ArgumentException>(() =>
-                ByteUtils.DeserializeUpToInt32BigEndian(new byte[2], 0, -1, false));
+                MiscUtils.DeserializeUpToInt32BigEndian(new byte[2], 0, -1, false));
             Assert.Throws<ArgumentException>(() =>
-                ByteUtils.DeserializeUpToInt32BigEndian(new byte[20], 0, 10, true));
+                MiscUtils.DeserializeUpToInt32BigEndian(new byte[20], 0, 10, true));
         }
 
         [Theory]
         [MemberData(nameof(CreateTestParseInt48Data))]
         public void TestParseInt48(string input, long expected)
         {
-            var actual = ByteUtils.ParseInt48(input);
+            var actual = MiscUtils.ParseInt48(input);
             Assert.Equal(expected, actual);
         }
 
@@ -216,7 +216,7 @@ namespace Kabomu.Tests.Common
         public void TestParsetInt48ForErrors(string input)
         {
             var ex = Assert.ThrowsAny<Exception>(() =>
-                ByteUtils.ParseInt48(input));
+                MiscUtils.ParseInt48(input));
             if (input != null)
             {
                 Assert.IsAssignableFrom<FormatException>(ex);

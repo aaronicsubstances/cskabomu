@@ -40,7 +40,7 @@ namespace Memory.FileExchange
             var serverEndpoint = "kumasi";
             var instance = new StandardQuasiHttpClient
             {
-                DefaultSendOptions = new DefaultQuasiHttpSendOptions
+                DefaultSendOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     TimeoutMillis = 5_000
                 }

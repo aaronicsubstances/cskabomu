@@ -1,4 +1,4 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -8,53 +8,43 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp
 {
     /// <summary>
-    /// Provides convenient implementation of <see cref="IQuasiHttpRequest"/> and
-    /// <see cref="IQuasiHttpMutableRequest"/> interfaces.
+    /// Provides convenient implementation of <see cref="IQuasiHttpRequest"/>
+    /// interface.
     /// </summary>
-    public class DefaultQuasiHttpRequest : IQuasiHttpMutableRequest
+    public class DefaultQuasiHttpRequest : IQuasiHttpRequest
     {
         /// <summary>
-        /// Gets or sets the equivalent of request target component of HTTP request line.
+        /// Creates a new instance with the <see cref="Disposer"/>
+        /// property initialized to a function which tries to
+        /// dispose off <see cref="Body"/> property if it implements the
+        /// <see cref="ICustomDisposable"/> interface.
         /// </summary>
-        public string Target { get; set; }
+        public DefaultQuasiHttpRequest()
+        {
+            Disposer = async () =>
+            {
+                if (Body is ICustomDisposable disposable)
+                {
+                    var disposer = disposable.Disposer;
+                    if (disposer != null)
+                    {
+                        await disposer();
+                    }
+                }
+            };
+        }
 
-        /// <summary>
-        /// Gets or sets the equivalent of HTTP request headers.
-        /// </summary>
-        /// <remarks>
-        /// Unlike in HTTP, headers are case sensitive. Also setting a Content-Length header
-        /// here will have no bearing on how to transmit or receive the request body.
-        /// </remarks>
-        public IDictionary<string, IList<string>> Headers { get; set; }
+        public IQuasiHttpRequestHeaderPart Headers { get; set; }
 
         /// <summary>
         /// Gets or sets the request body.
         /// </summary>
-        public IQuasiHttpBody Body { get; set; }
-
-        /// <summary>
-        /// Gets or sets an HTTP method value.
-        /// </summary>
-        public string Method { get; set; }
-
-        /// <summary>
-        /// Gets or sets an HTTP request version value.
-        /// </summary>
-        public string HttpVersion { get; set; }
+        public object Body { get; set; }
 
         /// Gets or sets any objects which may be of interest to code
-        /// which will process this request instance.
+        /// which will process a request.
         public IDictionary<string, object> Environment { get; set; }
 
-        /// <summary>
-        /// Releases the <see cref="Body"/> property.
-        /// Nothing is done if body is null.
-        /// </summary>
-        /// <returns>a task representing the asynchronous release operation</returns>
-        public Task Release()
-        {
-            var endReadTask = Body?.Release();
-            return endReadTask ?? Task.CompletedTask;
-        }
+        public Func<Task> Disposer { get; set; }
     }
 }

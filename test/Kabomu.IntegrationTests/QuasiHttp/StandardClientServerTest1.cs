@@ -1,8 +1,6 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
-using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.QuasiHttp.Server;
 using Kabomu.QuasiHttp.Transport;
 using Kabomu.Tests.Shared.Common;
 using Kabomu.Tests.Shared.QuasiHttp;
@@ -46,9 +44,9 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         {
             var instance = new StandardQuasiHttpClient();
             await Assert.ThrowsAsync<ArgumentNullException>(() =>
-                instance.Send(3, null, new DefaultQuasiHttpSendOptions()));
+                instance.Send(3, null, new DefaultQuasiHttpProcessingOptions()));
             Assert.Throws<ArgumentNullException>(() =>
-                instance.Send2(3, null, new DefaultQuasiHttpSendOptions()));
+                instance.Send2(3, null, new DefaultQuasiHttpProcessingOptions()));
 
             // test that Cancel doesn't complain when given invalid arguments.
             instance.CancelSend(null);
@@ -110,7 +108,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 Transport = clientTransport
             };
-            var sendOptions = new DefaultQuasiHttpSendOptions
+            var sendOptions = new DefaultQuasiHttpProcessingOptions
             {
                 ExtraConnectivityParams = new Dictionary<string, object>
                 {
@@ -154,7 +152,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             {
                 Transport = clientTransport,
                 TransportBypass = clientTransportBypass,
-                DefaultSendOptions = new DefaultQuasiHttpSendOptions
+                DefaultSendOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     TimeoutMillis = 5_000
                 }
@@ -221,7 +219,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
 
             // next
             var remoteEndpoint = EndpointParrot;
-            DefaultQuasiHttpSendOptions sendOptions = null;
+            DefaultQuasiHttpProcessingOptions sendOptions = null;
             var expectedResponseBodyBytes = new byte[] {(byte)'d', (byte)'i',
                 (byte)'d', (byte)' ', (byte)'i', (byte)'t' };
             var request = new DefaultQuasiHttpRequest
@@ -237,7 +235,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                     { KeyStatusCode, new List<string>{ "201" } },
                     { KeyStatusPhrase, new List<string>{ "Accepted" } }
                 },
-                Body = new StringBody(ByteUtils.BytesToString(expectedResponseBodyBytes))
+                Body = new StringBody(MiscUtils.BytesToString(expectedResponseBodyBytes))
             };
             var expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -262,7 +260,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
 
             // next
             remoteEndpoint = EndpointLang;
-            sendOptions = new DefaultQuasiHttpSendOptions
+            sendOptions = new DefaultQuasiHttpProcessingOptions
             {
                 MaxHeadersSize = 200,
                 ResponseBufferingEnabled = false
@@ -274,7 +272,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 HttpVersion = KeyHttpVersion1_0,
                 Body = new StringBody("hello")
             };
-            expectedResponseBodyBytes = ByteUtils.StringToBytes("HELLO");
+            expectedResponseBodyBytes = MiscUtils.StringToBytes("HELLO");
             expectedResponse = new DefaultQuasiHttpResponse
             {
                 StatusCode = 0,
@@ -330,7 +328,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
 
             // next...
             remoteEndpoint = EndpointPascal;
-            sendOptions = new DefaultQuasiHttpSendOptions
+            sendOptions = new DefaultQuasiHttpProcessingOptions
             {
                 ExtraConnectivityParams = new Dictionary<string, object>
                 {
@@ -400,7 +398,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
 
             // next...
             remoteEndpoint = EndpointLang;
-            sendOptions = new DefaultQuasiHttpSendOptions
+            sendOptions = new DefaultQuasiHttpProcessingOptions
             {
                 MaxHeadersSize = 30_000,
                 ResponseBufferingEnabled = false
@@ -412,7 +410,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
                 HttpVersion = KeyHttpVersion1_0,
                 Body = new StringBody("long indeed".PadRight(400_000))
             };
-            expectedResponseBodyBytes = ByteUtils.StringToBytes(
+            expectedResponseBodyBytes = MiscUtils.StringToBytes(
                 "LONG INDEED".PadRight(400_000));
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -561,7 +559,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         private static async Task<IQuasiHttpResponse> CapitalizationApplicationServer(
             IQuasiHttpRequest request)
         {
-            var bodyAsString = ByteUtils.BytesToString(
+            var bodyAsString = MiscUtils.BytesToString(
                 await IOUtils.ReadAllBytes(request.Body.AsReader()));
             bodyAsString = bodyAsString.ToUpperInvariant();
             return new DefaultQuasiHttpResponse
@@ -626,7 +624,7 @@ namespace Kabomu.IntegrationTests.QuasiHttp
         class Test1Data
         {
             public string RemoteEndpoint { get; set; }
-            public IQuasiHttpSendOptions SendOptions { get; set; }
+            public IQuasiHttpProcessingOptions SendOptions { get; set; }
             public IQuasiHttpRequest Request { get; set; }
             public IQuasiHttpResponse ExpectedResponse { get; set; }
             public byte[] ExpectedResponseBodyBytes { get; set; }

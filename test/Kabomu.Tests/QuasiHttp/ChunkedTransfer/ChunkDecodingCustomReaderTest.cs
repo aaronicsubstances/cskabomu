@@ -42,7 +42,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             await IOUtils.CopyBytes(instance, writer);
 
             // assert
-            Assert.Equal(expected, ByteUtils.BytesToString(
+            Assert.Equal(expected, MiscUtils.BytesToString(
                 writer.ToArray()));
 
             // ensure subsequent reading attempts return 0
@@ -70,7 +70,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             await IOUtils.CopyBytes(instance, writer);
 
             // assert
-            Assert.Equal(expected, ByteUtils.BytesToString(
+            Assert.Equal(expected, MiscUtils.BytesToString(
                 writer.ToArray()));
 
             // ensure subsequent reading attempts return 0
@@ -99,7 +99,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             await IOUtils.CopyBytes(instance, writer);
 
             // assert
-            Assert.Equal(expected, ByteUtils.BytesToString(
+            Assert.Equal(expected, MiscUtils.BytesToString(
                 writer.ToArray()));
 
             // ensure subsequent reading attempts return 0
@@ -127,7 +127,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             await IOUtils.CopyBytes(instance, writer);
 
             // assert
-            Assert.Equal(expected, ByteUtils.BytesToString(
+            Assert.Equal(expected, MiscUtils.BytesToString(
                 writer.ToArray()));
 
             // ensure subsequent reading attempts return 0
@@ -154,7 +154,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             await IOUtils.CopyBytes(instance, writer);
 
             // assert
-            Assert.Equal(expected, ByteUtils.BytesToString(
+            Assert.Equal(expected, MiscUtils.BytesToString(
                 writer.ToArray()));
 
             // ensure subsequent reading attempts return 0

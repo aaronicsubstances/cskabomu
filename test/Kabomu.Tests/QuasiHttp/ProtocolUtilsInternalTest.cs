@@ -484,7 +484,7 @@ namespace Kabomu.Tests.QuasiHttp
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e', (byte)'f' };
             bufferingLimit = expectedResBodyBytes.Length;
-            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes))
+            responseBody = new StringBody(MiscUtils.BytesToString(expectedResBodyBytes))
             {
                 ContentLength = -10
             };
@@ -493,7 +493,7 @@ namespace Kabomu.Tests.QuasiHttp
             expectedResBodyBytes = new byte[]{ (byte)'a', (byte)'b', (byte)'c', (byte)'d',
                 (byte)'e' };
             bufferingLimit = expectedResBodyBytes.Length;
-            responseBody = new StringBody(ByteUtils.BytesToString(expectedResBodyBytes));
+            responseBody = new StringBody(MiscUtils.BytesToString(expectedResBodyBytes));
             testData.Add(new object[] { bufferingLimit, responseBody, expectedResBodyBytes });
 
             bufferingLimit = 8;
@@ -521,7 +521,7 @@ namespace Kabomu.Tests.QuasiHttp
         public async Task TestCreateEquivalentInMemoryBodyForErrors1()
         {
             int bufferingLimit = 3;
-            var responseBody = new ByteBufferBody(ByteUtils.StringToBytes("xyz!"));
+            var responseBody = new ByteBufferBody(MiscUtils.StringToBytes("xyz!"));
             var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
             {
                 return ProtocolUtilsInternal.CreateEquivalentOfUnknownBodyInMemory(responseBody,
@@ -582,7 +582,7 @@ namespace Kabomu.Tests.QuasiHttp
             await ProtocolUtilsInternal.TransferBodyToTransport(writerWrapper,
                 body, body.ContentLength);
 
-            Assert.Equal(expected, ByteUtils.BytesToString(
+            Assert.Equal(expected, MiscUtils.BytesToString(
                 writer.ToArray()));
         }
 
@@ -601,7 +601,7 @@ namespace Kabomu.Tests.QuasiHttp
             };
             var srcData = "ice";
             var reader = new MemoryStream(
-                ByteUtils.StringToBytes(srcData));
+                MiscUtils.StringToBytes(srcData));
 
             var body = new LambdaBasedQuasiHttpBody
             {
@@ -615,7 +615,7 @@ namespace Kabomu.Tests.QuasiHttp
 
             // check that release is not called on body during transfer.
             var actual = await IOUtils.ReadAllBytes(body.AsReader());
-            Assert.Equal(srcData, ByteUtils.BytesToString(actual));
+            Assert.Equal(srcData, MiscUtils.BytesToString(actual));
         }
 
         // 
@@ -628,7 +628,7 @@ namespace Kabomu.Tests.QuasiHttp
             var writer = new MemoryStream();
             var expected = "frutis and pils";
             var reader = new MemoryStream(
-                ByteUtils.StringToBytes(expected));
+                MiscUtils.StringToBytes(expected));
 
             var body = new LambdaBasedQuasiHttpBody
             {
@@ -637,7 +637,7 @@ namespace Kabomu.Tests.QuasiHttp
             await ProtocolUtilsInternal.TransferBodyToTransport(writer,
                 body, 456);
 
-            Assert.Equal(expected, ByteUtils.BytesToString(
+            Assert.Equal(expected, MiscUtils.BytesToString(
                 writer.ToArray()));
         }
 
@@ -664,7 +664,7 @@ namespace Kabomu.Tests.QuasiHttp
         {
             // arrange
             var srcData = "ice";
-            var expectedData = ByteUtils.StringToBytes(srcData);
+            var expectedData = MiscUtils.StringToBytes(srcData);
             var reader = new MemoryStream(expectedData);
             long contentLength = srcData.Length;
             Func<Task> releaseFunc = null;
@@ -689,7 +689,7 @@ namespace Kabomu.Tests.QuasiHttp
         {
             // arrange
             var srcData = "ice";
-            var expectedData = ByteUtils.StringToBytes(srcData);
+            var expectedData = MiscUtils.StringToBytes(srcData);
             var srcStream = new MemoryStream(expectedData);
             var reader = new LambdaBasedCustomReaderWriter
             {
@@ -730,7 +730,7 @@ namespace Kabomu.Tests.QuasiHttp
                 (byte)'a', (byte)'n', (byte)'d', (byte)' ', (byte)'b',
                 (byte)'y', (byte)'t', (byte)'e', 0, 0, 2, 1, 0
             };
-            var expectedData = ByteUtils.StringToBytes("data bits and byte");
+            var expectedData = MiscUtils.StringToBytes("data bits and byte");
             var srcStream = new MemoryStream(srcData);
             var reader = new LambdaBasedCustomReaderWriter
             {
@@ -767,7 +767,7 @@ namespace Kabomu.Tests.QuasiHttp
                 (byte)'a', (byte)'n', (byte)'d', (byte)' ', (byte)'b',
                 (byte)'y', (byte)'t', (byte)'e', (byte)'s', 0, 0, 2, 1, 0
             };
-            var expectedData = ByteUtils.StringToBytes("bits and bytes");
+            var expectedData = MiscUtils.StringToBytes("bits and bytes");
             var reader = new MemoryStream(srcData);
             long contentLength = -2;
             var releaseCallCount = 0;
@@ -804,7 +804,7 @@ namespace Kabomu.Tests.QuasiHttp
         {
             // arrange
             var srcData = "";
-            var expectedData = ByteUtils.StringToBytes(srcData);
+            var expectedData = MiscUtils.StringToBytes(srcData);
             var reader = new MemoryStream(expectedData);
             long contentLength = 0;
             Func<Task> releaseFunc = null;
@@ -825,7 +825,7 @@ namespace Kabomu.Tests.QuasiHttp
         {
             // arrange
             var srcData = "dump inuendo";
-            var expectedData = ByteUtils.StringToBytes(srcData);
+            var expectedData = MiscUtils.StringToBytes(srcData);
             var reader = new MemoryStream(expectedData);
             long contentLength = 0;
             var releaseCallCount = 0;
@@ -858,7 +858,7 @@ namespace Kabomu.Tests.QuasiHttp
                 (byte)'a', (byte)'n', (byte)'d', (byte)' ', (byte)'b',
                 (byte)'y', (byte)'t', (byte)'e', (byte)'s', 0, 0, 2, 1, 0
             };
-            var expectedData = ByteUtils.StringToBytes("bits and bytes");
+            var expectedData = MiscUtils.StringToBytes("bits and bytes");
             var reader = new MemoryStream(srcData);
             long contentLength = -3;
             Func<Task> releaseFunc = null;
@@ -880,7 +880,7 @@ namespace Kabomu.Tests.QuasiHttp
         {
             // arrange
             var srcData = "ice";
-            var expectedData = ByteUtils.StringToBytes(srcData);
+            var expectedData = MiscUtils.StringToBytes(srcData);
             var reader = new MemoryStream(expectedData);
             long contentLength = 10;
             var releaseCallCount = 0;

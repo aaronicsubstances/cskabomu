@@ -1,5 +1,4 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.EntityBody;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -14,36 +13,14 @@ namespace Kabomu.QuasiHttp
     public interface IQuasiHttpResponse : ICustomDisposable
     {
         /// <summary>
-        /// Gets the equivalent of HTTP response status code.
+        /// Gets the equivalent of HTTP status line and response headers.
         /// </summary>
-        int StatusCode { get; }
-
-        /// <summary>
-        /// Gets the equivalent of HTTP response headers.
-        /// </summary>
-        /// <remarks>
-        /// Unlike in HTTP/1.1, headers are case-sensitive and lower-cased
-        /// header names are recommended
-        /// <para></para>
-        /// Also setting a Content-Length header
-        /// here will have no bearing on how to transmit or receive the response body.
-        /// </remarks>
-        IDictionary<string, IList<string>> Headers { get; }
+        IQuasiHttpResponseHeaderPart Headers { get; }
 
         /// <summary>
         /// Gets the response body.
         /// </summary>
-        IQuasiHttpBody Body { get; }
-
-        /// <summary>
-        /// Gets an HTTP response status text or reason phrase.
-        /// </summary>
-        string HttpStatusMessage { get; }
-
-        /// <summary>
-        /// Gets an HTTP response version value.
-        /// </summary>
-        string HttpVersion { get; }
+        object Body { get; }
 
         /// Gets any objects which may be of interest during response processing.
         IDictionary<string, object> Environment { get; }

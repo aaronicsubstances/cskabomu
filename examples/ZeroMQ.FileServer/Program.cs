@@ -1,6 +1,6 @@
 ﻿using CommandLine;
 using Kabomu.Examples.Shared;
-using Kabomu.QuasiHttp.Server;
+using Kabomu.QuasiHttp;
 using NetMQ;
 using NetMQ.Sockets;
 using NLog;

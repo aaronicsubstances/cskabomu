@@ -38,13 +38,4 @@ The deployment environment of Kabomu is within the same computing host via IPC m
 
 In other words, use of TCP on localhost for HTTP is not necessary when faster and more memory efficient alternatives exist. Most HTTP libraries out there assume (rightly) that the underlying protocol is TCP, and so do not abstract away the underlying transport for possible use with IPC mechanisms.
 
-Also it is my observation that for communications not involving Web browsers, HTTP itself is strictly needed only in its semantics and programming API, and not its syntax. Thus Quasi-HTTP protocols can be developed for implementing a subset of HTTP semantics, but with different syntax, especially with different underlying transports other than TCP.
-
-Quasi-HTTP's design seeks to retain HTTP's resemblance to making local procedure calls, since both are all request-response protocols. However when communication goes beyond a single host (computer), clients must be aware of certain challenges which are absent when making local procedure calls.
-
-1. A message may experience significant delays during its transmission, so that the usual style of blocking for responses during local procedure call may be inefficient. This suggests that clients use non-blocking style (e.g. through callbacks, promises, futures), and have timeouts for efficient utilization of computing resources.
-2. A request or its response may be lost or destroyed in the network (e.g. due to a network disconnection), and hence will never reach its intended destination. Hence clients must be prepared to deal with the situation where during a timeout, one cannot know (at least immediately) whether the request was processed or not.
-3. A message may be modified accidentally or maliciously by the network before reaching its intended destination, so that destination gets a corrupted or wrong message. Hence clients must be prepared to deal with matters of network security.
-3. A message may be larger than what a network is capable of transmitting at once, or larger than what the receiving end is capable of processing at once. Hence clients must be prepared to fragment some of their messages for transmission, and reassemble the fragments on delivery.
-
-*Kabomu currently relies on underlying transports to deal with all of these networking challenges, even on localhost. Hence the easiest way to connect Kabomu to a transport implementation, is to use IPC mechanisms which provide ordered delivery of messages with duplicate protection, similar to TCP.*
+Also it is my observation that for communications not involving Web browsers, HTTP itself is strictly needed only in its semantics and programming API, and not its syntax. Thus Quasi-HTTP protocols can be developed for implementing a subset of HTTP semantics for IPC mechanisms which are connection-oriented like TCP.

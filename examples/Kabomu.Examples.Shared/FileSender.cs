@@ -1,6 +1,5 @@
 ﻿using Kabomu.Common;
 using Kabomu.QuasiHttp;
-using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using NLog;
 using System;
@@ -80,7 +79,7 @@ namespace Kabomu.Examples.Shared
                     try
                     {
                         var responseMsgBytes = await IOUtils.ReadAllBytes(res.Body.AsReader());
-                        responseMsg = ByteUtils.BytesToString(responseMsgBytes);
+                        responseMsg = MiscUtils.BytesToString(responseMsgBytes);
                     }
                     catch (Exception)
                     {

@@ -1,4 +1,4 @@
-﻿using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Common;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -8,55 +8,45 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp
 {
     /// <summary>
-    /// Provides default implementation of <see cref="IQuasiHttpResponse"/> and
-    /// <see cref="IQuasiHttpMutableResponse"/> interfaces.
+    /// Provides default implementation of <see cref="IQuasiHttpResponse"/>
+    /// interface.
     /// </summary>
-    public class DefaultQuasiHttpResponse : IQuasiHttpMutableResponse
+    public class DefaultQuasiHttpResponse : IQuasiHttpResponse
     {
         /// <summary>
-        /// Gets or sets the equivalent of HTTP response status code.
+        /// Creates a new instance with the <see cref="Disposer"/>
+        /// property initialized to a function which tries to
+        /// dispose off <see cref="Body"/> property if it implements the
+        /// <see cref="ICustomDisposable"/> interface.
         /// </summary>
-        public int StatusCode { get; set; }
+        public DefaultQuasiHttpResponse()
+        {
+            Disposer = async () =>
+            {
+                if (Body is ICustomDisposable disposable)
+                {
+                    var disposer = disposable.Disposer;
+                    if (disposer != null)
+                    {
+                        await disposer();
+                    }
+                }
+            };
+        }
 
-        /// <summary>
-        /// Gets or sets the equivalent of HTTP response headers.
-        /// </summary>
-        /// <remarks>
-        /// Unlike in HTTP, headers are case-sensitive. Also, setting a Content-Length header
-        /// here will have no bearing on how to transmit or receive the response body.
-        /// </remarks>
-        public IDictionary<string, IList<string>> Headers { get; set; }
+        public IQuasiHttpResponseHeaderPart Headers { get; set; }
 
         /// <summary>
         /// Gets or sets the response body.
         /// </summary>
-        public IQuasiHttpBody Body { get; set; }
-
-        /// <summary>
-        /// Gets or sets an HTTP response status text or reason phrase.
-        /// </summary>
-        public string HttpStatusMessage { get; set; }
-
-        /// <summary>
-        /// Gets or sets an HTTP response version value.
-        /// </summary>
-        public string HttpVersion { get; set; }
+        public object Body { get; set; }
 
         /// <summary>
         /// Gets or sets any objects which may be of interest to the code which
-        /// will process this response instance.
+        /// will process a response.
         /// </summary>
         public IDictionary<string, object> Environment { get; set; }
 
-        /// <summary>
-        /// Releases the <see cref="Body"/> property.
-        /// Nothing is done if body is null.
-        /// </summary>
-        /// <returns>a task representing the asynchronous release operation</returns>
-        public Task Release()
-        {
-            var endReadTask = Body?.Release();
-            return endReadTask ?? Task.CompletedTask;
-        }
+        public Func<Task> Disposer { get; set; }
     }
 }

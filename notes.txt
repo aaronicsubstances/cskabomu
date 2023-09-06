@@ -18,9 +18,3 @@ UnixSocketDomainTransport
 WindowsNamedPipeTransport
 HttpTransport
 MemoryTransport
-
-Optimize?
---------
-1. Implement Stream subclasses to serve as counterpart of ContentLengthEnforcingCustomReader, ChunkDecodingCustomReader and ChunkEncodingCustomWriter, so
-   as to wrap returns from Transport.GetReader()/GetWriter() which are instances of Stream class.
-2. Make use of System.Memory Nuget package to replace all usages of byte[] with Memory<byte>, ReadOnlyMemory<byte> and ReadOnlySequence<byte>

@@ -1,5 +1,5 @@
 ﻿using Kabomu.Common;
-using Kabomu.QuasiHttp.Transport;
+using Kabomu.QuasiHttp;
 using Kabomu.Tests.Shared.QuasiHttp;
 using System;
 using System.Collections.Generic;
@@ -236,8 +236,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             var msgBytes = new byte[10];
             await IOUtils.ReadBytesFully(reader, msgBytes, 0, msgBytes.Length);
             var msg = new TestMessage();
-            msg.Input = ByteUtils.DeserializeUpToInt32BigEndian(msgBytes, 0, 4, true);
-            msg.Priority = ByteUtils.DeserializeUpToInt32BigEndian(msgBytes, 4, 4, true);
+            msg.Input = MiscUtils.DeserializeUpToInt32BigEndian(msgBytes, 0, 4, true);
+            msg.Priority = MiscUtils.DeserializeUpToInt32BigEndian(msgBytes, 4, 4, true);
             msg.CannotAnswerQuestions = msgBytes[8] != 0;
             msg.Output = msgBytes[9] != 0;
             return msg;
@@ -247,8 +247,8 @@ namespace Kabomu.IntegrationTests.QuasiHttp
             TestMessage msg)
         {
             var msgBytes = new byte[10];
-            ByteUtils.SerializeUpToInt32BigEndian(msg.Input, msgBytes, 0, 4);
-            ByteUtils.SerializeUpToInt32BigEndian(msg.Priority, msgBytes, 4, 4);
+            MiscUtils.SerializeUpToInt32BigEndian(msg.Input, msgBytes, 0, 4);
+            MiscUtils.SerializeUpToInt32BigEndian(msg.Priority, msgBytes, 4, 4);
             msgBytes[8] = msg.CannotAnswerQuestions ? (byte)1 : (byte)0;
             msgBytes[9] = msg.Output ? (byte)1 : (byte)0;
             await IOUtils.WriteBytes(writer, msgBytes, 0, msgBytes.Length);

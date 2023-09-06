@@ -242,7 +242,7 @@ namespace Kabomu.Tests.Common
         public async Task TestCopyBytesWithStreams(string srcData)
         {
             // arrange
-            var expected = ByteUtils.StringToBytes(srcData);
+            var expected = MiscUtils.StringToBytes(srcData);
             var readerStream = new MemoryStream(expected);
             var writerStream = new MemoryStream();
 
@@ -258,7 +258,7 @@ namespace Kabomu.Tests.Common
         public async Task TestCopyBytesWithRemainingBytes(string srcData)
         {
             // arrange
-            var expected = ByteUtils.StringToBytes(srcData);
+            var expected = MiscUtils.StringToBytes(srcData);
 
             // double the expectation and read half way,
             // to test that remaining bytes are correctly copied

@@ -7,11 +7,27 @@ using System.Threading.Tasks;
 namespace Kabomu.Common
 {
     /// <summary>
-    /// Provides helper functions for writing and reading bytes to byte sources
-    /// and destinations.
+    /// Provides helper functions for common operations performed by
+    /// during custom chunk protocol processing.
     /// </summary>
     public static class IOUtils
     {
+        /// <summary>
+        /// Parses a string as a valid 48-bit signed integer.
+        /// </summary>
+        /// <param name="input">the string to parse. Can be surrounded by
+        /// whitespace</param>
+        /// <returns>verified 48-bit integer</returns>
+        /// <exception cref="FormatException">if an error occurs</exception>
+        public static long ParseInt48(string input)
+        {
+            var n = long.Parse(input);
+            if (n < -140_737_488_355_328L || n > 140_737_488_355_327L)
+            {
+                throw new FormatException("invalid 48-bit integer: " + input);
+            }
+            return n;
+        }
         /// <summary>
         /// The limit of data buffering when reading byte streams into memory. Equal to 128 MB.
         /// </summary>
@@ -231,6 +247,28 @@ namespace Kabomu.Common
                     break;
                 }
             }
+        }
+
+        public static object NormalizeReader(object body)
+        {
+            if (body is Stream s)
+            {
+                return s;
+            }
+            if (body is byte[] buffer)
+            {
+                return new MemoryStream(buffer);
+            }
+            if (body is string d)
+            {
+                return new MemoryStream(Encoding.UTF8.GetBytes(d));
+            }
+            if (body is IList<IList<string>> csv)
+            {
+                return new MemoryStream(Encoding.UTF8.GetBytes(
+                    CsvUtils.Serialize(csv)));
+            }
+            return (ICustomReader)body;
         }
     }
 }

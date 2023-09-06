@@ -29,7 +29,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             await instance.WriteOutSerializedRepresentation(inputStream);
             var actualBytes = inputStream.ToArray();
 
-            var expectedBytes = ByteUtils.StringToBytes(
+            var expectedBytes = MiscUtils.StringToBytes(
                 "\u0001\u00000,\"\",0,0,0,\"\",0,\"\",0,\"\"\n");
             Assert.Equal(expectedBytes, actualBytes);
             Assert.Equal(expectedBytes.Length, computedByteCount);
@@ -46,7 +46,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             {
                 Version = CustomChunkedTransferCodec.Version01
             };
-            var equivalentBytes = ByteUtils.StringToBytes(
+            var equivalentBytes = MiscUtils.StringToBytes(
                 "\u0001\u0000true,\"\",0,0,false,\"\",\"\",\"\",2,\"\"\n");
             var actualChunk = CustomChunkedTransferCodec.Deserialize(
                 equivalentBytes, 0, equivalentBytes.Length);
@@ -79,7 +79,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             await instance.WriteOutSerializedRepresentation(inputStream);
             var actualBytes = inputStream.ToArray();
 
-            var expectedBytes = ByteUtils.StringToBytes(
+            var expectedBytes = MiscUtils.StringToBytes(
                 "\u0001\u00021,/detail,200,20,1,POST,1,1.0,1,ok\n" +
                 "accept,text/plain,text/xml\n" +
                 "b,myinside\u00c6.team\n");
@@ -109,7 +109,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             expectedChunk.Headers.Add("accept", new List<string> { "text/plain", "", "text/xml" });
             expectedChunk.Headers.Add("b", new List<string> { "myinside\u00c6.team" });
 
-            var equivalentBytes = ByteUtils.StringToBytes(
+            var equivalentBytes = MiscUtils.StringToBytes(
                 "\u0001\u00021,/detail,200,20,1,POST,1,1.0,1,ok\n" +
                 "accept,text/plain\n" +
                 "accept,\"\"\n" +
@@ -149,7 +149,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             await instance.WriteOutSerializedRepresentation(inputStream);
             var actualBytes = inputStream.ToArray();
 
-            var expectedBytes = ByteUtils.StringToBytes(
+            var expectedBytes = MiscUtils.StringToBytes(
                 "\u0001\u00021,/detail,200,20,1,POST,1,1.0,1,ok\n" +
                 "accept,\"\",text/plain,text/xml\n" +
                 "b,myinside\u00c6.team\n");
@@ -174,7 +174,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             expectedChunk.Headers.Add("content-type", new List<string> { "application/json" });
             expectedChunk.Headers.Add("allow", new List<string> { "GET,POST" });
 
-            var srcBytes = ByteUtils.StringToBytes(
+            var srcBytes = MiscUtils.StringToBytes(
                 "\u0001\u00001,\"http://www.yoursite.com/category/keyword1,keyword2\"," +
                 "2147483647,140737488355327,1,PUT,0,\"\",1,ok\n" +
                 "content-type,application/json\n" +
@@ -241,7 +241,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         {
             var ex = Assert.Throws<ArgumentException>(() =>
             {
-                var data = ByteUtils.StringToBytes(
+                var data = MiscUtils.StringToBytes(
                     "\u0001\u00001,\"http://www.yoursite.com/category/keyword1,keyword2\"," +
                     "2147483647,140737488355328,1,PUT,0,\"\",1,ok\n" +
                     "content-type,application/json\n" +
@@ -256,7 +256,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         {
             var ex = Assert.Throws<ArgumentException>(() =>
             {
-                var data = ByteUtils.StringToBytes(
+                var data = MiscUtils.StringToBytes(
                     "\u0001\u00001,\"http://www.yoursite.com/category/keyword1,keyword2\"," +
                     "2147483648,140737488355327,1,PUT,0,\"\",1,ok\n" +
                     "content-type,application/json\n" +
@@ -378,7 +378,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             {
                 Version = CustomChunkedTransferCodec.Version01
             };
-            var serializedLeadChunkSuffix = ByteUtils.StringToBytes(
+            var serializedLeadChunkSuffix = MiscUtils.StringToBytes(
                 "0,\"\",0,0,0,\"\",0,\"\",0,\"\"\n");
             var expectedStream = new MemoryStream();
             expectedStream.Write(new byte[] { 0, 0, 26, 1, 0 });
@@ -404,7 +404,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 Version = CustomChunkedTransferCodec.Version01,
                 Flags = 5
             };
-            var serializedLeadChunkSuffix = ByteUtils.StringToBytes(
+            var serializedLeadChunkSuffix = MiscUtils.StringToBytes(
                 "0,\"\",0,0,0,\"\",0,\"\",0,\"\"\n");
             var expectedStream = new MemoryStream();
             expectedStream.Write(new byte[] { 0, 0, 26, 1, 5 });
@@ -442,7 +442,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                     { "two", new List<string>{ "2", "2"} }
                 }
             };
-            var serializedLeadChunkSuffix = ByteUtils.StringToBytes(
+            var serializedLeadChunkSuffix = MiscUtils.StringToBytes(
                 "1,/foo/bar,201,-4000,1,GET,1,1.1,1,Accepted for processing\n" +
                 "one,1\n" +
                 "two,2,2\n"
@@ -481,8 +481,8 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
 
             var expected = new MemoryStream();
             expected.Write(new byte[] { 1, 0x11, 0x8d, 1, 0 });
-            expected.Write(ByteUtils.StringToBytes("0,\"\",0,0,0,\"\",0,\"\",0,\"\"\n"));
-            expected.Write(ByteUtils.StringToBytes(("h".PadLeft(70_000) + ",1\n")));
+            expected.Write(MiscUtils.StringToBytes("0,\"\",0,0,0,\"\",0,\"\",0,\"\"\n"));
+            expected.Write(MiscUtils.StringToBytes(("h".PadLeft(70_000) + ",1\n")));
 
             var destStream = new MemoryStream();
 
@@ -603,7 +603,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         public async Task TestReadLeadChunk1()
         {
             // arrange.
-            var serializedLeadChunkSuffix = ByteUtils.StringToBytes(
+            var serializedLeadChunkSuffix = MiscUtils.StringToBytes(
                 "0,\"\",0,0,0,\"\",0,\"\",0,\"\"\n");
             var srcStream = new MemoryStream();
             srcStream.Write(new byte[] { 0, 0, 26, 1, 0 });
@@ -626,7 +626,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         public async Task TestReadLeadChunk2()
         {
             // arrange.
-            var serializedLeadChunkSuffix = ByteUtils.StringToBytes(
+            var serializedLeadChunkSuffix = MiscUtils.StringToBytes(
                 "0,\"\",100,1,0,\"\",0,\"\",0,\"\"\n");
             var srcStream = new MemoryStream();
             srcStream.Write(new byte[] { 0, 0, 28, 1, 0 });
@@ -670,7 +670,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
         public async Task TestReadLeadChunkForLaxityInChunkSizeCheck()
         {
             // arrange.
-            var serializedLeadChunkSuffix = ByteUtils.StringToBytes(
+            var serializedLeadChunkSuffix = MiscUtils.StringToBytes(
                 "1,/abcdefghijklmop,0,0,0,\"\",0,\"\",0,\"\"\n");
             var srcStream = new MemoryStream();
             srcStream.Write(new byte[] { 0, 0, 40, 1, 0 });
@@ -703,12 +703,12 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var srcStream = new MemoryStream();
             // length = 320_022, which exceeds 64kb
             srcStream.Write(new byte[] { 0x04, 0xe2, 0x16, 1, 1 });
-            srcStream.Write(ByteUtils.StringToBytes(
+            srcStream.Write(MiscUtils.StringToBytes(
                 "1,1,1,1,1,1,1,1,1,1\n"));
             for (int i = 0; i < 40_000; i++)
             {
                 var key = $"{i}".PadLeft(5, '0');
-                srcStream.Write(ByteUtils.StringToBytes($"{key},1\n"));
+                srcStream.Write(MiscUtils.StringToBytes($"{key},1\n"));
             }
             srcStream.Position = 0; // reset for reading.
             int maxChunkSize = 400_000;

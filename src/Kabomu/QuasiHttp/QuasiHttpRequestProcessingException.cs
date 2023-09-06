@@ -6,8 +6,8 @@ using System.Text;
 namespace Kabomu.QuasiHttp
 {
     /// <summary>
-    /// Error thrown by instances of <see cref="Client.StandardQuasiHttpClient"/> and
-    /// <see cref="Server.StandardQuasiHttpServer"/> which can provide details of error conditions
+    /// Error thrown by instances of <see cref="StandardQuasiHttpClient"/> and
+    /// <see cref="StandardQuasiHttpServer"/> which can provide details of error conditions
     /// in the form of numeric reason codes.
     /// </summary>
     /// <remarks>

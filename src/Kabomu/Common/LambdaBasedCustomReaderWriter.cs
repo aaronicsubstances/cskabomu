@@ -8,8 +8,10 @@ namespace Kabomu.Common
     /// <see cref="ICustomWriter"/> interfaces which delegates
     /// to externally supplied lambda functions.
     /// </summary>
-    public class LambdaBasedCustomReaderWriter : ICustomReader, ICustomWriter
+    public class LambdaBasedCustomReaderWriter : ICustomReader, ICustomWriter, ICustomDisposable
     {
+        public Func<Task> Disposer { get; set; }
+
         /// <summary>
         /// Gets or sets lambda function for performing read operation.
         /// </summary>

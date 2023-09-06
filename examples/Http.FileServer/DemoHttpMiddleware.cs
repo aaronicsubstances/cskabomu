@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Kabomu.Common;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.QuasiHttp.Server;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;

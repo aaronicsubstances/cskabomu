@@ -1,0 +1,212 @@
+﻿using Kabomu.Common;
+using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
+[assembly: InternalsVisibleTo("Kabomu.Tests.Shared")]
+[assembly: InternalsVisibleTo("Kabomu.Tests")]
+[assembly: InternalsVisibleTo("Kabomu.IntegrationTests")]
+
+namespace Kabomu.QuasiHttp
+{
+    /// <summary>
+    /// The standard implementation of the client side of the quasi http protocol defined by the Kabomu library.
+    /// </summary>
+    /// <remarks>
+    /// This class provides the client facing side of networking for end users. It is the complement to the 
+    /// <see cref="StandardQuasiHttpServer"/> class for supporting the semantics of HTTP client libraries
+    /// whiles enabling underlying transport options beyond TCP.
+    /// <para></para>
+    /// Therefore this class can be seen as the equivalent of an HTTP client that extends underlying transport beyond TCP
+    /// to IPC mechanisms and even interested connectionless transports as well.
+    /// </remarks>
+    public class StandardQuasiHttpClient
+    {
+        private static readonly QuasiHttpHeadersCodec HeadersCodec =
+            new QuasiHttpHeadersCodec();
+
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
+        public StandardQuasiHttpClient()
+        {
+        }
+
+        /// <summary>
+        /// Gets or sets the underlying transport (TCP or IPC) by which connections
+        /// will be allocated for sending requests and receiving responses.
+        /// </summary>
+        public virtual IQuasiHttpClientTransport Transport { get; set; }
+
+        /// <summary>
+        /// Sends a quasi http request via quasi http transport.
+        /// </summary>
+        /// <param name="remoteEndpoint">the destination endpoint of the request</param>
+        /// <param name="request">the request to send</param>
+        /// <param name="options">optional send options</param>
+        /// <returns>a task whose result will be the quasi http response returned from the remote endpoint</returns>
+        /// <exception cref="ArgumentNullException">The <paramref name="request"/> argument is null</exception>
+        /// <exception cref="MissingDependencyException">The <see cref="Transport"/>
+        /// property is null.</exception>
+        public async Task<IQuasiHttpResponse> Send(object remoteEndpoint,
+            IQuasiHttpRequest request, IQuasiHttpProcessingOptions options = null)
+        {
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            return await SendInternal(remoteEndpoint, request, null, options);
+        }
+
+        /// <summary>
+        /// Sends a quasi http request via quasi http transport and makes it posssible to
+        /// receive connection allocation information before creating request.
+        /// </summary>
+        /// <param name="remoteEndpoint">the destination endpoint of the request</param>
+        /// <param name="requestFunc">a callback which receives any environment
+        /// associated with the connection that may be created.
+        /// Returns a promise of the request to send</param>
+        /// <param name="options">optional send options</param>
+        /// <returns>a task whose result will be the quasi http response returned from the remote endpoint.</returns>
+        /// <exception cref="ArgumentNullException">The <paramref name="requestFunc"/> argument is null</exception>
+        /// <exception cref="MissingDependencyException">The <see cref="Transport"/>
+        /// property is null.</exception>
+        public async Task<IQuasiHttpResponse> Send2(object remoteEndpoint,
+            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
+            IQuasiHttpProcessingOptions options = null)
+        {
+            if (requestFunc == null)
+            {
+                throw new ArgumentNullException(nameof(requestFunc));
+            }
+            return await SendInternal(remoteEndpoint, null, requestFunc,
+                options);
+        }
+
+        private async Task<IQuasiHttpResponse> SendInternal(
+            object remoteEndpoint,
+            IQuasiHttpRequest request,
+            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
+            IQuasiHttpProcessingOptions sendOptions)
+        {
+            // access fields for use per request call, in order to cooperate with
+            // any implementation of field accessors which supports
+            // concurrent modifications.
+            var transport = Transport;
+
+            if (transport == null)
+            {
+                throw new MissingDependencyException("transport");
+            }
+
+            var connection = await transport.AllocateConnection(
+                remoteEndpoint, sendOptions);
+            if (connection == null)
+            {
+                throw new QuasiHttpRequestProcessingException("no connection");
+            }
+
+            if (request == null)
+            {
+                request = await requestFunc.Invoke(connection.Environment);
+                if (request == null)
+                {
+                    throw new QuasiHttpRequestProcessingException("no request");
+                }
+            }
+
+            try
+            {
+                var response = await ProcessSend(request, transport,
+                    connection);
+                await Abort(connection, false);
+                return response;
+            }
+            catch (Exception e)
+            {
+                await Abort(connection, true);
+                if (e is QuasiHttpRequestProcessingException)
+                {
+                    throw;
+                }
+                var abortError = new QuasiHttpRequestProcessingException(
+                    "encountered error during send request processing",
+                    QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                    e);
+                throw abortError;
+            }
+        }
+
+        internal static async Task<IQuasiHttpResponse> ProcessSend(
+            IQuasiHttpRequest request,
+            IQuasiHttpTransport transport,
+            IConnectionAllocationResponse connection)
+        {
+            if (transport == null)
+            {
+                throw new MissingDependencyException("client transport");
+            }
+            if (request == null)
+            {
+                throw new ExpectationViolationException("request");
+            }
+
+            // send entire request first before
+            // receiving of response.
+            var headers = request.Headers;
+            if (headers != null)
+            {
+                var encodedHeaders = HeadersCodec.EncodeRequestHeaders(headers,
+                    connection.ProcessingOptions?.MaxHeadersSize);
+
+                var requestBodyReader = ProtocolUtilsInternal.CreateReaderToTransport(
+                    headers.ContentLength, request.Body);
+                await transport.Write(connection,
+                    encodedHeaders, requestBodyReader, false);
+            }
+
+            var encodedResponse = await transport.Read(connection, true);
+            if (encodedResponse?.Headers == null)
+            {
+                throw new QuasiHttpRequestProcessingException("no response");
+            }
+
+            var responseHeaders = HeadersCodec.DecodeResponseHeaders(
+                encodedResponse.Headers);
+            Func<Task> releaseFunc = () => transport.ReleaseConnection(connection);
+            var response = new DefaultQuasiHttpResponse
+            {
+                Headers = responseHeaders,
+                Disposer = releaseFunc
+            };
+            response.Body = ProtocolUtilsInternal.CreateBodyFromTransport(
+                headers.ContentLength, encodedResponse.Body);
+            return response;
+        }
+
+        internal Task Abort(IConnectionAllocationResponse connection,
+            bool errorOccured)
+        {
+            if (errorOccured)
+            {
+                try
+                {
+                    // don't wait.
+                    _ = Transport.ReleaseConnection(connection);
+                }
+                catch (Exception) { } // ignore
+            }
+            else
+            {
+                // let transport determine what to do,
+                // ie whether to release by itself,
+                // or require client of Send*() methods to do so
+                // depending on response buffering enabled option.
+            }
+            return Task.CompletedTask;
+        }
+    }
+}

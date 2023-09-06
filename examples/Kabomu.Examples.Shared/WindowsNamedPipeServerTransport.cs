@@ -1,5 +1,4 @@
-﻿using Kabomu.QuasiHttp.Server;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.QuasiHttp;
 using NLog;
 using System;
 using System.Collections.Generic;

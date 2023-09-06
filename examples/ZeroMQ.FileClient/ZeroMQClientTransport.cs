@@ -28,7 +28,7 @@ namespace ZeroMQ.FileClient
         public async Task<QuasiHttpSendResponse> ProcessSendRequest(
             object remoteEndpoint,
             IQuasiHttpRequest request,
-            IQuasiHttpSendOptions sendOptions)
+            IQuasiHttpProcessingOptions sendOptions)
         {
             var resTask = ProcessSendRequestInternal(remoteEndpoint,
                 request, sendOptions);
@@ -41,7 +41,7 @@ namespace ZeroMQ.FileClient
         public async Task<QuasiHttpSendResponse> ProcessSendRequest2(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
-            IQuasiHttpSendOptions sendOptions)
+            IQuasiHttpProcessingOptions sendOptions)
         {
             var request = await requestFunc.Invoke(null);
             if (request == null)
@@ -64,7 +64,7 @@ namespace ZeroMQ.FileClient
         private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
             object remoteEndpoint,
             IQuasiHttpRequest request,
-            IQuasiHttpSendOptions sendOptions)
+            IQuasiHttpProcessingOptions sendOptions)
         {
             var leadChunk = CustomChunkedTransferCodec.CreateFromRequest(request);
             var requestBody = request.Body;

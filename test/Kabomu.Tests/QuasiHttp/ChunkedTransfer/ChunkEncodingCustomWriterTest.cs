@@ -66,7 +66,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var srcData = "data bits and bytes";
             // get randomized read request sizes.
             var reader = new RandomizedReadSizeBufferReader(
-                ByteUtils.StringToBytes(srcData));
+                MiscUtils.StringToBytes(srcData));
 
             var expected = new byte[] { 0 ,0, 8, 1, 0, (byte)'d',
                 (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',
@@ -101,7 +101,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var srcData = "data bits and byte";
             // get randomized read request sizes.
             var reader = new RandomizedReadSizeBufferReader(
-                ByteUtils.StringToBytes(srcData));
+                MiscUtils.StringToBytes(srcData));
 
             var expected = new byte[] { 0 ,0, 11, 1, 0, (byte)'d',
                 (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',
@@ -136,7 +136,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var srcData = "data bits and pieces";
             // get randomized read request sizes.
             var reader = new RandomizedReadSizeBufferReader(
-                ByteUtils.StringToBytes(srcData));
+                MiscUtils.StringToBytes(srcData));
 
             var expected = new byte[] { 0 ,0, 22, 1, 0, (byte)'d',
                 (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',
@@ -167,7 +167,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var srcData = "data bits and places";
             // get randomized read request sizes.
             var reader = new RandomizedReadSizeBufferReader(
-                ByteUtils.StringToBytes(srcData));
+                MiscUtils.StringToBytes(srcData));
 
             var expected = new byte[] { 0 ,0, 22, 1, 0, (byte)'d',
                 (byte)'a', (byte)'t', (byte)'a', (byte)' ', (byte)'b',
@@ -201,7 +201,7 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
             var srcData = "it is finished.";
             // get randomized read request sizes.
             var reader = new RandomizedReadSizeBufferReader(
-                ByteUtils.StringToBytes(srcData));
+                MiscUtils.StringToBytes(srcData));
 
             var expected = new byte[] { 0 ,0, 17, 1, 0, (byte)'i',
                 (byte)'t', (byte)' ', (byte)'i', (byte)'s', (byte)' ',
@@ -232,27 +232,27 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 maxChunkSize);
 
             var reader = new MemoryStream();
-            reader.Write(ByteUtils.StringToBytes("1".PadRight(10_000)));
-            reader.Write(ByteUtils.StringToBytes("2".PadRight(10_000)));
-            reader.Write(ByteUtils.StringToBytes("3".PadRight(10_000)));
-            reader.Write(ByteUtils.StringToBytes("4".PadRight(10_000)));
-            reader.Write(ByteUtils.StringToBytes("5".PadRight(10_000)));
-            reader.Write(ByteUtils.StringToBytes("6".PadRight(10_000)));
-            reader.Write(ByteUtils.StringToBytes("7".PadRight(10_000)));
-            reader.Write(ByteUtils.StringToBytes("8".PadRight(10_000)));
+            reader.Write(MiscUtils.StringToBytes("1".PadRight(10_000)));
+            reader.Write(MiscUtils.StringToBytes("2".PadRight(10_000)));
+            reader.Write(MiscUtils.StringToBytes("3".PadRight(10_000)));
+            reader.Write(MiscUtils.StringToBytes("4".PadRight(10_000)));
+            reader.Write(MiscUtils.StringToBytes("5".PadRight(10_000)));
+            reader.Write(MiscUtils.StringToBytes("6".PadRight(10_000)));
+            reader.Write(MiscUtils.StringToBytes("7".PadRight(10_000)));
+            reader.Write(MiscUtils.StringToBytes("8".PadRight(10_000)));
             reader.Position = 0; // reset for reading
 
             // create expectation
             var expected = new MemoryStream();
             expected.Write(new byte[] { 1, 0x38, 0x82, 1, 0 });
-            expected.Write(ByteUtils.StringToBytes("1".PadRight(10_000)));
-            expected.Write(ByteUtils.StringToBytes("2".PadRight(10_000)));
-            expected.Write(ByteUtils.StringToBytes("3".PadRight(10_000)));
-            expected.Write(ByteUtils.StringToBytes("4".PadRight(10_000)));
-            expected.Write(ByteUtils.StringToBytes("5".PadRight(10_000)));
-            expected.Write(ByteUtils.StringToBytes("6".PadRight(10_000)));
-            expected.Write(ByteUtils.StringToBytes("7".PadRight(10_000)));
-            expected.Write(ByteUtils.StringToBytes("8".PadRight(10_000)));
+            expected.Write(MiscUtils.StringToBytes("1".PadRight(10_000)));
+            expected.Write(MiscUtils.StringToBytes("2".PadRight(10_000)));
+            expected.Write(MiscUtils.StringToBytes("3".PadRight(10_000)));
+            expected.Write(MiscUtils.StringToBytes("4".PadRight(10_000)));
+            expected.Write(MiscUtils.StringToBytes("5".PadRight(10_000)));
+            expected.Write(MiscUtils.StringToBytes("6".PadRight(10_000)));
+            expected.Write(MiscUtils.StringToBytes("7".PadRight(10_000)));
+            expected.Write(MiscUtils.StringToBytes("8".PadRight(10_000)));
             expected.Write(new byte[] { 0, 0, 2, 1, 0 });
             expected.Position = 0; // reset for reading
 
@@ -278,31 +278,31 @@ namespace Kabomu.Tests.QuasiHttp.ChunkedTransfer
                 maxChunkSize);
 
             var reader = new MemoryStream();
-            reader.Write(ByteUtils.StringToBytes("1".PadRight(1_000)));
-            reader.Write(ByteUtils.StringToBytes("2".PadRight(1_000)));
-            reader.Write(ByteUtils.StringToBytes("3".PadRight(1_000)));
-            reader.Write(ByteUtils.StringToBytes("4".PadRight(1_000)));
-            reader.Write(ByteUtils.StringToBytes("5".PadRight(1_000)));
-            reader.Write(ByteUtils.StringToBytes("6".PadRight(1_000)));
-            reader.Write(ByteUtils.StringToBytes("7".PadRight(1_000)));
-            reader.Write(ByteUtils.StringToBytes("8".PadRight(1_000)));
-            reader.Write(ByteUtils.StringToBytes("9".PadRight(1_000)));
+            reader.Write(MiscUtils.StringToBytes("1".PadRight(1_000)));
+            reader.Write(MiscUtils.StringToBytes("2".PadRight(1_000)));
+            reader.Write(MiscUtils.StringToBytes("3".PadRight(1_000)));
+            reader.Write(MiscUtils.StringToBytes("4".PadRight(1_000)));
+            reader.Write(MiscUtils.StringToBytes("5".PadRight(1_000)));
+            reader.Write(MiscUtils.StringToBytes("6".PadRight(1_000)));
+            reader.Write(MiscUtils.StringToBytes("7".PadRight(1_000)));
+            reader.Write(MiscUtils.StringToBytes("8".PadRight(1_000)));
+            reader.Write(MiscUtils.StringToBytes("9".PadRight(1_000)));
             reader.Position = 0; // reset for reading
 
             // create expectation
             var expected = new MemoryStream();
             expected.Write(new byte[] { 0, 0x20, 0x02, 1, 0 });
-            expected.Write(ByteUtils.StringToBytes("1".PadRight(1_000)));
-            expected.Write(ByteUtils.StringToBytes("2".PadRight(1_000)));
-            expected.Write(ByteUtils.StringToBytes("3".PadRight(1_000)));
-            expected.Write(ByteUtils.StringToBytes("4".PadRight(1_000)));
-            expected.Write(ByteUtils.StringToBytes("5".PadRight(1_000)));
-            expected.Write(ByteUtils.StringToBytes("6".PadRight(1_000)));
-            expected.Write(ByteUtils.StringToBytes("7".PadRight(1_000)));
-            expected.Write(ByteUtils.StringToBytes("8".PadRight(1_000)));
-            expected.Write(ByteUtils.StringToBytes("9".PadRight(192)));
+            expected.Write(MiscUtils.StringToBytes("1".PadRight(1_000)));
+            expected.Write(MiscUtils.StringToBytes("2".PadRight(1_000)));
+            expected.Write(MiscUtils.StringToBytes("3".PadRight(1_000)));
+            expected.Write(MiscUtils.StringToBytes("4".PadRight(1_000)));
+            expected.Write(MiscUtils.StringToBytes("5".PadRight(1_000)));
+            expected.Write(MiscUtils.StringToBytes("6".PadRight(1_000)));
+            expected.Write(MiscUtils.StringToBytes("7".PadRight(1_000)));
+            expected.Write(MiscUtils.StringToBytes("8".PadRight(1_000)));
+            expected.Write(MiscUtils.StringToBytes("9".PadRight(192)));
             expected.Write(new byte[] { 0, 0x03, 0x2a, 1, 0 });
-            expected.Write(ByteUtils.StringToBytes("".PadRight(808)));
+            expected.Write(MiscUtils.StringToBytes("".PadRight(808)));
             expected.Write(new byte[] { 0, 0, 2, 1, 0 });
             expected.Position = 0; // reset for reading
 

@@ -1,8 +1,9 @@
 # Kabomu - C#.NET Core version
 
-Kabomu is a networking library that extends the semantics of HTTP to transports other than TCP on localhost. It enables building applications running on non-IP networks which will resemble web applications.
+Kabomu is a networking library that extends the semantics of HTTP to localhost via IPC mechanisms. It enables building applications running on unix domain sockets and
+windows named pipes which can easily be upgraded to web applications.
 
-Such applications are termed "quasi web applications" in Kabomu. The end result is that Kabomu enables building quasi web applications that can connect endpoints within localhost and even within an OS process, through IPC mechanisms other than TCP.
+Such applications are termed "quasi web applications" in Kabomu. The end result is that Kabomu enables building quasi web applications that can connect endpoints within localhost through IPC mechanisms other than TCP.
 
 ## Purpose
 
@@ -10,44 +11,31 @@ Kabomu seeks to demonstrate the following:
 
 1. *Quasi procedure call framework*, i.e. offers improvement over RPC frameworks such as Protocol Buffers and Apache Thrift, by offering stream input parameters, stream return/output values, flexible timeout specification, non-TCP transports and a transition path to HTTP.
 
-2. *Quasi web protocol*, i.e. offers another request-response protocol which exactly resembles HTTP/1.1 in its semantics, such that it can be executed in memory, executed with IPC mechanisms, or executed as actual HTTP.
-
-3. *Cross-platform quasi web framework*, i.e. offers a web framework pattern which can be shared across programming languages, and does not assume the use of actual HTTP.
+2. *Quasi web protocol*, i.e. offers another request-response protocol which exactly resembles HTTP/1.1 in its semantics and can be executed with IPC mechanisms.
 
 4. *Abstraction of message queues*, by modelling them as fire and forget requests to email-like address groups (e.g. kafka topic, network multicast address).
 
 
 ## Design
 
-1. Deployment enviroment: mainly localhost, but can be extended to the Internet via HTTP.
+1. Deployment enviroment: localhost.
 
-1. Quasi web transports demonstrated: HTTP, memory, localhost TCP, unix domain socket, 
-windows named pipe, zeromq (NB: zeromq transport example requires
-limiting body sizes to some maximum value).
-   1. *Support for HTTP makes it possible to use Kabomu with any HTTP client library.*
-   2. Interfaces are provided for the creation of any custom quasi web transport.
+1. IPC mechanisms demonstated: localhost TCP, unix domain sockets and windows named pipes
+   2. Interfaces are provided to wrap around any other IPC
 
 3. Quasi web protocol: resembles HTTP/1.1 chunk encoding, in which request and response headers are sent in "lead" chunks.
 
 3. Quasi web request processing strategies: one of the following
-   1. use Kabomu.Mediator: it is a quasi web microframework that was inspired by [Ratpack](https://ratpack.io/) and meant to be implemented in multiple programming languages. It is called "quasi web microframework" because it does not assume the use of TCP, and delegates networking security, parsing of query strings and common HTTP headers, parsing of HTTP request bodies with common content types, and rendering of HTTP responses to other libraries.
-   2. use an existing web server gateway interface (e.g. Python WSGI, C#.NET OWIN, Java Servlet, Ruby Rack, NodeJS Connect) and hook it to a quasi web transport. Existing web frameworks can then be used as usual.
-
-4. For situations where quasi http network lies entirely within a single host (e.g. memory, IPC, localhost TCP), Kabomu.Mediator can be sufficient for all quasi
-web development needs.
-
-3. For HTTP and interhost networks, an actual web framework or a networking library or framework dealing with networking security will be needed. Even then Kabomu.Mediator can be leveraged to separate concerns between services and access points:
-   1. Assume that the services to be developed with favourite web framework can be accesssed by different web framework or networking protocol aside HTTP, with different security policies and serialization mechanisms.
-   2. Then design the services independently of favourite web framework by using data transfer objects based on types provided by the Kabomu.Mediator framework, and custom types as needed.
-   3. It should then be easier to switch networks without impacting services implementing business logic.
-
+   1. Ignore http request methods and response status messages, and also ignore request path parameters and query strings. Instead use entire request target/path as a key into a
+   dictionary whose values are procedures which take a request and produce a response.
+   2. use an existing web server gateway interface (e.g. Python WSGI, C#.NET OWIN, Java Servlet, Ruby Rack, NodeJS Connect) and hook it to an IPC mechanism. Existing web frameworks can then be used as usual.
 
 ## Usage
 
-The entry classes of the libary are [StandardQuasiHttpClient](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/QuasiHttp/Client/StandardQuasiHttpClient.cs), [StandardQuasiHttpServer](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/QuasiHttp/Server/StandardQuasiHttpServer.cs) and [MediatorQuasiWebApplication](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/Mediator/MediatorQuasiWebApplication.cs).
+The entry classes of the libary are [StandardQuasiHttpClient](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/QuasiHttp/StandardQuasiHttpClient.cs), [StandardQuasiHttpServer](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/QuasiHttp/StandardQuasiHttpServer.cs).
 
-See [Examples](https://github.com/aaronicsubstances/cskabomu/tree/main/examples) folder for sample file serving programs based on each example quasi web transport.
+See [Examples](https://github.com/aaronicsubstances/cskabomu/tree/main/examples) folder for sample file serving programs based on each example IPC.
 
-The sample programs come in pairs (with the exception of the memory-based one):  a client program and corresponding server program. The server program must be started first. By default a client program uploads all files from its current directory to a folder created in the server program's current directory.
+The sample programs come in pairs:  a client program and corresponding server program. The server program must be started first. By default a client program uploads all files from its current directory to a folder created in the server program's current directory.
 
 The Program.cs source file of each sample program indicates how to change the default client and server endpoints (TCP ports or paths) with command line arguments. The directories of upload and saving can also be changed with command line arguments.

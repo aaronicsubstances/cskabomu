@@ -16,7 +16,7 @@ namespace Kabomu.Examples.Shared
         public async Task<QuasiHttpSendResponse> ProcessSendRequest(
             object remoteEndpoint,
             IQuasiHttpRequest request,
-            IQuasiHttpSendOptions sendOptions)
+            IQuasiHttpProcessingOptions sendOptions)
         {
             var resTask = ProcessSendRequestInternal(remoteEndpoint,
                 request, sendOptions);
@@ -29,7 +29,7 @@ namespace Kabomu.Examples.Shared
         public async Task<QuasiHttpSendResponse> ProcessSendRequest2(
             object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
-            IQuasiHttpSendOptions sendOptions)
+            IQuasiHttpProcessingOptions sendOptions)
         {
             var request = await requestFunc.Invoke(null);
             if (request == null)
@@ -52,7 +52,7 @@ namespace Kabomu.Examples.Shared
         private async Task<IQuasiHttpResponse> ProcessSendRequestInternal(
             object remoteEndpoint,
             IQuasiHttpRequest request,
-            IQuasiHttpSendOptions sendOptions)
+            IQuasiHttpProcessingOptions sendOptions)
         {
             var application = Applications[remoteEndpoint];
             return WrapResponse(await application.ProcessRequest(

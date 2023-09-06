@@ -16,10 +16,10 @@ namespace Kabomu.Common
     public interface ICustomDisposable
     {
         /// <summary>
-        /// Performs any needed clean up operation on resources held
+        /// Gets a function which if invoked,
+        /// performs any needed clean up operation on resources held
         /// by the instance.
         /// </summary>
-        /// <returns>a task representing asynchronous operation</returns>
-        Task Release();
+        Func<Task> Disposer { get; }
     }
 }

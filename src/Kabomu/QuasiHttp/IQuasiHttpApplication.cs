@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 namespace Kabomu.QuasiHttp
 {
     /// <summary>
-    /// Represents a quasi http request processing function used by <see cref="Server.StandardQuasiHttpServer"/> instances
+    /// Represents a quasi http request processing function used by <see cref="QuasiHttp.StandardQuasiHttpServer"/> instances
     /// to generate quasi http responses.
     /// </summary>
     public interface IQuasiHttpApplication

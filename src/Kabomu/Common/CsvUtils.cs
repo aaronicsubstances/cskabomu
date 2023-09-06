@@ -25,9 +25,6 @@ namespace Kabomu.Common
         private static readonly int TOKEN_LF = 4;
         private static readonly int TOKEN_CR = 5;
 
-        private static readonly byte[] NewlineConstant = new byte[] { (byte)'\n' };
-        private static readonly byte[] CommaConstant = new byte[] { (byte)',' };
-
         /// <summary>
         /// Acts as a lexing function during CSV parsing.
         /// </summary>

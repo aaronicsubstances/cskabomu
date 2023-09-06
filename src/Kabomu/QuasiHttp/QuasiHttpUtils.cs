@@ -39,20 +39,6 @@ namespace Kabomu.QuasiHttp
         public static readonly string ResEnvKeyResponseBufferingApplied = "kabomu.response_buffering_enabled";
 
         /// <summary>
-        /// Response environment variable for indicating that response should not be sent at all. Intended
-        /// for use in responding to fire and forget requests.
-        /// </summary>
-        public static readonly string ResEnvKeySkipResponseSending = "kabomu.skip_response_sending";
-
-        /// <summary>
-        /// Connectivity parameter for indicating to client transports that it
-        /// can create connections which provide empty reads, because such
-        /// connections are to be used in situations where responses are not needed,
-        /// or where responses won't arrive at all.
-        /// </summary>
-        public static readonly string ConnectivityParamFireAndForget = "kabomu.fire_and_forget";
-
-        /// <summary>
         /// Equals HTTP method "GET".
         /// </summary>
         public static readonly string MethodGet = "GET";

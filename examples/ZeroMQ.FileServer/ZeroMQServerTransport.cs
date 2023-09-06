@@ -2,7 +2,6 @@
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
 using Kabomu.QuasiHttp.EntityBody;
-using Kabomu.QuasiHttp.Server;
 using NetMQ;
 using NetMQ.Sockets;
 using NLog;
