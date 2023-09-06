@@ -1,6 +1,7 @@
 ﻿using CommandLine;
+using Kabomu;
 using Kabomu.Examples.Shared;
-using Kabomu.QuasiHttp;
+using Kabomu.Impl;
 using NLog;
 using System;
 using System.Threading.Tasks;

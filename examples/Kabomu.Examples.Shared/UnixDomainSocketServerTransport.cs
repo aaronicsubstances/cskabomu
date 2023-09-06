@@ -1,4 +1,4 @@
-﻿using Kabomu.QuasiHttp;
+﻿using Kabomu.Abstractions;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -81,22 +81,22 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        public object GetWriter(IQuasiTcpConnection connection)
+        public object GetWriter(IQuasiHttpConnection connection)
         {
             return ((SocketConnection)connection).Writer;
         }
 
-        public object GetReader(IQuasiTcpConnection connection)
+        public object GetReader(IQuasiHttpConnection connection)
         {
             return ((SocketConnection)connection).Reader;
         }
 
-        public Task ReleaseConnection(IQuasiTcpConnection connection)
+        public Task ReleaseConnection(IQuasiHttpConnection connection)
         {
             return ((SocketConnection)connection).Release();
         }
 
-        public Task Write(IQuasiTcpConnection connection, bool isResponse,
+        public Task Write(IQuasiHttpConnection connection, bool isResponse,
             byte[] encodedHeaders, object requestBodyReader)
         {
             return ((SocketConnection)connection).Write(isResponse,
@@ -104,7 +104,7 @@ namespace Kabomu.Examples.Shared
         }
 
         public Task<IEncodedReadRequest> Read(
-            IQuasiTcpConnection connection,
+            IQuasiHttpConnection connection,
             bool isResponse)
         {
             return ((SocketConnection)connection).Read(

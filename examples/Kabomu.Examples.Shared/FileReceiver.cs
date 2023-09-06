@@ -1,5 +1,5 @@
-﻿using Kabomu.Common;
-using Kabomu.QuasiHttp;
+﻿using Kabomu.Abstractions;
+using Kabomu.Impl;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -24,7 +24,7 @@ namespace Kabomu.Examples.Shared
 
         public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request)
         {
-            var fileName = Path.GetFileName(request.Headers.Headers["f"][0]);
+            var fileName = Path.GetFileName(request.Headers["f"][0]);
             LOG.Debug("Starting receipt of file {0} from {1}...", fileName, remoteEndpoint);
 
             Exception transferError = null;
@@ -38,7 +38,7 @@ namespace Kabomu.Examples.Shared
                 string p = Path.Combine(directory.Name, fileName);
                 using (var fileStream = new FileStream(p, FileMode.Create))
                 {
-                    await IOUtils.CopyBytes(request.Body, fileStream);
+                    await QuasiHttpUtils.CopyBytes(request.Body, fileStream);
                 }
             }
             catch (Exception e)
@@ -49,20 +49,17 @@ namespace Kabomu.Examples.Shared
             LOG.Info(transferError, "File {0} received {1}", fileName,
                 transferError == null ? "successfully" : "with error");
 
-            var responseHeaders = new DefaultQuasiHttpResponseHeaderPart();
+            var response = new DefaultQuasiHttpResponse();
             if (transferError == null)
             {
-                responseHeaders.StatusCode = QuasiHttpUtils.StatusCodeOk;
+                response.StatusCode = QuasiHttpUtils.StatusCodeOk;
             }
             else
             {
-                responseHeaders.StatusCode = QuasiHttpUtils.StatusCodeServerError;
-                responseHeaders.HttpStatusMessage = transferError.Message;
+                response.StatusCode = QuasiHttpUtils.StatusCodeServerError;
+                response.HttpStatusMessage = transferError.Message;
             }
-            return new DefaultQuasiHttpResponse
-            {
-                Headers = responseHeaders
-            };
+            return response;
         }
     }
 }

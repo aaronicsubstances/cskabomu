@@ -1,5 +1,5 @@
-﻿using Kabomu.Common;
-using Kabomu.QuasiHttp;
+﻿using Kabomu.Abstractions;
+using Kabomu.Impl;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -38,19 +38,14 @@ namespace Kabomu.Examples.Shared
 
         private static async Task TransferFile(StandardQuasiHttpClient instance, object serverEndpoint, FileInfo f)
         {
-            var requestHeaders = new DefaultQuasiHttpRequestHeaderPart
+            var request = new DefaultQuasiHttpRequest
             {
                 Headers = new Dictionary<string, IList<string>>()
             };
-            var request = new DefaultQuasiHttpRequest
-            {
-                Headers = requestHeaders
-            };
-            requestHeaders.Headers.Add("f", new List<string> { f.Name });
+            request.Headers.Add("f", new List<string> { f.Name });
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
-            requestHeaders.ContentLength = RandGen.NextDouble() < 0.5 ? -1 : f.Length;
-            //requestHeaders.ContentLength = f.Length;
+            request.ContentLength = RandGen.NextDouble() < 0.5 ? -1 : f.Length;
             request.Body = fileStream;
             IQuasiHttpResponse res;
             try
@@ -67,7 +62,7 @@ namespace Kabomu.Examples.Shared
                 LOG.Warn("Received no response.");
                 return;
             }
-            if (res.Headers.StatusCode == QuasiHttpUtils.StatusCodeOk)
+            if (res.StatusCode == QuasiHttpUtils.StatusCodeOk)
             {
                 LOG.Info("File {0} sent successfully", f.FullName);
             }
@@ -78,7 +73,7 @@ namespace Kabomu.Examples.Shared
                 {
                     try
                     {
-                        var responseMsgBytes = await IOUtils.ReadAllBytes(res.Body);
+                        var responseMsgBytes = await QuasiHttpUtils.ReadAllBytes(res.Body);
                         responseMsg = Encoding.UTF8.GetString(responseMsgBytes);
                     }
                     catch (Exception)
@@ -87,7 +82,7 @@ namespace Kabomu.Examples.Shared
                     }
                 }
                 throw new Exception(string.Format("status code indicates error: {0}\n{1}",
-                    res.Headers.StatusCode, responseMsg));
+                    res.StatusCode, responseMsg));
             }
         }
     }

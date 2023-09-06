@@ -32,7 +32,7 @@ Kabomu seeks to demonstrate the following:
 
 ## Usage
 
-The entry classes of the libary are [StandardQuasiHttpClient](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/QuasiHttp/StandardQuasiHttpClient.cs), [StandardQuasiHttpServer](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/QuasiHttp/StandardQuasiHttpServer.cs).
+The entry classes of the libary are [StandardQuasiHttpClient](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/StandardQuasiHttpClient.cs), [StandardQuasiHttpServer](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/StandardQuasiHttpServer.cs).
 
 See [Examples](https://github.com/aaronicsubstances/cskabomu/tree/main/examples) folder for sample file serving programs based on each example IPC.
 
