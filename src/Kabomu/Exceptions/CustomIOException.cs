@@ -8,7 +8,7 @@ namespace Kabomu.Exceptions
 {
     /// <summary>
     /// Represents errors usable by implementations of custom readers and writers,
-    /// as well as errors encountered by <see cref="QuasiHttpUtils"/> class.
+    /// as well as errors encountered by <see cref="MiscUtils"/> class.
     /// </summary>
     public class CustomIOException : KabomuException
     {

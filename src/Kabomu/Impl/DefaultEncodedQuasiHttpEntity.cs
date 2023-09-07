@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -7,10 +8,10 @@ using Kabomu.Abstractions;
 
 namespace Kabomu.Impl
 {
-    public class DefaultEncodedReadRequest : IEncodedReadRequest
+    public class DefaultEncodedQuasiHttpEntity : IEncodedQuasiHttpEntity
     {
         public byte[] Headers { get; set; }
 
-        public object Body { get; set; }
+        public Stream Body { get; set; }
     }
 }

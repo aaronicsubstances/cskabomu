@@ -80,29 +80,18 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        public object GetWriter(IQuasiHttpConnection connection)
-        {
-            return ((SocketConnection)connection).Writer;
-        }
-
-        public object GetReader(IQuasiHttpConnection connection)
-        {
-            return ((SocketConnection)connection).Reader;
-        }
-
         public Task ReleaseConnection(IQuasiHttpConnection connection)
         {
             return ((SocketConnection)connection).Release();
         }
 
         public Task Write(IQuasiHttpConnection connection, bool isResponse,
-            byte[] encodedHeaders, object requestBodyReader)
+            IEncodedQuasiHttpEntity entity)
         {
-            return ((SocketConnection)connection).Write(isResponse,
-                encodedHeaders, requestBodyReader);
+            return ((SocketConnection)connection).Write(isResponse, entity);
         }
 
-        public Task<IEncodedReadRequest> Read(
+        public Task<IEncodedQuasiHttpEntity> Read(
             IQuasiHttpConnection connection,
             bool isResponse)
         {

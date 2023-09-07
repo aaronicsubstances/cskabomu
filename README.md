@@ -20,10 +20,9 @@ Kabomu seeks to demonstrate the following:
 
 1. Deployment enviroment: localhost.
 
-1. IPC mechanisms demonstated: localhost TCP, unix domain sockets and windows named pipes
-   2. Interfaces are provided to wrap around any other IPC
+1. IPC mechanisms demonstated: localhost TCP, unix domain sockets and windows named pipes. NB: Interfaces are provided to wrap around any other IPC.
 
-3. Quasi web protocol: resembles HTTP/1.1 chunk encoding, in which request and response headers are sent in "lead" chunks.
+3. Quasi web protocol: leverages CSV and length prefixing to create a custom chunk encoding.
 
 3. Quasi web request processing strategies: one of the following
    1. Ignore http request methods and response status messages, and also ignore request path parameters and query strings. Instead use entire request target/path as a key into a
@@ -32,7 +31,7 @@ Kabomu seeks to demonstrate the following:
 
 ## Usage
 
-The entry classes of the libary are [StandardQuasiHttpClient](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/StandardQuasiHttpClient.cs), [StandardQuasiHttpServer](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/StandardQuasiHttpServer.cs).
+The entry classes of the libary are [StandardQuasiHttpClient](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/StandardQuasiHttpClient.cs) and[StandardQuasiHttpServer](https://github.com/aaronicsubstances/cskabomu/tree/main/src/Kabomu/StandardQuasiHttpServer.cs).
 
 See [Examples](https://github.com/aaronicsubstances/cskabomu/tree/main/examples) folder for sample file serving programs based on each example IPC.
 

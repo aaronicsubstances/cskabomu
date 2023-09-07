@@ -264,7 +264,7 @@ namespace Kabomu
         /// <returns>CSV string corresponding to rows</returns>
         public static string Serialize(IList<IList<string>> rows)
         {
-            var csvBuilder = new StringBuilder();
+            var csvBuilder = MiscUtils.CreateStringBuilder();
             foreach (var row in rows)
             {
                 var addCommaSeparator = false;
@@ -272,14 +272,14 @@ namespace Kabomu
                 {
                     if (addCommaSeparator)
                     {
-                        csvBuilder.Append(",");
+                        MiscUtils.AppendToStringBuilder(csvBuilder, ",");
                     }
-                    csvBuilder.Append(EscapeValue(value));
+                    MiscUtils.AppendToStringBuilder(csvBuilder, EscapeValue(value));
                     addCommaSeparator = true;
                 }
-                csvBuilder.Append("\n");
+                MiscUtils.AppendToStringBuilder(csvBuilder, "\n");
             }
-            return csvBuilder.ToString();
+            return MiscUtils.SerializeStringBuilder(csvBuilder);
         }
 
         /// <summary>
@@ -315,11 +315,11 @@ namespace Kabomu
             {
                 throw new ArgumentException("missing enclosing double quotes around csv value: " + escaped);
             }
-            var unescaped = new StringBuilder();
+            var unescaped = MiscUtils.CreateStringBuilder();
             for (int i = 1; i < escaped.Length - 1; i++)
             {
                 char c = escaped[i];
-                unescaped.Append(c);
+                MiscUtils.AppendToStringBuilder(unescaped, c);
                 if (c == '"')
                 {
                     if (i == escaped.Length - 2 || escaped[i + 1] != '"')
@@ -329,7 +329,7 @@ namespace Kabomu
                     i++;
                 }
             }
-            return unescaped.ToString();
+            return MiscUtils.SerializeStringBuilder(unescaped);
         }
 
         private static bool DoesValueContainSpecialCharacters(string s)

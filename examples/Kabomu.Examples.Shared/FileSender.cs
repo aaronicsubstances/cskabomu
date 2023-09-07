@@ -62,7 +62,7 @@ namespace Kabomu.Examples.Shared
                 LOG.Warn("Received no response.");
                 return;
             }
-            if (res.StatusCode == QuasiHttpUtils.StatusCodeOk)
+            if (res.StatusCode == QuasiHttpProtocolUtils.StatusCodeOk)
             {
                 LOG.Info("File {0} sent successfully", f.FullName);
             }
@@ -73,8 +73,8 @@ namespace Kabomu.Examples.Shared
                 {
                     try
                     {
-                        var responseMsgBytes = await QuasiHttpUtils.ReadAllBytes(res.Body);
-                        responseMsg = Encoding.UTF8.GetString(responseMsgBytes);
+                        var responseMsgBytes = await MiscUtils.ReadAllBytes(res.Body);
+                        responseMsg = MiscUtils.BytesToString(responseMsgBytes);
                     }
                     catch (Exception)
                     {

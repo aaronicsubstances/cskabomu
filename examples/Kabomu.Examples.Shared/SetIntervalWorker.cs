@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu
+namespace Kabomu.Examples.Shared
 {
     /// <summary>
     /// Generic solution for wrapping function argument to equivalent of NodeJS setInterval,

@@ -24,31 +24,19 @@ namespace Kabomu.Examples.Shared
 
         public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }
 
-        public object GetWriter(IQuasiHttpConnection connection)
-        {
-            return ((SocketConnection)connection).Writer;
-        }
-
-        public object GetReader(IQuasiHttpConnection connection)
-        {
-            return ((SocketConnection)connection).Reader;
-        }
-
         public Task ReleaseConnection(IQuasiHttpConnection connection)
         {
             return ((SocketConnection)connection).Release();
         }
 
         public Task Write(IQuasiHttpConnection connection, bool isResponse,
-            byte[] encodedHeaders, object requestBodyReader)
+            IEncodedQuasiHttpEntity entity)
         {
-            return ((SocketConnection)connection).Write(isResponse,
-                encodedHeaders, requestBodyReader);
+            return ((SocketConnection)connection).Write(isResponse, entity);
         }
 
-        public Task<IEncodedReadRequest> Read(
-            IQuasiHttpConnection connection,
-            bool isResponse)
+        public Task<IEncodedQuasiHttpEntity> Read(
+            IQuasiHttpConnection connection, bool isResponse)
         {
             return ((SocketConnection)connection).Read(
                 isResponse);

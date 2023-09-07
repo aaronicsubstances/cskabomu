@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -9,7 +10,8 @@ namespace Kabomu.Abstractions
     /// Represents the equivalent of an HTTP response entity: response status line,
     /// response headers, and response body.
     /// </summary>
-    public interface IQuasiHttpResponse : ICustomDisposable
+    public interface IQuasiHttpResponse :
+        IDisposable, IAsyncDisposable, ICustomDisposable
     {
         /// <summary>
         /// Gets or sets the equivalent of HTTP response status code.
@@ -47,7 +49,7 @@ namespace Kabomu.Abstractions
         /// <summary>
         /// Gets or sets the response body.
         /// </summary>
-        object Body { get; set; }
+        Stream Body { get; set; }
 
         /// <summary>
         /// Gets or sets any objects which may be of interest during response processing.

@@ -27,9 +27,6 @@ namespace Kabomu
     /// </remarks>
     public class StandardQuasiHttpClient
     {
-        private static readonly QuasiHttpCodec HeadersCodec =
-            new QuasiHttpCodec();
-
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -124,12 +121,12 @@ namespace Kabomu
             {
                 var response = await ProcessSend(request, transport,
                     connection);
-                await Abort(connection, false);
+                await Abort(connection, false, response.ContentLength);
                 return response;
             }
             catch (Exception e)
             {
-                await Abort(connection, true);
+                await Abort(connection, true, 0);
                 if (e is QuasiHttpRequestProcessingException)
                 {
                     throw;
@@ -158,16 +155,15 @@ namespace Kabomu
 
             // send entire request first before
             // receiving of response.
-            if (ProtocolUtilsInternal.GetEnvVarAsBoolean(request.Environment,
-                QuasiHttpUtils.EnvKeySkipSending) != true)
+            if (QuasiHttpProtocolUtils.GetEnvVarAsBoolean(request.Environment,
+                QuasiHttpProtocolUtils.EnvKeySkipSending) != true)
             {
-                var encodedHeaders = HeadersCodec.EncodeRequestHeaders(request,
+                var encodedRequest = new DefaultEncodedQuasiHttpEntity();
+                encodedRequest.Headers = QuasiHttpProtocolUtils.EncodeRequestHeaders(request,
                     connection.ProcessingOptions?.MaxHeadersSize);
-
-                var requestBodyReader = ProtocolUtilsInternal.CreateReaderToTransport(
-                    request.ContentLength, request.Body);
-                await transport.Write(connection, false,
-                    encodedHeaders, requestBodyReader);
+                encodedRequest.Body = QuasiHttpProtocolUtils.EncodeBodyToTransport(
+                    request.ContentLength, request.Body, request.Environment);
+                await transport.Write(connection, false, encodedRequest);
             }
 
             var encodedResponse = await transport.Read(connection, true);
@@ -179,24 +175,18 @@ namespace Kabomu
             Func<Task> releaseFunc = () => transport.ReleaseConnection(connection);
             var response = new DefaultQuasiHttpResponse
             {
-                Disposer = releaseFunc,
-                Environment = new Dictionary<string, object>
-                {
-                    {
-                        QuasiHttpUtils.EnvKeyRawBody,
-                        encodedResponse.Body
-                    }
-                }
+                Disposer = releaseFunc
             };
-            HeadersCodec.DecodeResponseHeaders(
+            QuasiHttpProtocolUtils.DecodeResponseHeaders(
                 encodedResponse.Headers, response);
-            response.Body = ProtocolUtilsInternal.CreateBodyFromTransport(
-                response.ContentLength, encodedResponse.Body);
+            response.Body = QuasiHttpProtocolUtils.DecodeBodyFromTransport(
+                response.ContentLength, encodedResponse.Body,
+                connection.Environment);
             return response;
         }
 
-        internal Task Abort(IQuasiHttpConnection connection,
-            bool errorOccured)
+        internal async Task Abort(IQuasiHttpConnection connection,
+            bool errorOccured, long resContentLength)
         {
             if (errorOccured)
             {
@@ -207,6 +197,10 @@ namespace Kabomu
                 }
                 catch (Exception) { } // ignore
             }
+            else if (resContentLength == 0)
+            {
+                await Transport.ReleaseConnection(connection);
+            }
             else
             {
                 // let transport determine what to do,
@@ -214,7 +208,6 @@ namespace Kabomu
                 // or require client of Send*() methods to do so
                 // depending on response buffering enabled option.
             }
-            return Task.CompletedTask;
         }
     }
 }

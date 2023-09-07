@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -9,7 +10,8 @@ namespace Kabomu.Abstractions
     /// Represents the equivalent of an HTTP request entity: request line,
     /// request headers, and request body.
     /// </summary>
-    public interface IQuasiHttpRequest : ICustomDisposable
+    public interface IQuasiHttpRequest :
+        IDisposable, IAsyncDisposable,ICustomDisposable
     {
         /// <summary>
         /// Gets or sets the equivalent of request target component of HTTP request line.
@@ -45,10 +47,9 @@ namespace Kabomu.Abstractions
         long ContentLength { get; set; }
 
         /// <summary>
-        /// Gets or sets the request body. Must be acceptable by
-        /// <see cref="QuasiHttpUtils.NormalizeReader"/>.
+        /// Gets or sets the request body.
         /// </summary>
-        object Body { get; set; }
+        Stream Body { get; set; }
 
         /// <summary>
         /// Gets or sets any objects which may be of interest during request processing.

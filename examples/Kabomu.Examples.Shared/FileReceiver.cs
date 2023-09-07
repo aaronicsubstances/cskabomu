@@ -38,7 +38,7 @@ namespace Kabomu.Examples.Shared
                 string p = Path.Combine(directory.Name, fileName);
                 using (var fileStream = new FileStream(p, FileMode.Create))
                 {
-                    await QuasiHttpUtils.CopyBytes(request.Body, fileStream);
+                    await MiscUtils.CopyBytesToStream(request.Body, fileStream);
                 }
             }
             catch (Exception e)
@@ -52,11 +52,11 @@ namespace Kabomu.Examples.Shared
             var response = new DefaultQuasiHttpResponse();
             if (transferError == null)
             {
-                response.StatusCode = QuasiHttpUtils.StatusCodeOk;
+                response.StatusCode = QuasiHttpProtocolUtils.StatusCodeOk;
             }
             else
             {
-                response.StatusCode = QuasiHttpUtils.StatusCodeServerError;
+                response.StatusCode = QuasiHttpProtocolUtils.StatusCodeServerError;
                 response.HttpStatusMessage = transferError.Message;
             }
             return response;

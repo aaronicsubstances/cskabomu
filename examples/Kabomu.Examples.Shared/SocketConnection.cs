@@ -1,46 +1,56 @@
-﻿using Kabomu.Abstractions;
+﻿using System;
+using System.Collections.Generic;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading.Tasks;
+using System.Threading;
+using Kabomu.Abstractions;
 using Kabomu.Exceptions;
 using Kabomu.Impl;
-using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace Kabomu
+namespace Kabomu.Examples.Shared
 {
     /// <summary>
     /// Provides convenient implementation of <see cref="IQuasiHttpConnection"/> interface
-    /// based on .NET Streams.
+    /// based on .NET sockets.
     /// </summary>
-    public class DuplexStreamConnection : IQuasiHttpConnection
+    public class SocketConnection : IQuasiHttpConnection
     {
         private static readonly IQuasiHttpProcessingOptions DefaultProcessingOptions =
             new DefaultQuasiHttpProcessingOptions();
-        private readonly Stream _stream;
+        private readonly Socket _socket;
+        private readonly Stream _reader;
         private readonly CancellationTokenSource _timeoutId;
-        private readonly Task<IEncodedReadRequest> _timeoutTask;
+        private readonly Task<IEncodedQuasiHttpEntity> _timeoutTask;
 
-        public DuplexStreamConnection(Stream stream, bool isClient,
+        public SocketConnection(Socket socket, bool isClient,
             IQuasiHttpProcessingOptions processingOptions,
             IQuasiHttpProcessingOptions fallbackProcessingOptions = null)
         {
-            _stream = stream ?? throw new ArgumentNullException(nameof(stream));
+            _socket = socket ?? throw new ArgumentNullException(nameof(socket));
 
             if (processingOptions != null && fallbackProcessingOptions != null)
             {
-                processingOptions = QuasiHttpUtils.MergeProcessingOptions(processingOptions,
+                processingOptions = QuasiHttpProtocolUtils.MergeProcessingOptions(processingOptions,
                     fallbackProcessingOptions);
             }
             ProcessingOptions = (processingOptions ?? fallbackProcessingOptions)
                 ?? DefaultProcessingOptions;
+            var chunkGenerator = MiscUtils.CreateGeneratorFromSource(
+                async (data, offset, length) =>
+                {
+                    return await socket.ReceiveAsync(new Memory<byte>(data, offset, length),
+                        SocketFlags.None);
+                }
+            );
+            _reader = MiscUtils.CreateInputStreamFromGenerator(chunkGenerator);
+                ;
             if (ProcessingOptions.TimeoutMillis > 0)
             {
                 _timeoutId = new CancellationTokenSource();
                 _timeoutTask = Task.Delay(ProcessingOptions.TimeoutMillis, _timeoutId.Token)
-                    .ContinueWith<IEncodedReadRequest>(t =>
+                    .ContinueWith<IEncodedQuasiHttpEntity>(t =>
                     {
                         if (!t.IsCanceled)
                         {
@@ -58,24 +68,33 @@ namespace Kabomu
             }
         }
 
-        public Stream Reader => _stream;
-        public Stream Writer => _stream;
-
         public IQuasiHttpProcessingOptions ProcessingOptions { get; }
 
         public IDictionary<string, object> Environment { get; set; }
 
+        private async Task WriteSocketBytes(byte[] data, int offset, int length)
+        {
+            int totalBytesSent = 0;
+            while (totalBytesSent < length)
+            {
+                int bytesSent = await _socket.SendAsync(
+                    new ReadOnlyMemory<byte>(data,
+                        offset + totalBytesSent,
+                        length - totalBytesSent), SocketFlags.None);
+                totalBytesSent += bytesSent;
+            }
+        }
+
         public Task Release()
         {
             _timeoutId?.Cancel();
-            _stream.Dispose();
+            _socket.Dispose();
             return Task.CompletedTask;
         }
 
-        public async Task Write(bool isResponse,
-            byte[] encodedHeaders, object bodyReader)
+        public async Task Write(bool isResponse, IEncodedQuasiHttpEntity entity)
         {
-            var mainTask = WriteInternal(isResponse, encodedHeaders, bodyReader);
+            var mainTask = WriteInternal(isResponse, entity);
             if (_timeoutTask != null)
             {
                 await await Task.WhenAny(mainTask, _timeoutTask);
@@ -83,13 +102,13 @@ namespace Kabomu
             await mainTask;
         }
 
-        private async Task WriteInternal(bool isResponse,
-            byte[] encodedHeaders, object bodyReader)
+        private async Task WriteInternal(bool isResponse, IEncodedQuasiHttpEntity entity)
         {
-            await Writer.WriteAsync(encodedHeaders, 0, encodedHeaders.Length);
-            if (bodyReader != null)
+            var encodedHeaders = entity.Headers;
+            await WriteSocketBytes(encodedHeaders, 0, encodedHeaders.Length);
+            if (entity.Body != null)
             {
-                await QuasiHttpUtils.CopyBytes(bodyReader, Writer);
+                await MiscUtils.CopyBytesToSink(entity.Body, WriteSocketBytes);
             }
             if (isResponse)
             {
@@ -97,7 +116,7 @@ namespace Kabomu
             }
         }
 
-        public async Task<IEncodedReadRequest> Read(bool isResponse)
+        public async Task<IEncodedQuasiHttpEntity> Read(bool isResponse)
         {
             var mainTask = ReadInternal(isResponse);
             if (_timeoutTask != null)
@@ -107,14 +126,14 @@ namespace Kabomu
             return await mainTask;
         }
 
-        private async Task<IEncodedReadRequest> ReadInternal(bool isResponse)
+        private async Task<IEncodedQuasiHttpEntity> ReadInternal(bool isResponse)
         {
             var encodedHeadersLength = new byte[
-                QuasiHttpCodec.LengthOfEncodedHeadersLength];
-            await QuasiHttpUtils.ReadBytesFully(Reader, encodedHeadersLength, 0,
+                QuasiHttpProtocolUtils.LengthOfEncodedHeadersLength];
+            await MiscUtils.ReadBytesFully(_reader, encodedHeadersLength, 0,
                 encodedHeadersLength.Length);
-            int headersLength = int.Parse(Encoding.ASCII.GetString(
-                encodedHeadersLength));
+            int headersLength = MiscUtils.ParseInt32(
+                MiscUtils.BytesToString(encodedHeadersLength));
             if (headersLength < 0)
             {
                 throw new ChunkDecodingException(
@@ -124,7 +143,7 @@ namespace Kabomu
             int maxHeadersSize = ProcessingOptions.MaxHeadersSize;
             if (maxHeadersSize <= 0)
             {
-                maxHeadersSize = QuasiHttpCodec.DefaultMaxHeadersSize;
+                maxHeadersSize = QuasiHttpProtocolUtils.DefaultMaxHeadersSize;
             }
             if (headersLength > maxHeadersSize)
             {
@@ -132,16 +151,16 @@ namespace Kabomu
                     $"({headersLength} > {ProcessingOptions.MaxHeadersSize})");
             }
             var headers = new byte[headersLength];
-            await QuasiHttpUtils.ReadBytesFully(Reader, headers, 0,
+            await MiscUtils.ReadBytesFully(_reader, headers, 0,
                 headersLength);
-            object body = Reader;
+            var body = _reader;
             if (isResponse && ProcessingOptions.ResponseBufferingEnabled != false)
             {
-                body = await QuasiHttpUtils.ReadAllBytes(Reader,
-                    ProcessingOptions.ResponseBodyBufferingSizeLimit);
+                body = new MemoryStream(await MiscUtils.ReadAllBytes(_reader,
+                    ProcessingOptions.ResponseBodyBufferingSizeLimit));
                 await Release();
             }
-            return new DefaultEncodedReadRequest
+            return new DefaultEncodedQuasiHttpEntity
             {
                 Headers = headers,
                 Body = body
