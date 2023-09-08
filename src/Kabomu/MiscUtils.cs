@@ -1,10 +1,8 @@
-﻿using Kabomu.Abstractions;
-using Kabomu.Exceptions;
+﻿using Kabomu.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -82,7 +80,7 @@ namespace Kabomu
         /// </remarks>
         /// <param name="reader">The source of data to read</param>
         /// <param name="bufferingLimit">Indicates the maximum size in bytes of the resulting buffer.
-        /// Can pass zero to use default value. Can also pass a negative value which will ignore
+        /// Can pass zero to use default value of 128 MB. Can also pass a negative value which will ignore
         /// imposing a maximum size.</param>
         /// <returns>A task whose result is an in-memory buffer which has all of the remaining data in the reader.</returns>
         /// <exception cref="CustomIOException">The <paramref name="bufferingLimit"/> argument indicates a positive value,
@@ -276,6 +274,12 @@ namespace Kabomu
             return s.ToString();
         }
 
+        internal static string StringReplace(string raw,
+            string oldValue, string newValue)
+        {
+            return raw.Replace(oldValue, newValue);
+        }
+
         internal static byte[] ConcatBuffers(List<byte[]> chunks)
         {
             int totalLen = ComputeLengthOfBuffers(chunks);
@@ -293,6 +297,79 @@ namespace Kabomu
         {
             int totalLen = chunks.Sum(c => c.Length);
             return totalLen;
+        }
+
+        // Copied from
+        // https://learn.microsoft.com/en-us/dotnet/standard/asynchronous-programming-patterns/interop-with-other-asynchronous-patterns-and-types
+        internal static IAsyncResult AsApm<T>(this Task<T> task,
+            AsyncCallback callback, object state)
+        {
+            if (task == null)
+                throw new ArgumentNullException("task");
+
+            var tcs = new TaskCompletionSource<T>(state);
+            task.ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    tcs.TrySetException(t.Exception.InnerExceptions);
+                else if (t.IsCanceled)
+                    tcs.TrySetCanceled();
+                else
+                    tcs.TrySetResult(t.Result);
+
+                if (callback != null)
+                    callback(tcs.Task);
+            }, TaskScheduler.Default);
+            return tcs.Task;
+        }
+
+        public async static Task<T> CompleteMainTask<T>(
+            Task<T> mainTask, params Task[] cancellationTasks)
+        {
+            if (mainTask == null)
+            {
+                throw new ArgumentNullException(nameof(mainTask));
+            }
+
+            await EliminateCancellationTasks(mainTask, cancellationTasks);
+            return await mainTask;
+        }
+
+        public async static Task CompleteMainTask(
+            Task mainTask, params Task[] cancellationTasks)
+        {
+            if (mainTask == null)
+            {
+                throw new ArgumentNullException(nameof(mainTask));
+            }
+
+            await EliminateCancellationTasks(mainTask, cancellationTasks);
+            await mainTask;
+        }
+
+        private async static Task EliminateCancellationTasks(
+            Task mainTask, Task[] cancellationTasks)
+        {
+            // ignore null tasks and successful results from
+            // cancellation tasks.
+            var tasks = new List<Task> { mainTask };
+            foreach (var t in cancellationTasks)
+            {
+                if (t != null)
+                {
+                    tasks.Add(t);
+                }
+            }
+            while (tasks.Count > 1)
+            {
+                var firstTask = await Task.WhenAny(tasks);
+                if (firstTask == mainTask)
+                {
+                    break;
+                }
+                await firstTask; // let any exceptions bubble up.
+                tasks.Remove(firstTask);
+            }
         }
     }
 
@@ -444,12 +521,17 @@ namespace Kabomu
             return nextChunkLength;
         }
 
-        // ignore
         public override IAsyncResult BeginRead(
             byte[] buffer, int offset, int count,
             AsyncCallback callback, object state)
         {
-            return base.BeginRead(buffer, offset, count, callback, state);
+            return ReadAsync(buffer, offset, count).AsApm(callback, state);
+        }
+
+
+        public override int EndRead(IAsyncResult asyncResult)
+        {
+            return ((Task<int>)asyncResult).Result;
         }
     }
 }

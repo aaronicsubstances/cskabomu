@@ -23,7 +23,7 @@ namespace Kabomu
     /// whiles enabling underlying transport options beyond TCP.
     /// <para></para>
     /// Therefore this class can be seen as the equivalent of an HTTP client that extends underlying transport beyond TCP
-    /// to IPC mechanisms and even interested connectionless transports as well.
+    /// to IPC mechanisms.
     /// </remarks>
     public class StandardQuasiHttpClient
     {

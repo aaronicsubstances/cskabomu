@@ -14,10 +14,27 @@ namespace Kabomu.Examples.Shared
             object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions)
         {
             var path = (string)remoteEndpoint;
-            var pipeClient = new NamedPipeClientStream(".", path, PipeDirection.InOut, PipeOptions.Asynchronous);
-            await pipeClient.ConnectAsync();
-            return new DuplexStreamConnection(pipeClient, true,
+            var pipeClient = new NamedPipeClientStream(".", path,
+                PipeDirection.InOut, PipeOptions.Asynchronous);
+            var connection = new DuplexStreamConnection(pipeClient, true,
                 sendOptions, DefaultSendOptions);
+
+            var mainTask = pipeClient.ConnectAsync();
+            try
+            {
+                await MiscUtils.CompleteMainTask(mainTask, connection.TimeoutId?.Task);
+            }
+            catch (Exception)
+            {
+                try
+                {
+                    // don't wait.
+                    _ = connection.Release();
+                }
+                catch (Exception) { } //ignore
+                throw;
+            }
+            return connection;
         }
 
         public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }

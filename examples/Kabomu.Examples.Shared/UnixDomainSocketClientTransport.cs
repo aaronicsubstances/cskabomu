@@ -14,11 +14,27 @@ namespace Kabomu.Examples.Shared
             object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions)
         {
             var path = (string)remoteEndpoint;
-            var socket = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            var socket = new Socket(AddressFamily.Unix,
+                SocketType.Stream, ProtocolType.Unspecified);
             path = Path.Combine(Path.GetTempPath(), path);
-            await socket.ConnectAsync(new UnixDomainSocketEndPoint(path));
-            return new SocketConnection(socket, true,
+            var connection = new SocketConnection(socket, true,
                 sendOptions, DefaultSendOptions);
+            var mainTask = socket.ConnectAsync(new UnixDomainSocketEndPoint(path));
+            try
+            {
+                await MiscUtils.CompleteMainTask(mainTask, connection.TimeoutId?.Task);
+            }
+            catch (Exception)
+            {
+                try
+                {
+                    // don't wait.
+                    _ = connection.Release();
+                }
+                catch (Exception) { } //ignore
+                throw;
+            }
+            return connection;
         }
 
         public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }

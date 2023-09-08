@@ -13,7 +13,7 @@
     <Description>Kabomu is a simple networking library that enables running HTTP semantics transparently over IPC mechanisms including but not limited to TCP. It makes it straightforward to even build web application semantics which are abstracted from the underlying IPC mechanism of choice.</Description>
     <Copyright>Copyright ©2022 Aaronic Substances</Copyright>
     <Version>6.0.0</Version>
-    <PackageReleaseNotes>- Restricted focus of project to just providing HTTP-like protocol over IPC
+    <PackageReleaseNotes>- Restricted focus of project to just providing quasi web protocol over IPC
 - Removed Mediator quasi web microframework</PackageReleaseNotes>
   </PropertyGroup>
 

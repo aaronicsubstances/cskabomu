@@ -26,6 +26,7 @@ namespace Kabomu.Exceptions
         public const int ReasonCodeTimeout = 2;
 
         // the following codes are reserved for future use.
+        private const int ReasonCodeReserved3 = 3;
         private const int ReasonCodeReserved4 = 4;
         private const int ReasonCodeReserved5 = 5;
         private const int ReasonCodeReserved6 = 6;
@@ -69,6 +70,7 @@ namespace Kabomu.Exceptions
         {
             switch (reasonCode)
             {
+                case ReasonCodeReserved3:
                 case ReasonCodeReserved4:
                 case ReasonCodeReserved5:
                 case ReasonCodeReserved6:

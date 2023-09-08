@@ -10,6 +10,10 @@ using System.Threading.Tasks;
 
 namespace Kabomu
 {
+    /// <summary>
+    /// Contains constants and helper functions involved in implementing quasi
+    /// web protocol.
+    /// </summary>
     public static class QuasiHttpProtocolUtils
     {
         /// <summary>
@@ -172,13 +176,21 @@ namespace Kabomu
         public const int LengthOfEncodedHeadersLength = 6;
 
         /// <summary>
-        /// The maximum possible size that headers in a request or response cannot
-        /// exceed.
+        /// The maximum possible size that headers in a request or response
+        /// cannot exceed.
         /// </summary>
-        public const int HardLimitOnMaxHeadersSize = 999_999;
+        private const int HardLimitOnMaxHeadersSize = 999_999;
 
+        /// <summary>
+        /// The number of ASCII bytes which indicate the length of
+        /// data in a body chunk.
+        /// </summary>
         public const int LengthOfEncodedBodyChunkLength = 10;
-        public const int MaxBodyChunkLength = 1_000_000_000;
+
+        /// <summary>
+        /// The maximum allowable body chunk data length.
+        /// </summary>
+        private const int MaxBodyChunkLength = 2_000_000_000;
 
         public static  byte[] EncodeRequestHeaders(
             IQuasiHttpRequest reqHeaders,

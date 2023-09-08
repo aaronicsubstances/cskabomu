@@ -3,9 +3,7 @@ using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using System.Threading;
 using Kabomu.Abstractions;
-using Kabomu.Exceptions;
 using Kabomu.Impl;
 using System.IO;
 
@@ -21,8 +19,6 @@ namespace Kabomu.Examples.Shared
             new DefaultQuasiHttpProcessingOptions();
         private readonly Socket _socket;
         private readonly Stream _reader;
-        private readonly CancellationTokenSource _timeoutId;
-        private readonly Task<IEncodedQuasiHttpEntity> _timeoutTask;
 
         public SocketConnection(Socket socket, bool isClient,
             IQuasiHttpProcessingOptions processingOptions,
@@ -45,28 +41,12 @@ namespace Kabomu.Examples.Shared
                 }
             );
             _reader = MiscUtils.CreateInputStreamFromGenerator(chunkGenerator);
-                ;
-            if (ProcessingOptions.TimeoutMillis > 0)
-            {
-                _timeoutId = new CancellationTokenSource();
-                _timeoutTask = Task.Delay(ProcessingOptions.TimeoutMillis, _timeoutId.Token)
-                    .ContinueWith<IEncodedQuasiHttpEntity>(t =>
-                    {
-                        if (!t.IsCanceled)
-                        {
-                            throw new QuasiHttpRequestProcessingException(
-                                isClient ? "send timeout" : "receive timeout",
-                                QuasiHttpRequestProcessingException.ReasonCodeTimeout);
-                        }
-                        return null;
-                    });
-            }
-            else
-            {
-                _timeoutId = null;
-                _timeoutTask = null;
-            }
+            TimeoutId = TransportImplHelpers.CreateCancellableTimeoutTask(
+                ProcessingOptions.TimeoutMillis,
+                isClient ? "send timeout" : "receive timeout");
         }
+
+        public CancellablePromise TimeoutId { get; }
 
         public IQuasiHttpProcessingOptions ProcessingOptions { get; }
 
@@ -87,7 +67,7 @@ namespace Kabomu.Examples.Shared
 
         public Task Release()
         {
-            _timeoutId?.Cancel();
+            TimeoutId?.Cancel();
             _socket.Dispose();
             return Task.CompletedTask;
         }
@@ -95,11 +75,7 @@ namespace Kabomu.Examples.Shared
         public async Task Write(bool isResponse, IEncodedQuasiHttpEntity entity)
         {
             var mainTask = WriteInternal(isResponse, entity);
-            if (_timeoutTask != null)
-            {
-                await await Task.WhenAny(mainTask, _timeoutTask);
-            }
-            await mainTask;
+            await MiscUtils.CompleteMainTask(mainTask, TimeoutId?.Task);
         }
 
         private async Task WriteInternal(bool isResponse, IEncodedQuasiHttpEntity entity)
@@ -119,46 +95,27 @@ namespace Kabomu.Examples.Shared
         public async Task<IEncodedQuasiHttpEntity> Read(bool isResponse)
         {
             var mainTask = ReadInternal(isResponse);
-            if (_timeoutTask != null)
-            {
-                await await Task.WhenAny(mainTask, _timeoutTask);
-            }
-            return await mainTask;
+            return await MiscUtils.CompleteMainTask(mainTask, TimeoutId?.Task);
         }
 
         private async Task<IEncodedQuasiHttpEntity> ReadInternal(bool isResponse)
         {
-            var encodedHeadersLength = new byte[
-                QuasiHttpProtocolUtils.LengthOfEncodedHeadersLength];
-            await MiscUtils.ReadBytesFully(_reader, encodedHeadersLength, 0,
-                encodedHeadersLength.Length);
-            int headersLength = MiscUtils.ParseInt32(
-                MiscUtils.BytesToString(encodedHeadersLength));
-            if (headersLength < 0)
-            {
-                throw new ChunkDecodingException(
-                    "invalid length encountered for quasi http headers: " +
-                    $"{headersLength}");
-            }
-            int maxHeadersSize = ProcessingOptions.MaxHeadersSize;
-            if (maxHeadersSize <= 0)
-            {
-                maxHeadersSize = QuasiHttpProtocolUtils.DefaultMaxHeadersSize;
-            }
-            if (headersLength > maxHeadersSize)
-            {
-                throw new ChunkDecodingException("quasi http headers exceed max " +
-                    $"({headersLength} > {ProcessingOptions.MaxHeadersSize})");
-            }
-            var headers = new byte[headersLength];
-            await MiscUtils.ReadBytesFully(_reader, headers, 0,
-                headersLength);
+            var headers = await TransportImplHelpers.ReadHeaders(_reader,
+                ProcessingOptions);
             var body = _reader;
-            if (isResponse && ProcessingOptions.ResponseBufferingEnabled != false)
+            if (isResponse)
             {
-                body = new MemoryStream(await MiscUtils.ReadAllBytes(_reader,
-                    ProcessingOptions.ResponseBodyBufferingSizeLimit));
-                await Release();
+                if (ProcessingOptions.ResponseBufferingEnabled != false)
+                {
+                    body = new MemoryStream(await MiscUtils.ReadAllBytes(_reader,
+                        ProcessingOptions.ResponseBodyBufferingSizeLimit));
+                    await Release();
+                }
+                else
+                {
+                    // partially release resources.
+                    TimeoutId?.Cancel();
+                }
             }
             return new DefaultEncodedQuasiHttpEntity
             {

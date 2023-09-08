@@ -296,7 +296,7 @@ namespace Kabomu
                 // serialize to the same CSV output.
                 return raw == "" ? "\"\"" : raw;
             }
-            return '"' + raw.Replace("\"", "\"\"") + '"';
+            return '"' + MiscUtils.StringReplace(raw, "\"", "\"\"") + '"';
         }
 
         /// <summary>

@@ -8,6 +8,10 @@ using Kabomu.Abstractions;
 
 namespace Kabomu.Impl
 {
+    /// <summary>
+    /// Provides default implementation of the <see cref="IEncodedQuasiHttpEntity"/>
+    /// interface.
+    /// </summary>
     public class DefaultEncodedQuasiHttpEntity : IEncodedQuasiHttpEntity
     {
         public byte[] Headers { get; set; }

@@ -7,8 +7,7 @@ using System.Threading.Tasks;
 namespace Kabomu.Exceptions
 {
     /// <summary>
-    /// Represents errors usable by implementations of custom readers and writers,
-    /// as well as errors encountered by <see cref="MiscUtils"/> class.
+    /// Represents errors encountered when reading from or writing to byte streams.
     /// </summary>
     public class CustomIOException : KabomuException
     {
