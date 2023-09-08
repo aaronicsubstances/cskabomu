@@ -1,7 +1,7 @@
 ﻿using CommandLine;
+using Kabomu;
 using Kabomu.Examples.Shared;
-using Kabomu.QuasiHttp.Client;
-using Kabomu.QuasiHttp.Transport;
+using Kabomu.Impl;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -37,14 +37,15 @@ namespace WindowsNamedPipe.FileClient
 
         static async Task RunMain(string serverPath, string uploadDirPath)
         {
-            var transport = new WindowsNamedPipeClientTransport();
-            var defaultSendOptions = new DefaultQuasiHttpSendOptions
+            var transport = new WindowsNamedPipeClientTransport
             {
-                TimeoutMillis = 5_000
+                DefaultSendOptions = new DefaultQuasiHttpProcessingOptions
+                {
+                    TimeoutMillis = 5_000
+                }
             };
             var instance = new StandardQuasiHttpClient
             {
-                DefaultSendOptions = defaultSendOptions,
                 Transport = transport
             };
 

@@ -1,8 +1,8 @@
-﻿using Kabomu.QuasiHttp.Client;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO.Pipes;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,32 +10,53 @@ namespace Kabomu.Examples.Shared
 {
     public class WindowsNamedPipeClientTransport : IQuasiHttpClientTransport
     {
-        public async Task<IConnectionAllocationResponse> AllocateConnection(
-            object remoteEndpoint, IQuasiHttpSendOptions sendOptions)
+        public async Task<IQuasiHttpConnection> AllocateConnection(
+            object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions)
         {
             var path = (string)remoteEndpoint;
-            var pipeClient = new NamedPipeClientStream(".", path, PipeDirection.InOut, PipeOptions.Asynchronous);
-            await pipeClient.ConnectAsync();
-            var response = new DefaultConnectionAllocationResponse
+            var pipeClient = new NamedPipeClientStream(".", path,
+                PipeDirection.InOut, PipeOptions.Asynchronous);
+            var connection = new DuplexStreamConnection(pipeClient, true,
+                sendOptions, DefaultSendOptions);
+
+            var mainTask = pipeClient.ConnectAsync();
+            try
             {
-                Connection = pipeClient
-            };
-            return response;
+                await MiscUtils.CompleteMainTask(mainTask, connection.TimeoutId?.Task);
+            }
+            catch (Exception)
+            {
+                try
+                {
+                    // don't wait.
+                    _ = connection.Release();
+                }
+                catch (Exception) { } //ignore
+                throw;
+            }
+            return connection;
         }
 
-        public object GetWriter(object connection)
+        public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }
+
+        public Task ReleaseConnection(IQuasiHttpConnection connection)
         {
-            return WindowsNamedPipeServerTransport.GetWriterInternal(connection);
+            return ((DuplexStreamConnection)connection).Release();
         }
 
-        public object GetReader(object connection)
+        public Task Write(IQuasiHttpConnection connection, bool isResponse,
+            IEncodedQuasiHttpEntity entity)
         {
-            return WindowsNamedPipeServerTransport.GetReaderInternal(connection);
+            return ((DuplexStreamConnection)connection).Write(isResponse,
+                entity);
         }
 
-        public Task ReleaseConnection(object connection)
+        public Task<IEncodedQuasiHttpEntity> Read(
+            IQuasiHttpConnection connection,
+            bool isResponse)
         {
-            return WindowsNamedPipeServerTransport.ReleaseConnectionInternal(connection);
+            return ((DuplexStreamConnection)connection).Read(
+                isResponse);
         }
     }
 }

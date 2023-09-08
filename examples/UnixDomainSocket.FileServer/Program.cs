@@ -1,6 +1,7 @@
 ﻿using CommandLine;
+using Kabomu;
 using Kabomu.Examples.Shared;
-using Kabomu.QuasiHttp.Server;
+using Kabomu.Impl;
 using NLog;
 using System;
 using System.Threading.Tasks;
@@ -35,15 +36,15 @@ namespace UnixDomainSocket.FileServer
         {
             var instance = new StandardQuasiHttpServer
             {
+                Application = new FileReceiver(path, uploadDirPath)
+            };
+            var transport = new UnixDomainSocketServerTransport(path)
+            {
+                Server = instance,
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     TimeoutMillis = 5_000
                 }
-            };
-            instance.Application = FileReceiver.Create(path, uploadDirPath);
-            var transport = new UnixDomainSocketServerTransport(path)
-            {
-                Server = instance
             };
             instance.Transport = transport;
 

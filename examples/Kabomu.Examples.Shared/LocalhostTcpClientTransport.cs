@@ -1,5 +1,4 @@
-﻿using Kabomu.QuasiHttp.Client;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,33 +11,51 @@ namespace Kabomu.Examples.Shared
 {
     public class LocalhostTcpClientTransport : IQuasiHttpClientTransport
     {
-        public async Task<IConnectionAllocationResponse> AllocateConnection(
-            object remoteEndpoint, IQuasiHttpSendOptions sendOptions)
+        public async Task<IQuasiHttpConnection> AllocateConnection(
+            object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions)
         {
             int port = (int)remoteEndpoint;
-            var clientSocket = new Socket(IPAddress.Loopback.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-            clientSocket.NoDelay = true;
-            await clientSocket.ConnectAsync(IPAddress.Loopback, port);
-            var response = new DefaultConnectionAllocationResponse
+            var socket = new Socket(IPAddress.Loopback.AddressFamily,
+                SocketType.Stream, ProtocolType.Tcp);
+            socket.NoDelay = true;
+            var connection = new SocketConnection(socket, true,
+                sendOptions, DefaultSendOptions);
+            var mainTask = socket.ConnectAsync(IPAddress.Loopback, port);
+            try
             {
-                Connection = new SocketWrapper(clientSocket)
-            };
-            return response;
+                await MiscUtils.CompleteMainTask(mainTask, connection.TimeoutId?.Task);
+            }
+            catch (Exception)
+            {
+                try
+                {
+                    // don't wait.
+                    _ = connection.Release();
+                }
+                catch (Exception) { } //ignore
+                throw;
+            }
+            return connection;
         }
 
-        public object GetWriter(object connection)
+        public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }
+
+        public Task ReleaseConnection(IQuasiHttpConnection connection)
         {
-            return LocalhostTcpServerTransport.GetWriterInternal(connection);
+            return ((SocketConnection)connection).Release();
         }
 
-        public object GetReader(object connection)
+        public Task Write(IQuasiHttpConnection connection, bool isResponse,
+            IEncodedQuasiHttpEntity entity)
         {
-            return LocalhostTcpServerTransport.GetReaderInternal(connection);
+            return ((SocketConnection)connection).Write(isResponse, entity);
         }
 
-        public Task ReleaseConnection(object connection)
+        public Task<IEncodedQuasiHttpEntity> Read(
+            IQuasiHttpConnection connection, bool isResponse)
         {
-            return LocalhostTcpServerTransport.ReleaseConnectionInternal(connection);
+            return ((SocketConnection)connection).Read(
+                isResponse);
         }
     }
 }

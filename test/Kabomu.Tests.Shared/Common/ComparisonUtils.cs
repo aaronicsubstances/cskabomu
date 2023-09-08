@@ -1,8 +1,6 @@
 ﻿using Kabomu.Common;
-using Kabomu.Mediator.Path;
 using Kabomu.QuasiHttp;
 using Kabomu.QuasiHttp.ChunkedTransfer;
-using Kabomu.QuasiHttp.Client;
 using Kabomu.QuasiHttp.EntityBody;
 using Newtonsoft.Json;
 using System;
@@ -14,7 +12,6 @@ using System.Threading.Tasks;
 using System.Xml;
 using Xunit;
 using Xunit.Abstractions;
-using static Kabomu.Mediator.Path.DefaultPathTemplateExampleInternal;
 
 [assembly: InternalsVisibleTo("Kabomu.Tests")]
 [assembly: InternalsVisibleTo("Kabomu.IntegrationTests")]
@@ -112,38 +109,6 @@ namespace Kabomu.Tests.Shared.Common
             Assert.Equal(expectedBodyBytes, actualBodyBytes);
         }
 
-        public static async Task CompareResponsesInvolvingUnknownSources(
-            IQuasiHttpResponse expected, IQuasiHttpResponse actual,
-            byte[] expectedResBodyBytes)
-        {
-            if (expected == null)
-            {
-                Assert.Null(actual);
-                return;
-            }
-            Assert.NotNull(actual);
-            Assert.Equal(expected.StatusCode, actual.StatusCode);
-            Assert.Equal(expected.HttpVersion, actual.HttpVersion);
-            Assert.Equal(expected.HttpStatusMessage, actual.HttpStatusMessage);
-            CompareHeaders(expected.Headers, actual.Headers);
-            //Assert.Equal(expected.Environment, actual.Environment);
-            await CompareBodiesInvolvingUnknownSources(expected.Body, actual.Body, expectedResBodyBytes);
-        }
-
-        public static async Task CompareBodiesInvolvingUnknownSources(IQuasiHttpBody expected,
-            IQuasiHttpBody actual, byte[] expectedBodyBytes)
-        {
-            if (expectedBodyBytes == null)
-            {
-                Assert.Same(expected, actual);
-                return;
-            }
-            Assert.NotNull(actual);
-            Assert.Equal(expectedBodyBytes.Length, actual.ContentLength);
-            var actualBodyBytes = await IOUtils.ReadAllBytes(actual.AsReader());
-            Assert.Equal(expectedBodyBytes, actualBodyBytes);
-        }
-
         public static void CompareHeaders(IDictionary<string, IList<string>> expected,
             IDictionary<string, IList<string>> actual)
         {
@@ -194,112 +159,9 @@ namespace Kabomu.Tests.Shared.Common
             }
         }
 
-        public static void AssertTemplatesEqual(IPathTemplate expected, IPathTemplate actual,
-            ITestOutputHelper outputHelper)
-        {
-            try
-            {
-                CompareTemplates((DefaultPathTemplateInternal)expected,
-                    (DefaultPathTemplateInternal)actual);
-            }
-            catch (Exception)
-            {
-                if (outputHelper != null)
-                {
-                    outputHelper.WriteLine("Expected:");
-                    outputHelper.WriteLine(JsonConvert.SerializeObject(expected, Newtonsoft.Json.Formatting.Indented));
-                    outputHelper.WriteLine("Actual:");
-                    outputHelper.WriteLine(JsonConvert.SerializeObject(actual, Newtonsoft.Json.Formatting.Indented));
-                }
-                throw;
-            }
-        }
-
-        private static void CompareTemplates(DefaultPathTemplateInternal expected,
-            DefaultPathTemplateInternal actual)
-        {
-            Assert.Equal(expected.DefaultValues, actual.DefaultValues);
-            Assert.Equal(expected.ConstraintFunctions, actual.ConstraintFunctions);
-            var expectedConstraintKeys = new List<string>();
-            if (expected.AllConstraints != null)
-            {
-                expectedConstraintKeys.AddRange(expected.AllConstraints.Keys);
-            }
-            expectedConstraintKeys.Sort();
-            var actualConstraintKeys = new List<string>();
-            if (actual.AllConstraints != null)
-            {
-                actualConstraintKeys.AddRange(actual.AllConstraints.Keys);
-            }
-            actualConstraintKeys.Sort();
-            Assert.Equal(expectedConstraintKeys, actualConstraintKeys);
-            foreach (var key in expectedConstraintKeys)
-            {
-                var expectedValue = expected.AllConstraints[key];
-                var actualValue = actual.AllConstraints[key];
-                var expandedExpectation = expectedValue.SelectMany(
-                    x => Enumerable.Repeat(x.Item1, 1).Concat(x.Item2));
-                var expandedActual = actualValue.SelectMany(
-                    x => Enumerable.Repeat(x.Item1, 1).Concat(x.Item2));
-                Assert.Equal(expandedExpectation, expandedActual);
-            }
-
-            Assert.Equal(expected.ParsedExamples.Count, actual.ParsedExamples.Count);
-            for (int i = 0; i < expected.ParsedExamples.Count; i++)
-            {
-                var expectedParsedExample = expected.ParsedExamples[i];
-                var actualParsedExample = actual.ParsedExamples[i];
-                Assert.Equal(expectedParsedExample.CaseSensitiveMatchEnabled,
-                    actualParsedExample.CaseSensitiveMatchEnabled);
-                Assert.Equal(expectedParsedExample.UnescapeNonWildCardSegments,
-                    actualParsedExample.UnescapeNonWildCardSegments);
-                Assert.Equal(expectedParsedExample.MatchLeadingSlash,
-                    actualParsedExample.MatchLeadingSlash);
-                Assert.Equal(expectedParsedExample.MatchTrailingSlash,
-                    actualParsedExample.MatchTrailingSlash);
-
-                Assert.Equal(expectedParsedExample.Tokens.Count,
-                    actualParsedExample.Tokens.Count);
-
-                for (int j = 0; j < expectedParsedExample.Tokens.Count; j++)
-                {
-                    CompareTokens(expectedParsedExample.Tokens[j],
-                        actualParsedExample.Tokens[j]);
-                }
-            }
-        }
-
-        private static void CompareTokens(PathToken expected, PathToken actual)
-        {
-            Assert.Equal(expected.Type, actual.Type);
-            Assert.Equal(expected.Value, actual.Value);
-            Assert.Equal(expected.EmptySegmentAllowed, actual.EmptySegmentAllowed);
-        }
-
-        public static void AssertPathMatchResult(IPathMatchResult expected, IPathMatchResult actual)
-        {
-            if (expected == null)
-            {
-                Assert.Null(actual);
-            }
-            else
-            {
-                Assert.NotNull(actual);
-                ComparePathMatchResult((DefaultPathMatchResultInternal)expected, (DefaultPathMatchResultInternal)actual);
-            }
-        }
-
-        private static void ComparePathMatchResult(DefaultPathMatchResultInternal expected,
-            DefaultPathMatchResultInternal actual)
-        {
-            Assert.Equal(expected.BoundPath, actual.BoundPath);
-            Assert.Equal(expected.UnboundRequestTarget, actual.UnboundRequestTarget);
-            Assert.Equal(expected.PathValues, actual.PathValues);
-        }
-
         public static void CompareConnectivityParams(
             object expectedRemoteEndpoint, object actualRemoteEndpoint,
-            IQuasiHttpSendOptions expectedSendOptions, IQuasiHttpSendOptions actualSendOptions)
+            IQuasiHttpProcessingOptions expectedSendOptions, IQuasiHttpProcessingOptions actualSendOptions)
         {
             Assert.Equal(expectedRemoteEndpoint, actualRemoteEndpoint);
             if (expectedSendOptions == null)
@@ -312,8 +174,6 @@ namespace Kabomu.Tests.Shared.Common
                 actualSendOptions.ResponseBufferingEnabled);
             Assert.Equal(expectedSendOptions.ResponseBodyBufferingSizeLimit,
                 actualSendOptions.ResponseBodyBufferingSizeLimit);
-            Assert.Equal(expectedSendOptions.EnsureNonNullResponse,
-                actualSendOptions.EnsureNonNullResponse);
             Assert.Equal(expectedSendOptions.TimeoutMillis,
                 actualSendOptions.TimeoutMillis);
             Assert.Equal(expectedSendOptions.ExtraConnectivityParams,

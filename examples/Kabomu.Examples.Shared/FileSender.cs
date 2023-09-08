@@ -1,7 +1,5 @@
-﻿using Kabomu.Common;
-using Kabomu.QuasiHttp;
-using Kabomu.QuasiHttp.Client;
-using Kabomu.QuasiHttp.EntityBody;
+﻿using Kabomu.Abstractions;
+using Kabomu.Impl;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -47,12 +45,8 @@ namespace Kabomu.Examples.Shared
             request.Headers.Add("f", new List<string> { f.Name });
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
-            long fLen = RandGen.NextDouble() < 0.5 ? -1 : f.Length;
-            request.Body = new LambdaBasedQuasiHttpBody
-            {
-                ReaderFunc = () => fileStream,
-                ContentLength = fLen
-            };
+            request.ContentLength = RandGen.NextDouble() < 0.5 ? -1 : f.Length;
+            request.Body = fileStream;
             IQuasiHttpResponse res;
             try
             {
@@ -68,7 +62,7 @@ namespace Kabomu.Examples.Shared
                 LOG.Warn("Received no response.");
                 return;
             }
-            if (res.StatusCode == QuasiHttpUtils.StatusCodeOk)
+            if (res.StatusCode == QuasiHttpProtocolUtils.StatusCodeOk)
             {
                 LOG.Info("File {0} sent successfully", f.FullName);
             }
@@ -79,8 +73,8 @@ namespace Kabomu.Examples.Shared
                 {
                     try
                     {
-                        var responseMsgBytes = await IOUtils.ReadAllBytes(res.Body.AsReader());
-                        responseMsg = ByteUtils.BytesToString(responseMsgBytes);
+                        var responseMsgBytes = await MiscUtils.ReadAllBytes(res.Body);
+                        responseMsg = MiscUtils.BytesToString(responseMsgBytes);
                     }
                     catch (Exception)
                     {

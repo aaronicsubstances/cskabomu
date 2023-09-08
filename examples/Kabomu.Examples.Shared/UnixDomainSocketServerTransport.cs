@@ -1,5 +1,4 @@
-﻿using Kabomu.QuasiHttp.Server;
-using Kabomu.QuasiHttp.Transport;
+﻿using Kabomu.Abstractions;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -26,6 +25,8 @@ namespace Kabomu.Examples.Shared
         }
 
         public StandardQuasiHttpServer Server { get; set; }
+
+        public IQuasiHttpProcessingOptions DefaultProcessingOptions { get; set; }
 
         public Task Start()
         {
@@ -70,12 +71,9 @@ namespace Kabomu.Examples.Shared
         {
             try
             {
-                await Server.AcceptConnection(
-                    new DefaultConnectionAllocationResponse
-                    {
-                        Connection = new SocketWrapper(socket)
-                    }
-                );
+                var connection = new SocketConnection(socket, false,
+                    DefaultProcessingOptions);
+                await Server.AcceptConnection(connection);
             }
             catch (Exception ex)
             {
@@ -83,36 +81,23 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        public object GetWriter(object connection)
+        public Task ReleaseConnection(IQuasiHttpConnection connection)
         {
-            return GetWriterInternal(connection);
+            return ((SocketConnection)connection).Release();
         }
 
-        public object GetReader(object connection)
+        public Task Write(IQuasiHttpConnection connection, bool isResponse,
+            IEncodedQuasiHttpEntity entity)
         {
-            return GetReaderInternal(connection);
+            return ((SocketConnection)connection).Write(isResponse, entity);
         }
 
-        public Task ReleaseConnection(object connection)
+        public Task<IEncodedQuasiHttpEntity> Read(
+            IQuasiHttpConnection connection,
+            bool isResponse)
         {
-            return ReleaseConnectionInternal(connection);
-        }
-
-        internal static object GetWriterInternal(object connection)
-        {
-            return ((SocketWrapper)connection).Writer;
-        }
-
-        internal static object GetReaderInternal(object connection)
-        {
-            return ((SocketWrapper)connection).Reader;
-        }
-
-        internal static Task ReleaseConnectionInternal(object connection)
-        {
-            var socket = ((SocketWrapper)connection).Socket;
-            socket.Dispose();
-            return Task.CompletedTask;
+            return ((SocketConnection)connection).Read(
+                isResponse);
         }
     }
 }
