@@ -121,12 +121,11 @@ namespace Kabomu
             {
                 var response = await ProcessSend(request, transport,
                     connection);
-                await Abort(connection, false, response.ContentLength);
                 return response;
             }
             catch (Exception e)
             {
-                await Abort(connection, true, 0);
+                await Abort(transport, connection, true);
                 if (e is QuasiHttpRequestProcessingException)
                 {
                     throw;
@@ -141,7 +140,7 @@ namespace Kabomu
 
         internal static async Task<IQuasiHttpResponse> ProcessSend(
             IQuasiHttpRequest request,
-            IQuasiHttpTransport transport,
+            IQuasiHttpClientTransport transport,
             IQuasiHttpConnection connection)
         {
             if (transport == null)
@@ -172,7 +171,10 @@ namespace Kabomu
                 throw new QuasiHttpRequestProcessingException("no response");
             }
 
-            Func<Task> releaseFunc = () => transport.ReleaseConnection(connection);
+            Func<Task> releaseFunc = () =>
+            {
+                return transport.ReleaseConnection(connection, false);
+            };
             var response = new DefaultQuasiHttpResponse
             {
                 Disposer = releaseFunc
@@ -182,31 +184,36 @@ namespace Kabomu
             response.Body = QuasiHttpProtocolUtils.DecodeBodyFromTransport(
                 response.ContentLength, encodedResponse.Body,
                 connection.Environment);
+            // apply response buffering, but only if response body exists.
+            bool responseStreamingEnabled = response.Body != null;
+            if (responseStreamingEnabled &&
+                connection.ProcessingOptions?.ResponseBufferingEnabled != false)
+            {
+                response.Body = await transport.ApplyResponseBuffering(connection,
+                    response.Body);
+                responseStreamingEnabled = false;
+            }
+            await Abort(transport, connection, false, responseStreamingEnabled);
             return response;
         }
 
-        internal async Task Abort(IQuasiHttpConnection connection,
-            bool errorOccured, long resContentLength)
+        internal async static Task Abort(IQuasiHttpClientTransport transport,
+            IQuasiHttpConnection connection,
+            bool errorOccured, bool responseStreamingEnabled = false)
         {
             if (errorOccured)
             {
                 try
                 {
                     // don't wait.
-                    _ = Transport.ReleaseConnection(connection);
+                    _ = transport.ReleaseConnection(connection, false);
                 }
                 catch (Exception) { } // ignore
             }
-            else if (resContentLength == 0)
-            {
-                await Transport.ReleaseConnection(connection);
-            }
             else
             {
-                // let transport determine what to do,
-                // ie whether to release by itself,
-                // or require client of Send*() methods to do so
-                // depending on response buffering enabled option.
+                await transport.ReleaseConnection(connection,
+                    responseStreamingEnabled);
             }
         }
     }

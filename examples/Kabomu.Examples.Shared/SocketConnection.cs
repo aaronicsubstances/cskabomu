@@ -65,20 +65,24 @@ namespace Kabomu.Examples.Shared
             }
         }
 
-        public Task Release()
+        public Task Release(bool responseStreamingEnabled)
         {
             TimeoutId?.Cancel();
+            if (responseStreamingEnabled)
+            {
+                return Task.CompletedTask;
+            }
             _socket.Dispose();
             return Task.CompletedTask;
         }
 
         public async Task Write(bool isResponse, IEncodedQuasiHttpEntity entity)
         {
-            var mainTask = WriteInternal(isResponse, entity);
+            var mainTask = WriteInternal(entity);
             await MiscUtils.CompleteMainTask(mainTask, TimeoutId?.Task);
         }
 
-        private async Task WriteInternal(bool isResponse, IEncodedQuasiHttpEntity entity)
+        private async Task WriteInternal(IEncodedQuasiHttpEntity entity)
         {
             var encodedHeaders = entity.Headers;
             await WriteSocketBytes(encodedHeaders, 0, encodedHeaders.Length);
@@ -86,42 +90,30 @@ namespace Kabomu.Examples.Shared
             {
                 await MiscUtils.CopyBytesToSink(entity.Body, WriteSocketBytes);
             }
-            if (isResponse)
-            {
-                await Release();
-            }
         }
 
         public async Task<IEncodedQuasiHttpEntity> Read(bool isResponse)
         {
-            var mainTask = ReadInternal(isResponse);
+            var mainTask = ReadInternal();
             return await MiscUtils.CompleteMainTask(mainTask, TimeoutId?.Task);
         }
 
-        private async Task<IEncodedQuasiHttpEntity> ReadInternal(bool isResponse)
+        private async Task<IEncodedQuasiHttpEntity> ReadInternal()
         {
             var headers = await TransportImplHelpers.ReadHeaders(_reader,
                 ProcessingOptions);
             var body = _reader;
-            if (isResponse)
-            {
-                if (ProcessingOptions.ResponseBufferingEnabled != false)
-                {
-                    body = new MemoryStream(await MiscUtils.ReadAllBytes(_reader,
-                        ProcessingOptions.ResponseBodyBufferingSizeLimit));
-                    await Release();
-                }
-                else
-                {
-                    // partially release resources.
-                    TimeoutId?.Cancel();
-                }
-            }
             return new DefaultEncodedQuasiHttpEntity
             {
                 Headers = headers,
                 Body = body
             };
+        }
+
+        public async Task<Stream> ApplyResponseBuffering(Stream body)
+        {
+            return new MemoryStream(await MiscUtils.ReadAllBytes(body,
+                ProcessingOptions.ResponseBodyBufferingSizeLimit));
         }
     }
 }

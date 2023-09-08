@@ -1,6 +1,7 @@
 ﻿using Kabomu.Abstractions;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.IO.Pipes;
 using System.Net.Sockets;
 using System.Text;
@@ -29,7 +30,7 @@ namespace Kabomu.Examples.Shared
                 try
                 {
                     // don't wait.
-                    _ = connection.Release();
+                    _ = connection.Release(false);
                 }
                 catch (Exception) { } //ignore
                 throw;
@@ -39,9 +40,11 @@ namespace Kabomu.Examples.Shared
 
         public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }
 
-        public Task ReleaseConnection(IQuasiHttpConnection connection)
+        public Task ReleaseConnection(IQuasiHttpConnection connection,
+            bool responseStreamingEnabled)
         {
-            return ((DuplexStreamConnection)connection).Release();
+            return ((DuplexStreamConnection)connection).Release(
+                responseStreamingEnabled);
         }
 
         public Task Write(IQuasiHttpConnection connection, bool isResponse,
@@ -57,6 +60,12 @@ namespace Kabomu.Examples.Shared
         {
             return ((DuplexStreamConnection)connection).Read(
                 isResponse);
+        }
+
+        public Task<Stream> ApplyResponseBuffering(IQuasiHttpConnection connection, Stream body)
+        {
+            return ((DuplexStreamConnection)connection).ApplyResponseBuffering(
+                body);
         }
     }
 }

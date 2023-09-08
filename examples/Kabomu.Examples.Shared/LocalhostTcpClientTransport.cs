@@ -30,7 +30,7 @@ namespace Kabomu.Examples.Shared
                 try
                 {
                     // don't wait.
-                    _ = connection.Release();
+                    _ = connection.Release(false);
                 }
                 catch (Exception) { } //ignore
                 throw;
@@ -40,9 +40,10 @@ namespace Kabomu.Examples.Shared
 
         public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }
 
-        public Task ReleaseConnection(IQuasiHttpConnection connection)
+        public Task ReleaseConnection(IQuasiHttpConnection connection,
+            bool responseStreamingEnabled)
         {
-            return ((SocketConnection)connection).Release();
+            return ((SocketConnection)connection).Release(responseStreamingEnabled);
         }
 
         public Task Write(IQuasiHttpConnection connection, bool isResponse,
@@ -56,6 +57,12 @@ namespace Kabomu.Examples.Shared
         {
             return ((SocketConnection)connection).Read(
                 isResponse);
+        }
+
+        public Task<Stream> ApplyResponseBuffering(IQuasiHttpConnection connection, Stream body)
+        {
+            return ((SocketConnection)connection).ApplyResponseBuffering(
+                body);
         }
     }
 }

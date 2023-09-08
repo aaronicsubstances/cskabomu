@@ -185,12 +185,17 @@ namespace Kabomu
         /// The number of ASCII bytes which indicate the length of
         /// data in a body chunk.
         /// </summary>
-        public const int LengthOfEncodedBodyChunkLength = 10;
+        private const int LengthOfEncodedBodyChunkLength = 10;
 
         /// <summary>
         /// The maximum allowable body chunk data length.
         /// </summary>
         private const int MaxBodyChunkLength = 2_000_000_000;
+
+        /// <summary>
+        /// First version of quasi web protocol.
+        /// </summary>
+        public const string ProtocolVersion01 = "01";
 
         public static  byte[] EncodeRequestHeaders(
             IQuasiHttpRequest reqHeaders,
@@ -232,7 +237,8 @@ namespace Kabomu
             var csv = new List<IList<string>>();
             csv.Add(new List<string>
             {
-                MiscUtils.PadLeftWithZeros("", LengthOfEncodedHeadersLength)
+                MiscUtils.PadLeftWithZeros("", LengthOfEncodedHeadersLength),
+                ProtocolVersion01
             });
             csv.Add(uniqueRow);
             if (headers != null)
@@ -372,47 +378,6 @@ namespace Kabomu
                 }
             }
             return headers;
-        }
-
-        public static List<byte[]> GenerateBodyChunksV1(byte[] data)
-        {
-            return GenerateBodyChunksV1(data, 0, data.Length);
-        }
-
-        public static List<byte[]> GenerateBodyChunksV1(
-            byte[] data, int offset, int length)
-        {
-            var chunks = new List<byte[]>();
-            int endOffset = offset + length;
-            while (offset < endOffset)
-            {
-                offset += GenerateBodyChunksV1Internal(data,
-                    offset, endOffset - offset,
-                    chunks);
-            }
-            return chunks;
-        }
-
-        private static int GenerateBodyChunksV1Internal(byte[] data,
-            int offset, int length, List<byte[]> chunks)
-        {
-            int bytesToRead = Math.Min(length, MaxBodyChunkLength);
-            var encodedLength = MiscUtils.StringToBytes(
-                MiscUtils.PadLeftWithZeros(bytesToRead.ToString(),
-                LengthOfEncodedBodyChunkLength));
-            var chunk = new byte[LengthOfEncodedBodyChunkLength + bytesToRead];
-            MiscUtils.ArrayCopy(encodedLength, 0, chunk, 0,
-                encodedLength.Length);
-            MiscUtils.ArrayCopy(data, offset, chunk, LengthOfEncodedBodyChunkLength,
-                bytesToRead);
-            chunks.Add(chunk);
-            return bytesToRead;
-        }
-
-        public static byte[] GenerateTerminatingBodyChunkV1()
-        {
-            return MiscUtils.StringToBytes(MiscUtils.PadLeftWithZeros("",
-                LengthOfEncodedBodyChunkLength));
         }
 
         public static IQuasiHttpProcessingOptions MergeProcessingOptions(
@@ -746,7 +711,16 @@ namespace Kabomu
                 bool endOfGenerator = false;
                 while (true)
                 {
-                    var concatenated = TryDecodeBodyChunkV1Header(chunks, temp);
+                    byte[] concatenated;
+                    try
+                    {
+                        concatenated = TryDecodeBodyChunkV1Header(chunks, temp);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new ChunkDecodingException("Failed to decode quasi http body while " +
+                            "reading body chunk header", e);
+                    }
                     if (concatenated == null)
                     {
                         // need to read more chunks to fulfil
@@ -809,45 +783,109 @@ namespace Kabomu
             {
                 throw new ChunkDecodingException(
                     "Failed to decode quasi http body while " +
-                    "reading in chunk header: unexpected end of read");
+                    "reading body chunk header: unexpected end of read");
             }
             if (!isDecodingHeader && outstandingDataLength > 0)
             {
                 throw new ChunkDecodingException(
                     "Failed to decode quasi http body while " +
-                    "reading in chunk data: unexpected end of read");
+                    "reading body chunk data: unexpected end of read");
             }
         }
 
         private static byte[] TryDecodeBodyChunkV1Header(
             List<byte[]> chunks, int[] result)
         {
+            // account for length of version 1 and separating comma.
+            var minimumBodyChunkV1HeaderLength = LengthOfEncodedBodyChunkLength +
+                ProtocolVersion01.Length + 1;
             int totalLength = MiscUtils.ComputeLengthOfBuffers(chunks);
-            if (totalLength < LengthOfEncodedBodyChunkLength)
+            if (totalLength < minimumBodyChunkV1HeaderLength)
             {
                 return null;
             }
             var decodingBuffer = MiscUtils.ConcatBuffers(chunks);
             var csv = CsvUtils.Deserialize(MiscUtils.BytesToString(
-                decodingBuffer, 0, LengthOfEncodedBodyChunkLength));
+                decodingBuffer, 0, minimumBodyChunkV1HeaderLength));
             if (csv.Count == 0)
             {
                 throw new ArgumentException("invalid quasi http body chunk header");
             }
             var specialHeader = csv[0];
-            if (specialHeader.Count < 1)
+            if (specialHeader.Count < 2)
             {
                 throw new ArgumentException("invalid quasi http body chunk header");
             }
-            var lengthOfData = MiscUtils.ParseInt32(specialHeader[0]);
+            // validate version column as valid positive integer.
+            int v;
+            try
+            {
+                v = MiscUtils.ParseInt32(specialHeader[0]);
+            }
+            catch (FormatException)
+            {
+                throw new ArgumentException("invalid version field: " + specialHeader[0]);
+            }
+            if (v <= 0)
+            {
+                throw new ArgumentException("invalid nonnegative version number: " + v);
+            }
+            var lengthOfData = MiscUtils.ParseInt32(specialHeader[1]);
             if (lengthOfData < 0)
             {
                 throw new ArgumentException("invalid quasi http body chunk length " +
                     $"({lengthOfData})");
             }
             result[0] = lengthOfData;
-            result[1] = LengthOfEncodedBodyChunkLength;
+            result[1] = minimumBodyChunkV1HeaderLength;
             return decodingBuffer;
+        }
+
+        private static byte[] EncodeBodyChunkV1Header(int length)
+        {
+            var csv = ProtocolVersion01 + ",";
+            csv += MiscUtils.PadLeftWithZeros(
+                length.ToString(),
+                LengthOfEncodedBodyChunkLength);
+            return MiscUtils.StringToBytes(csv);
+        }
+
+        public static byte[] GenerateTerminatingBodyChunkV1()
+        {
+            return EncodeBodyChunkV1Header(0);
+        }
+
+        public static List<byte[]> GenerateBodyChunksV1(byte[] data)
+        {
+            return GenerateBodyChunksV1(data, 0, data.Length);
+        }
+
+        public static List<byte[]> GenerateBodyChunksV1(
+            byte[] data, int offset, int length)
+        {
+            var chunks = new List<byte[]>();
+            int endOffset = offset + length;
+            while (offset < endOffset)
+            {
+                offset += GenerateBodyChunksV1Internal(data,
+                    offset, endOffset - offset,
+                    chunks);
+            }
+            return chunks;
+        }
+
+        private static int GenerateBodyChunksV1Internal(byte[] data,
+            int offset, int length, List<byte[]> chunks)
+        {
+            int bytesToRead = Math.Min(length, MaxBodyChunkLength);
+            var encodedLength = EncodeBodyChunkV1Header(bytesToRead);
+            var chunk = new byte[encodedLength.Length + bytesToRead];
+            MiscUtils.ArrayCopy(encodedLength, 0, chunk, 0,
+                encodedLength.Length);
+            MiscUtils.ArrayCopy(data, offset, chunk, encodedLength.Length,
+                bytesToRead);
+            chunks.Add(chunk);
+            return bytesToRead;
         }
     }
 }

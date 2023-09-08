@@ -8,19 +8,11 @@ using System.Threading.Tasks;
 namespace Kabomu.Abstractions
 {
     /// <summary>
-    /// Represents connection manager for TCP and any network protocol 
-    /// or IPC mechanism which is connection-oriented like TCP, 
-    /// where duplex streams of data are provided in the form of connections for
-    /// reading and writing simulataneously.
+    /// Represents commonality of functions provided by TCP or IPC mechanisms
+    /// at both server and client ends.
     /// </summary>
     public interface IQuasiHttpTransport
     {
-        /// <summary>
-        /// Releases resources held by a connection of a quasi http transport instance.
-        /// </summary>
-        /// <param name="connection">the connection to release</param>
-        Task ReleaseConnection(IQuasiHttpConnection connection);
-
         /// <summary>
         /// Transfers an entire http entity to a quasi web transport
         /// </summary>

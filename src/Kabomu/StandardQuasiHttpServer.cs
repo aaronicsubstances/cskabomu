@@ -14,7 +14,7 @@ namespace Kabomu
     /// </summary>
     /// <remarks>
     /// This class provides the server facing side of networking for end users. It is the complement to the 
-    /// <see cref="StandardQuasiHttpClient"/> class for providing HTTP semantics for web application frameworks
+    /// <see cref="StandardQuasiHttpClient"/> class for providing HTTP semantics
     /// whiles enabling underlying transport options beyond TCP.
     /// <para></para>
     /// Therefore this class can be seen as the equivalent of an HTTP server in which the underlying transport of
@@ -59,7 +59,6 @@ namespace Kabomu
             {
                 await ProcessAccept(Application, Transport,
                     connection);
-                await Abort(transport, connection, false);
             }
             catch (Exception e)
             {
@@ -78,7 +77,7 @@ namespace Kabomu
 
         internal static async Task ProcessAccept(
             IQuasiHttpApplication application,
-            IQuasiHttpTransport transport,
+            IQuasiHttpServerTransport transport,
             IQuasiHttpConnection connection)
         {
             if (transport == null)
@@ -114,6 +113,7 @@ namespace Kabomu
                     await disposer();
                 }
             }
+            await Abort(transport, connection, false);
         }
 
         private static async Task<IQuasiHttpRequest> ReadRequest(
@@ -156,14 +156,10 @@ namespace Kabomu
             await transport.Write(connection, true, encodedResponse);
         }
 
-        internal static async Task Abort(IQuasiHttpTransport transport,
+        internal static async Task Abort(IQuasiHttpServerTransport transport,
             IQuasiHttpConnection connection, bool errorOccured)
         {
-            if (!errorOccured)
-            {
-                await transport.ReleaseConnection(connection);
-            }
-            else
+            if (errorOccured)
             {
                 try
                 {
@@ -171,6 +167,10 @@ namespace Kabomu
                     _ = transport.ReleaseConnection(connection);
                 }
                 catch (Exception) { } // ignore
+            }
+            else
+            {
+                await transport.ReleaseConnection(connection);
             }
         }
     }

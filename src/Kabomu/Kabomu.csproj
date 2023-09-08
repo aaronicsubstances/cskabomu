@@ -10,11 +10,11 @@
     <PackageId>AaronicSubstances.Kabomu</PackageId>
     <Authors>Aaron Baffour-Awuah</Authors>
     <Company>Aaronic Substances</Company>
-    <Description>Kabomu is a simple networking library that enables running HTTP semantics transparently over IPC mechanisms including but not limited to TCP. It makes it straightforward to even build web application semantics which are abstracted from the underlying IPC mechanism of choice.</Description>
+    <Description>Kabomu is a simple networking library that enables running HTTP semantics transparently over IPC mechanisms including but not limited to TCP. It makes it straightforward to even employ HTTP semantics which are abstracted from the underlying IPC mechanism of choice.</Description>
     <Copyright>Copyright ©2022 Aaronic Substances</Copyright>
-    <Version>6.0.0</Version>
-    <PackageReleaseNotes>- Restricted focus of project to just providing quasi web protocol over IPC
-- Removed Mediator quasi web microframework</PackageReleaseNotes>
+    <Version>6.1.0</Version>
+    <PackageReleaseNotes>- Introduced quasi web transport API dedicated for response buffering.
+- Updated quasi web protocol to include version information.</PackageReleaseNotes>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

@@ -81,7 +81,7 @@ namespace Kabomu.Examples.Shared
 
         public Task ReleaseConnection(IQuasiHttpConnection connection)
         {
-            return ((DuplexStreamConnection)connection).Release();
+            return ((DuplexStreamConnection)connection).Release(false);
         }
 
         public Task Write(IQuasiHttpConnection connection, bool isResponse,
