@@ -264,7 +264,7 @@ namespace Kabomu
         /// <returns>CSV string corresponding to rows</returns>
         public static string Serialize(IList<IList<string>> rows)
         {
-            var csvBuilder = MiscUtils.CreateStringBuilder();
+            var csvBuilder = new StringBuilder();
             foreach (var row in rows)
             {
                 var addCommaSeparator = false;
@@ -272,14 +272,14 @@ namespace Kabomu
                 {
                     if (addCommaSeparator)
                     {
-                        MiscUtils.AppendToStringBuilder(csvBuilder, ",");
+                        csvBuilder.Append(",");
                     }
-                    MiscUtils.AppendToStringBuilder(csvBuilder, EscapeValue(value));
+                    csvBuilder.Append(EscapeValue(value));
                     addCommaSeparator = true;
                 }
-                MiscUtils.AppendToStringBuilder(csvBuilder, "\n");
+                csvBuilder.Append("\n");
             }
-            return MiscUtils.SerializeStringBuilder(csvBuilder);
+            return csvBuilder.ToString();
         }
 
         /// <summary>
@@ -296,7 +296,7 @@ namespace Kabomu
                 // serialize to the same CSV output.
                 return raw == "" ? "\"\"" : raw;
             }
-            return '"' + MiscUtils.StringReplace(raw, "\"", "\"\"") + '"';
+            return '"' + raw.Replace("\"", "\"\"") + '"';
         }
 
         /// <summary>
@@ -315,11 +315,11 @@ namespace Kabomu
             {
                 throw new ArgumentException("missing enclosing double quotes around csv value: " + escaped);
             }
-            var unescaped = MiscUtils.CreateStringBuilder();
+            var unescaped = new StringBuilder();
             for (int i = 1; i < escaped.Length - 1; i++)
             {
                 char c = escaped[i];
-                MiscUtils.AppendToStringBuilder(unescaped, c);
+                unescaped.Append(c);
                 if (c == '"')
                 {
                     if (i == escaped.Length - 2 || escaped[i + 1] != '"')
@@ -329,7 +329,7 @@ namespace Kabomu
                     i++;
                 }
             }
-            return MiscUtils.SerializeStringBuilder(unescaped);
+            return unescaped.ToString();
         }
 
         private static bool DoesValueContainSpecialCharacters(string s)

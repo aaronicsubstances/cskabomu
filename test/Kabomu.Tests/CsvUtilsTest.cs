@@ -1,12 +1,11 @@
-﻿using Kabomu.Common;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.Common
+namespace Kabomu.Tests
 {
     public class CsvUtilsTest
     {

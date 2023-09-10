@@ -27,10 +27,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnixDomainSocket.FileServer
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnixDomainSocket.FileClient", "examples\UnixDomainSocket.FileClient\UnixDomainSocket.FileClient.csproj", "{A7546758-C5CA-49EB-85FA-1F2B4328D6A4}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Kabomu.IntegrationTests", "test\Kabomu.IntegrationTests\Kabomu.IntegrationTests.csproj", "{85BF2770-14EB-4AA0-9A60-1A0195C60745}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Kabomu.Tests.Shared", "test\Kabomu.Tests.Shared\Kabomu.Tests.Shared.csproj", "{016BCE73-9CB0-4C1A-B1FA-FEB8E54CA394}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -73,14 +69,6 @@ Global
 		{A7546758-C5CA-49EB-85FA-1F2B4328D6A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A7546758-C5CA-49EB-85FA-1F2B4328D6A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A7546758-C5CA-49EB-85FA-1F2B4328D6A4}.Release|Any CPU.Build.0 = Release|Any CPU
-		{85BF2770-14EB-4AA0-9A60-1A0195C60745}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{85BF2770-14EB-4AA0-9A60-1A0195C60745}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{85BF2770-14EB-4AA0-9A60-1A0195C60745}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{85BF2770-14EB-4AA0-9A60-1A0195C60745}.Release|Any CPU.Build.0 = Release|Any CPU
-		{016BCE73-9CB0-4C1A-B1FA-FEB8E54CA394}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{016BCE73-9CB0-4C1A-B1FA-FEB8E54CA394}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{016BCE73-9CB0-4C1A-B1FA-FEB8E54CA394}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{016BCE73-9CB0-4C1A-B1FA-FEB8E54CA394}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -95,8 +83,6 @@ Global
 		{B5EE4E75-A5BA-4D83-A2F7-DF236A406B30} = {2639FC39-6A20-4143-AF38-FF27E1446806}
 		{A3F52D2F-4072-4925-977F-ACC8624E77E4} = {2639FC39-6A20-4143-AF38-FF27E1446806}
 		{A7546758-C5CA-49EB-85FA-1F2B4328D6A4} = {2639FC39-6A20-4143-AF38-FF27E1446806}
-		{85BF2770-14EB-4AA0-9A60-1A0195C60745} = {B69F6133-0D77-404D-8F23-66C029989C80}
-		{016BCE73-9CB0-4C1A-B1FA-FEB8E54CA394} = {B69F6133-0D77-404D-8F23-66C029989C80}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8A1F9C5B-AAF0-473E-BB59-1979B0F53384}

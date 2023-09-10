@@ -182,208 +182,28 @@ namespace Kabomu
         private const int HardLimitOnMaxHeadersSize = 999_999;
 
         /// <summary>
-        /// The number of ASCII bytes which indicate the length of
-        /// data in a body chunk.
-        /// </summary>
-        private const int LengthOfEncodedBodyChunkLength = 10;
-
-        /// <summary>
-        /// The maximum allowable body chunk data length.
-        /// </summary>
-        private const int MaxBodyChunkLength = 2_000_000_000;
-
-        /// <summary>
         /// First version of quasi web protocol.
         /// </summary>
         public const string ProtocolVersion01 = "01";
 
-        public static  byte[] EncodeRequestHeaders(
-            IQuasiHttpRequest reqHeaders,
-            int? maxHeadersSize = null)
-        {
-            var uniqueRow = new List<string>
-            {
-                reqHeaders.HttpMethod ?? "",
-                reqHeaders.Target ?? "",
-                reqHeaders.HttpVersion ?? "",
-                reqHeaders.ContentLength.ToString()
-            };
-            return EncodeRemainingHeaders(uniqueRow,
-                reqHeaders.Headers, maxHeadersSize ?? 0);
-        }
-
-        public static byte[] EncodeResponseHeaders(
-            IQuasiHttpResponse resHeaders,
-            int? maxHeadersSize = null)
-        {
-            var uniqueRow = new List<string>
-            {
-                resHeaders.StatusCode.ToString(),
-                resHeaders.HttpStatusMessage ?? "",
-                resHeaders.HttpVersion ?? "",
-                resHeaders.ContentLength.ToString()
-            };
-            return EncodeRemainingHeaders(uniqueRow,
-                resHeaders.Headers, maxHeadersSize ?? 0);
-        }
-
-        private static byte[] EncodeRemainingHeaders(List<string> uniqueRow, IDictionary<string, IList<string>> headers,
-            int maxHeadersSize)
-        {
-            if (maxHeadersSize <= 0)
-            {
-                maxHeadersSize = DefaultMaxHeadersSize;
-            }
-            var csv = new List<IList<string>>();
-            csv.Add(new List<string>
-            {
-                MiscUtils.PadLeftWithZeros("", LengthOfEncodedHeadersLength),
-                ProtocolVersion01
-            });
-            csv.Add(uniqueRow);
-            if (headers != null)
-            {
-                foreach (var header in headers)
-                {
-                    if (header.Value == null || header.Value.Count == 0)
-                    {
-                        continue;
-                    }
-                    var headerRow = new List<string> { header.Key ?? "" };
-                    foreach (var v in header.Value)
-                    {
-                        headerRow.Add(v ?? "");
-                    }
-                    csv.Add(headerRow);
-                }
-            }
-
-            // serialize to bytes and check that byte count to encode
-            // doesn't exceed limit.
-            // NB: byte count to encode excludes length in leading row.
-            var encoded = MiscUtils.StringToBytes(CsvUtils.Serialize(csv));
-            var lengthToEncode = encoded.Length - LengthOfEncodedHeadersLength;
-            if (lengthToEncode > maxHeadersSize)
-            {
-                throw new ChunkEncodingException("quasi http headers exceed " +
-                    $"max size ({lengthToEncode} > {maxHeadersSize})");
-            }
-            if (lengthToEncode > HardLimitOnMaxHeadersSize)
-            {
-                throw new ChunkEncodingException("quasi http headers too " +
-                    $"large ({lengthToEncode} > {HardLimitOnMaxHeadersSize})");
-            }
-
-            // finally update leading CSV value with byte count to
-            // encode
-            var encodedLength = MiscUtils.StringToBytes(
-                MiscUtils.PadLeftWithZeros(lengthToEncode.ToString(),
-                LengthOfEncodedHeadersLength));
-            MiscUtils.ArrayCopy(encodedLength, 0, encoded, 0,
-                encodedLength.Length);
-            return encoded;
-        }
-
-        public static void DecodeRequestHeaders(byte[] encodedCsv,
-            IQuasiHttpRequest request)
-        {
-            var csv = CsvUtils.Deserialize(MiscUtils.BytesToString(
-                encodedCsv));
-            if (csv.Count < 2)
-            {
-                throw new ArgumentException("invalid encoded quasi http request headers");
-            }
-            // skip first row.
-            var specialHeader = csv[1];
-            if (specialHeader.Count < 4)
-            {
-                throw new ArgumentException("invalid quasi http request line");
-            }
-            request.HttpMethod = specialHeader[0];
-            request.Target = specialHeader[1];
-            request.HttpVersion = specialHeader[2];
-            try
-            {
-                request.ContentLength = MiscUtils.ParseInt48(
-                    specialHeader[3]);
-            }
-            catch
-            {
-                throw new ArgumentException("invalid quasi http request content length");
-            }
-            request.Headers = DecodeRemainingHeaders(csv);
-        }
-
-        public static void DecodeResponseHeaders(byte[] encodedCsv,
-            IQuasiHttpResponse response)
-        {
-            var csv = CsvUtils.Deserialize(MiscUtils.BytesToString(
-                encodedCsv));
-            if (csv.Count < 2)
-            {
-                throw new ArgumentException("invalid encoded quasi http response headers");
-            }
-            // skip first row.
-            var specialHeader = csv[1];
-            if (specialHeader.Count < 4)
-            {
-                throw new ArgumentException("invalid quasi http response status line");
-            }
-            try
-            {
-                response.StatusCode = MiscUtils.ParseInt32(specialHeader[0]);
-            }
-            catch
-            {
-                throw new ArgumentException("invalid quasi http response status code");
-            }
-            response.HttpStatusMessage = specialHeader[1];
-            response.HttpVersion = specialHeader[2];
-            try
-            {
-                response.ContentLength = MiscUtils.ParseInt48(specialHeader[3]);
-            }
-            catch
-            {
-                throw new ArgumentException("invalid quasi http response content length");
-            }
-            response.Headers = DecodeRemainingHeaders(csv);
-        }
-
-        private static IDictionary<string, IList<string>> DecodeRemainingHeaders(
-            IList<IList<string>> csv)
-        {
-            IDictionary<string, IList<string>> headers = null;
-            for (int i = 1; i < csv.Count; i++)
-            {
-                var headerRow = csv[i];
-                if (headerRow.Count < 2)
-                {
-                    continue;
-                }
-                if (headers == null)
-                {
-                    headers = new Dictionary<string, IList<string>>();
-                }
-                // merge headers with the same name in different rows.
-                string headerName = headerRow[0];
-                if (!headers.ContainsKey(headerName))
-                {
-                    headers.Add(headerName, new List<string>());
-                }
-                var headerValues = headers[headerName];
-                foreach (var headerValue in headerRow.Skip(1))
-                {
-                    headerValues.Add(headerValue);
-                }
-            }
-            return headers;
-        }
-
+        /// <summary>
+        /// Merges two sources of processing options together, unless one of 
+        /// them is null, in which case it returns the non-null one.
+        /// </summary>
+        /// <param name="preferred">options object whose valid property values will
+        /// make it to merged result</param>
+        /// <param name="fallback">options object whose valid property
+        /// values will make it to merged result, if corresponding property
+        /// on preferred argument are invalid.</param>
+        /// <returns>merged options</returns>
         public static IQuasiHttpProcessingOptions MergeProcessingOptions(
             IQuasiHttpProcessingOptions preferred,
             IQuasiHttpProcessingOptions fallback)
         {
+            if (preferred == null || fallback == null)
+            {
+                return preferred ?? fallback;
+            }
             var mergedOptions = new DefaultQuasiHttpProcessingOptions();
             mergedOptions.TimeoutMillis =
                 DetermineEffectiveNonZeroIntegerOption(
@@ -500,7 +320,7 @@ namespace Kabomu
             return fallback1 ?? defaultValue;
         }
 
-        public static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment,
+        internal static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment,
             string key)
         {
             if (environment != null && environment.ContainsKey(key))
@@ -532,7 +352,7 @@ namespace Kabomu
             }
             if (contentLength < 0)
             {
-                body = CreateCustomChunkEncodingStream(body);
+                body = new BodyChunkEncodingStream(body);
             }
             else
             {
@@ -555,337 +375,196 @@ namespace Kabomu
             }
             if (contentLength < 0)
             {
-                body = CreateCustomChunkDecodingStream(body);
+                body = new BodyChunkDecodingStream(body);
             }
             else
             {
-                body = CreateContentLengthEnforcingStream(body, contentLength);
+                body = new ContentLengthEnforcingStream(body, contentLength);
             }
             return body;
         }
 
-        public static Stream CreateContentLengthEnforcingStream(Stream backingStream,
-            long contentLength)
+        public static byte[] EncodeRequestHeaders(
+            IQuasiHttpRequest reqHeaders,
+            int? maxHeadersSize = null)
         {
-            if (backingStream == null)
+            var uniqueRow = new List<string>
             {
-                throw new ArgumentNullException(nameof(backingStream));
-            }
-            var backingGenerator = MiscUtils.CreateGeneratorFromInputStream(
-                backingStream);
-            return MiscUtils.CreateInputStreamFromGenerator(GenerateChunksForContentLengthEnforcement(
-                backingGenerator, contentLength));
+                reqHeaders.HttpMethod ?? "",
+                reqHeaders.Target ?? "",
+                reqHeaders.HttpVersion ?? "",
+                reqHeaders.ContentLength.ToString()
+            };
+            return EncodeRemainingHeaders(uniqueRow,
+                reqHeaders.Headers, maxHeadersSize ?? 0);
         }
 
-        private static async IAsyncEnumerable<byte[]> GenerateChunksForContentLengthEnforcement(
-            IAsyncEnumerable<byte[]> backingGenerator, long contentLength)
+        public static byte[] EncodeResponseHeaders(
+            IQuasiHttpResponse resHeaders,
+            int? maxHeadersSize = null)
         {
-            long bytesLeft = contentLength;
-            // allow zero content length to touch backing stream.
-            await foreach (var chunk in backingGenerator)
+            var uniqueRow = new List<string>
             {
-                if (contentLength < 0)
-                {
-                    yield return chunk;
-                }
-                else if (chunk.Length < bytesLeft)
-                {
-                    yield return chunk;
-                    bytesLeft -= chunk.Length;
-                }
-                else
-                {
-                    if (chunk.Length > bytesLeft)
-                    {
-                        var truncatedChunk = new byte[bytesLeft];
-                        MiscUtils.ArrayCopy(chunk, 0,
-                            truncatedChunk, 0, (int)bytesLeft);
-                        yield return truncatedChunk;
-                    }
-                    else if (bytesLeft > 0) // caters for content length = 0
-                    {
-                        yield return chunk;
-                    }
-                    bytesLeft = 0;
-                    break;
-                }
-            }
-            if (contentLength > 0 && bytesLeft > 0)
-            {
-                throw CustomIOException.CreateContentLengthNotSatisfiedError(
-                    contentLength, bytesLeft);
-            }
+                resHeaders.StatusCode.ToString(),
+                resHeaders.HttpStatusMessage ?? "",
+                resHeaders.HttpVersion ?? "",
+                resHeaders.ContentLength.ToString()
+            };
+            return EncodeRemainingHeaders(uniqueRow,
+                resHeaders.Headers, maxHeadersSize ?? 0);
         }
 
-        public static Stream CreateCustomChunkEncodingStream(Stream backingStream)
+        private static byte[] EncodeRemainingHeaders(List<string> uniqueRow, IDictionary<string, IList<string>> headers,
+            int maxHeadersSize)
         {
-            if (backingStream == null)
+            if (maxHeadersSize <= 0)
             {
-                throw new ArgumentNullException(nameof(backingStream));
+                maxHeadersSize = DefaultMaxHeadersSize;
             }
-            var backingGenerator = MiscUtils.CreateGeneratorFromInputStream(
-                backingStream);
-            return MiscUtils.CreateInputStreamFromGenerator(
-                GenerateChunksForChunkEncoding(backingGenerator));
+            var csv = new List<IList<string>>();
+            csv.Add(new List<string>
+            {
+                MiscUtils.PadLeftWithZeros("", LengthOfEncodedHeadersLength),
+                ProtocolVersion01
+            });
+            csv.Add(uniqueRow);
+            if (headers != null)
+            {
+                foreach (var header in headers)
+                {
+                    if (header.Value == null || header.Value.Count == 0)
+                    {
+                        continue;
+                    }
+                    var headerRow = new List<string> { header.Key ?? "" };
+                    foreach (var v in header.Value)
+                    {
+                        headerRow.Add(v ?? "");
+                    }
+                    csv.Add(headerRow);
+                }
+            }
+
+            // serialize to bytes and check that byte count to encode
+            // doesn't exceed limit.
+            // NB: byte count to encode excludes length in leading row.
+            var encoded = MiscUtils.StringToBytes(CsvUtils.Serialize(csv));
+            var lengthToEncode = encoded.Length - LengthOfEncodedHeadersLength;
+            if (lengthToEncode > maxHeadersSize)
+            {
+                throw new ChunkEncodingException("quasi http headers exceed " +
+                    $"max size ({lengthToEncode} > {maxHeadersSize})");
+            }
+            if (lengthToEncode > HardLimitOnMaxHeadersSize)
+            {
+                throw new ChunkEncodingException("quasi http headers too " +
+                    $"large ({lengthToEncode} > {HardLimitOnMaxHeadersSize})");
+            }
+
+            // finally update leading CSV value with byte count to
+            // encode
+            var encodedLength = MiscUtils.StringToBytes(
+                MiscUtils.PadLeftWithZeros(lengthToEncode.ToString(),
+                LengthOfEncodedHeadersLength));
+            Array.Copy(encodedLength, 0, encoded, 0,
+                encodedLength.Length);
+            return encoded;
         }
 
-        private static async IAsyncEnumerable<byte[]> GenerateChunksForChunkEncoding(
-            IAsyncEnumerable<byte[]> backingGenerator)
+        public static void DecodeRequestHeaders(byte[] encodedCsv,
+            IQuasiHttpRequest request)
         {
-            await foreach (var chunk in backingGenerator)
-            {
-                var bodyChunks = GenerateBodyChunksV1(chunk);
-                foreach (var bodyChunk in bodyChunks)
-                {
-                    yield return bodyChunk;
-                }
-            }
-            yield return GenerateTerminatingBodyChunkV1();
-        }
-
-        public static Stream CreateCustomChunkDecodingStream(Stream backingStream)
-        {
-            if (backingStream == null)
-            {
-                throw new ArgumentNullException(nameof(backingStream));
-            }
-            var backingGenerator = MiscUtils.CreateGeneratorFromInputStream(
-                backingStream);
-            return MiscUtils.CreateInputStreamFromGenerator(
-                GenerateChunksForChunkDecoding(backingGenerator));
-        }
-
-        private static async IAsyncEnumerable<byte[]> GenerateChunksForChunkDecoding(
-            IAsyncEnumerable<byte[]> backingGenerator)
-        {
-            var chunks = new List<byte[]>();
-            var temp = new int[2];
-            bool isDecodingHeader = true;
-            int outstandingDataLength = 0;
-            await foreach (var chunk in backingGenerator)
-            {
-                if (!isDecodingHeader)
-                {
-                    var chunkLengthToUse = Math.Min(outstandingDataLength,
-                        chunk.Length);
-                    if (chunkLengthToUse > 0)
-                    {
-                        var nextChunk = new byte[chunkLengthToUse];
-                        MiscUtils.ArrayCopy(chunk, 0,
-                            nextChunk, 0, nextChunk.Length);
-                        yield return nextChunk;
-                        outstandingDataLength -= chunkLengthToUse;
-                    }
-                    if (chunkLengthToUse < chunk.Length)
-                    {
-                        var carryOverChunk = new byte[chunk.Length - chunkLengthToUse];
-                        MiscUtils.ArrayCopy(chunk, chunkLengthToUse,
-                            carryOverChunk, 0, carryOverChunk.Length);
-                        chunks.Add(carryOverChunk);
-                        isDecodingHeader = true;
-                        // proceed to loop
-                    }
-                    else
-                    {
-                        if (outstandingDataLength > 0)
-                        {
-                            // need to read more chunks to fulfil
-                            // chunk data length.
-                            continue;
-                        }
-                        else
-                        {
-                            // chunk exactly fulfilled outstanding
-                            // data length.
-                            isDecodingHeader = true;
-                            // continue or proceed to loop,
-                            // it doesn't matter, as chunks should
-                            // be empty.
-                        }
-                    }
-                }
-                else
-                {
-                    chunks.Add(chunk);
-                }
-                bool endOfGenerator = false;
-                while (true)
-                {
-                    byte[] concatenated;
-                    try
-                    {
-                        concatenated = TryDecodeBodyChunkV1Header(chunks, temp);
-                    }
-                    catch (Exception e)
-                    {
-                        throw new ChunkDecodingException("Failed to decode quasi http body while " +
-                            "reading body chunk header", e);
-                    }
-                    if (concatenated == null)
-                    {
-                        // need to read more chunks to fulfil
-                        // chunk header length.
-                        break;
-                    }
-                    chunks.Clear();
-                    outstandingDataLength = temp[0];
-                    if (outstandingDataLength == 0)
-                    {
-                        // end of generator detected.
-                        endOfGenerator = true;
-                        break;
-                    }
-                    int concatenatedLengthUsed = temp[1];
-                    var nextChunkLength = Math.Min(outstandingDataLength,
-                        concatenated.Length - concatenatedLengthUsed);
-                    if (nextChunkLength > 0)
-                    {
-                        var nextChunk = new byte[nextChunkLength];
-                        MiscUtils.ArrayCopy(concatenated, concatenatedLengthUsed,
-                            nextChunk, 0, nextChunk.Length);
-                        yield return nextChunk;
-                        outstandingDataLength -= nextChunkLength;
-                        concatenatedLengthUsed += nextChunkLength;
-                    }
-                    if (concatenatedLengthUsed < concatenated.Length)
-                    {
-                        // can't read more chunks yet, because there are
-                        // more stuff inside concatenated
-                        var carryOverChunk = new byte[concatenated.Length - concatenatedLengthUsed];
-                        MiscUtils.ArrayCopy(concatenated, concatenatedLengthUsed,
-                            carryOverChunk, 0, carryOverChunk.Length);
-                        chunks.Add(carryOverChunk);
-                    }
-                    else
-                    {
-                        if (outstandingDataLength > 0)
-                        {
-                            // need to read more chunks to fulfil
-                            // chunk data length.
-                            isDecodingHeader = false;
-                        }
-                        else
-                        {
-                            // chunk exactly fulfilled outstanding
-                            // data length.
-                            // So start decoding header again.
-                        }
-                        // in any case need to read more chunks.
-                        break;
-                    }
-                }
-                if (endOfGenerator)
-                {
-                    break;
-                }
-            }
-            if (isDecodingHeader && chunks.Count > 0)
-            {
-                throw new ChunkDecodingException(
-                    "Failed to decode quasi http body while " +
-                    "reading body chunk header: unexpected end of read");
-            }
-            if (!isDecodingHeader && outstandingDataLength > 0)
-            {
-                throw new ChunkDecodingException(
-                    "Failed to decode quasi http body while " +
-                    "reading body chunk data: unexpected end of read");
-            }
-        }
-
-        private static byte[] TryDecodeBodyChunkV1Header(
-            List<byte[]> chunks, int[] result)
-        {
-            // account for length of version 1 and separating comma.
-            var minimumBodyChunkV1HeaderLength = LengthOfEncodedBodyChunkLength +
-                ProtocolVersion01.Length + 1;
-            int totalLength = MiscUtils.ComputeLengthOfBuffers(chunks);
-            if (totalLength < minimumBodyChunkV1HeaderLength)
-            {
-                return null;
-            }
-            var decodingBuffer = MiscUtils.ConcatBuffers(chunks);
             var csv = CsvUtils.Deserialize(MiscUtils.BytesToString(
-                decodingBuffer, 0, minimumBodyChunkV1HeaderLength));
-            if (csv.Count == 0)
+                encodedCsv));
+            if (csv.Count < 2)
             {
-                throw new ArgumentException("invalid quasi http body chunk header");
+                throw new ArgumentException("invalid encoded quasi http request headers");
             }
-            var specialHeader = csv[0];
-            if (specialHeader.Count < 2)
+            // skip first row.
+            var specialHeader = csv[1];
+            if (specialHeader.Count < 4)
             {
-                throw new ArgumentException("invalid quasi http body chunk header");
+                throw new ArgumentException("invalid quasi http request line");
             }
-            // validate version column as valid positive integer.
-            int v;
+            request.HttpMethod = specialHeader[0];
+            request.Target = specialHeader[1];
+            request.HttpVersion = specialHeader[2];
             try
             {
-                v = MiscUtils.ParseInt32(specialHeader[0]);
+                request.ContentLength = MiscUtils.ParseInt48(
+                    specialHeader[3]);
             }
-            catch (FormatException)
+            catch
             {
-                throw new ArgumentException("invalid version field: " + specialHeader[0]);
+                throw new ArgumentException("invalid quasi http request content length");
             }
-            if (v <= 0)
+            request.Headers = DecodeRemainingHeaders(csv);
+        }
+
+        public static void DecodeResponseHeaders(byte[] encodedCsv,
+            IQuasiHttpResponse response)
+        {
+            var csv = CsvUtils.Deserialize(MiscUtils.BytesToString(
+                encodedCsv));
+            if (csv.Count < 2)
             {
-                throw new ArgumentException("invalid nonnegative version number: " + v);
+                throw new ArgumentException("invalid encoded quasi http response headers");
             }
-            var lengthOfData = MiscUtils.ParseInt32(specialHeader[1]);
-            if (lengthOfData < 0)
+            // skip first row.
+            var specialHeader = csv[1];
+            if (specialHeader.Count < 4)
             {
-                throw new ArgumentException("invalid quasi http body chunk length " +
-                    $"({lengthOfData})");
+                throw new ArgumentException("invalid quasi http response status line");
             }
-            result[0] = lengthOfData;
-            result[1] = minimumBodyChunkV1HeaderLength;
-            return decodingBuffer;
-        }
-
-        private static byte[] EncodeBodyChunkV1Header(int length)
-        {
-            var csv = ProtocolVersion01 + ",";
-            csv += MiscUtils.PadLeftWithZeros(
-                length.ToString(),
-                LengthOfEncodedBodyChunkLength);
-            return MiscUtils.StringToBytes(csv);
-        }
-
-        public static byte[] GenerateTerminatingBodyChunkV1()
-        {
-            return EncodeBodyChunkV1Header(0);
-        }
-
-        public static List<byte[]> GenerateBodyChunksV1(byte[] data)
-        {
-            return GenerateBodyChunksV1(data, 0, data.Length);
-        }
-
-        public static List<byte[]> GenerateBodyChunksV1(
-            byte[] data, int offset, int length)
-        {
-            var chunks = new List<byte[]>();
-            int endOffset = offset + length;
-            while (offset < endOffset)
+            try
             {
-                offset += GenerateBodyChunksV1Internal(data,
-                    offset, endOffset - offset,
-                    chunks);
+                response.StatusCode = MiscUtils.ParseInt32(specialHeader[0]);
             }
-            return chunks;
+            catch
+            {
+                throw new ArgumentException("invalid quasi http response status code");
+            }
+            response.HttpStatusMessage = specialHeader[1];
+            response.HttpVersion = specialHeader[2];
+            try
+            {
+                response.ContentLength = MiscUtils.ParseInt48(specialHeader[3]);
+            }
+            catch
+            {
+                throw new ArgumentException("invalid quasi http response content length");
+            }
+            response.Headers = DecodeRemainingHeaders(csv);
         }
 
-        private static int GenerateBodyChunksV1Internal(byte[] data,
-            int offset, int length, List<byte[]> chunks)
+        private static IDictionary<string, IList<string>> DecodeRemainingHeaders(
+            IList<IList<string>> csv)
         {
-            int bytesToRead = Math.Min(length, MaxBodyChunkLength);
-            var encodedLength = EncodeBodyChunkV1Header(bytesToRead);
-            var chunk = new byte[encodedLength.Length + bytesToRead];
-            MiscUtils.ArrayCopy(encodedLength, 0, chunk, 0,
-                encodedLength.Length);
-            MiscUtils.ArrayCopy(data, offset, chunk, encodedLength.Length,
-                bytesToRead);
-            chunks.Add(chunk);
-            return bytesToRead;
+            IDictionary<string, IList<string>> headers = null;
+            for (int i = 1; i < csv.Count; i++)
+            {
+                var headerRow = csv[i];
+                if (headerRow.Count < 2)
+                {
+                    continue;
+                }
+                if (headers == null)
+                {
+                    headers = new Dictionary<string, IList<string>>();
+                }
+                // merge headers with the same name in different rows.
+                string headerName = headerRow[0];
+                if (!headers.ContainsKey(headerName))
+                {
+                    headers.Add(headerName, new List<string>());
+                }
+                var headerValues = headers[headerName];
+                foreach (var headerValue in headerRow.Skip(1))
+                {
+                    headerValues.Add(headerValue);
+                }
+            }
+            return headers;
         }
     }
 }

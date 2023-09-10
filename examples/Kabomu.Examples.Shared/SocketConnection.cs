@@ -25,22 +25,9 @@ namespace Kabomu.Examples.Shared
             IQuasiHttpProcessingOptions fallbackProcessingOptions = null)
         {
             _socket = socket ?? throw new ArgumentNullException(nameof(socket));
-
-            if (processingOptions != null && fallbackProcessingOptions != null)
-            {
-                processingOptions = QuasiHttpProtocolUtils.MergeProcessingOptions(processingOptions,
-                    fallbackProcessingOptions);
-            }
-            ProcessingOptions = (processingOptions ?? fallbackProcessingOptions)
-                ?? DefaultProcessingOptions;
-            var chunkGenerator = MiscUtils.CreateGeneratorFromSource(
-                async (data, offset, length) =>
-                {
-                    return await socket.ReceiveAsync(new Memory<byte>(data, offset, length),
-                        SocketFlags.None);
-                }
-            );
-            _reader = MiscUtils.CreateInputStreamFromGenerator(chunkGenerator);
+            ProcessingOptions = QuasiHttpProtocolUtils.MergeProcessingOptions(processingOptions,
+                fallbackProcessingOptions) ?? DefaultProcessingOptions;
+            _reader = new SocketBackedStream(socket);
             TimeoutId = TransportImplHelpers.CreateCancellableTimeoutTask(
                 ProcessingOptions.TimeoutMillis,
                 isClient ? "send timeout" : "receive timeout");
@@ -112,8 +99,8 @@ namespace Kabomu.Examples.Shared
 
         public async Task<Stream> ApplyResponseBuffering(Stream body)
         {
-            return new MemoryStream(await MiscUtils.ReadAllBytes(body,
-                ProcessingOptions.ResponseBodyBufferingSizeLimit));
+            return await MiscUtils.ReadAllBytes(body,
+                ProcessingOptions.ResponseBodyBufferingSizeLimit);
         }
     }
 }

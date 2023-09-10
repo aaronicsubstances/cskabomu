@@ -74,7 +74,7 @@ namespace Kabomu.Examples.Shared
                     try
                     {
                         var responseMsgBytes = await MiscUtils.ReadAllBytes(res.Body);
-                        responseMsg = MiscUtils.BytesToString(responseMsgBytes);
+                        responseMsg = MiscUtils.BytesToString(responseMsgBytes.ToArray());
                     }
                     catch (Exception)
                     {

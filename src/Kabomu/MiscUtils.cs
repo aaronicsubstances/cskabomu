@@ -38,17 +38,79 @@ namespace Kabomu
         /// <param name="offset">start position in buffer to fill from</param>
         /// <param name="length">number of bytes to read. Failure to obtain this number of bytes will
         /// result in an error.</param>
-        /// <returns>A task that represents the asynchronous read operation.</returns>
         /// <exception cref="CustomIOException">Not enough bytes were found in
         /// <paramref name="inputStream"/> argument to supply requested number of bytes.</exception>
-        public static async Task ReadBytesFully(Stream inputStream,
+        public static void ReadExactBytes(Stream inputStream,
             byte[] data, int offset, int length)
         {
             // allow zero-byte reads to proceed to touch the
             // stream, rather than just return.
             while (true)
             {
-                int bytesRead = await inputStream.ReadAsync(data, offset, length);
+                int bytesRead = inputStream.Read(data, offset, length);
+                if (bytesRead > length)
+                {
+                    throw new ExpectationViolationException(
+                        "read beyond requested length: " +
+                        $"({bytesRead} > {length})");
+                }
+                if (bytesRead < length)
+                {
+                    if (bytesRead <= 0)
+                    {
+                        throw new CustomIOException("unexpected end of read");
+                    }
+                    offset += bytesRead;
+                    length -= bytesRead;
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reads in data in order to completely fill in a buffer.
+        /// </summary>
+        /// <param name="inputStream">source of bytes to read</param>
+        /// <param name="data">destination buffer</param>
+        /// <param name="offset">start position in buffer to fill from</param>
+        /// <param name="length">number of bytes to read. Failure to obtain this number of bytes will
+        /// result in an error.</param>
+        /// <returns>A task that represents the asynchronous read operation.</returns>
+        /// <exception cref="CustomIOException">Not enough bytes were found in
+        /// <paramref name="inputStream"/> argument to supply requested number of bytes.</exception>
+        public static Task ReadExactBytesAsync(Stream inputStream,
+            byte[] data, int offset, int length,
+            CancellationToken cancellationToken = default)
+        {
+            return ReadExactBytesAsync(inputStream,
+                new Memory<byte>(data, offset, length),
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Reads in data in order to completely fill in a buffer.
+        /// </summary>
+        /// <param name="inputStream">source of bytes to read</param>
+        /// <param name="data">destination buffer</param>
+        /// <returns>A task that represents the asynchronous read operation.</returns>
+        /// <exception cref="CustomIOException">Not enough bytes were found in
+        /// <paramref name="inputStream"/> argument to supply requested number of bytes.</exception>
+        public static async Task ReadExactBytesAsync(Stream inputStream,
+            Memory<byte> data,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            // allow zero-byte reads to proceed to touch the
+            // stream, rather than just return.
+            int offset = 0, length = data.Length;
+            while (true)
+            {
+                int bytesRead = await inputStream.ReadAsync(
+                    data.Slice(offset, length),
+                    cancellationToken);
                 if (bytesRead > length)
                 {
                     throw new ExpectationViolationException(
@@ -82,10 +144,10 @@ namespace Kabomu
         /// <param name="bufferingLimit">Indicates the maximum size in bytes of the resulting buffer.
         /// Can pass zero to use default value of 128 MB. Can also pass a negative value which will ignore
         /// imposing a maximum size.</param>
-        /// <returns>A task whose result is an in-memory buffer which has all of the remaining data in the reader.</returns>
+        /// <returns>A task whose result is an in-memory stream which has all of the remaining data in the reader.</returns>
         /// <exception cref="CustomIOException">The <paramref name="bufferingLimit"/> argument indicates a positive value,
         /// and data in <paramref name="body"/> argument exceeded that value.</exception>
-        public static async Task<byte[]> ReadAllBytes(Stream reader,
+        public static async Task<MemoryStream> ReadAllBytes(Stream reader,
             int bufferingLimit = 0)
         {
             if (bufferingLimit == 0)
@@ -97,7 +159,7 @@ namespace Kabomu
             if (bufferingLimit < 0)
             {
                 await CopyBytesToStream(reader, byteStream);
-                return byteStream.ToArray();
+                return byteStream;
             }
 
             var readBuffer = AllocateReadBuffer();
@@ -115,6 +177,12 @@ namespace Kabomu
                     expectedEndOfRead = true;
                 }
                 int bytesRead = await reader.ReadAsync(readBuffer, 0, bytesToRead);
+                if (bytesRead > bytesToRead)
+                {
+                    throw new ExpectationViolationException(
+                        "read beyond requested length: " +
+                        $"({bytesRead} > {bytesToRead})");
+                }
                 if (bytesRead > 0)
                 {
                     if (expectedEndOfRead)
@@ -130,7 +198,7 @@ namespace Kabomu
                     break;
                 }
             }
-            return byteStream.ToArray();
+            return byteStream;
         }
 
         /// <summary>
@@ -151,51 +219,29 @@ namespace Kabomu
         /// <param name="inputStream">source of data to copy</param>
         /// <param name="sink">byte sink function</param>
         public static async Task CopyBytesToSink(Stream inputStream,
-            Func<byte[], int, int, Task> sink)
+            Func<byte[], int, int, Task> sink, int readBufferSize = default,
+            CancellationToken cancellationToken = default)
         {
-            byte[] readBuffer = AllocateReadBuffer();
+            cancellationToken.ThrowIfCancellationRequested();
+            if (readBufferSize <= 0)
+            {
+                readBufferSize = DefaultReadBufferSize;
+            }
+            byte[] readBuffer = new byte[readBufferSize];
 
             while (true)
             {
-                int bytesRead = await inputStream.ReadAsync(readBuffer);
-
+                int bytesRead = await inputStream.ReadAsync(readBuffer,
+                    cancellationToken);
+                if (bytesRead > readBuffer.Length)
+                {
+                    throw new ExpectationViolationException(
+                        "read beyond requested length: " +
+                        $"({bytesRead} > {readBuffer.Length})");
+                }
                 if (bytesRead > 0)
                 {
                     await sink( readBuffer, 0, bytesRead);
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-
-        public static Stream CreateInputStreamFromGenerator(
-            IAsyncEnumerable<byte[]> generator)
-        {
-            return new AsyncEnumerableBackedStream(generator);
-        }
-
-        public static IAsyncEnumerable<byte[]> CreateGeneratorFromInputStream(
-            Stream stream)
-        {
-            return CreateGeneratorFromSource((data, offset, length) =>
-                stream.ReadAsync(data, offset, length));
-        }
-
-        public async static IAsyncEnumerable<byte[]> CreateGeneratorFromSource(
-            Func<byte[], int, int, Task<int>> source)
-        {
-            var readBuffer = AllocateReadBuffer();
-            while (true)
-            {
-                int bytesRead = await source(readBuffer, 0, readBuffer.Length);
-
-                if (bytesRead > 0)
-                {
-                    var chunk = new byte[bytesRead];
-                    Array.Copy(readBuffer, chunk, bytesRead);
-                    yield return chunk;
                 }
                 else
                 {
@@ -233,12 +279,6 @@ namespace Kabomu
             return int.Parse(input);
         }
 
-        internal static void ArrayCopy(byte[] src, int srcOffset,
-            byte[] dest, int destOffset, int length)
-        {
-            Array.Copy(src, srcOffset, dest, destOffset, length);
-        }
-
         public static string BytesToString(byte[] data)
         {
             return BytesToString(data, 0, data.Length);
@@ -257,70 +297,6 @@ namespace Kabomu
         internal static string PadLeftWithZeros(string v, int totalLen)
         {
             return v.PadLeft(totalLen, '0');
-        }
-
-        internal static object CreateStringBuilder()
-        {
-            return new StringBuilder();
-        }
-
-        internal static void AppendToStringBuilder(object s, object c)
-        {
-            ((StringBuilder)s).Append(c);
-        }
-
-        internal static string SerializeStringBuilder(object s)
-        {
-            return s.ToString();
-        }
-
-        internal static string StringReplace(string raw,
-            string oldValue, string newValue)
-        {
-            return raw.Replace(oldValue, newValue);
-        }
-
-        internal static byte[] ConcatBuffers(List<byte[]> chunks)
-        {
-            int totalLen = ComputeLengthOfBuffers(chunks);
-            byte[] result = new byte[totalLen];
-            int offset = 0;
-            foreach (var chunk in chunks)
-            {
-                ArrayCopy(chunk, 0, result, offset, chunk.Length);
-                offset += chunk.Length;
-            }
-            return result;
-        }
-
-        internal static int ComputeLengthOfBuffers(List<byte[]> chunks)
-        {
-            int totalLen = chunks.Sum(c => c.Length);
-            return totalLen;
-        }
-
-        // Copied from
-        // https://learn.microsoft.com/en-us/dotnet/standard/asynchronous-programming-patterns/interop-with-other-asynchronous-patterns-and-types
-        internal static IAsyncResult AsApm<T>(this Task<T> task,
-            AsyncCallback callback, object state)
-        {
-            if (task == null)
-                throw new ArgumentNullException("task");
-
-            var tcs = new TaskCompletionSource<T>(state);
-            task.ContinueWith(t =>
-            {
-                if (t.IsFaulted)
-                    tcs.TrySetException(t.Exception.InnerExceptions);
-                else if (t.IsCanceled)
-                    tcs.TrySetCanceled();
-                else
-                    tcs.TrySetResult(t.Result);
-
-                if (callback != null)
-                    callback(tcs.Task);
-            }, TaskScheduler.Default);
-            return tcs.Task;
         }
 
         public async static Task<T> CompleteMainTask<T>(
@@ -371,167 +347,46 @@ namespace Kabomu
                 tasks.Remove(firstTask);
             }
         }
-    }
 
-    internal class AsyncEnumerableBackedStream : Stream
-    {
-        private byte[] _outstandingChunk;
-        private int _usedOffset;
-        private readonly IAsyncEnumerator<byte[]> _backingAsyncEnumerator;
-
-        public AsyncEnumerableBackedStream(IAsyncEnumerable<byte[]> backingGenerator)
+        /// <summary>
+        /// Provides equivalent functionality to Promise.all() of NodeJS
+        /// </summary>
+        /// <param name="candiates">tasks</param>
+        /// <returns>asynchronous result which represents successful
+        /// end of all arguments, or failure of one of them</returns>
+        public static async Task WhenAnyFailOrAllSucceed(List<Task> candiates)
         {
-            if (backingGenerator == null)
+            var newList = new List<Task>(candiates);
+            while (newList.Count > 0)
             {
-                throw new ArgumentNullException(nameof(backingGenerator));
-            }
-            _backingAsyncEnumerator = backingGenerator.GetAsyncEnumerator();
-        }
-
-        public override bool CanRead => true;
-
-        public override bool CanSeek => false;
-
-        public override bool CanWrite => false;
-
-        public override long Length => throw new NotSupportedException();
-
-        public override long Position
-        {
-            get
-            {
-                throw new NotSupportedException();
-            }
-            set
-            {
-                throw new NotSupportedException();
+                var t = await Task.WhenAny(newList);
+                await t;
+                newList.Remove(t);
             }
         }
 
-        public override void Flush()
-        {
-            throw new NotSupportedException();
-        }
-
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override void SetLength(long value)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override async ValueTask DisposeAsync()
-        {
-            await _backingAsyncEnumerator.DisposeAsync();
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                // cannot wait.
-                _ = _backingAsyncEnumerator.DisposeAsync();
-            }
-        }
-
-        public override async Task CopyToAsync(Stream destination, int bufferSize,
-            CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            while (await _backingAsyncEnumerator.MoveNextAsync())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var chunk = _backingAsyncEnumerator.Current;
-                // ignore empty chunks
-                if (chunk.Length > 0)
-                {
-                    await destination.WriteAsync(chunk, cancellationToken);
-                }
-            }
-        }
-
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            return ReadAsync(buffer, offset, count)
-                .ConfigureAwait(false).GetAwaiter().GetResult();
-        }
-
-        public override int ReadByte()
-        {
-            if (_outstandingChunk != null &&
-                _usedOffset < _outstandingChunk.Length)
-            {
-                var b = _outstandingChunk[_usedOffset];
-                _usedOffset++;
-                return b;
-            }
-            return base.ReadByte();
-        }
-
-        public override async Task<int> ReadAsync(
-            byte[] buffer, int offset, int count,
-            CancellationToken cancellationToken)
-        {
-            return await ReadAsync(new Memory<byte>(buffer, offset, count),
-                cancellationToken);
-        }
-
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer,
-            CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (_outstandingChunk != null &&
-                _usedOffset < _outstandingChunk.Length)
-            {
-                return FillFromOutstanding(buffer);
-            }
-            while (await _backingAsyncEnumerator.MoveNextAsync())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var chunk = _backingAsyncEnumerator.Current;
-                // ignore empty chunks
-                if (chunk.Length > 0)
-                {
-                    _outstandingChunk = chunk;
-                    _usedOffset = 0;
-                    return FillFromOutstanding(buffer);
-                }
-            }
-            return 0;
-        }
-
-        private int FillFromOutstanding(Memory<byte> buffer)
-        {
-            var nextChunkLength = Math.Min(buffer.Length,
-                _outstandingChunk.Length - _usedOffset);
-            var span = buffer.Span;
-            for (int i = 0; i < nextChunkLength; i++)
-            {
-                span[i] = _outstandingChunk[_usedOffset];
-                _usedOffset++;
-            }
-            return nextChunkLength;
-        }
-
-        public override IAsyncResult BeginRead(
-            byte[] buffer, int offset, int count,
+        // Copied from
+        // https://learn.microsoft.com/en-us/dotnet/standard/asynchronous-programming-patterns/interop-with-other-asynchronous-patterns-and-types
+        internal static IAsyncResult AsApm<T>(this Task<T> task,
             AsyncCallback callback, object state)
         {
-            return ReadAsync(buffer, offset, count).AsApm(callback, state);
-        }
+            if (task == null)
+                throw new ArgumentNullException("task");
 
+            var tcs = new TaskCompletionSource<T>(state);
+            task.ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    tcs.TrySetException(t.Exception.InnerExceptions);
+                else if (t.IsCanceled)
+                    tcs.TrySetCanceled();
+                else
+                    tcs.TrySetResult(t.Result);
 
-        public override int EndRead(IAsyncResult asyncResult)
-        {
-            return ((Task<int>)asyncResult).Result;
+                if (callback != null)
+                    callback(tcs.Task);
+            }, TaskScheduler.Default);
+            return tcs.Task;
         }
     }
 }

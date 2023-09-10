@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,7 +42,7 @@ namespace Kabomu.Examples.Shared
         {
             var encodedHeadersLength = new byte[
                 QuasiHttpProtocolUtils.LengthOfEncodedHeadersLength];
-            await MiscUtils.ReadBytesFully(stream, encodedHeadersLength, 0,
+            await MiscUtils.ReadExactBytesAsync(stream, encodedHeadersLength, 0,
                 encodedHeadersLength.Length);
             int headersLength = MiscUtils.ParseInt32(
                 MiscUtils.BytesToString(encodedHeadersLength));
@@ -64,7 +63,7 @@ namespace Kabomu.Examples.Shared
                     $"({headersLength} > {options.MaxHeadersSize})");
             }
             var headers = new byte[headersLength];
-            await MiscUtils.ReadBytesFully(stream, headers, 0,
+            await MiscUtils.ReadExactBytesAsync(stream, headers, 0,
                 headersLength);
             return headers;
         }

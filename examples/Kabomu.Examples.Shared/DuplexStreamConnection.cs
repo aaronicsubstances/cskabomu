@@ -24,14 +24,8 @@ namespace Kabomu.Examples.Shared
             IQuasiHttpProcessingOptions fallbackProcessingOptions = null)
         {
             _stream = stream ?? throw new ArgumentNullException(nameof(stream));
-
-            if (processingOptions != null && fallbackProcessingOptions != null)
-            {
-                processingOptions = QuasiHttpProtocolUtils.MergeProcessingOptions(processingOptions,
-                    fallbackProcessingOptions);
-            }
-            ProcessingOptions = (processingOptions ?? fallbackProcessingOptions)
-                ?? DefaultProcessingOptions;
+            ProcessingOptions = QuasiHttpProtocolUtils.MergeProcessingOptions(processingOptions,
+                fallbackProcessingOptions) ?? DefaultProcessingOptions;
             TimeoutId = TransportImplHelpers.CreateCancellableTimeoutTask(
                 ProcessingOptions.TimeoutMillis,
                 isClient ? "send timeout" : "receive timeout");
@@ -89,8 +83,8 @@ namespace Kabomu.Examples.Shared
 
         public async Task<Stream> ApplyResponseBuffering(Stream body)
         {
-            return new MemoryStream(await MiscUtils.ReadAllBytes(body,
-                ProcessingOptions.ResponseBodyBufferingSizeLimit));
+            return await MiscUtils.ReadAllBytes(body,
+                ProcessingOptions.ResponseBodyBufferingSizeLimit);
         }
     }
 }

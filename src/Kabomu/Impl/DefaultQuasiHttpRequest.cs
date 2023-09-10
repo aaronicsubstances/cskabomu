@@ -6,17 +6,17 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu
+namespace Kabomu.Impl
 {
     /// <summary>
-    /// Provides default implementation of <see cref="IQuasiHttpResponse"/>
+    /// Provides default implementation of <see cref="IQuasiHttpRequest"/>
     /// interface.
     /// </summary>
-    public class DefaultQuasiHttpResponse : IQuasiHttpResponse
+    public class DefaultQuasiHttpRequest : IQuasiHttpRequest
     {
         private bool disposedValue;
 
-        public DefaultQuasiHttpResponse()
+        public DefaultQuasiHttpRequest()
         {
             Disposer = async () =>
             {
@@ -27,9 +27,9 @@ namespace Kabomu
             };
         }
 
-        public int StatusCode { get; set; }
+        public string Target { get; set; }
         public IDictionary<string, IList<string>> Headers { get; set; }
-        public string HttpStatusMessage { get; set; }
+        public string HttpMethod { get; set; }
         public string HttpVersion { get; set; }
         public long ContentLength { get; set; }
         public Stream Body { get; set; }

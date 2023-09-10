@@ -1,22 +1,16 @@
-﻿using Kabomu.Common;
-using Kabomu.QuasiHttp;
-using Kabomu.QuasiHttp.ChunkedTransfer;
-using Kabomu.QuasiHttp.EntityBody;
-using Newtonsoft.Json;
+﻿using Kabomu.Abstractions;
+using Kabomu.Exceptions;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using Xunit;
 using Xunit.Abstractions;
 
-[assembly: InternalsVisibleTo("Kabomu.Tests")]
-[assembly: InternalsVisibleTo("Kabomu.IntegrationTests")]
-
-namespace Kabomu.Tests.Shared.Common
+namespace Kabomu.Tests.Shared
 {
     public static class ComparisonUtils
     {
@@ -39,27 +33,6 @@ namespace Kabomu.Tests.Shared.Common
             }
         }
 
-        public static void CompareLeadChunks(LeadChunk expected, LeadChunk actual)
-        {
-            Assert.Equal(expected.Version, actual.Version);
-            Assert.Equal(expected.Flags, actual.Flags);
-            Assert.Equal(expected.RequestTarget, actual.RequestTarget);
-            Assert.Equal(expected.StatusCode, actual.StatusCode);
-            Assert.Equal(expected.ContentLength, actual.ContentLength);
-            Assert.Equal(expected.Method, actual.Method);
-            Assert.Equal(expected.HttpVersion, actual.HttpVersion);
-            Assert.Equal(expected.HttpStatusMessage, actual.HttpStatusMessage);
-            CompareHeaders(expected.Headers, actual.Headers);
-        }
-
-        public static void AssertSetEqual(ICollection<string> expected, ICollection<string> actual)
-        {
-            var expectedWrapper = new HashSet<string>(expected);
-            var actualWrapper = new HashSet<string>(actual);
-            Assert.Subset(expectedWrapper, actualWrapper);
-            Assert.Superset(expectedWrapper, actualWrapper);
-        }
-
         public static async Task CompareRequests(
             IQuasiHttpRequest expected, IQuasiHttpRequest actual,
             byte[] expectedReqBodyBytes)
@@ -69,9 +42,10 @@ namespace Kabomu.Tests.Shared.Common
                 Assert.Null(actual);
                 return;
             }
-            Assert.Equal(expected.Method, actual.Method);
+            Assert.Equal(expected.HttpMethod, actual.HttpMethod);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
             Assert.Equal(expected.Target, actual.Target);
+            Assert.Equal(expected.ContentLength, actual.ContentLength);
             CompareHeaders(expected.Headers, actual.Headers);
             //Assert.Equal(expected.Environment, actual.Environment);
             await CompareBodies(expected.Body, actual.Body, expectedReqBodyBytes);
@@ -90,13 +64,14 @@ namespace Kabomu.Tests.Shared.Common
             Assert.Equal(expected.StatusCode, actual.StatusCode);
             Assert.Equal(expected.HttpVersion, actual.HttpVersion);
             Assert.Equal(expected.HttpStatusMessage, actual.HttpStatusMessage);
+            Assert.Equal(expected.ContentLength, actual.ContentLength);
             CompareHeaders(expected.Headers, actual.Headers);
             //Assert.Equal(expected.Environment, actual.Environment);
             await CompareBodies(expected.Body, actual.Body, expectedResBodyBytes);
         }
 
-        public static async Task CompareBodies(IQuasiHttpBody expected,
-            IQuasiHttpBody actual, byte[] expectedBodyBytes)
+        public static async Task CompareBodies(Stream expected,
+            Stream actual, byte[] expectedBodyBytes)
         {
             if (expectedBodyBytes == null)
             {
@@ -104,8 +79,7 @@ namespace Kabomu.Tests.Shared.Common
                 return;
             }
             Assert.NotNull(actual);
-            Assert.Equal(expected.ContentLength, actual.ContentLength);
-            var actualBodyBytes = await IOUtils.ReadAllBytes(actual.AsReader());
+            var actualBodyBytes = (await MiscUtils.ReadAllBytes(actual)).ToArray();
             Assert.Equal(expectedBodyBytes, actualBodyBytes);
         }
 
@@ -159,44 +133,75 @@ namespace Kabomu.Tests.Shared.Common
             }
         }
 
-        public static void CompareConnectivityParams(
-            object expectedRemoteEndpoint, object actualRemoteEndpoint,
-            IQuasiHttpProcessingOptions expectedSendOptions, IQuasiHttpProcessingOptions actualSendOptions)
+        public static void CompareProcessingOptions(
+            IQuasiHttpProcessingOptions expected,
+            IQuasiHttpProcessingOptions actual)
         {
-            Assert.Equal(expectedRemoteEndpoint, actualRemoteEndpoint);
-            if (expectedSendOptions == null)
+            if (expected == null)
             {
-                Assert.Null(actualSendOptions);
+                Assert.Null(actual);
                 return;
             }
-            Assert.NotNull(actualSendOptions);
-            Assert.Equal(expectedSendOptions.ResponseBufferingEnabled,
-                actualSendOptions.ResponseBufferingEnabled);
-            Assert.Equal(expectedSendOptions.ResponseBodyBufferingSizeLimit,
-                actualSendOptions.ResponseBodyBufferingSizeLimit);
-            Assert.Equal(expectedSendOptions.TimeoutMillis,
-                actualSendOptions.TimeoutMillis);
-            Assert.Equal(expectedSendOptions.ExtraConnectivityParams,
-                actualSendOptions.ExtraConnectivityParams);
-            Assert.Equal(expectedSendOptions.MaxHeadersSize,
-                actualSendOptions.MaxHeadersSize);
+            Assert.NotNull(actual);
+            Assert.Equal(expected.ResponseBufferingEnabled,
+                actual.ResponseBufferingEnabled);
+            Assert.Equal(expected.ResponseBodyBufferingSizeLimit,
+                actual.ResponseBodyBufferingSizeLimit);
+            Assert.Equal(expected.TimeoutMillis,
+                actual.TimeoutMillis);
+            Assert.Equal(expected.ExtraConnectivityParams,
+                actual.ExtraConnectivityParams);
+            Assert.Equal(expected.MaxHeadersSize,
+                actual.MaxHeadersSize);
         }
 
-        /// <summary>
-        /// Provides equivalent functionality to Promise.all() of NodeJS
-        /// </summary>
-        /// <param name="candiates">tasks</param>
-        /// <returns>asynchronous result which represents successful
-        /// end of all arguments, or failure of one of them</returns>
-        public static async Task WhenAnyFailOrAllSucceed(List<Task> candiates)
+        public static Stream CreateRandomizedChunkStream(byte[] b)
         {
-            var newList = new List<Task>(candiates);
-            while (newList.Count > 0)
+            async IAsyncEnumerable<byte[]> Generate()
             {
-                var t = await Task.WhenAny(newList);
-                await t;
-                newList.Remove(t);
+                await Task.Yield();
+                int offset = 0;
+                while (offset < b.Length)
+                {
+                    int bytesToCopy = Random.Shared.Next(b.Length - offset) + 1;
+                    var nextChunk = new byte[bytesToCopy];
+                    Array.Copy(b, offset, nextChunk, 0, bytesToCopy);
+                    yield return nextChunk;
+                    offset += bytesToCopy;
+                    await Task.Yield();
+                }
             }
+            return new AsyncEnumerableBackedStream(Generate());
+        }
+
+        public static Stream CreateInputStreamFromSource(
+            Func<byte[], int, int, Task<int>> source)
+        {
+            async IAsyncEnumerable<byte[]> Generate()
+            {
+                var readBuffer = new byte[8192];
+                while (true)
+                {
+                    int bytesRead = await source(readBuffer, 0, readBuffer.Length);
+                    if (bytesRead > readBuffer.Length)
+                    {
+                        throw new ExpectationViolationException(
+                            "read beyond requested length: " +
+                            $"({bytesRead} > {readBuffer.Length})");
+                    }
+                    if (bytesRead > 0)
+                    {
+                        var chunk = new byte[bytesRead];
+                        Array.Copy(readBuffer, chunk, bytesRead);
+                        yield return chunk;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+            return new AsyncEnumerableBackedStream(Generate());
         }
     }
 }

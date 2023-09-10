@@ -18,7 +18,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kabomu\Kabomu.csproj" />
-    <ProjectReference Include="..\Kabomu.Tests.Shared\Kabomu.Tests.Shared.csproj" />
   </ItemGroup>
 
   <ItemGroup>
