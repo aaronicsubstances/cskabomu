@@ -1,6 +1,5 @@
 ﻿using Kabomu.Abstractions;
 using Kabomu.Exceptions;
-using Kabomu.Impl;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,7 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu
+namespace Kabomu.ProtocolImpl
 {
     internal static class ProtocolUtilsInternal
     {
@@ -62,7 +61,7 @@ namespace Kabomu
         }
 
         internal static async Task<bool> DecodeResponseBodyFromTransport(
-            DefaultQuasiHttpResponse response,
+            IQuasiHttpResponse response,
             IDictionary<string, object> environment,
             IQuasiHttpProcessingOptions processingOptions,
             CancellationToken cancellationToken)

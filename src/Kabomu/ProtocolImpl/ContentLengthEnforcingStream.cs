@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu.Impl
+namespace Kabomu.ProtocolImpl
 {
     /// <summary>
     /// Wraps another stream to ensure a given amount of bytes are read.

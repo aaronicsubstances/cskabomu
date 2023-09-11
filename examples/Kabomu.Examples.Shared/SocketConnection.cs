@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using Kabomu.Abstractions;
-using Kabomu.Impl;
+using Kabomu.ProtocolImpl;
 using System.IO;
 using System.Threading;
 

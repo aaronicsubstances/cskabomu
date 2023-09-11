@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
-using Kabomu.Abstractions;
 
-namespace Kabomu.Impl
+namespace Kabomu.Abstractions
 {
     /// <summary>
     /// Provides default implementation of the <see cref="IQuasiHttpProcessingOptions"/>

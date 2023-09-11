@@ -1,7 +1,8 @@
 ﻿using CommandLine;
 using Kabomu;
+using Kabomu.Abstractions;
 using Kabomu.Examples.Shared;
-using Kabomu.Impl;
+using Kabomu.ProtocolImpl;
 using NLog;
 using System;
 using System.Collections.Generic;

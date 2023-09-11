@@ -1,6 +1,6 @@
 ﻿using Kabomu.Abstractions;
 using Kabomu.Exceptions;
-using Kabomu.Impl;
+using Kabomu.ProtocolImpl;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -64,7 +64,7 @@ namespace Kabomu
         /// </summary>
         /// <param name="remoteEndpoint">the destination endpoint of the request</param>
         /// <param name="requestFunc">a callback which receives any environment
-        /// associated with the connection that may be created.
+        /// associated with the connection that is created.
         /// Returns a promise of the request to send</param>
         /// <param name="options">optional send options</param>
         /// <returns>a task whose result will be the quasi http response returned from the remote endpoint.</returns>

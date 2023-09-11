@@ -1,6 +1,6 @@
 ﻿using Kabomu.Abstractions;
 using Kabomu.Exceptions;
-using Kabomu.Impl;
+using Kabomu.ProtocolImpl;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -53,6 +53,9 @@ namespace Kabomu
                 throw new ArgumentNullException(nameof(connection));
             }
 
+            // access fields for use per processing call, in order to cooperate with
+            // any implementation of field accessors which supports
+            // concurrent modifications.
             var transport = Transport;
             var application = Application;
             if (transport == null)
@@ -89,11 +92,21 @@ namespace Kabomu
             IQuasiHttpServerTransport transport,
             IQuasiHttpConnection connection)
         {
-            var request = await ReadRequest(transport, connection);
-            if (request == null)
+            var encodedRequestHeaders = new List<byte[]>();
+            var encodedRequestBody = await transport.Read(connection, false,
+                encodedRequestHeaders);
+            if (encodedRequestHeaders.Count == 0)
             {
                 throw new QuasiHttpRequestProcessingException("no request");
             }
+
+            var request = new DefaultQuasiHttpRequest
+            {
+                Environment = connection.Environment
+            };
+            QuasiHttpCodec.DecodeRequestHeaders(encodedRequestHeaders, request);
+            request.Body = ProtocolUtilsInternal.DecodeRequestBodyFromTransport(
+                request.ContentLength, encodedRequestBody);
 
             var response = await application.ProcessRequest(request);
             if (response == null)
@@ -103,7 +116,16 @@ namespace Kabomu
 
             try
             {
-                await WriteResponse(response, transport, connection);
+                if (ProtocolUtilsInternal.GetEnvVarAsBoolean(response.Environment,
+                    QuasiHttpCodec.EnvKeySkipSending) != true)
+                {
+                    var encodedResponseHeaders = QuasiHttpCodec.EncodeResponseHeaders(response,
+                        connection.ProcessingOptions?.MaxHeadersSize);
+                    var encodedResponseBody = ProtocolUtilsInternal.EncodeBodyToTransport(true,
+                        response.ContentLength, response.Body);
+                    await transport.Write(connection, true, encodedResponseHeaders,
+                        encodedResponseBody);
+                }
             }
             finally
             {
@@ -114,47 +136,6 @@ namespace Kabomu
                 }
             }
             await Abort(transport, connection, false);
-        }
-
-        private static async Task<IQuasiHttpRequest> ReadRequest(
-            IQuasiHttpTransport transport,
-            IQuasiHttpConnection connection)
-        {
-            var encodedRequestHeaders = new List<byte[]>();
-            var encodedRequestBody = await transport.Read(connection, false,
-                encodedRequestHeaders);
-            if (encodedRequestHeaders.Count == 0)
-            {
-                return null;
-            }
-
-            var request = new DefaultQuasiHttpRequest
-            {
-                Environment = connection.Environment
-            };
-            QuasiHttpCodec.DecodeRequestHeaders(encodedRequestHeaders, request);
-            request.Body = ProtocolUtilsInternal.DecodeRequestBodyFromTransport(
-                request.ContentLength, encodedRequestBody);
-            return request;
-        }
-
-        private static async Task WriteResponse(
-            IQuasiHttpResponse response,
-            IQuasiHttpTransport transport,
-            IQuasiHttpConnection connection)
-        {
-            if (ProtocolUtilsInternal.GetEnvVarAsBoolean(response.Environment,
-                QuasiHttpCodec.EnvKeySkipSending) == true)
-            {
-                return;
-            }
-
-            var encodedResponseHeaders = QuasiHttpCodec.EncodeResponseHeaders(response,
-                connection.ProcessingOptions?.MaxHeadersSize);
-            var encodedResponseBody = ProtocolUtilsInternal.EncodeBodyToTransport(true,
-                response.ContentLength, response.Body);
-            await transport.Write(connection, true, encodedResponseHeaders,
-                encodedResponseBody);
         }
 
         internal static async Task Abort(IQuasiHttpServerTransport transport,

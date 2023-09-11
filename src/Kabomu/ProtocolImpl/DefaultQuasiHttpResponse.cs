@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu.Impl
+namespace Kabomu.ProtocolImpl
 {
     /// <summary>
     /// Provides default implementation of <see cref="IQuasiHttpResponse"/>

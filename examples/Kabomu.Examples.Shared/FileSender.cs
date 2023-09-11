@@ -1,5 +1,5 @@
 ﻿using Kabomu.Abstractions;
-using Kabomu.Impl;
+using Kabomu.ProtocolImpl;
 using NLog;
 using System;
 using System.Collections.Generic;

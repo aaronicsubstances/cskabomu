@@ -8,7 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu
+namespace Kabomu.ProtocolImpl
 {
     /// <summary>
     /// Contains constants and helper functions involved in implementing quasi
@@ -168,6 +168,10 @@ namespace Kabomu
         /// </summary>
         private const int HardLimitOnMaxHeadersSize = 999_999;
 
+        /// <summary>
+        /// This field gives a number of which all header sizes are
+        /// an integral multiple of.
+        /// </summary>
         private const int HeaderChunkSize = 512;
 
         /// <summary>
@@ -306,11 +310,12 @@ namespace Kabomu
                 request.ContentLength = MiscUtils.ParseInt48(
                     specialHeader[3]);
             }
-            catch
+            catch (Exception e)
             {
                 throw new QuasiHttpRequestProcessingException(
                     "invalid quasi http request content length",
-                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
+                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation,
+                    e);
             }
             request.Headers = DecodeRemainingHeaders(csv);
         }
@@ -338,11 +343,12 @@ namespace Kabomu
             {
                 response.StatusCode = MiscUtils.ParseInt32(specialHeader[0]);
             }
-            catch
+            catch (Exception e)
             {
                 throw new QuasiHttpRequestProcessingException(
                     "invalid quasi http response status code",
-                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
+                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation,
+                    e);
             }
             response.HttpStatusMessage = specialHeader[1];
             response.HttpVersion = specialHeader[2];
@@ -350,11 +356,12 @@ namespace Kabomu
             {
                 response.ContentLength = MiscUtils.ParseInt48(specialHeader[3]);
             }
-            catch
+            catch (Exception e)
             {
                 throw new QuasiHttpRequestProcessingException(
                     "invalid quasi http response content length",
-                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
+                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation,
+                    e);
             }
             response.Headers = DecodeRemainingHeaders(csv);
         }
@@ -362,17 +369,13 @@ namespace Kabomu
         private static IDictionary<string, IList<string>> DecodeRemainingHeaders(
             IList<IList<string>> csv)
         {
-            IDictionary<string, IList<string>> headers = null;
-            for (int i = 1; i < csv.Count; i++)
+            var headers = new Dictionary<string, IList<string>>();
+            for (int i = 2; i < csv.Count; i++)
             {
                 var headerRow = csv[i];
                 if (headerRow.Count < 2)
                 {
                     continue;
-                }
-                if (headers == null)
-                {
-                    headers = new Dictionary<string, IList<string>>();
                 }
                 // merge headers with the same name in different rows.
                 string headerName = headerRow[0];
@@ -413,25 +416,27 @@ namespace Kabomu
                 await MiscUtils.ReadBytesFully(source, chunk,
                     0, chunk.Length, cancellationToken);
                 encodedHeadersReceiver.Add(chunk);
-                if (previousChunkEndsWithLf && chunk[0] == '\n')
+                byte newline = (byte)'\n';
+                if (previousChunkEndsWithLf && chunk[0] == newline)
                 {
+                    // done.
                     break;
                 }
-                for (int i = 1;i < chunk.Length; i++)
+                for (int i = 1; i < chunk.Length; i++)
                 {
-                    if (chunk[i] != '\n')
+                    if (chunk[i] != newline)
                     {
                         continue;
                     }
-                    if (chunk[i - 1] == '\n')
+                    if (chunk[i - 1] == newline)
                     {
-                        // done!
+                        // done.
                         // don't just break, as this will only quit
                         // the for loop and leave us in while loop.
                         return;
                     }
                 }
-                previousChunkEndsWithLf = chunk[^1] == '\n';
+                previousChunkEndsWithLf = chunk[^1] == newline;
             }
         }
 
