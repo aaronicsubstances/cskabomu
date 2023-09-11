@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu.Examples.Shared
@@ -24,18 +25,18 @@ namespace Kabomu.Examples.Shared
             IQuasiHttpProcessingOptions fallbackProcessingOptions = null)
         {
             _stream = stream ?? throw new ArgumentNullException(nameof(stream));
-            ProcessingOptions = QuasiHttpProtocolUtils.MergeProcessingOptions(processingOptions,
+            ProcessingOptions = MiscUtils.MergeProcessingOptions(processingOptions,
                 fallbackProcessingOptions) ?? DefaultProcessingOptions;
             TimeoutId = TransportImplHelpers.CreateCancellableTimeoutTask(
                 ProcessingOptions.TimeoutMillis,
                 isClient ? "send timeout" : "receive timeout");
+            CancellationToken = TimeoutId?.CancellationTokenSource.Token ?? default;
         }
 
         public CancellablePromise TimeoutId { get; }
-
         public IQuasiHttpProcessingOptions ProcessingOptions { get; }
-
         public IDictionary<string, object> Environment { get; set; }
+        public CancellationToken CancellationToken { get; }
 
         public async Task Release(bool responseStreamingEnabled)
         {
@@ -47,44 +48,24 @@ namespace Kabomu.Examples.Shared
             await _stream.DisposeAsync();
         }
 
-        public async Task Write(bool isResponse, IEncodedQuasiHttpEntity entity)
+        public async Task Write(bool isResponse,
+            byte[] encodedHeaders, Stream body)
         {
-            var mainTask = WriteInternal(entity);
-            await MiscUtils.CompleteMainTask(mainTask, TimeoutId?.Task);
-        }
-
-        private async Task WriteInternal(IEncodedQuasiHttpEntity entity)
-        {
-            var encodedHeaders = entity.Headers;
             await _stream.WriteAsync(encodedHeaders, 0, encodedHeaders.Length);
-            if (entity.Body != null)
+            if (body != null)
             {
-                await MiscUtils.CopyBytesToStream(entity.Body, _stream);
+                await MiscUtils.CopyBytesToStream(body, _stream,
+                    CancellationToken);
             }
         }
 
-        public async Task<IEncodedQuasiHttpEntity> Read(bool isResponse)
+        public async Task<Stream> Read(bool isResponse,
+            List<byte[]> encodedHeadersReceiver)
         {
-            var mainTask = ReadInternal();
-            return await MiscUtils.CompleteMainTask(mainTask, TimeoutId?.Task);
-        }
-
-        private async Task<IEncodedQuasiHttpEntity> ReadInternal()
-        {
-            var headers = await TransportImplHelpers.ReadHeaders(_stream,
-                ProcessingOptions);
-            var body = _stream;
-            return new DefaultEncodedQuasiHttpEntity
-            {
-                Headers = headers,
-                Body = body
-            };
-        }
-
-        public async Task<Stream> ApplyResponseBuffering(Stream body)
-        {
-            return await MiscUtils.ReadAllBytes(body,
-                ProcessingOptions.ResponseBodyBufferingSizeLimit);
+            await QuasiHttpCodec.ReadEncodedHeaders(_stream,
+                encodedHeadersReceiver, ProcessingOptions.MaxHeadersSize,
+                CancellationToken);
+            return _stream;
         }
     }
 }

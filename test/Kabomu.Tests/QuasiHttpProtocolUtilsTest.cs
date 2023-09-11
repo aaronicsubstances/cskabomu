@@ -323,7 +323,7 @@ namespace Kabomu.Tests
         public void TestDetermineEffectiveBooleanOption(bool? preferred,
             bool? fallback1, bool defaultValue, bool expected)
         {
-            var actual = QuasiHttpProtocolUtils.DetermineEffectiveBooleanOption(
+            var actual = MiscUtils.DetermineEffectiveBooleanOption(
                 preferred, fallback1, defaultValue);
             Assert.Equal(expected, actual);
         }
@@ -628,7 +628,7 @@ namespace Kabomu.Tests
         {
             var contentLength = 0;
             Stream stream = null;
-            IDictionary<string, object> environment = null;
+            bool isResponse = true;
 
             var actualStream = QuasiHttpProtocolUtils.EncodeBodyToTransport(
                 contentLength, stream, environment);

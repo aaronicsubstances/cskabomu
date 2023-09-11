@@ -1,11 +1,11 @@
 ﻿using Kabomu.Abstractions;
 using Kabomu.Exceptions;
-using Kabomu.Impl;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Kabomu
@@ -14,12 +14,12 @@ namespace Kabomu
     /// Contains constants and helper functions involved in implementing quasi
     /// web protocol.
     /// </summary>
-    public static class QuasiHttpProtocolUtils
+    public static class QuasiHttpCodec
     {
         /// <summary>
         /// Request environment variable for local server endpoint.
         /// </summary>
-        public static readonly string ReqEnvKeyLocalPeerEndpoint = "kabomu.local_peer_endpoint";
+        public static readonly string EnvKeyLocalPeerEndpoint = "kabomu.local_peer_endpoint";
 
         /// <summary>
         /// Request environment variable for remote client endpoint.
@@ -46,18 +46,11 @@ namespace Kabomu
         public static readonly string EnvKeySkipSending = "kabomu.skip_sending";
 
         /// <summary>
-        /// Environment variable indicating that the raw body 
-        /// to be sent to transport should be transferred as is, without
-        /// any encoding applied.
-        /// </summary>
-        public static readonly string EnvKeySkipRawBodyEncoding = "kabomu.skip_raw_body_encoding";
-
-        /// <summary>
-        /// Environment variable indicating that the raw body 
-        /// to be received from transport should be returned as is, without
+        /// Environment variable indicating that the response body 
+        /// received from transport should be returned to client without
         /// any decoding applied.
         /// </summary>
-        public static readonly string EnvKeySkipRawBodyDecoding = "kabomu.skip_raw_body_decoding";
+        public static readonly string EnvKeySkipResBodyDecoding = "kabomu.skip_res_body_decoding";
 
         /// <summary>
         /// Equals HTTP method "GET".
@@ -167,13 +160,7 @@ namespace Kabomu
         /// <summary>
         /// The default value of maximum size of headers in a request or response.
         /// </summary>
-        public const int DefaultMaxHeadersSize = 65_536;
-
-        /// <summary>
-        /// The number of ASCII bytes which indicate the length of
-        /// the entire request/response header part.
-        /// </summary>
-        public const int LengthOfEncodedHeadersLength = 6;
+        public const int DefaultMaxHeadersSize = 8_192;
 
         /// <summary>
         /// The maximum possible size that headers in a request or response
@@ -181,208 +168,17 @@ namespace Kabomu
         /// </summary>
         private const int HardLimitOnMaxHeadersSize = 999_999;
 
+        private const int HeaderChunkSize = 512;
+
         /// <summary>
         /// First version of quasi web protocol.
         /// </summary>
         public const string ProtocolVersion01 = "01";
 
         /// <summary>
-        /// Merges two sources of processing options together, unless one of 
-        /// them is null, in which case it returns the non-null one.
+        /// The limit of data buffering when reading byte streams into memory. Equal to 128 MB.
         /// </summary>
-        /// <param name="preferred">options object whose valid property values will
-        /// make it to merged result</param>
-        /// <param name="fallback">options object whose valid property
-        /// values will make it to merged result, if corresponding property
-        /// on preferred argument are invalid.</param>
-        /// <returns>merged options</returns>
-        public static IQuasiHttpProcessingOptions MergeProcessingOptions(
-            IQuasiHttpProcessingOptions preferred,
-            IQuasiHttpProcessingOptions fallback)
-        {
-            if (preferred == null || fallback == null)
-            {
-                return preferred ?? fallback;
-            }
-            var mergedOptions = new DefaultQuasiHttpProcessingOptions();
-            mergedOptions.TimeoutMillis =
-                DetermineEffectiveNonZeroIntegerOption(
-                    preferred?.TimeoutMillis,
-                    fallback?.TimeoutMillis,
-                    0);
-
-            mergedOptions.ExtraConnectivityParams =
-                DetermineEffectiveOptions(
-                    preferred?.ExtraConnectivityParams,
-                    fallback?.ExtraConnectivityParams);
-
-            mergedOptions.ResponseBufferingEnabled =
-                DetermineEffectiveBooleanOption(
-                    preferred?.ResponseBufferingEnabled,
-                    fallback?.ResponseBufferingEnabled,
-                    true);
-
-            mergedOptions.MaxHeadersSize =
-                DetermineEffectivePositiveIntegerOption(
-                    preferred?.MaxHeadersSize,
-                    fallback?.MaxHeadersSize,
-                    0);
-
-            mergedOptions.ResponseBodyBufferingSizeLimit =
-                DetermineEffectivePositiveIntegerOption(
-                    preferred?.ResponseBodyBufferingSizeLimit,
-                    fallback?.ResponseBodyBufferingSizeLimit,
-                    0);
-            return mergedOptions;
-        }
-
-        internal static int DetermineEffectiveNonZeroIntegerOption(int? preferred,
-            int? fallback1, int defaultValue)
-        {
-            if (preferred != null)
-            {
-                int effectiveValue = preferred.Value;
-                if (effectiveValue != 0)
-                {
-                    return effectiveValue;
-                }
-            }
-            if (fallback1 != null)
-            {
-                int effectiveValue = fallback1.Value;
-                if (effectiveValue != 0)
-                {
-                    return effectiveValue;
-                }
-            }
-            return defaultValue;
-        }
-
-        internal static int DetermineEffectivePositiveIntegerOption(int? preferred,
-            int? fallback1, int defaultValue)
-        {
-            if (preferred != null)
-            {
-                int effectiveValue = preferred.Value;
-                if (effectiveValue > 0)
-                {
-                    return effectiveValue;
-                }
-            }
-            if (fallback1 != null)
-            {
-                int effectiveValue = fallback1.Value;
-                if (effectiveValue > 0)
-                {
-                    return effectiveValue;
-                }
-            }
-            return defaultValue;
-        }
-
-        internal static IDictionary<string, object> DetermineEffectiveOptions(
-            IDictionary<string, object> preferred, IDictionary<string, object> fallback)
-        {
-            var dest = new Dictionary<string, object>();
-            // since we want preferred options to overwrite fallback options,
-            // set fallback options first.
-            if (fallback != null)
-            {
-                foreach (var item in fallback)
-                {
-                    dest.Add(item.Key, item.Value);
-                }
-            }
-            if (preferred != null)
-            {
-                foreach (var item in preferred)
-                {
-                    if (dest.ContainsKey(item.Key))
-                    {
-                        dest[item.Key] = item.Value;
-                    }
-                    else
-                    {
-                        dest.Add(item.Key, item.Value);
-                    }
-                }
-            }
-            return dest;
-        }
-
-        internal static bool DetermineEffectiveBooleanOption(
-            bool? preferred, bool? fallback1, bool defaultValue)
-        {
-            if (preferred != null)
-            {
-                return preferred.Value;
-            }
-            return fallback1 ?? defaultValue;
-        }
-
-        internal static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment,
-            string key)
-        {
-            if (environment != null && environment.ContainsKey(key))
-            {
-                var value = environment[key];
-                if (value is bool b)
-                {
-                    return b;
-                }
-                else if (value != null)
-                {
-                    return bool.Parse((string)value);
-                }
-            }
-            return null;
-        }
-
-        internal static Stream EncodeBodyToTransport(
-            long contentLength, Stream body,
-            IDictionary<string, object> environment)
-        {
-            if (contentLength == 0)
-            {
-                return null;
-            }
-            if (GetEnvVarAsBoolean(environment, EnvKeySkipRawBodyEncoding) == true)
-            {
-                return body;
-            }
-            if (contentLength < 0)
-            {
-                body = new BodyChunkEncodingStream(body);
-            }
-            else
-            {
-                // don't enforce content length during writes to transport.
-            }
-            return body;
-        }
-
-        internal static Stream DecodeBodyFromTransport(
-            long contentLength, Stream body,
-            IDictionary<string, object> environment)
-        {
-            if (contentLength == 0)
-            {
-                return null;
-            }
-            if (GetEnvVarAsBoolean(environment, EnvKeySkipRawBodyDecoding) == true)
-            {
-                return body;
-            }
-            if (contentLength < 0)
-            {
-                body = new BodyChunkDecodingStream(body);
-            }
-            else
-            {
-                body = new ContentLengthEnforcingStream(body, contentLength);
-            }
-            return body;
-        }
+        public static readonly int DefaultDataBufferLimit = 134_217_728;
 
         public static byte[] EncodeRequestHeaders(
             IQuasiHttpRequest reqHeaders,
@@ -424,7 +220,6 @@ namespace Kabomu
             var csv = new List<IList<string>>();
             csv.Add(new List<string>
             {
-                MiscUtils.PadLeftWithZeros("", LengthOfEncodedHeadersLength),
                 ProtocolVersion01
             });
             csv.Add(uniqueRow);
@@ -445,46 +240,63 @@ namespace Kabomu
                 }
             }
 
-            // serialize to bytes and check that byte count to encode
-            // doesn't exceed limit.
-            // NB: byte count to encode excludes length in leading row.
-            var encoded = MiscUtils.StringToBytes(CsvUtils.Serialize(csv));
-            var lengthToEncode = encoded.Length - LengthOfEncodedHeadersLength;
-            if (lengthToEncode > maxHeadersSize)
+            // ensure there are no new lines in csv items
+            if (csv.Any(row => row.Any(item => item.Contains('\n') ||
+                item.Contains('\r'))))
             {
-                throw new ChunkEncodingException("quasi http headers exceed " +
-                    $"max size ({lengthToEncode} > {maxHeadersSize})");
-            }
-            if (lengthToEncode > HardLimitOnMaxHeadersSize)
-            {
-                throw new ChunkEncodingException("quasi http headers too " +
-                    $"large ({lengthToEncode} > {HardLimitOnMaxHeadersSize})");
+                throw new QuasiHttpRequestProcessingException("quasi http headers cannot " +
+                    "contain newlines",
+                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
             }
 
-            // finally update leading CSV value with byte count to
-            // encode
-            var encodedLength = MiscUtils.StringToBytes(
-                MiscUtils.PadLeftWithZeros(lengthToEncode.ToString(),
-                LengthOfEncodedHeadersLength));
-            Array.Copy(encodedLength, 0, encoded, 0,
-                encodedLength.Length);
-            return encoded;
+            // add at least two line feeds to ensure byte count
+            // is multiple of header chunk size.
+            var serialized = CsvUtils.Serialize(csv);
+            var effectiveByteCount = MiscUtils.GetByteCount(serialized);
+            var lfCount = (int)Math.Ceiling(effectiveByteCount /
+                (double)HeaderChunkSize) * HeaderChunkSize -
+                effectiveByteCount;
+            if (lfCount < 2)
+            {
+                lfCount += HeaderChunkSize;
+            }
+            serialized += "".PadRight(lfCount, '\n');
+            effectiveByteCount += lfCount;
+
+            // finally check that byte count of csv doesn't exceed limit.
+            if (effectiveByteCount > maxHeadersSize)
+            {
+                throw new QuasiHttpRequestProcessingException("quasi http headers exceed " +
+                    $"max size ({effectiveByteCount} > {maxHeadersSize})",
+                    QuasiHttpRequestProcessingException.ReasonCodeMessageLengthLimitExceeded);
+            }
+            if (effectiveByteCount > HardLimitOnMaxHeadersSize)
+            {
+                throw new QuasiHttpRequestProcessingException("quasi http headers too " +
+                    $"large ({effectiveByteCount} > {HardLimitOnMaxHeadersSize})",
+                    QuasiHttpRequestProcessingException.ReasonCodeMessageLengthLimitExceeded);
+            }
+            return MiscUtils.StringToBytes(serialized);
         }
 
-        public static void DecodeRequestHeaders(byte[] encodedCsv,
+        public static void DecodeRequestHeaders(List<byte[]> encodedCsv,
             IQuasiHttpRequest request)
         {
             var csv = CsvUtils.Deserialize(MiscUtils.BytesToString(
-                encodedCsv));
+                MiscUtils.ConcatBuffers(encodedCsv)));
             if (csv.Count < 2)
             {
-                throw new ArgumentException("invalid encoded quasi http request headers");
+                throw new QuasiHttpRequestProcessingException(
+                    "invalid encoded quasi http request headers",
+                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
             }
             // skip first row.
             var specialHeader = csv[1];
             if (specialHeader.Count < 4)
             {
-                throw new ArgumentException("invalid quasi http request line");
+                throw new QuasiHttpRequestProcessingException(
+                    "invalid quasi http request line",
+                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
             }
             request.HttpMethod = specialHeader[0];
             request.Target = specialHeader[1];
@@ -496,25 +308,31 @@ namespace Kabomu
             }
             catch
             {
-                throw new ArgumentException("invalid quasi http request content length");
+                throw new QuasiHttpRequestProcessingException(
+                    "invalid quasi http request content length",
+                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
             }
             request.Headers = DecodeRemainingHeaders(csv);
         }
 
-        public static void DecodeResponseHeaders(byte[] encodedCsv,
+        public static void DecodeResponseHeaders(List<byte[]> encodedCsv,
             IQuasiHttpResponse response)
         {
             var csv = CsvUtils.Deserialize(MiscUtils.BytesToString(
-                encodedCsv));
+                MiscUtils.ConcatBuffers(encodedCsv)));
             if (csv.Count < 2)
             {
-                throw new ArgumentException("invalid encoded quasi http response headers");
+                throw new QuasiHttpRequestProcessingException(
+                    "invalid encoded quasi http response headers",
+                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
             }
-            // skip first row.
+            // skip version row.
             var specialHeader = csv[1];
             if (specialHeader.Count < 4)
             {
-                throw new ArgumentException("invalid quasi http response status line");
+                throw new QuasiHttpRequestProcessingException(
+                    "invalid quasi http response status line",
+                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
             }
             try
             {
@@ -522,7 +340,9 @@ namespace Kabomu
             }
             catch
             {
-                throw new ArgumentException("invalid quasi http response status code");
+                throw new QuasiHttpRequestProcessingException(
+                    "invalid quasi http response status code",
+                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
             }
             response.HttpStatusMessage = specialHeader[1];
             response.HttpVersion = specialHeader[2];
@@ -532,7 +352,9 @@ namespace Kabomu
             }
             catch
             {
-                throw new ArgumentException("invalid quasi http response content length");
+                throw new QuasiHttpRequestProcessingException(
+                    "invalid quasi http response content length",
+                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
             }
             response.Headers = DecodeRemainingHeaders(csv);
         }
@@ -565,6 +387,99 @@ namespace Kabomu
                 }
             }
             return headers;
+        }
+
+        public static async Task ReadEncodedHeaders(Stream source,
+            List<byte[]> encodedHeadersReceiver, int maxHeadersSize,
+            CancellationToken cancellationToken = default)
+        {
+            if (maxHeadersSize <= 0)
+            {
+                maxHeadersSize = DefaultMaxHeadersSize;
+            }
+            int totalBytesRead = 0;
+            bool previousChunkEndsWithLf = false;
+            while (true)
+            {
+                totalBytesRead += HeaderChunkSize;
+                if (totalBytesRead > maxHeadersSize)
+                {
+                    throw new QuasiHttpRequestProcessingException(
+                        "size of quasi http headers to read exceed " +
+                        $"max size ({totalBytesRead} > {maxHeadersSize})",
+                        QuasiHttpRequestProcessingException.ReasonCodeMessageLengthLimitExceeded);
+                }
+                var chunk = new byte[HeaderChunkSize];
+                await MiscUtils.ReadBytesFully(source, chunk,
+                    0, chunk.Length, cancellationToken);
+                encodedHeadersReceiver.Add(chunk);
+                if (previousChunkEndsWithLf && chunk[0] == '\n')
+                {
+                    break;
+                }
+                for (int i = 1;i < chunk.Length; i++)
+                {
+                    if (chunk[i] != '\n')
+                    {
+                        continue;
+                    }
+                    if (chunk[i - 1] == '\n')
+                    {
+                        // done!
+                        // don't just break, as this will only quit
+                        // the for loop and leave us in while loop.
+                        return;
+                    }
+                }
+                previousChunkEndsWithLf = chunk[^1] == '\n';
+            }
+        }
+
+        public static async Task<Stream> ReadAllBytes(Stream body,
+            int bufferingLimit, CancellationToken cancellationToken)
+        {
+            var bufferingStream = new MemoryStream();
+
+            var readBuffer = MiscUtils.AllocateReadBuffer();
+            int totalBytesRead = 0;
+
+            while (true)
+            {
+                int bytesToRead = Math.Min(readBuffer.Length, bufferingLimit - totalBytesRead);
+                // force a read of 1 byte if there are no more bytes to read into memory stream buffer
+                // but still remember that no bytes was expected.
+                var expectedEndOfRead = false;
+                if (bytesToRead == 0)
+                {
+                    bytesToRead = 1;
+                    expectedEndOfRead = true;
+                }
+                int bytesRead = await body.ReadAsync(readBuffer, 0, bytesToRead,
+                    cancellationToken);
+                if (bytesRead > bytesToRead)
+                {
+                    throw new ExpectationViolationException(
+                        "read beyond requested length: " +
+                        $"({bytesRead} > {bytesToRead})");
+                }
+                if (bytesRead > 0)
+                {
+                    if (expectedEndOfRead)
+                    {
+                        throw new QuasiHttpRequestProcessingException(
+                            "response body of indeterminate length exceeds buffering limit of " +
+                            $"{bufferingLimit} bytes",
+                            QuasiHttpRequestProcessingException.ReasonCodeMessageLengthLimitExceeded);
+                    }
+                    bufferingStream.Write(readBuffer, 0, bytesRead);
+                    totalBytesRead += bytesRead;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            return bufferingStream;
         }
     }
 }

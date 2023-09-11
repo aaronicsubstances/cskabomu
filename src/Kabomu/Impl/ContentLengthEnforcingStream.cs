@@ -1,4 +1,5 @@
-﻿using Kabomu.Exceptions;
+﻿using Kabomu.Abstractions;
+using Kabomu.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -79,26 +80,27 @@ namespace Kabomu.Impl
             return bytesJustRead;
         }
 
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer,
+        public override async Task<int> ReadAsync(
+            byte[] data, int offset, int length,
             CancellationToken cancellationToken = default)
         {
             if (_bytesLeftToRead < 0)
             {
-                return await _backingStream.ReadAsync(buffer,
+                return await _backingStream.ReadAsync(data, offset, length,
                     cancellationToken);
             }
 
-            int bytesToRead = Math.Min((int)_bytesLeftToRead, buffer.Length);
+            int bytesToRead = Math.Min((int)_bytesLeftToRead, length);
 
             // if bytes to read is zero at this stage,
             // go ahead and call backing reader
             // (e.g. so that any error in backing reader can be thrown),
             // unless the length requested is positive.
             int bytesJustRead = 0;
-            if (bytesToRead > 0 || buffer.Length == 0)
+            if (bytesToRead > 0 || length == 0)
             {
                 bytesJustRead = await _backingStream.ReadAsync(
-                    buffer.Slice(0, bytesToRead), cancellationToken);
+                    data, offset, bytesToRead, cancellationToken);
             }
             UpdateState(bytesToRead, bytesJustRead);
             return bytesJustRead;

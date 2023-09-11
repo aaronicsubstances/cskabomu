@@ -25,9 +25,17 @@ namespace Kabomu.Exceptions
         /// </summary>
         public const int ReasonCodeTimeout = 2;
 
+        /// <summary>
+        /// Indicates a problem with encoding/decoding headers.
+        /// </summary>
+        public const int ReasonCodeProtocolViolation = 3;
+
+        /// <summary>
+        /// Indicates a problem with exceeding header or body size limits.
+        /// </summary>
+        public const int ReasonCodeMessageLengthLimitExceeded = 4;
+
         // the following codes are reserved for future use.
-        private const int ReasonCodeReserved3 = 3;
-        private const int ReasonCodeReserved4 = 4;
         private const int ReasonCodeReserved5 = 5;
         private const int ReasonCodeReserved6 = 6;
         private const int ReasonCodeReserved7 = 7;
@@ -70,8 +78,6 @@ namespace Kabomu.Exceptions
         {
             switch (reasonCode)
             {
-                case ReasonCodeReserved3:
-                case ReasonCodeReserved4:
                 case ReasonCodeReserved5:
                 case ReasonCodeReserved6:
                 case ReasonCodeReserved7:

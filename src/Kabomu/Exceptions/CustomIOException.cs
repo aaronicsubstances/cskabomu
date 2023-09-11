@@ -43,16 +43,5 @@ namespace Kabomu.Exceptions
                 $"content length of {contentLength} bytes (could not read remaining " +
                 $"{remainingBytesToRead} bytes before end of read)");
         }
-
-        /// <summary>
-        /// Creates error indicating overflow of a byte buffer with
-        /// an imposed maximum limit.
-        /// </summary>
-        /// <param name="bufferSizeLimit">maximum data buffer limit to include in error message</param>
-        public static CustomIOException CreateDataBufferLimitExceededErrorMessage(int bufferSizeLimit)
-        {
-            return new CustomIOException($"data buffer size limit of " +
-                $"{bufferSizeLimit} bytes exceeded");
-        }
     }
 }

@@ -11,7 +11,7 @@ Kabomu seeks to demonstrate the following:
 
 1. *Quasi procedure call framework*, i.e. offers improvement over RPC frameworks such as Protocol Buffers and Apache Thrift, by offering stream input parameters, stream return/output values, flexible timeout specification, non-TCP transports and a transition path to HTTP.
 
-2. *Quasi web protocol*, i.e. offers another request-response protocol which exactly resembles HTTP/1.1 in its semantics and can be executed with IPC mechanisms.
+2. *Quasi web protocol*, i.e. offers another request-response protocol which exactly resembles HTTP/1.0 in its semantics and can be executed with IPC mechanisms.
 
 4. *Abstraction of message queues*, by modelling them as fire and forget requests to email-like address groups (e.g. kafka topic, network multicast address).
 
@@ -22,7 +22,9 @@ Kabomu seeks to demonstrate the following:
 
 1. IPC mechanisms demonstated: localhost TCP, unix domain sockets and windows named pipes (interfaces are provided to make it easy to employ any other IPC).
 
-3. Quasi web protocol: based on CSV and TLV.
+3. Quasi web protocol: based on HTTP/1.0, but with the following twists:
+   1. headers (request line and status line included) are encoded as CSV.
+   2. headers are always converted to bytes with UTF8 charset.
 
 3. Quasi web request processing strategies: one of the following
    1. Ignore http request methods and response status messages, and also ignore request path parameters and query strings. Instead use entire request target/path as a key into a

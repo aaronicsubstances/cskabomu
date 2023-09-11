@@ -3,8 +3,18 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu.Impl
+namespace Kabomu.Abstractions
 {
+    /// <summary>
+    /// Convenient base class for clients to implement custom Streams.
+    /// </summary>
+    /// <remarks>
+    /// The only required methods to implement are
+    /// <see cref="Stream.ReadAsync(byte[], int, int, CancellationToken)"/> and
+    /// <see cref="Stream.Read(byte[], int, int)"/>.
+    /// Optionally one can also override <see cref="Stream.ReadByte"/> for
+    /// efficiency gains when reading from an internal buffer.
+    /// </remarks>
     public abstract class ReadableStreamBase : Stream
     {
         public override bool CanRead => true;
@@ -54,14 +64,6 @@ namespace Kabomu.Impl
                 (data, offset, length) =>
                     destination.WriteAsync(data, offset, length, cancellationToken),
                 bufferSize,
-                cancellationToken);
-        }
-
-        public override async Task<int> ReadAsync(
-            byte[] buffer, int offset, int count,
-            CancellationToken cancellationToken)
-        {
-            return await ReadAsync(new Memory<byte>(buffer, offset, count),
                 cancellationToken);
         }
 

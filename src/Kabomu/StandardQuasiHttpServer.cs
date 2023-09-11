@@ -54,10 +54,19 @@ namespace Kabomu
             }
 
             var transport = Transport;
+            var application = Application;
+            if (transport == null)
+            {
+                throw new MissingDependencyException("server transport");
+            }
+            if (application == null)
+            {
+                throw new MissingDependencyException("server application");
+            }
 
             try
             {
-                await ProcessAccept(Application, Transport,
+                await ProcessAccept(application, transport,
                     connection);
             }
             catch (Exception e)
@@ -80,15 +89,6 @@ namespace Kabomu
             IQuasiHttpServerTransport transport,
             IQuasiHttpConnection connection)
         {
-            if (transport == null)
-            {
-                throw new MissingDependencyException("server transport");
-            }
-            if (application == null)
-            {
-                throw new MissingDependencyException("server application");
-            }
-
             var request = await ReadRequest(transport, connection);
             if (request == null)
             {
@@ -120,8 +120,10 @@ namespace Kabomu
             IQuasiHttpTransport transport,
             IQuasiHttpConnection connection)
         {
-            var encodedRequest = await transport.Read(connection, false);
-            if (encodedRequest?.Headers == null)
+            var encodedRequestHeaders = new List<byte[]>();
+            var encodedRequestBody = await transport.Read(connection, false,
+                encodedRequestHeaders);
+            if (encodedRequestHeaders.Count == 0)
             {
                 return null;
             }
@@ -130,10 +132,9 @@ namespace Kabomu
             {
                 Environment = connection.Environment
             };
-            QuasiHttpProtocolUtils.DecodeRequestHeaders(
-                encodedRequest.Headers, request);
-            request.Body = QuasiHttpProtocolUtils.DecodeBodyFromTransport(
-                request.ContentLength, encodedRequest.Body, connection.Environment);
+            QuasiHttpCodec.DecodeRequestHeaders(encodedRequestHeaders, request);
+            request.Body = ProtocolUtilsInternal.DecodeRequestBodyFromTransport(
+                request.ContentLength, encodedRequestBody);
             return request;
         }
 
@@ -142,18 +143,18 @@ namespace Kabomu
             IQuasiHttpTransport transport,
             IQuasiHttpConnection connection)
         {
-            if (QuasiHttpProtocolUtils.GetEnvVarAsBoolean(response.Environment,
-                QuasiHttpProtocolUtils.EnvKeySkipSending) == true)
+            if (ProtocolUtilsInternal.GetEnvVarAsBoolean(response.Environment,
+                QuasiHttpCodec.EnvKeySkipSending) == true)
             {
                 return;
             }
 
-            var encodedResponse = new DefaultEncodedQuasiHttpEntity();
-            encodedResponse.Headers = QuasiHttpProtocolUtils.EncodeResponseHeaders(response,
+            var encodedResponseHeaders = QuasiHttpCodec.EncodeResponseHeaders(response,
                 connection.ProcessingOptions?.MaxHeadersSize);
-            encodedResponse.Body = QuasiHttpProtocolUtils.EncodeBodyToTransport(
-                response.ContentLength, response.Body, response.Environment);
-            await transport.Write(connection, true, encodedResponse);
+            var encodedResponseBody = ProtocolUtilsInternal.EncodeBodyToTransport(true,
+                response.ContentLength, response.Body);
+            await transport.Write(connection, true, encodedResponseHeaders,
+                encodedResponseBody);
         }
 
         internal static async Task Abort(IQuasiHttpServerTransport transport,

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Kabomu.Abstractions;
 using Kabomu.Impl;
 using System.IO;
+using System.Threading;
 
 namespace Kabomu.Examples.Shared
 {
@@ -25,19 +26,19 @@ namespace Kabomu.Examples.Shared
             IQuasiHttpProcessingOptions fallbackProcessingOptions = null)
         {
             _socket = socket ?? throw new ArgumentNullException(nameof(socket));
-            ProcessingOptions = QuasiHttpProtocolUtils.MergeProcessingOptions(processingOptions,
+            ProcessingOptions = MiscUtils.MergeProcessingOptions(processingOptions,
                 fallbackProcessingOptions) ?? DefaultProcessingOptions;
             _reader = new SocketBackedStream(socket);
             TimeoutId = TransportImplHelpers.CreateCancellableTimeoutTask(
                 ProcessingOptions.TimeoutMillis,
                 isClient ? "send timeout" : "receive timeout");
+            CancellationToken = TimeoutId?.CancellationTokenSource.Token ?? default;
         }
 
         public CancellablePromise TimeoutId { get; }
-
         public IQuasiHttpProcessingOptions ProcessingOptions { get; }
-
         public IDictionary<string, object> Environment { get; set; }
+        public CancellationToken CancellationToken { get; }
 
         private async Task WriteSocketBytes(byte[] data, int offset, int length)
         {
@@ -63,44 +64,24 @@ namespace Kabomu.Examples.Shared
             return Task.CompletedTask;
         }
 
-        public async Task Write(bool isResponse, IEncodedQuasiHttpEntity entity)
+        public async Task Write(bool isResponse, byte[] encodedHeaders,
+            Stream body)
         {
-            var mainTask = WriteInternal(entity);
-            await MiscUtils.CompleteMainTask(mainTask, TimeoutId?.Task);
-        }
-
-        private async Task WriteInternal(IEncodedQuasiHttpEntity entity)
-        {
-            var encodedHeaders = entity.Headers;
             await WriteSocketBytes(encodedHeaders, 0, encodedHeaders.Length);
-            if (entity.Body != null)
+            if (body != null)
             {
-                await MiscUtils.CopyBytesToSink(entity.Body, WriteSocketBytes);
+                await MiscUtils.CopyBytesToSink(body, WriteSocketBytes, -1,
+                    CancellationToken);
             }
         }
 
-        public async Task<IEncodedQuasiHttpEntity> Read(bool isResponse)
+        public async Task<Stream> Read(bool isResponse,
+            List<byte[]> encodedHeadersReceiver)
         {
-            var mainTask = ReadInternal();
-            return await MiscUtils.CompleteMainTask(mainTask, TimeoutId?.Task);
-        }
-
-        private async Task<IEncodedQuasiHttpEntity> ReadInternal()
-        {
-            var headers = await TransportImplHelpers.ReadHeaders(_reader,
-                ProcessingOptions);
-            var body = _reader;
-            return new DefaultEncodedQuasiHttpEntity
-            {
-                Headers = headers,
-                Body = body
-            };
-        }
-
-        public async Task<Stream> ApplyResponseBuffering(Stream body)
-        {
-            return await MiscUtils.ReadAllBytes(body,
-                ProcessingOptions.ResponseBodyBufferingSizeLimit);
+            await QuasiHttpCodec.ReadEncodedHeaders(_reader,
+                encodedHeadersReceiver, ProcessingOptions.MaxHeadersSize,
+                CancellationToken);
+            return _reader;
         }
     }
 }

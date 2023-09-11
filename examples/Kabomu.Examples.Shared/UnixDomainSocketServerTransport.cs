@@ -87,17 +87,18 @@ namespace Kabomu.Examples.Shared
         }
 
         public Task Write(IQuasiHttpConnection connection, bool isResponse,
-            IEncodedQuasiHttpEntity entity)
+            byte[] encodedHeaders, Stream body)
         {
-            return ((SocketConnection)connection).Write(isResponse, entity);
+            return ((SocketConnection)connection).Write(isResponse,
+                encodedHeaders, body);
         }
 
-        public Task<IEncodedQuasiHttpEntity> Read(
+        public Task<Stream> Read(
             IQuasiHttpConnection connection,
-            bool isResponse)
+            bool isResponse, List<byte[]> encodedHeadersReceiver)
         {
             return ((SocketConnection)connection).Read(
-                isResponse);
+                isResponse, encodedHeadersReceiver);
         }
     }
 }

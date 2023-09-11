@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 
 namespace Kabomu.Abstractions
 {
@@ -12,6 +13,7 @@ namespace Kabomu.Abstractions
     /// </summary>
     public interface IQuasiHttpConnection
     {
+        CancellationToken CancellationToken { get; }
         IQuasiHttpProcessingOptions ProcessingOptions { get; }
 
         /// <summary>

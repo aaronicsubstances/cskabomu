@@ -1,5 +1,4 @@
-﻿using Kabomu.Abstractions;
-using Kabomu.Exceptions;
+﻿using Kabomu.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -35,37 +34,6 @@ namespace Kabomu.Examples.Shared
                 Task = timeoutTask,
                 CancellationTokenSource = timeoutId
             };
-        }
-
-        public static async Task<byte[]> ReadHeaders(Stream stream,
-            IQuasiHttpProcessingOptions options)
-        {
-            var encodedHeadersLength = new byte[
-                QuasiHttpProtocolUtils.LengthOfEncodedHeadersLength];
-            await MiscUtils.ReadExactBytesAsync(stream, encodedHeadersLength, 0,
-                encodedHeadersLength.Length);
-            int headersLength = MiscUtils.ParseInt32(
-                MiscUtils.BytesToString(encodedHeadersLength));
-            if (headersLength < 0)
-            {
-                throw new ChunkDecodingException(
-                    "invalid length encountered for quasi http headers: " +
-                    $"{headersLength}");
-            }
-            int maxHeadersSize = options.MaxHeadersSize;
-            if (maxHeadersSize <= 0)
-            {
-                maxHeadersSize = QuasiHttpProtocolUtils.DefaultMaxHeadersSize;
-            }
-            if (headersLength > maxHeadersSize)
-            {
-                throw new ChunkDecodingException("quasi http headers exceed max " +
-                    $"({headersLength} > {options.MaxHeadersSize})");
-            }
-            var headers = new byte[headersLength];
-            await MiscUtils.ReadExactBytesAsync(stream, headers, 0,
-                headersLength);
-            return headers;
         }
     }
 }

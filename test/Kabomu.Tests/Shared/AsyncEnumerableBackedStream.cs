@@ -1,4 +1,4 @@
-﻿using Kabomu.Impl;
+﻿using Kabomu.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -42,14 +42,15 @@ namespace Kabomu
             return base.ReadByte();
         }
 
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer,
+        public override async Task<int> ReadAsync(
+            byte[] data, int offset, int length,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (_outstandingChunk != null &&
                 _usedOffset < _outstandingChunk.Length)
             {
-                return FillFromOutstanding(buffer);
+                return FillFromOutstanding(data, offset, length);
             }
             while (await _backingAsyncEnumerator.MoveNextAsync())
             {
@@ -60,20 +61,19 @@ namespace Kabomu
                 {
                     _outstandingChunk = chunk;
                     _usedOffset = 0;
-                    return FillFromOutstanding(buffer);
+                    return FillFromOutstanding(data, offset, length);
                 }
             }
             return 0;
         }
 
-        private int FillFromOutstanding(Memory<byte> buffer)
+        private int FillFromOutstanding(byte[] data, int offset, int length)
         {
-            var nextChunkLength = Math.Min(buffer.Length,
+            var nextChunkLength = Math.Min(length,
                 _outstandingChunk.Length - _usedOffset);
-            var span = buffer.Span;
             for (int i = 0; i < nextChunkLength; i++)
             {
-                span[i] = _outstandingChunk[_usedOffset];
+                data[offset + i] = _outstandingChunk[_usedOffset];
                 _usedOffset++;
             }
             return nextChunkLength;

@@ -8,9 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-[assembly: InternalsVisibleTo("Kabomu.Tests.Shared")]
 [assembly: InternalsVisibleTo("Kabomu.Tests")]
-[assembly: InternalsVisibleTo("Kabomu.IntegrationTests")]
 
 namespace Kabomu
 {
@@ -98,7 +96,7 @@ namespace Kabomu
 
             if (transport == null)
             {
-                throw new MissingDependencyException("transport");
+                throw new MissingDependencyException("client transport");
             }
 
             var connection = await transport.AllocateConnection(
@@ -143,30 +141,23 @@ namespace Kabomu
             IQuasiHttpClientTransport transport,
             IQuasiHttpConnection connection)
         {
-            if (transport == null)
-            {
-                throw new MissingDependencyException("client transport");
-            }
-            if (request == null)
-            {
-                throw new ExpectationViolationException("request");
-            }
-
             // send entire request first before
             // receiving of response.
-            if (QuasiHttpProtocolUtils.GetEnvVarAsBoolean(request.Environment,
-                QuasiHttpProtocolUtils.EnvKeySkipSending) != true)
+            if (ProtocolUtilsInternal.GetEnvVarAsBoolean(request.Environment,
+                QuasiHttpCodec.EnvKeySkipSending) != true)
             {
-                var encodedRequest = new DefaultEncodedQuasiHttpEntity();
-                encodedRequest.Headers = QuasiHttpProtocolUtils.EncodeRequestHeaders(request,
+                var encodedRequestHeaders = QuasiHttpCodec.EncodeRequestHeaders(request,
                     connection.ProcessingOptions?.MaxHeadersSize);
-                encodedRequest.Body = QuasiHttpProtocolUtils.EncodeBodyToTransport(
-                    request.ContentLength, request.Body, request.Environment);
-                await transport.Write(connection, false, encodedRequest);
+                var encodedRequestBody = ProtocolUtilsInternal.EncodeBodyToTransport(false,
+                    request.ContentLength, request.Body);
+                await transport.Write(connection, false, encodedRequestHeaders,
+                    encodedRequestBody);
             }
 
-            var encodedResponse = await transport.Read(connection, true);
-            if (encodedResponse?.Headers == null)
+            var encodedResponseHeaders = new List<byte[]>();
+            var encodedResponseBody = await transport.Read(connection, true,
+                encodedResponseHeaders);
+            if (encodedResponseHeaders.Count == 0)
             {
                 throw new QuasiHttpRequestProcessingException("no response");
             }
@@ -179,19 +170,17 @@ namespace Kabomu
             {
                 Disposer = releaseFunc
             };
-            QuasiHttpProtocolUtils.DecodeResponseHeaders(
-                encodedResponse.Headers, response);
-            response.Body = QuasiHttpProtocolUtils.DecodeBodyFromTransport(
-                response.ContentLength, encodedResponse.Body,
-                connection.Environment);
-            // apply response buffering, but only if response body exists.
-            bool responseStreamingEnabled = response.Body != null;
-            if (responseStreamingEnabled &&
-                connection.ProcessingOptions?.ResponseBufferingEnabled != false)
+            QuasiHttpCodec.DecodeResponseHeaders(encodedResponseHeaders, response);
+            bool responseStreamingEnabled = false;
+            if (response.ContentLength != 0)
             {
-                response.Body = await transport.ApplyResponseBuffering(connection,
-                    response.Body);
-                responseStreamingEnabled = false;
+                response.Body = encodedResponseBody;
+                responseStreamingEnabled = 
+                    await ProtocolUtilsInternal.DecodeResponseBodyFromTransport(
+                        response,
+                        connection.Environment, 
+                        connection.ProcessingOptions,
+                        connection.CancellationToken);
             }
             await Abort(transport, connection, false, responseStreamingEnabled);
             return response;

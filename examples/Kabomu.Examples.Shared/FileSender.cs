@@ -45,7 +45,7 @@ namespace Kabomu.Examples.Shared
             request.Headers.Add("f", new List<string> { f.Name });
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
-            request.ContentLength = RandGen.NextDouble() < 0.5 ? -1 : f.Length;
+            request.ContentLength = f.Length;
             request.Body = fileStream;
             IQuasiHttpResponse res;
             try
@@ -62,7 +62,7 @@ namespace Kabomu.Examples.Shared
                 LOG.Warn("Received no response.");
                 return;
             }
-            if (res.StatusCode == QuasiHttpProtocolUtils.StatusCodeOk)
+            if (res.StatusCode == QuasiHttpCodec.StatusCodeOk)
             {
                 LOG.Info("File {0} sent successfully", f.FullName);
             }
@@ -74,7 +74,7 @@ namespace Kabomu.Examples.Shared
                     try
                     {
                         var responseMsgBytes = await MiscUtils.ReadAllBytes(res.Body);
-                        responseMsg = MiscUtils.BytesToString(responseMsgBytes.ToArray());
+                        responseMsg = MiscUtils.BytesToString(responseMsgBytes);
                     }
                     catch (Exception)
                     {

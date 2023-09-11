@@ -1,4 +1,6 @@
-﻿using Kabomu.Exceptions;
+﻿using Kabomu.Abstractions;
+using Kabomu.Exceptions;
+using Kabomu.Impl;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,16 +18,11 @@ namespace Kabomu
     public static class MiscUtils
     {
         /// <summary>
-        /// The limit of data buffering when reading byte streams into memory. Equal to 128 MB.
-        /// </summary>
-        private static readonly int DefaultDataBufferLimit = 134_217_728;
-
-        /// <summary>
         /// The default read buffer size. Equal to 8,192 bytes.
         /// </summary>
         private static readonly int DefaultReadBufferSize = 8_192;
 
-        private static byte[] AllocateReadBuffer()
+        internal static byte[] AllocateReadBuffer()
         {
             return new byte[DefaultReadBufferSize];
         }
@@ -38,78 +35,19 @@ namespace Kabomu
         /// <param name="offset">start position in buffer to fill from</param>
         /// <param name="length">number of bytes to read. Failure to obtain this number of bytes will
         /// result in an error.</param>
-        /// <exception cref="CustomIOException">Not enough bytes were found in
-        /// <paramref name="inputStream"/> argument to supply requested number of bytes.</exception>
-        public static void ReadExactBytes(Stream inputStream,
-            byte[] data, int offset, int length)
-        {
-            // allow zero-byte reads to proceed to touch the
-            // stream, rather than just return.
-            while (true)
-            {
-                int bytesRead = inputStream.Read(data, offset, length);
-                if (bytesRead > length)
-                {
-                    throw new ExpectationViolationException(
-                        "read beyond requested length: " +
-                        $"({bytesRead} > {length})");
-                }
-                if (bytesRead < length)
-                {
-                    if (bytesRead <= 0)
-                    {
-                        throw new CustomIOException("unexpected end of read");
-                    }
-                    offset += bytesRead;
-                    length -= bytesRead;
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Reads in data in order to completely fill in a buffer.
-        /// </summary>
-        /// <param name="inputStream">source of bytes to read</param>
-        /// <param name="data">destination buffer</param>
-        /// <param name="offset">start position in buffer to fill from</param>
-        /// <param name="length">number of bytes to read. Failure to obtain this number of bytes will
-        /// result in an error.</param>
         /// <returns>A task that represents the asynchronous read operation.</returns>
         /// <exception cref="CustomIOException">Not enough bytes were found in
         /// <paramref name="inputStream"/> argument to supply requested number of bytes.</exception>
-        public static Task ReadExactBytesAsync(Stream inputStream,
+        public static async Task ReadBytesFully(Stream inputStream,
             byte[] data, int offset, int length,
             CancellationToken cancellationToken = default)
         {
-            return ReadExactBytesAsync(inputStream,
-                new Memory<byte>(data, offset, length),
-                cancellationToken);
-        }
-
-        /// <summary>
-        /// Reads in data in order to completely fill in a buffer.
-        /// </summary>
-        /// <param name="inputStream">source of bytes to read</param>
-        /// <param name="data">destination buffer</param>
-        /// <returns>A task that represents the asynchronous read operation.</returns>
-        /// <exception cref="CustomIOException">Not enough bytes were found in
-        /// <paramref name="inputStream"/> argument to supply requested number of bytes.</exception>
-        public static async Task ReadExactBytesAsync(Stream inputStream,
-            Memory<byte> data,
-            CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
             // allow zero-byte reads to proceed to touch the
             // stream, rather than just return.
-            int offset = 0, length = data.Length;
             while (true)
             {
                 int bytesRead = await inputStream.ReadAsync(
-                    data.Slice(offset, length),
+                    data, offset, length,
                     cancellationToken);
                 if (bytesRead > length)
                 {
@@ -141,64 +79,15 @@ namespace Kabomu
         /// thrown if there is more data after that limit.
         /// </remarks>
         /// <param name="reader">The source of data to read</param>
-        /// <param name="bufferingLimit">Indicates the maximum size in bytes of the resulting buffer.
-        /// Can pass zero to use default value of 128 MB. Can also pass a negative value which will ignore
-        /// imposing a maximum size.</param>
-        /// <returns>A task whose result is an in-memory stream which has all of the remaining data in the reader.</returns>
-        /// <exception cref="CustomIOException">The <paramref name="bufferingLimit"/> argument indicates a positive value,
-        /// and data in <paramref name="body"/> argument exceeded that value.</exception>
-        public static async Task<MemoryStream> ReadAllBytes(Stream reader,
-            int bufferingLimit = 0)
+        /// <param name="cancellationToken"></param>
+        /// <returns>A task whose result is a buffer which has all of the remaining data in the reader.</returns>
+        public static async Task<byte[]> ReadAllBytes(Stream reader,
+            CancellationToken cancellationToken = default)
         {
-            if (bufferingLimit == 0)
-            {
-                bufferingLimit = DefaultDataBufferLimit;
-            }
-
             var byteStream = new MemoryStream();
-            if (bufferingLimit < 0)
-            {
-                await CopyBytesToStream(reader, byteStream);
-                return byteStream;
-            }
-
-            var readBuffer = AllocateReadBuffer();
-            int totalBytesRead = 0;
-
-            while (true)
-            {
-                int bytesToRead = Math.Min(readBuffer.Length, bufferingLimit - totalBytesRead);
-                // force a read of 1 byte if there are no more bytes to read into memory stream buffer
-                // but still remember that no bytes was expected.
-                var expectedEndOfRead = false;
-                if (bytesToRead == 0)
-                {
-                    bytesToRead = 1;
-                    expectedEndOfRead = true;
-                }
-                int bytesRead = await reader.ReadAsync(readBuffer, 0, bytesToRead);
-                if (bytesRead > bytesToRead)
-                {
-                    throw new ExpectationViolationException(
-                        "read beyond requested length: " +
-                        $"({bytesRead} > {bytesToRead})");
-                }
-                if (bytesRead > 0)
-                {
-                    if (expectedEndOfRead)
-                    {
-                        throw CustomIOException.CreateDataBufferLimitExceededErrorMessage(
-                            bufferingLimit);
-                    }
-                    byteStream.Write(readBuffer, 0, bytesRead);
-                    totalBytesRead += bytesRead;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            return byteStream;
+            await CopyBytesToStream(reader, byteStream,
+                cancellationToken);
+            return byteStream.ToArray();
         }
 
         /// <summary>
@@ -207,9 +96,10 @@ namespace Kabomu
         /// <param name="inputStream">source of data being transferred</param>
         /// <param name="outputStream">destination of data being transferred</param>
         public static async Task CopyBytesToStream(
-            Stream inputStream, Stream outputStream)
+            Stream inputStream, Stream outputStream,
+            CancellationToken cancellationToken = default)
         {
-            await inputStream.CopyToAsync(outputStream);
+             await inputStream.CopyToAsync(outputStream, cancellationToken);
         }
 
         /// <summary>
@@ -222,7 +112,6 @@ namespace Kabomu
             Func<byte[], int, int, Task> sink, int readBufferSize = default,
             CancellationToken cancellationToken = default)
         {
-            cancellationToken.ThrowIfCancellationRequested();
             if (readBufferSize <= 0)
             {
                 readBufferSize = DefaultReadBufferSize;
@@ -294,9 +183,156 @@ namespace Kabomu
             return Encoding.UTF8.GetBytes(s);
         }
 
-        internal static string PadLeftWithZeros(string v, int totalLen)
+        internal static int GetByteCount(string v)
         {
-            return v.PadLeft(totalLen, '0');
+            return Encoding.UTF8.GetByteCount(v);
+        }
+
+        internal static byte[] ConcatBuffers(List<byte[]> chunks)
+        {
+            int totalLen = chunks.Sum(c => c.Length);
+            byte[] result = new byte[totalLen];
+            int offset = 0;
+            foreach (var chunk in chunks)
+            {
+                Array.Copy(chunk, 0, result, offset, chunk.Length);
+                offset += chunk.Length;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Merges two sources of processing options together, unless one of 
+        /// them is null, in which case it returns the non-null one.
+        /// </summary>
+        /// <param name="preferred">options object whose valid property values will
+        /// make it to merged result</param>
+        /// <param name="fallback">options object whose valid property
+        /// values will make it to merged result, if corresponding property
+        /// on preferred argument are invalid.</param>
+        /// <returns>merged options</returns>
+        public static IQuasiHttpProcessingOptions MergeProcessingOptions(
+            IQuasiHttpProcessingOptions preferred,
+            IQuasiHttpProcessingOptions fallback)
+        {
+            if (preferred == null || fallback == null)
+            {
+                return preferred ?? fallback;
+            }
+            var mergedOptions = new DefaultQuasiHttpProcessingOptions();
+            mergedOptions.TimeoutMillis =
+                DetermineEffectiveNonZeroIntegerOption(
+                    preferred?.TimeoutMillis,
+                    fallback?.TimeoutMillis,
+                    0);
+
+            mergedOptions.ExtraConnectivityParams =
+                DetermineEffectiveOptions(
+                    preferred?.ExtraConnectivityParams,
+                    fallback?.ExtraConnectivityParams);
+
+            mergedOptions.ResponseBufferingEnabled =
+                DetermineEffectiveBooleanOption(
+                    preferred?.ResponseBufferingEnabled,
+                    fallback?.ResponseBufferingEnabled,
+                    true);
+
+            mergedOptions.MaxHeadersSize =
+                DetermineEffectivePositiveIntegerOption(
+                    preferred?.MaxHeadersSize,
+                    fallback?.MaxHeadersSize,
+                    0);
+
+            mergedOptions.ResponseBodyBufferingSizeLimit =
+                DetermineEffectivePositiveIntegerOption(
+                    preferred?.ResponseBodyBufferingSizeLimit,
+                    fallback?.ResponseBodyBufferingSizeLimit,
+                    0);
+            return mergedOptions;
+        }
+
+        internal static int DetermineEffectiveNonZeroIntegerOption(int? preferred,
+            int? fallback1, int defaultValue)
+        {
+            if (preferred != null)
+            {
+                int effectiveValue = preferred.Value;
+                if (effectiveValue != 0)
+                {
+                    return effectiveValue;
+                }
+            }
+            if (fallback1 != null)
+            {
+                int effectiveValue = fallback1.Value;
+                if (effectiveValue != 0)
+                {
+                    return effectiveValue;
+                }
+            }
+            return defaultValue;
+        }
+
+        internal static int DetermineEffectivePositiveIntegerOption(int? preferred,
+            int? fallback1, int defaultValue)
+        {
+            if (preferred != null)
+            {
+                int effectiveValue = preferred.Value;
+                if (effectiveValue > 0)
+                {
+                    return effectiveValue;
+                }
+            }
+            if (fallback1 != null)
+            {
+                int effectiveValue = fallback1.Value;
+                if (effectiveValue > 0)
+                {
+                    return effectiveValue;
+                }
+            }
+            return defaultValue;
+        }
+
+        internal static IDictionary<string, object> DetermineEffectiveOptions(
+            IDictionary<string, object> preferred, IDictionary<string, object> fallback)
+        {
+            var dest = new Dictionary<string, object>();
+            // since we want preferred options to overwrite fallback options,
+            // set fallback options first.
+            if (fallback != null)
+            {
+                foreach (var item in fallback)
+                {
+                    dest.Add(item.Key, item.Value);
+                }
+            }
+            if (preferred != null)
+            {
+                foreach (var item in preferred)
+                {
+                    if (dest.ContainsKey(item.Key))
+                    {
+                        dest[item.Key] = item.Value;
+                    }
+                    else
+                    {
+                        dest.Add(item.Key, item.Value);
+                    }
+                }
+            }
+            return dest;
+        }
+
+        internal static bool DetermineEffectiveBooleanOption(
+            bool? preferred, bool? fallback1, bool defaultValue)
+        {
+            if (preferred != null)
+            {
+                return preferred.Value;
+            }
+            return fallback1 ?? defaultValue;
         }
 
         public async static Task<T> CompleteMainTask<T>(
@@ -328,7 +364,7 @@ namespace Kabomu
         {
             // ignore null tasks and successful results from
             // cancellation tasks.
-            var tasks = new List<Task> { mainTask };
+            var tasks = new List<Task>();
             foreach (var t in cancellationTasks)
             {
                 if (t != null)
@@ -336,6 +372,7 @@ namespace Kabomu
                     tasks.Add(t);
                 }
             }
+            tasks.Add(mainTask);
             while (tasks.Count > 1)
             {
                 var firstTask = await Task.WhenAny(tasks);

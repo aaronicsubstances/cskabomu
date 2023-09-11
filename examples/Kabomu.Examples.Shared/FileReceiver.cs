@@ -52,11 +52,11 @@ namespace Kabomu.Examples.Shared
             var response = new DefaultQuasiHttpResponse();
             if (transferError == null)
             {
-                response.StatusCode = QuasiHttpProtocolUtils.StatusCodeOk;
+                response.StatusCode = QuasiHttpCodec.StatusCodeOk;
             }
             else
             {
-                response.StatusCode = QuasiHttpProtocolUtils.StatusCodeServerError;
+                response.StatusCode = QuasiHttpCodec.StatusCodeServerError;
                 response.HttpStatusMessage = transferError.Message;
             }
             return response;

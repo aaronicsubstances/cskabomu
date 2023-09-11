@@ -1,4 +1,4 @@
-﻿using Kabomu.Impl;
+﻿using Kabomu.Abstractions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -48,10 +48,12 @@ namespace Kabomu.Examples.Shared
             return _socket.Receive(buffer, offset, count, SocketFlags.None);
         }
 
-        public override ValueTask<int> ReadAsync(Memory<byte> buffer,
+        public override async Task<int> ReadAsync(
+            byte[] data, int offset, int length,
             CancellationToken cancellationToken = default)
         {
-            return _socket.ReceiveAsync(buffer, SocketFlags.None,
+            return await _socket.ReceiveAsync(
+                new Memory<byte>(data, offset, length), SocketFlags.None,
                 cancellationToken);
         }
     }

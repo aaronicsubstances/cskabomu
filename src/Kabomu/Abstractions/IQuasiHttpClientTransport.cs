@@ -25,24 +25,6 @@ namespace Kabomu.Abstractions
             object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions);
 
         /// <summary>
-        /// Returns an equivalent byte stream which can be used even
-        /// after the release of a connection.
-        /// </summary>
-        /// <remarks>
-        /// An implementation can decide to return the same stream if it
-        /// determines that it is already independent of a connection, such as
-        /// if the stream is in memory.
-        /// </remarks>
-        /// <param name="connection">connection that response body to buffer
-        /// was retrieved from</param>
-        /// <param name="body">response body to buffer in memory</param>
-        /// <returns>a task whose result is an equivalent in-memory byte stream,
-        /// or a byte stream which can be used after the release of
-        /// the connection argument.</returns>
-        Task<Stream> ApplyResponseBuffering(IQuasiHttpConnection connection,
-            Stream body);
-
-        /// <summary>
         /// Releases resources held by a connection of a quasi http transport instance.
         /// </summary>
         /// <param name="connection">the connection to release</param>
