@@ -84,7 +84,11 @@ namespace Kabomu.ProtocolImpl
                     return null;
                 }
             }
-            else
+            if (body == null)
+            {
+                throw new QuasiHttpException("no request body");
+            }
+            if (!SupportHttp10Only)
             {
                 if (contentLength < 0)
                 {
@@ -110,6 +114,10 @@ namespace Kabomu.ProtocolImpl
                 environment, QuasiHttpCodec.EnvKeySkipResBodyDecoding) == true)
             {
                 return responseStreamingEnabled;
+            }
+            if (response.Body == null)
+            {
+                throw new QuasiHttpException("no response body");
             }
             if (!SupportHttp10Only)
             {

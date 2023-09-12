@@ -15,12 +15,13 @@ namespace Kabomu.Examples.Shared
             object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions)
         {
             int port = (int)remoteEndpoint;
-            var socket = new Socket(IPAddress.Loopback.AddressFamily,
+            var socket = new Socket(AddressFamily.InterNetworkV6,
                 SocketType.Stream, ProtocolType.Tcp);
             socket.NoDelay = true;
             var connection = new SocketConnection(socket, true,
                 sendOptions, DefaultSendOptions);
-            var mainTask = socket.ConnectAsync(IPAddress.Loopback, port);
+            var mainTask = socket.ConnectAsync(
+                IPAddress.Parse("::1"), port);
             try
             {
                 await MiscUtils.CompleteMainTask(mainTask, connection.TimeoutId?.Task);

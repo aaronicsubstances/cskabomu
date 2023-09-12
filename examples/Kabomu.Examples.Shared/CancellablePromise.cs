@@ -11,8 +11,6 @@ namespace Kabomu.Examples.Shared
     {
         public Task Task { get; set; }
         public CancellationTokenSource CancellationTokenSource { get; set; }
-        public bool IsCancellationRequested() =>
-            CancellationTokenSource?.IsCancellationRequested ?? false;
 
         public void Cancel()
         {

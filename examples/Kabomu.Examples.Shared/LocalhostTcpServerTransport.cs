@@ -17,9 +17,9 @@ namespace Kabomu.Examples.Shared
 
         public LocalhostTcpServerTransport(int port)
         {
-            _tcpServer = new Socket(IPAddress.Loopback.AddressFamily,
+            _tcpServer = new Socket(AddressFamily.InterNetworkV6,
                 SocketType.Stream, ProtocolType.Tcp);
-            _tcpServer.Bind(new IPEndPoint(IPAddress.Loopback, port));
+            _tcpServer.Bind(new IPEndPoint(IPAddress.Parse("::1"), port));
         }
 
         public StandardQuasiHttpServer Server { get; set; }

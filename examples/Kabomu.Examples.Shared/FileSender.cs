@@ -68,11 +68,6 @@ namespace Kabomu.Examples.Shared
                 LOG.Info("File {0} sent with error", f.FullName);
                 throw;
             }
-            if (res == null)
-            {
-                LOG.Warn("Received no response.");
-                return;
-            }
             if (res.StatusCode == QuasiHttpCodec.StatusCodeOk)
             {
                 string responseMsg = "";
