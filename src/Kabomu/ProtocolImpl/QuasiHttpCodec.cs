@@ -179,11 +179,6 @@ namespace Kabomu.ProtocolImpl
         /// </summary>
         public const string ProtocolVersion01 = "01";
 
-        /// <summary>
-        /// The limit of data buffering when reading byte streams into memory. Equal to 128 MB.
-        /// </summary>
-        public static readonly int DefaultDataBufferLimit = 134_217_728;
-
         public static byte[] EncodeRequestHeaders(
             IQuasiHttpRequest reqHeaders,
             int? maxHeadersSize = null)
@@ -248,9 +243,9 @@ namespace Kabomu.ProtocolImpl
             if (csv.Any(row => row.Any(item => item.Contains('\n') ||
                 item.Contains('\r'))))
             {
-                throw new QuasiHttpRequestProcessingException("quasi http headers cannot " +
+                throw new QuasiHttpException("quasi http headers cannot " +
                     "contain newlines",
-                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
+                    QuasiHttpException.ReasonCodeProtocolViolation);
             }
 
             // add at least two line feeds to ensure byte count
@@ -270,15 +265,15 @@ namespace Kabomu.ProtocolImpl
             // finally check that byte count of csv doesn't exceed limit.
             if (effectiveByteCount > maxHeadersSize)
             {
-                throw new QuasiHttpRequestProcessingException("quasi http headers exceed " +
+                throw new QuasiHttpException("quasi http headers exceed " +
                     $"max size ({effectiveByteCount} > {maxHeadersSize})",
-                    QuasiHttpRequestProcessingException.ReasonCodeMessageLengthLimitExceeded);
+                    QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
             }
             if (effectiveByteCount > HardLimitOnMaxHeadersSize)
             {
-                throw new QuasiHttpRequestProcessingException("quasi http headers too " +
+                throw new QuasiHttpException("quasi http headers too " +
                     $"large ({effectiveByteCount} > {HardLimitOnMaxHeadersSize})",
-                    QuasiHttpRequestProcessingException.ReasonCodeMessageLengthLimitExceeded);
+                    QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
             }
             return MiscUtils.StringToBytes(serialized);
         }
@@ -290,17 +285,17 @@ namespace Kabomu.ProtocolImpl
                 MiscUtils.ConcatBuffers(encodedCsv)));
             if (csv.Count < 2)
             {
-                throw new QuasiHttpRequestProcessingException(
+                throw new QuasiHttpException(
                     "invalid encoded quasi http request headers",
-                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
+                    QuasiHttpException.ReasonCodeProtocolViolation);
             }
             // skip first row.
             var specialHeader = csv[1];
             if (specialHeader.Count < 4)
             {
-                throw new QuasiHttpRequestProcessingException(
+                throw new QuasiHttpException(
                     "invalid quasi http request line",
-                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
+                    QuasiHttpException.ReasonCodeProtocolViolation);
             }
             request.HttpMethod = specialHeader[0];
             request.Target = specialHeader[1];
@@ -312,9 +307,9 @@ namespace Kabomu.ProtocolImpl
             }
             catch (Exception e)
             {
-                throw new QuasiHttpRequestProcessingException(
+                throw new QuasiHttpException(
                     "invalid quasi http request content length",
-                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation,
+                    QuasiHttpException.ReasonCodeProtocolViolation,
                     e);
             }
             request.Headers = DecodeRemainingHeaders(csv);
@@ -327,17 +322,17 @@ namespace Kabomu.ProtocolImpl
                 MiscUtils.ConcatBuffers(encodedCsv)));
             if (csv.Count < 2)
             {
-                throw new QuasiHttpRequestProcessingException(
+                throw new QuasiHttpException(
                     "invalid encoded quasi http response headers",
-                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
+                    QuasiHttpException.ReasonCodeProtocolViolation);
             }
             // skip version row.
             var specialHeader = csv[1];
             if (specialHeader.Count < 4)
             {
-                throw new QuasiHttpRequestProcessingException(
+                throw new QuasiHttpException(
                     "invalid quasi http response status line",
-                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation);
+                    QuasiHttpException.ReasonCodeProtocolViolation);
             }
             try
             {
@@ -345,9 +340,9 @@ namespace Kabomu.ProtocolImpl
             }
             catch (Exception e)
             {
-                throw new QuasiHttpRequestProcessingException(
+                throw new QuasiHttpException(
                     "invalid quasi http response status code",
-                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation,
+                    QuasiHttpException.ReasonCodeProtocolViolation,
                     e);
             }
             response.HttpStatusMessage = specialHeader[1];
@@ -358,9 +353,9 @@ namespace Kabomu.ProtocolImpl
             }
             catch (Exception e)
             {
-                throw new QuasiHttpRequestProcessingException(
+                throw new QuasiHttpException(
                     "invalid quasi http response content length",
-                    QuasiHttpRequestProcessingException.ReasonCodeProtocolViolation,
+                    QuasiHttpException.ReasonCodeProtocolViolation,
                     e);
             }
             response.Headers = DecodeRemainingHeaders(csv);
@@ -407,10 +402,10 @@ namespace Kabomu.ProtocolImpl
                 totalBytesRead += HeaderChunkSize;
                 if (totalBytesRead > maxHeadersSize)
                 {
-                    throw new QuasiHttpRequestProcessingException(
+                    throw new QuasiHttpException(
                         "size of quasi http headers to read exceed " +
                         $"max size ({totalBytesRead} > {maxHeadersSize})",
-                        QuasiHttpRequestProcessingException.ReasonCodeMessageLengthLimitExceeded);
+                        QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
                 }
                 var chunk = new byte[HeaderChunkSize];
                 await MiscUtils.ReadBytesFully(source, chunk,
@@ -438,53 +433,6 @@ namespace Kabomu.ProtocolImpl
                 }
                 previousChunkEndsWithLf = chunk[^1] == newline;
             }
-        }
-
-        public static async Task<Stream> ReadAllBytes(Stream body,
-            int bufferingLimit, CancellationToken cancellationToken)
-        {
-            var bufferingStream = new MemoryStream();
-
-            var readBuffer = MiscUtils.AllocateReadBuffer();
-            int totalBytesRead = 0;
-
-            while (true)
-            {
-                int bytesToRead = Math.Min(readBuffer.Length, bufferingLimit - totalBytesRead);
-                // force a read of 1 byte if there are no more bytes to read into memory stream buffer
-                // but still remember that no bytes was expected.
-                var expectedEndOfRead = false;
-                if (bytesToRead == 0)
-                {
-                    bytesToRead = 1;
-                    expectedEndOfRead = true;
-                }
-                int bytesRead = await body.ReadAsync(readBuffer, 0, bytesToRead,
-                    cancellationToken);
-                if (bytesRead > bytesToRead)
-                {
-                    throw new ExpectationViolationException(
-                        "read beyond requested length: " +
-                        $"({bytesRead} > {bytesToRead})");
-                }
-                if (bytesRead > 0)
-                {
-                    if (expectedEndOfRead)
-                    {
-                        throw new QuasiHttpRequestProcessingException(
-                            "response body of indeterminate length exceeds buffering limit of " +
-                            $"{bufferingLimit} bytes",
-                            QuasiHttpRequestProcessingException.ReasonCodeMessageLengthLimitExceeded);
-                    }
-                    bufferingStream.Write(readBuffer, 0, bytesRead);
-                    totalBytesRead += bytesRead;
-                }
-                else
-                {
-                    break;
-                }
-            }
-            return bufferingStream;
         }
     }
 }

@@ -37,7 +37,7 @@ namespace Tcp.FileServer
         {
             var instance = new StandardQuasiHttpServer
             {
-                Application = new FileReceiver(port, uploadDirPath)
+                Application = new FileReceiver(port, uploadDirPath).ProcessRequest
             };
             var transport = new LocalhostTcpServerTransport(port)
             {

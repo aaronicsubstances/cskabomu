@@ -14,6 +14,13 @@ namespace Kabomu.Examples.Shared
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
         private static readonly Random RandGen = new Random();
 
+        /// <summary>
+        /// The purpose of this flag and the dead code that is present
+        /// as a result, is make the dead code serve as reference for
+        /// porting in stages of HTTP/1.0 only, before HTTP/1.1.
+        /// </summary>
+        private static readonly bool SupportHttp10Only = false;
+
         public static async Task StartTransferringFiles(StandardQuasiHttpClient instance, object serverEndpoint,
             string uploadDirPath)
         {
@@ -46,6 +53,10 @@ namespace Kabomu.Examples.Shared
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
             request.ContentLength = f.Length;
+            if (!SupportHttp10Only && RandGen.NextDouble() < 0.5)
+            {
+                request.ContentLength = -1;
+            }
             request.Body = fileStream;
             IQuasiHttpResponse res;
             try
@@ -64,7 +75,14 @@ namespace Kabomu.Examples.Shared
             }
             if (res.StatusCode == QuasiHttpCodec.StatusCodeOk)
             {
-                LOG.Info("File {0} sent successfully", f.FullName);
+                string responseMsg = "";
+                if (res.Body != null)
+                {
+                    var responseMsgBytes = await MiscUtils.ReadAllBytes(res.Body);
+                    responseMsg = MiscUtils.BytesToString(responseMsgBytes);
+                }
+                LOG.Info("File {0} sent successfully\n(from server: {1})",
+                    f.FullName, responseMsg);
             }
             else
             {
@@ -81,7 +99,8 @@ namespace Kabomu.Examples.Shared
                         // ignore.
                     }
                 }
-                throw new Exception(string.Format("status code indicates error: {0}\n{1}",
+                throw new Exception(string.Format(
+                    "status code indicates error: {0}\n{1}",
                     res.StatusCode, responseMsg));
             }
         }

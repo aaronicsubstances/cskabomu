@@ -22,10 +22,10 @@ namespace Kabomu
         /// </summary>
         private static readonly int DefaultReadBufferSize = 8_192;
 
-        internal static byte[] AllocateReadBuffer()
-        {
-            return new byte[DefaultReadBufferSize];
-        }
+        /// <summary>
+        /// The limit of data buffering when reading byte streams into memory. Equal to 128 MB.
+        /// </summary>
+        public static readonly int DefaultDataBufferLimit = 134_217_728;
 
         /// <summary>
         /// Reads in data in order to completely fill in a buffer.
@@ -36,7 +36,7 @@ namespace Kabomu
         /// <param name="length">number of bytes to read. Failure to obtain this number of bytes will
         /// result in an error.</param>
         /// <returns>A task that represents the asynchronous read operation.</returns>
-        /// <exception cref="CustomIOException">Not enough bytes were found in
+        /// <exception cref="KabomuIOException">Not enough bytes were found in
         /// <paramref name="inputStream"/> argument to supply requested number of bytes.</exception>
         public static async Task ReadBytesFully(Stream inputStream,
             byte[] data, int offset, int length,
@@ -59,7 +59,49 @@ namespace Kabomu
                 {
                     if (bytesRead <= 0)
                     {
-                        throw new CustomIOException("unexpected end of read");
+                        throw KabomuIOException.CreateEndOfReadError();
+                    }
+                    offset += bytesRead;
+                    length -= bytesRead;
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reads in data in order to completely fill in a buffer.
+        /// </summary>
+        /// <param name="inputStream">source of bytes to read</param>
+        /// <param name="data">destination buffer</param>
+        /// <param name="offset">start position in buffer to fill from</param>
+        /// <param name="length">number of bytes to read. Failure to obtain this number of bytes will
+        /// result in an error.</param>
+        /// <returns>A task that represents the asynchronous read operation.</returns>
+        /// <exception cref="KabomuIOException">Not enough bytes were found in
+        /// <paramref name="inputStream"/> argument to supply requested number of bytes.</exception>
+        public static void ReadBytesFullySync(Stream inputStream,
+            byte[] data, int offset, int length)
+        {
+            // allow zero-byte reads to proceed to touch the
+            // stream, rather than just return.
+            while (true)
+            {
+                int bytesRead = inputStream.Read(
+                    data, offset, length);
+                if (bytesRead > length)
+                {
+                    throw new ExpectationViolationException(
+                        "read beyond requested length: " +
+                        $"({bytesRead} > {length})");
+                }
+                if (bytesRead < length)
+                {
+                    if (bytesRead <= 0)
+                    {
+                        throw KabomuIOException.CreateEndOfReadError();
                     }
                     offset += bytesRead;
                     length -= bytesRead;
@@ -137,6 +179,53 @@ namespace Kabomu
                     break;
                 }
             }
+        }
+
+        public static async Task<bool> CopyBytesUpToGivenLimit(
+            Stream src, Stream dest,
+            int bufferingLimit, CancellationToken cancellationToken)
+        {
+            if (bufferingLimit <= 0)
+            {
+                bufferingLimit = DefaultDataBufferLimit;
+            }
+            var readBuffer = new byte[DefaultReadBufferSize];
+            int totalBytesRead = 0;
+
+            while (true)
+            {
+                int bytesToRead = Math.Min(readBuffer.Length, bufferingLimit - totalBytesRead);
+                // force a read of 1 byte if there are no more bytes to read into memory stream buffer
+                // but still remember that no bytes was expected.
+                var expectedEndOfRead = false;
+                if (bytesToRead <= 0)
+                {
+                    bytesToRead = 1;
+                    expectedEndOfRead = true;
+                }
+                int bytesRead = await src.ReadAsync(readBuffer, 0, bytesToRead,
+                    cancellationToken);
+                if (bytesRead > bytesToRead)
+                {
+                    throw new ExpectationViolationException(
+                        "read beyond requested length: " +
+                        $"({bytesRead} > {bytesToRead})");
+                }
+                if (bytesRead > 0)
+                {
+                    if (expectedEndOfRead)
+                    {
+                        return false;
+                    }
+                    dest.Write(readBuffer, 0, bytesRead);
+                    totalBytesRead += bytesRead;
+                }
+                else
+                {
+                    break;
+                }
+            }
+            return true;
         }
 
         /// <summary>

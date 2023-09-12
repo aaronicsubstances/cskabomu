@@ -12,6 +12,13 @@ namespace Kabomu.ProtocolImpl
 {
     internal static class ProtocolUtilsInternal
     {
+        /// <summary>
+        /// The purpose of this flag and the dead code that is present
+        /// as a result, is make the dead code serve as reference for
+        /// porting in stages of HTTP/1.0 only, before HTTP/1.1.
+        /// </summary>
+        private static readonly bool SupportHttp10Only = false;
+
         internal static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment,
             string key)
         {
@@ -37,15 +44,32 @@ namespace Kabomu.ProtocolImpl
             {
                 return null;
             }
-            if (!isResponse && contentLength < 0)
+            if (SupportHttp10Only)
             {
-                return null;
+                if (!isResponse && contentLength < 0)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                if (contentLength < 0)
+                {
+                    return new BodyChunkEncodingStream(body);
+                }
             }
             // don't enforce positive content lengths when writing out
             // quasi http bodies
             return body;
         }
 
+        /// <summary>
+        /// Determines what the effective body is that
+        /// corresponds to a given content length.
+        /// </summary>
+        /// <param name="contentLength"></param>
+        /// <param name="body"></param>
+        /// <returns></returns>
         internal static Stream DecodeRequestBodyFromTransport(
             long contentLength, Stream body)
         {
@@ -53,9 +77,19 @@ namespace Kabomu.ProtocolImpl
             {
                 return null;
             }
-            if (contentLength < 0)
+            if (SupportHttp10Only)
             {
-                return null;
+                if (contentLength < 0)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                if (contentLength < 0)
+                {
+                    return new BodyChunkDecodingStream(body);
+                }
             }
             return new ContentLengthEnforcingStream(body, contentLength);
         }
@@ -66,11 +100,23 @@ namespace Kabomu.ProtocolImpl
             IQuasiHttpProcessingOptions processingOptions,
             CancellationToken cancellationToken)
         {
+            if (response.ContentLength == 0)
+            {
+                response.Body = null;
+                return false;
+            }
             var responseStreamingEnabled = processingOptions?.ResponseBufferingEnabled == false;
             if (GetEnvVarAsBoolean(
                 environment, QuasiHttpCodec.EnvKeySkipResBodyDecoding) == true)
             {
                 return responseStreamingEnabled;
+            }
+            if (!SupportHttp10Only)
+            {
+                if (response.ContentLength < 0)
+                {
+                    response.Body = new BodyChunkDecodingStream(response.Body);
+                }
             }
             if (responseStreamingEnabled)
             {
@@ -84,21 +130,31 @@ namespace Kabomu.ProtocolImpl
             int bufferingLimit = processingOptions?.ResponseBodyBufferingSizeLimit ?? 0;
             if (bufferingLimit <= 0)
             {
-                bufferingLimit = QuasiHttpCodec.DefaultDataBufferLimit;
+                bufferingLimit = MiscUtils.DefaultDataBufferLimit;
             }
             if (response.ContentLength < 0)
             {
-                response.Body = await QuasiHttpCodec.ReadAllBytes(response.Body,
-                    bufferingLimit, cancellationToken);
+                var buffered = new MemoryStream();
+                bool success = await MiscUtils.CopyBytesUpToGivenLimit(response.Body,
+                    buffered, bufferingLimit, cancellationToken);
+                if (!success)
+                {
+                    throw new QuasiHttpException(
+                        "response body of indeterminate length exceeds buffering limit of " +
+                        $"{bufferingLimit} bytes",
+                        QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
+                }
+                response.Body = buffered;
+                buffered.Position = 0; // reset for reading.
             }
             else
             {
                 if (response.ContentLength > bufferingLimit)
                 {
-                    throw new QuasiHttpRequestProcessingException(
+                    throw new QuasiHttpException(
                         "response body length exceeds buffering limit " +
                         $"({response.ContentLength} > {bufferingLimit})",
-                        QuasiHttpRequestProcessingException.ReasonCodeMessageLengthLimitExceeded);
+                        QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
                 }
                 var buffer = new byte[(int)response.ContentLength];
                 await MiscUtils.ReadBytesFully(response.Body,

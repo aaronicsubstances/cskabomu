@@ -22,7 +22,7 @@ namespace Kabomu.Abstractions
         /// Gets or sets the equivalent of HTTP request headers.
         /// </summary>
         /// <remarks>
-        /// Unlike in HTTP/1.0, headers are case-sensitive and lower-cased
+        /// Unlike in HTTP, headers are case-sensitive and lower-cased
         /// header names are recommended
         /// <para></para>
         /// Also setting a Content-Length header
@@ -43,11 +43,8 @@ namespace Kabomu.Abstractions
         /// <summary>
         /// Gets or sets the number of bytes that the instance will supply,
         /// or -1 (actually any negative value) to indicate an unknown number of
-        /// response bytes.
+        /// bytes.
         /// </summary>
-        /// <remarks>
-        /// For requests, negative values are equivalent to zero content length.
-        /// </remarks>
         long ContentLength { get; set; }
 
         /// <summary>

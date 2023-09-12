@@ -103,7 +103,7 @@ namespace Kabomu
                 remoteEndpoint, sendOptions);
             if (connection == null)
             {
-                throw new QuasiHttpRequestProcessingException("no connection");
+                throw new QuasiHttpException("no connection");
             }
 
             if (request == null)
@@ -111,7 +111,7 @@ namespace Kabomu
                 request = await requestFunc.Invoke(connection.Environment);
                 if (request == null)
                 {
-                    throw new QuasiHttpRequestProcessingException("no request");
+                    throw new QuasiHttpException("no request");
                 }
             }
 
@@ -124,13 +124,13 @@ namespace Kabomu
             catch (Exception e)
             {
                 await Abort(transport, connection, true);
-                if (e is QuasiHttpRequestProcessingException)
+                if (e is QuasiHttpException)
                 {
                     throw;
                 }
-                var abortError = new QuasiHttpRequestProcessingException(
+                var abortError = new QuasiHttpException(
                     "encountered error during send request processing",
-                    QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                    QuasiHttpException.ReasonCodeGeneral,
                     e);
                 throw abortError;
             }
@@ -159,7 +159,7 @@ namespace Kabomu
                 encodedResponseHeaders);
             if (encodedResponseHeaders.Count == 0)
             {
-                throw new QuasiHttpRequestProcessingException("no response");
+                throw new QuasiHttpException("no response");
             }
 
             Func<Task> releaseFunc = () =>
@@ -168,20 +168,16 @@ namespace Kabomu
             };
             var response = new DefaultQuasiHttpResponse
             {
+                Body = encodedResponseBody,
                 Disposer = releaseFunc
             };
             QuasiHttpCodec.DecodeResponseHeaders(encodedResponseHeaders, response);
-            bool responseStreamingEnabled = false;
-            if (response.ContentLength != 0)
-            {
-                response.Body = encodedResponseBody;
-                responseStreamingEnabled = 
-                    await ProtocolUtilsInternal.DecodeResponseBodyFromTransport(
-                        response,
-                        connection.Environment, 
-                        connection.ProcessingOptions,
-                        connection.CancellationToken);
-            }
+            var responseStreamingEnabled =
+                await ProtocolUtilsInternal.DecodeResponseBodyFromTransport(
+                    response,
+                    connection.Environment,
+                    connection.ProcessingOptions,
+                    connection.CancellationToken);
             await Abort(transport, connection, false, responseStreamingEnabled);
             return response;
         }

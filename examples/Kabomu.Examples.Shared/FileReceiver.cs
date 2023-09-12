@@ -10,9 +10,10 @@ using System.Threading.Tasks;
 
 namespace Kabomu.Examples.Shared
 {
-    public class FileReceiver : IQuasiHttpApplication
+    public class FileReceiver
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
+        private static readonly Random RandGen = new Random();
         private readonly object remoteEndpoint;
         private readonly string downloadDirPath;
 
@@ -57,7 +58,13 @@ namespace Kabomu.Examples.Shared
             else
             {
                 response.StatusCode = QuasiHttpCodec.StatusCodeServerError;
-                response.HttpStatusMessage = transferError.Message;
+            }
+            if (transferError != null || fileName.Length > 20)
+            {
+                var responseBytes = MiscUtils.StringToBytes(transferError?.Message ?? "done");
+                response.Body = new MemoryStream(responseBytes);
+                response.ContentLength = RandGen.NextDouble() < 0.5 ? -1 :
+                    responseBytes.Length;
             }
             return response;
         }

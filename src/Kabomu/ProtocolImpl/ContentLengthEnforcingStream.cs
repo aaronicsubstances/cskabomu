@@ -66,10 +66,10 @@ namespace Kabomu.ProtocolImpl
 
             int bytesToRead = Math.Min((int)_bytesLeftToRead, length);
 
-            // if bytes to read is zero at this stage,
+            // if bytes to read is zero at this stage and
+            // the length requested is zero,
             // go ahead and call backing reader
-            // (e.g. so that any error in backing reader can be thrown),
-            // unless the length requested is positive.
+            // (e.g. so that any error in backing reader can be thrown).
             int bytesJustRead = 0;
             if (bytesToRead > 0 || length == 0)
             {
@@ -92,10 +92,10 @@ namespace Kabomu.ProtocolImpl
 
             int bytesToRead = Math.Min((int)_bytesLeftToRead, length);
 
-            // if bytes to read is zero at this stage,
+            // if bytes to read is zero at this stage and
+            // the length requested is zero,
             // go ahead and call backing reader
-            // (e.g. so that any error in backing reader can be thrown),
-            // unless the length requested is positive.
+            // (e.g. so that any error in backing reader can be thrown).
             int bytesJustRead = 0;
             if (bytesToRead > 0 || length == 0)
             {
@@ -115,7 +115,7 @@ namespace Kabomu.ProtocolImpl
             bool endOfRead = bytesToRead > 0 && bytesJustRead == 0;
             if (endOfRead && _bytesLeftToRead > 0)
             {
-                throw CustomIOException.CreateContentLengthNotSatisfiedError(
+                throw KabomuIOException.CreateContentLengthNotSatisfiedError(
                     _expectedLength, _bytesLeftToRead);
             }
         }

@@ -24,8 +24,8 @@ namespace Kabomu.Examples.Shared
                 {
                     if (!t.IsCanceled)
                     {
-                        var timeoutError = new QuasiHttpRequestProcessingException(timeoutMsg,
-                            QuasiHttpRequestProcessingException.ReasonCodeTimeout);
+                        var timeoutError = new QuasiHttpException(timeoutMsg,
+                            QuasiHttpException.ReasonCodeTimeout);
                         throw timeoutError;
                     }
                 });

@@ -13,7 +13,7 @@ namespace Kabomu.Exceptions
     /// The reason codes in 0-9 which currently do not have an assigned meaning are reserved for use by this class. 
     /// All other numbers including negative values may be used as reason codes.
     /// </remarks>
-    public class QuasiHttpRequestProcessingException : KabomuException
+    public class QuasiHttpException : KabomuException
     {
         /// <summary>
         /// Indicates general error without much detail to offer aside inspecting error messages and inner exceptions.
@@ -47,7 +47,7 @@ namespace Kabomu.Exceptions
         /// Creates a new instance an error message and with reson code <see cref="ReasonCodeGeneral"/>.
         /// </summary>
         /// <param name="message">the error message.</param>
-        public QuasiHttpRequestProcessingException(string message) :
+        public QuasiHttpException(string message) :
             this(message, ReasonCodeGeneral, null)
         {
         }
@@ -59,7 +59,7 @@ namespace Kabomu.Exceptions
         /// <param name="reasonCode">reason code to use</param>
         /// <exception cref="ArgumentException">The <paramref name="reasonCode"/> argument is reserved for future use
         /// by this class</exception>
-        public QuasiHttpRequestProcessingException(string message, int reasonCode) :
+        public QuasiHttpException(string message, int reasonCode) :
             this(message, reasonCode, null)
         {
         }
@@ -73,7 +73,7 @@ namespace Kabomu.Exceptions
         /// <param name="innerException">cause of this exception</param>
         /// <exception cref="ArgumentException">The <paramref name="reasonCode"/> argument is reserved for future use
         /// by this class</exception>
-        public QuasiHttpRequestProcessingException(string message, int reasonCode, Exception innerException) :
+        public QuasiHttpException(string message, int reasonCode, Exception innerException) :
             base(message, innerException)
         {
             switch (reasonCode)

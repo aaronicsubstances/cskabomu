@@ -37,7 +37,7 @@ namespace WindowsNamedPipe.FileServer
         {
             var instance = new StandardQuasiHttpServer
             {
-                Application = new FileReceiver(path, uploadDirPath)
+                Application = new FileReceiver(path, uploadDirPath).ProcessRequest
             };
             var transport = new WindowsNamedPipeServerTransport(path)
             {

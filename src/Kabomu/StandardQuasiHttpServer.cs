@@ -30,10 +30,10 @@ namespace Kabomu
         }
 
         /// <summary>
-        /// Gets or sets an instance of the <see cref="IQuasiHttpApplication"/> type which is
+        /// Gets or sets the function which is
         /// responsible for processing requests to generate responses.
         /// </summary>
-        public virtual IQuasiHttpApplication Application { get; set; }
+        public virtual QuasiHttpApplication Application { get; set; }
 
         /// <summary>
         /// Gets or sets the underlying transport (TCP or IPC) for retrieving requests
@@ -75,20 +75,20 @@ namespace Kabomu
             catch (Exception e)
             {
                 await Abort(transport, connection, true);
-                if (e is QuasiHttpRequestProcessingException)
+                if (e is QuasiHttpException)
                 {
                     throw;
                 }
-                var abortError = new QuasiHttpRequestProcessingException(
+                var abortError = new QuasiHttpException(
                     "encountered error during receive request processing",
-                    QuasiHttpRequestProcessingException.ReasonCodeGeneral,
+                    QuasiHttpException.ReasonCodeGeneral,
                     e);
                 throw abortError;
             }
         }
 
         internal static async Task ProcessAccept(
-            IQuasiHttpApplication application,
+            QuasiHttpApplication application,
             IQuasiHttpServerTransport transport,
             IQuasiHttpConnection connection)
         {
@@ -97,7 +97,7 @@ namespace Kabomu
                 encodedRequestHeaders);
             if (encodedRequestHeaders.Count == 0)
             {
-                throw new QuasiHttpRequestProcessingException("no request");
+                throw new QuasiHttpException("no request");
             }
 
             var request = new DefaultQuasiHttpRequest
@@ -108,10 +108,10 @@ namespace Kabomu
             request.Body = ProtocolUtilsInternal.DecodeRequestBodyFromTransport(
                 request.ContentLength, encodedRequestBody);
 
-            var response = await application.ProcessRequest(request);
+            var response = await application(request);
             if (response == null)
             {
-                throw new QuasiHttpRequestProcessingException("no response");
+                throw new QuasiHttpException("no response");
             }
 
             try

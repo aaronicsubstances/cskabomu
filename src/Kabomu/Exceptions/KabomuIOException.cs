@@ -9,13 +9,13 @@ namespace Kabomu.Exceptions
     /// <summary>
     /// Represents errors encountered when reading from or writing to byte streams.
     /// </summary>
-    public class CustomIOException : KabomuException
+    public class KabomuIOException : KabomuException
     {
         /// <summary>
         /// Creates a new instance with specified error message.
         /// </summary>
         /// <param name="message">error message</param>
-        public CustomIOException(string message) : base(message)
+        public KabomuIOException(string message) : base(message)
         {
         }
 
@@ -25,7 +25,7 @@ namespace Kabomu.Exceptions
         /// </summary>
         /// <param name="message">error message</param>
         /// <param name="innerException">cause of error</param>
-        public CustomIOException(string message, Exception innerException) : base(message, innerException)
+        public KabomuIOException(string message, Exception innerException) : base(message, innerException)
         {
         }
 
@@ -35,13 +35,22 @@ namespace Kabomu.Exceptions
         /// read from a reader or source of bytes.
         /// </summary>
         /// <param name="contentLength">content length to include in error message</param>
-        /// <param name="remainingBytesToRead">remaining bytes to read</param>
-        public static CustomIOException CreateContentLengthNotSatisfiedError(long contentLength,
+        /// <param name="remainingBytesToRead">remaining bytes to read which led to error</param>
+        public static KabomuIOException CreateContentLengthNotSatisfiedError(long contentLength,
             long remainingBytesToRead)
         {
-            return new CustomIOException($"insufficient bytes available to satisfy " +
+            return new KabomuIOException($"insufficient bytes available to satisfy " +
                 $"content length of {contentLength} bytes (could not read remaining " +
                 $"{remainingBytesToRead} bytes before end of read)");
+        }
+
+        /// <summary>
+        /// Creates error indicating that reading from a stream has
+        /// unexpectedly ended.
+        /// </summary>
+        public static KabomuIOException CreateEndOfReadError()
+        {
+            return new KabomuIOException("unexpected end of read");
         }
     }
 }
