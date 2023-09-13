@@ -17,9 +17,9 @@ namespace Kabomu.ProtocolImpl
         /// as a result, is make the dead code serve as reference for
         /// porting in stages of HTTP/1.0 only, before HTTP/1.1.
         /// </summary>
-        private static readonly bool SupportHttp10Only = false;
+        public static readonly bool SupportHttp10Only = false;
 
-        internal static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment,
+        public static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment,
             string key)
         {
             if (environment != null && environment.ContainsKey(key))
@@ -37,7 +37,71 @@ namespace Kabomu.ProtocolImpl
             return null;
         }
 
-        internal static Stream EncodeBodyToTransport(bool isResponse,
+        public static async Task WrapTimeoutTask(Task<bool> timeoutTask,
+            string timeoutMsg)
+        {
+            if (timeoutTask == null)
+            {
+                return;
+            }
+            if (await timeoutTask)
+            {
+                throw new QuasiHttpException(timeoutMsg,
+                    QuasiHttpException.ReasonCodeTimeout);
+            }
+        }
+
+        public async static Task<T> CompleteWorkTask<T>(
+            Task<T> workTask, params Task[] cancellationTasks)
+        {
+            if (workTask == null)
+            {
+                throw new ArgumentNullException(nameof(workTask));
+            }
+
+            await EliminateCancellationTasks(workTask, cancellationTasks);
+            return await workTask;
+        }
+
+        public async static Task CompleteWorkTask(
+            Task workTask, params Task[] cancellationTasks)
+        {
+            if (workTask == null)
+            {
+                throw new ArgumentNullException(nameof(workTask));
+            }
+
+            await EliminateCancellationTasks(workTask, cancellationTasks);
+            await workTask;
+        }
+
+        private async static Task EliminateCancellationTasks(
+            Task workTask, Task[] cancellationTasks)
+        {
+            // ignore null tasks and successful results from
+            // cancellation tasks.
+            var tasks = new List<Task>();
+            foreach (var t in cancellationTasks)
+            {
+                if (t != null)
+                {
+                    tasks.Add(t);
+                }
+            }
+            tasks.Add(workTask);
+            while (tasks.Count > 1)
+            {
+                var firstTask = await Task.WhenAny(tasks);
+                if (firstTask == workTask)
+                {
+                    break;
+                }
+                await firstTask; // let any exceptions bubble up.
+                tasks.Remove(firstTask);
+            }
+        }
+
+        public static Stream EncodeBodyToTransport(bool isResponse,
             long contentLength, Stream body)
         {
             if (contentLength == 0)
@@ -70,7 +134,7 @@ namespace Kabomu.ProtocolImpl
         /// <param name="contentLength"></param>
         /// <param name="body"></param>
         /// <returns></returns>
-        internal static Stream DecodeRequestBodyFromTransport(
+        public static Stream DecodeRequestBodyFromTransport(
             long contentLength, Stream body)
         {
             if (contentLength == 0)
@@ -98,7 +162,7 @@ namespace Kabomu.ProtocolImpl
             return new ContentLengthEnforcingStream(body, contentLength);
         }
 
-        internal static async Task<bool> DecodeResponseBodyFromTransport(
+        public static async Task<bool> DecodeResponseBodyFromTransport(
             IQuasiHttpResponse response,
             IDictionary<string, object> environment,
             IQuasiHttpProcessingOptions processingOptions,
@@ -171,70 +235,6 @@ namespace Kabomu.ProtocolImpl
                 response.Body = new MemoryStream(buffer);
             }
             return false;
-        }
-
-        public async static Task<T> CompleteWorkTask<T>(
-            Task<T> workTask, params Task[] cancellationTasks)
-        {
-            if (workTask == null)
-            {
-                throw new ArgumentNullException(nameof(workTask));
-            }
-
-            await EliminateCancellationTasks(workTask, cancellationTasks);
-            return await workTask;
-        }
-
-        public async static Task CompleteWorkTask(
-            Task workTask, params Task[] cancellationTasks)
-        {
-            if (workTask == null)
-            {
-                throw new ArgumentNullException(nameof(workTask));
-            }
-
-            await EliminateCancellationTasks(workTask, cancellationTasks);
-            await workTask;
-        }
-
-        private async static Task EliminateCancellationTasks(
-            Task workTask, Task[] cancellationTasks)
-        {
-            // ignore null tasks and successful results from
-            // cancellation tasks.
-            var tasks = new List<Task>();
-            foreach (var t in cancellationTasks)
-            {
-                if (t != null)
-                {
-                    tasks.Add(t);
-                }
-            }
-            tasks.Add(workTask);
-            while (tasks.Count > 1)
-            {
-                var firstTask = await Task.WhenAny(tasks);
-                if (firstTask == workTask)
-                {
-                    break;
-                }
-                await firstTask; // let any exceptions bubble up.
-                tasks.Remove(firstTask);
-            }
-        }
-
-        public static async Task WrapTimeoutTask(Task<bool> timeoutTask,
-            string timeoutMsg)
-        {
-            if (timeoutTask == null)
-            {
-                return;
-            }
-            if (await timeoutTask)
-            {
-                throw new QuasiHttpException(timeoutMsg,
-                    QuasiHttpException.ReasonCodeTimeout);
-            }
         }
     }
 }

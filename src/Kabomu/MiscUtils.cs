@@ -537,7 +537,7 @@ namespace Kabomu
         /// <summary>
         /// Provides equivalent functionality to Promise.all() of NodeJS
         /// </summary>
-        /// <param name="candiates">tasks</param>
+        /// <param name="candiates">tasks to race</param>
         /// <returns>asynchronous result which represents successful
         /// end of all arguments, or failure of one of them</returns>
         public static async Task WhenAnyFailOrAllSucceed(List<Task> candiates)
@@ -551,8 +551,10 @@ namespace Kabomu
             }
         }
 
-        // Copied from
-        // https://learn.microsoft.com/en-us/dotnet/standard/asynchronous-programming-patterns/interop-with-other-asynchronous-patterns-and-types
+        /// <summary>
+        /// Copied from
+        /// https://learn.microsoft.com/en-us/dotnet/standard/asynchronous-programming-patterns/interop-with-other-asynchronous-patterns-and-types
+        /// </summary>
         internal static IAsyncResult AsApm<T>(this Task<T> task,
             AsyncCallback callback, object state)
         {

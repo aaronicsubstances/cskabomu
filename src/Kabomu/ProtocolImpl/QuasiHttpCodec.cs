@@ -164,12 +164,6 @@ namespace Kabomu.ProtocolImpl
         public const int DefaultMaxHeadersSize = 8_192;
 
         /// <summary>
-        /// The maximum possible size that headers in a request or response
-        /// cannot exceed.
-        /// </summary>
-        private const int HardLimitOnMaxHeadersSize = 999_999;
-
-        /// <summary>
         /// This field gives a number of which all header sizes are
         /// an integral multiple of.
         /// </summary>
@@ -282,12 +276,6 @@ namespace Kabomu.ProtocolImpl
             {
                 throw new QuasiHttpException("quasi http headers exceed " +
                     $"max size ({effectiveByteCount} > {maxHeadersSize})",
-                    QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
-            }
-            if (effectiveByteCount > HardLimitOnMaxHeadersSize)
-            {
-                throw new QuasiHttpException("quasi http headers too " +
-                    $"large ({effectiveByteCount} > {HardLimitOnMaxHeadersSize})",
                     QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
             }
             return MiscUtils.StringToBytes(serialized);

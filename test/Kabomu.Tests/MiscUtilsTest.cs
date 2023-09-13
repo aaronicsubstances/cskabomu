@@ -1,6 +1,6 @@
 ﻿using Kabomu.Abstractions;
 using Kabomu.Exceptions;
-using Kabomu.Impl;
+using Kabomu.ProtocolImpl;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -14,7 +14,7 @@ namespace Kabomu.Tests
 {
     public class MiscUtilsTest
     {
-        [Fact]
+        /*[Fact]
         public async Task TestReadBytesFully()
         {
             // arrange
@@ -280,7 +280,7 @@ namespace Kabomu.Tests
             var actualEx = await Assert.ThrowsAsync<Exception>(() =>
                 MiscUtils.CopyBytesToSink(readerStream, writer));
             Assert.Equal("killed in action", actualEx.Message);
-        }
+        }*/
 
         [Theory]
         [MemberData(nameof(CreateTestParseInt48Data))]
@@ -355,6 +355,32 @@ namespace Kabomu.Tests
                 MiscUtils.ParseInt32("x"));
         }
 
+        [Theory]
+        [MemberData(nameof(CreateTestIsValidByteBufferSliceData))]
+        public void TestIsValidByteBufferSlice(byte[] data, int offset, int length, bool expected)
+        {
+            bool actual = MiscUtils.IsValidByteBufferSlice(data, offset, length);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateTestIsValidByteBufferSliceData()
+        {
+            return new List<object[]>
+            {
+                new object[] { null, 0, 0, false },
+                new object[] { new byte[0], 0, 0, true },
+                new object[] { new byte[0], 1, 0, false },
+                new object[] { new byte[0], 0, 1, false },
+                new object[]{ new byte[1], 0, 1, true },
+                new object[]{ new byte[1], -1, 0, false },
+                new object[]{ new byte[1], -1, 0, false },
+                new object[]{ new byte[1], 1, 1, false },
+                new object[]{ new byte[2], 1, 1, true },
+                new object[]{ new byte[2], 0, 2, true },
+                new object[]{ new byte[3], 2, 2, false },
+            };
+        }
+
         [Fact]
         public void TestStringToBytes()
         {
@@ -401,186 +427,437 @@ namespace Kabomu.Tests
             Assert.Equal(expected, actual);
         }
 
-        [Theory]
-        [InlineData("", 3, "000")]
-        [InlineData("1", 3, "001")]
-        [InlineData("14", 3, "014")]
-        [InlineData("614", 3, "614")]
-        [InlineData("4a614", 5, "4a614")]
-        [InlineData("4a614", 6, "04a614")]
-        [InlineData("34a614", 6, "34a614")]
-        public void TestPadLeftWithZeros(string v, int totalLen, string expected)
+        [Fact]
+        public void TestGetByteCount()
         {
-            var actual = MiscUtils.PadLeftWithZeros(v, totalLen);
+            var actual = MiscUtils.GetByteCount("");
+            Assert.Equal(0, actual);
+
+            actual = MiscUtils.GetByteCount("abc");
+            Assert.Equal(3, actual);
+
+            actual = MiscUtils.GetByteCount("Foo \u00a9 bar \U0001d306 baz \u2603 qux");
+            Assert.Equal(27, actual);
+        }
+
+        [Fact]
+        public void TestConcatBuffers()
+        {
+            var chunks = new List<byte[]>();
+            var actual = MiscUtils.ConcatBuffers(chunks);
+            Assert.Empty(actual);
+
+            chunks.Add(new byte[] { 108 });
+            actual = MiscUtils.ConcatBuffers(chunks);
+            Assert.Equal(new byte[] { 108 }, actual);
+
+            chunks.Add(new byte[] { 4, 108, 2 });
+            actual = MiscUtils.ConcatBuffers(chunks);
+            Assert.Equal(new byte[] { 108, 4, 108, 2 }, actual);
+        }
+
+        [Fact]
+        public void TestMergeProcessingOptions1()
+        {
+            IQuasiHttpProcessingOptions preferred = null;
+            IQuasiHttpProcessingOptions fallback = null;
+            var actual = MiscUtils.MergeProcessingOptions(
+                preferred, fallback);
+            Assert.Null(actual);
+        }
+
+
+        [Fact]
+        public void TestMergeProcessingOptions2()
+        {
+            var preferred = new DefaultQuasiHttpProcessingOptions
+            {
+                ExtraConnectivityParams = new Dictionary<string, object>
+                {
+                    { "scheme", "tht" }
+                },
+                MaxHeadersSize = 10,
+                ResponseBufferingEnabled = false,
+                ResponseBodyBufferingSizeLimit = -1,
+                TimeoutMillis = 0
+            };
+            var fallback = new DefaultQuasiHttpProcessingOptions
+            {
+                ExtraConnectivityParams = new Dictionary<string, object>
+                {
+                    { "scheme", "htt" },
+                    { "two", 2 }
+                },
+                MaxHeadersSize = 30,
+                ResponseBufferingEnabled = true,
+                ResponseBodyBufferingSizeLimit = 40,
+                TimeoutMillis = -1
+            };
+            var actual = MiscUtils.MergeProcessingOptions(
+                preferred, fallback);
+            var expected = new DefaultQuasiHttpProcessingOptions
+            {
+                ExtraConnectivityParams = new Dictionary<string, object>
+                {
+                    { "scheme", "tht" },
+                    { "two", 2 }
+                },
+                MaxHeadersSize = 10,
+                ResponseBufferingEnabled = false,
+                ResponseBodyBufferingSizeLimit = 40,
+                TimeoutMillis = -1
+            };
+            ComparisonUtils.CompareProcessingOptions(expected, actual);
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestDetermineEffectiveNonZeroIntegerOptionData))]
+        public void TestDetermineEffectiveNonZeroIntegerOption(int? preferred,
+            int? fallback1, int defaultValue, int expected)
+        {
+            var actual = MiscUtils.DetermineEffectiveNonZeroIntegerOption(
+                preferred, fallback1, defaultValue);
             Assert.Equal(expected, actual);
         }
 
-        [Fact]
-        public async Task TestCompleteMainTask1()
+        public static List<object[]> CreateTestDetermineEffectiveNonZeroIntegerOptionData()
         {
-            var expected = new DefaultQuasiHttpResponse();
-            Task<IQuasiHttpResponse> workTask = Task.FromResult(
-                expected as IQuasiHttpResponse);
-            Task<IQuasiHttpResponse> timeoutTask = null;
-            Task<IQuasiHttpResponse> cancellationTask = null;
-            var actual = await MiscUtils.CompleteMainTask(
-                workTask, timeoutTask, cancellationTask);
-            Assert.Same(expected, actual);
+            var testData = new List<object[]>();
+
+            int? preferred = 1;
+            int? fallback1 = null;
+            int defaultValue = 20;
+            int expected = 1;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = 5;
+            fallback1 = 3;
+            defaultValue = 11;
+            expected = 5;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = -15;
+            fallback1 = 3;
+            defaultValue = -1;
+            expected = -15;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = 3;
+            defaultValue = -1;
+            expected = 3;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = -3;
+            defaultValue = -1;
+            expected = -3;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = null;
+            defaultValue = 2;
+            expected = 2;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = null;
+            defaultValue = -8;
+            expected = -8;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = null;
+            defaultValue = 0;
+            expected = 0;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestDetermineEffectivePositiveIntegerOptionnData))]
+        public void TestDetermineEffectivePositiveIntegerOption(int? preferred, int? fallback1,
+            int defaultValue, int expected)
+        {
+            var actual = MiscUtils.DetermineEffectivePositiveIntegerOption(preferred, fallback1,
+                defaultValue);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateTestDetermineEffectivePositiveIntegerOptionnData()
+        {
+            var testData = new List<object[]>();
+
+            int? preferred = null;
+            int? fallback1 = 1;
+            int defaultValue = 30;
+            int expected = 1;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = 5;
+            fallback1 = 3;
+            defaultValue = 11;
+            expected = 5;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = 3;
+            defaultValue = -1;
+            expected = 3;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = null;
+            defaultValue = 2;
+            expected = 2;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = null;
+            defaultValue = -8;
+            expected = -8;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = null;
+            defaultValue = 0;
+            expected = 0;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestDetermineEffectiveOptionsData))]
+        public void TestDetermineEffectiveOptions(IDictionary<string, object> preferred,
+            IDictionary<string, object> fallback, IDictionary<string, object> expected)
+        {
+            var actual = MiscUtils.DetermineEffectiveOptions(preferred, fallback);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateTestDetermineEffectiveOptionsData()
+        {
+            var testData = new List<object[]>();
+
+            IDictionary<string, object> preferred = null;
+            IDictionary<string, object> fallback = null;
+            var expected = new Dictionary<string, object>();
+            testData.Add(new object[] { preferred, fallback, expected });
+
+            preferred = new Dictionary<string, object>();
+            fallback = new Dictionary<string, object>();
+            expected = new Dictionary<string, object>();
+            testData.Add(new object[] { preferred, fallback, expected });
+
+            preferred = new Dictionary<string, object>
+            {
+                { "a", 2 }, { "b", 3 }
+            };
+            fallback = null;
+            expected = new Dictionary<string, object>
+            {
+                { "a", 2 }, { "b", 3 }
+            };
+            testData.Add(new object[] { preferred, fallback, expected });
+
+            preferred = null;
+            fallback = new Dictionary<string, object>
+            {
+                { "a", 2 }, { "b", 3 }
+            };
+            expected = new Dictionary<string, object>
+            {
+                { "a", 2 }, { "b", 3 }
+            };
+            testData.Add(new object[] { preferred, fallback, expected });
+
+            preferred = new Dictionary<string, object>
+            {
+                { "a", 2 }, { "b", 3 }
+            };
+            fallback = new Dictionary<string, object>
+            {
+                { "c", 4 }, { "d", 3 }
+            };
+            expected = new Dictionary<string, object>
+            {
+                { "a", 2 }, { "b", 3 },
+                { "c", 4 }, { "d", 3 }
+            };
+            testData.Add(new object[] { preferred, fallback, expected });
+
+            preferred = new Dictionary<string, object>
+            {
+                { "a", 2 }, { "b", 3 }
+            };
+            fallback = new Dictionary<string, object>
+            {
+                { "a", 4 }, { "d", 3 }
+            };
+            expected = new Dictionary<string, object>
+            {
+                { "a", 2 }, { "b", 3 }, { "d", 3 }
+            };
+            testData.Add(new object[] { preferred, fallback, expected });
+
+            preferred = new Dictionary<string, object>
+            {
+                { "a", 2 }
+            };
+            fallback = new Dictionary<string, object>
+            {
+                { "a", 4 }, { "d", 3 }
+            };
+            expected = new Dictionary<string, object>
+            {
+                { "a", 2 }, { "d", 3 }
+            };
+            testData.Add(new object[] { preferred, fallback, expected });
+
+            return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestDetermineEffectiveBooleanOptionData))]
+        public void TestDetermineEffectiveBooleanOption(bool? preferred,
+            bool? fallback1, bool defaultValue, bool expected)
+        {
+            var actual = MiscUtils.DetermineEffectiveBooleanOption(
+                preferred, fallback1, defaultValue);
+            Assert.Equal(expected, actual);
+        }
+
+        public static List<object[]> CreateTestDetermineEffectiveBooleanOptionData()
+        {
+            var testData = new List<object[]>();
+
+            bool? preferred = true;
+            bool? fallback1 = null;
+            bool defaultValue = true;
+            bool expected = true;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = false;
+            fallback1 = true;
+            defaultValue = true;
+            expected = false;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = false;
+            defaultValue = true;
+            expected = false;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = true;
+            defaultValue = false;
+            expected = true;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = true;
+            defaultValue = true;
+            expected = true;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = null;
+            defaultValue = true;
+            expected = true;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = null;
+            fallback1 = null;
+            defaultValue = false;
+            expected = false;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = true;
+            fallback1 = true;
+            defaultValue = false;
+            expected = true;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = true;
+            fallback1 = true;
+            defaultValue = true;
+            expected = true;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            preferred = false;
+            fallback1 = false;
+            defaultValue = false;
+            expected = false;
+            testData.Add(new object[] { preferred, fallback1, defaultValue,
+                expected });
+
+            return testData;
         }
 
         [Fact]
-        public async Task TestCompleteMainTask2()
+        public void TestCreateCancellableTimeoutTask1()
         {
-            Task workTask = Task.CompletedTask;
-            Task<IQuasiHttpResponse> timeoutTask = null;
-            Task<IQuasiHttpResponse> cancellationTask = null;
-            await MiscUtils.CompleteMainTask(
-                workTask, timeoutTask, cancellationTask);
-        }
-
-        [Fact]
-        public async Task TestCompleteMainTask3()
-        {
-            var expected = new DefaultQuasiHttpResponse();
-            Task<IQuasiHttpResponse> workTask = Task.FromResult(
-                expected as IQuasiHttpResponse);
-            Task<IQuasiHttpResponse> timeoutTask = null;
-            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
-                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    return null;
-                });
-            var actual = await MiscUtils.CompleteMainTask(
-                workTask, timeoutTask, cancellationTask);
-            Assert.Same(expected, actual);
-        }
-
-        [Fact]
-        public async Task TestCompleteMainTask4()
-        {
-            Task<IQuasiHttpResponse> workTask = Task.Delay(
-                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    return null;
-                });
-            Task<IQuasiHttpResponse> timeoutTask = null;
-            Task<IQuasiHttpResponse> cancellationTask = Task.FromResult<IQuasiHttpResponse>(
-                new DefaultQuasiHttpResponse());
-            var actual = await MiscUtils.CompleteMainTask(
-                workTask, timeoutTask, cancellationTask);
+            var actual = MiscUtils.CreateCancellableTimeoutTask(0);
             Assert.Null(actual);
         }
 
         [Fact]
-        public async Task TestCompleteMainTask5()
+        public void TestCreateCancellableTimeoutTask2()
         {
-            DefaultQuasiHttpResponse expected = new DefaultQuasiHttpResponse(),
-                instance2 = new DefaultQuasiHttpResponse(),
-                instance3 = new DefaultQuasiHttpResponse();
-            Task<IQuasiHttpResponse> workTask = Task.Delay(
-                TimeSpan.FromSeconds(0.75)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    return expected;
-                });
-            Task<IQuasiHttpResponse> timeoutTask = Task.Delay(
-                TimeSpan.FromSeconds(0.5)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    return instance2;
-                });
-            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
-                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    return instance3;
-                });
-            var actual = await MiscUtils.CompleteMainTask(
-                workTask, timeoutTask, cancellationTask);
-            Assert.Same(expected, actual);
+            var actual = MiscUtils.CreateCancellableTimeoutTask(-3);
+            Assert.Null(actual);
         }
 
         [Fact]
-        public async Task TestCompleteMainTask6()
+        public async Task TestCreateCancellableTimeoutTask3()
         {
-            Task workTask = Task.Delay(TimeSpan.FromSeconds(2));
-            Task timeoutTask = Task.Delay(
-                TimeSpan.FromSeconds(0.5)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    throw new QuasiHttpRequestProcessingException("error1");
-                });
-            Task cancellationTask = Task.Delay(TimeSpan.FromSeconds(1));
-            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
-            {
-                return MiscUtils.CompleteMainTask(
-                    workTask, timeoutTask, cancellationTask);
-            });
-            Assert.Equal("error1", actualEx.Message);
+            var p = MiscUtils.CreateCancellableTimeoutTask(50);
+            Assert.NotNull(p.Task);
+            var result = await p.Task;
+            Assert.True(result);
+            p.Cancel();
+            result = await p.Task;
+            Assert.True(result);
         }
 
         [Fact]
-        public async Task TestCompleteMainTask7()
+        public async Task TestCreateCancellableTimeoutTask4()
         {
-            Task<IQuasiHttpResponse> workTask = Task.Delay(
-                TimeSpan.FromSeconds(0.5)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    throw new QuasiHttpRequestProcessingException("error1");
-                });
-            Task<IQuasiHttpResponse> timeoutTask = Task.Delay(
-                TimeSpan.FromSeconds(2)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    throw new QuasiHttpRequestProcessingException("error2");
-                });
-            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
-                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    throw new QuasiHttpRequestProcessingException("error3");
-                });
-            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
-            {
-                return MiscUtils.CompleteMainTask(
-                    workTask, timeoutTask, cancellationTask);
-            });
-            Assert.Equal("error1", actualEx.Message);
-        }
-
-        [Fact]
-        public async Task TestCompleteMainTask8()
-        {
-            Task workTask = Task.Delay(
-                TimeSpan.FromSeconds(2)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    throw new QuasiHttpRequestProcessingException("error1");
-                });
-            Task timeoutTask = Task.Delay(
-                TimeSpan.FromSeconds(2)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    throw new QuasiHttpRequestProcessingException("error2");
-                });
-            Task cancellationTask = Task.Delay(
-                TimeSpan.FromSeconds(0.5)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    throw new QuasiHttpRequestProcessingException("error3");
-                });
-            var actualEx = await Assert.ThrowsAsync<QuasiHttpRequestProcessingException>(() =>
-            {
-                return MiscUtils.CompleteMainTask(
-                    workTask, timeoutTask, cancellationTask);
-            });
-            Assert.Equal("error3", actualEx.Message);
-        }
-
-        [Fact]
-        public async Task TestCompleteMainTaskForErrors()
-        {
-            Task<IQuasiHttpResponse> workTask = null;
-            Task<IQuasiHttpResponse> timeoutTask = Task.FromResult(
-                new DefaultQuasiHttpResponse() as IQuasiHttpResponse);
-            Task<IQuasiHttpResponse> cancellationTask = Task.Delay(
-                TimeSpan.FromSeconds(1)).ContinueWith<IQuasiHttpResponse>(_ =>
-                {
-                    return null;
-                });
-            await Assert.ThrowsAsync<ArgumentNullException>(() =>
-                MiscUtils.CompleteMainTask(
-                    workTask, timeoutTask, cancellationTask));
+            var p = MiscUtils.CreateCancellableTimeoutTask(500);
+            Assert.NotNull(p.Task);
+            await Task.Delay(100);
+            p.Cancel();
+            var result = await p.Task;
+            Assert.False(result);
+            p.Cancel();
+            result = await p.Task;
+            Assert.False(result);
         }
 
         [Fact]
