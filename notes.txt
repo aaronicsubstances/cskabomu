@@ -17,3 +17,12 @@ LocalhostTcpTransport
 UnixSocketDomainTransport
 WindowsNamedPipeTransport
 
+porting stages
+---------------
+1. HTTP/1.0: no request body, and response body uses no content length, but just reads until end of stream, with no response buffering, no timeout, no send2 usage. Note that this stage doesn't touch streams at all.
+2. Add response buffering. At this stage there is no custom stream implementation needed.
+3. Add custom stream for enforcing content length, and use it first on response body with known content lengths.
+4. Add request body now that content lengths can be enforced.
+5. Now upgrade to HTTP/1.1 by throwing in custom streams for encoding and decoding quasi http body chunks.
+6. Add timeout
+7. Add send2 usage. 
