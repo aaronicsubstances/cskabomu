@@ -7,6 +7,12 @@ using System.Threading.Tasks;
 
 namespace Kabomu.ProtocolImpl
 {
+    /// <summary>
+    /// Counterpart to <see cref="BodyChunkEncodingStream"/> that can
+    /// encode quasi http body chunks in accordance with the quasi web protocol
+    /// defined in the Kabomu library, on the fly to any destination
+    /// represented by a function which consumes byte chunks.
+    /// </summary>
     public class BodyChunkEncodingWriter
     {
         /// <summary>
@@ -29,9 +35,17 @@ namespace Kabomu.ProtocolImpl
                 QuasiHttpCodec.ProtocolVersion01 + ",");
         }
 
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
         public BodyChunkEncodingWriter()
         {
-            _encodingBuffer = new byte[V1HeaderPrefix.Length +
+            _encodingBuffer = AllocateBodyChunkHeaderBuffer();
+        }
+
+        internal static byte[] AllocateBodyChunkHeaderBuffer()
+        {
+            return new byte[V1HeaderPrefix.Length +
                 LengthOfEncodedBodyChunkLength];
         }
 
@@ -55,23 +69,72 @@ namespace Kabomu.ProtocolImpl
             return V1HeaderPrefix.Length + LengthOfEncodedBodyChunkLength;
         }
 
-        public async Task GenerateEndChunk(
+        /// <summary>
+        /// Writes out quasi body chunk that represents the end
+        /// of a quasi body stream.
+        /// </summary>
+        /// <param name="sink">destination of writes</param>
+        /// <returns>a task representing asynchronous operation</returns>
+        public async Task WriteEnd(
             Func<byte[], int, int, Task> sink)
         {
+            if (sink == null)
+            {
+                throw new ArgumentNullException(nameof(sink));
+            }
             EncodeBodyChunkV1Header(0, _encodingBuffer);
             await sink(_encodingBuffer, 0, _encodingBuffer.Length);
         }
 
-        public Task GenerateDataChunks(byte[] data,
+        /// <summary>
+        /// Chops up a byte buffer into quasi body chunks and
+        /// writes them out.
+        /// </summary>
+        /// <param name="data">byte buffer to be encoded and written
+        /// out as zero or more quasi http body chunks</param>
+        /// <param name="sink">destination of writes</param>
+        /// <returns>a task representing asynchronous operation</returns>
+        public Task WriteData(byte[] data,
             Func<byte[], int, int, Task> sink)
         {
-            return GenerateDataChunks(data, 0, data.Length, sink);
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+            if (sink == null)
+            {
+                throw new ArgumentNullException(nameof(sink));
+            }
+            return WriteData(data, 0, data.Length, sink);
         }
 
-        public async Task GenerateDataChunks(
+        /// <summary>
+        /// Chops up a byte buffer slice into quasi body chunks and
+        /// writes them out.
+        /// </summary>
+        /// <param name="data">byte buffer from which a portion will
+        /// be encoded and written out as zero or more quasi http body
+        /// chunks</param>
+        /// <param name="offset">starting position of byte buffer portion</param>
+        /// <param name="length">number of bytes of byte buffer slice</param>
+        /// <param name="sink">destination of writes</param>
+        /// <returns>a task representing asynchronous operation</returns>
+        public async Task WriteData(
             byte[] data, int offset, int length,
             Func<byte[], int, int, Task> sink)
         {
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+            if (sink == null)
+            {
+                throw new ArgumentNullException(nameof(sink));
+            }
+            if (!MiscUtils.IsValidByteBufferSlice(data, offset, length))
+            {
+                throw new ArgumentException("invalid byte buffer slice");
+            }
             int endOffset = offset + length;
             while (offset < endOffset)
             {

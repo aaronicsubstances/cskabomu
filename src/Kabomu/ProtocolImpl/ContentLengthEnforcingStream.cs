@@ -15,35 +15,34 @@ namespace Kabomu.ProtocolImpl
     public class ContentLengthEnforcingStream : ReadableStreamBase
     {
         private readonly Stream _backingStream;
-        private readonly long _expectedLength;
+        private readonly long _contentLength;
         private long _bytesLeftToRead;
 
         /// <summary>
         /// Creates a new instance.
         /// </summary>
         /// <param name="backingStream">the source stream</param>
-        /// <param name="expectedLength">the expected number of bytes to guarantee or assert.
-        /// Can be negative to indicate that the all remaining bytes in the backing reader
-        /// should be returned.</param>
+        /// <param name="contentLength">the expected number of bytes to guarantee or assert.</param>
         /// <exception cref="ArgumentNullException">The <paramref name="backingStream"/> argument is null.</exception>
-        public ContentLengthEnforcingStream(Stream backingStream, long expectedLength)
+        /// <exception cref="ArgumentException">The <paramref name="contentLength"/> argument is negative</exception>
+        public ContentLengthEnforcingStream(Stream backingStream, long contentLength)
         {
             if (backingStream == null)
             {
                 throw new ArgumentNullException(nameof(backingStream));
             }
+            if (contentLength < 0)
+            {
+                throw new ArgumentException(
+                    $"content length cannot be negative: {contentLength}");
+            }
             _backingStream = backingStream;
-            _expectedLength = expectedLength;
-            _bytesLeftToRead = expectedLength;
+            _contentLength = contentLength;
+            _bytesLeftToRead = contentLength;
         }
 
         public override int ReadByte()
         {
-            if (_bytesLeftToRead < 0)
-            {
-                return _backingStream.ReadByte();
-            }
-
             int bytesToRead = Math.Min((int)_bytesLeftToRead, 1);
 
             int byteRead = -1;
@@ -59,11 +58,6 @@ namespace Kabomu.ProtocolImpl
 
         public override int Read(byte[] data, int offset, int length)
         {
-            if (_bytesLeftToRead < 0)
-            {
-                return _backingStream.Read(data, offset, length);
-            }
-
             int bytesToRead = Math.Min((int)_bytesLeftToRead, length);
 
             // if bytes to read is zero at this stage and
@@ -84,12 +78,6 @@ namespace Kabomu.ProtocolImpl
             byte[] data, int offset, int length,
             CancellationToken cancellationToken = default)
         {
-            if (_bytesLeftToRead < 0)
-            {
-                return await _backingStream.ReadAsync(data, offset, length,
-                    cancellationToken);
-            }
-
             int bytesToRead = Math.Min((int)_bytesLeftToRead, length);
 
             // if bytes to read is zero at this stage and
@@ -116,7 +104,7 @@ namespace Kabomu.ProtocolImpl
             if (endOfRead && _bytesLeftToRead > 0)
             {
                 throw KabomuIOException.CreateContentLengthNotSatisfiedError(
-                    _expectedLength, _bytesLeftToRead);
+                    _contentLength, _bytesLeftToRead);
             }
         }
     }

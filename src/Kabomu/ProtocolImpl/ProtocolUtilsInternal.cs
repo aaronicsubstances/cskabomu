@@ -172,5 +172,69 @@ namespace Kabomu.ProtocolImpl
             }
             return false;
         }
+
+        public async static Task<T> CompleteWorkTask<T>(
+            Task<T> workTask, params Task[] cancellationTasks)
+        {
+            if (workTask == null)
+            {
+                throw new ArgumentNullException(nameof(workTask));
+            }
+
+            await EliminateCancellationTasks(workTask, cancellationTasks);
+            return await workTask;
+        }
+
+        public async static Task CompleteWorkTask(
+            Task workTask, params Task[] cancellationTasks)
+        {
+            if (workTask == null)
+            {
+                throw new ArgumentNullException(nameof(workTask));
+            }
+
+            await EliminateCancellationTasks(workTask, cancellationTasks);
+            await workTask;
+        }
+
+        private async static Task EliminateCancellationTasks(
+            Task workTask, Task[] cancellationTasks)
+        {
+            // ignore null tasks and successful results from
+            // cancellation tasks.
+            var tasks = new List<Task>();
+            foreach (var t in cancellationTasks)
+            {
+                if (t != null)
+                {
+                    tasks.Add(t);
+                }
+            }
+            tasks.Add(workTask);
+            while (tasks.Count > 1)
+            {
+                var firstTask = await Task.WhenAny(tasks);
+                if (firstTask == workTask)
+                {
+                    break;
+                }
+                await firstTask; // let any exceptions bubble up.
+                tasks.Remove(firstTask);
+            }
+        }
+
+        public static async Task WrapTimeoutTask(Task<bool> timeoutTask,
+            string timeoutMsg)
+        {
+            if (timeoutTask == null)
+            {
+                return;
+            }
+            if (await timeoutTask)
+            {
+                throw new QuasiHttpException(timeoutMsg,
+                    QuasiHttpException.ReasonCodeTimeout);
+            }
+        }
     }
 }

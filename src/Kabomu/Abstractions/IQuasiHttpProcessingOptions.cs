@@ -3,7 +3,7 @@
 namespace Kabomu.Abstractions
 {
     /// <summary>
-    /// Used to configure parameters which affect processing quasi http requests
+    /// Used to configure parameters which affect processing of quasi http requests
     /// and responses.
     /// </summary>
     public interface IQuasiHttpProcessingOptions
@@ -42,8 +42,8 @@ namespace Kabomu.Abstractions
         /// A value of true means send request processing must ensure that responses are released before returning them to clients,
         /// by generating equivalent responses with buffered bodies.
         /// <para></para>
-        /// Else a value of null means it is unspecified whether response buffering is enabled or not, and in the absence of
-        /// any overriding options a client-specific default action will be taken.
+        /// Else a value of null means it is unspecified whether response buffering is enabled or not,
+        /// and so default action will have to be decided by quasi http transports.
         /// </summary>
         bool? ResponseBufferingEnabled { get; set; }
 
@@ -52,8 +52,8 @@ namespace Kabomu.Abstractions
         /// i.e. in situations where response buffering is enabled.
         /// </summary>
         /// <remarks>
-        /// Note that zero and negative values will be interpreted as unspecified, and in the absence of any overriding options
-        /// a client-specific default value will be used.
+        /// Note that zero and negative values will be interpreted as unspecified,
+        /// and so default action will have to be decided by quasi http transports
         /// </remarks>
         int ResponseBodyBufferingSizeLimit { get; set; }
     }

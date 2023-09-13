@@ -51,20 +51,30 @@ namespace Kabomu.Examples.Shared
                 transferError == null ? "successfully" : "with error");
 
             var response = new DefaultQuasiHttpResponse();
+            string responseBody = null;
             if (transferError == null)
             {
                 response.StatusCode = QuasiHttpCodec.StatusCodeOk;
+                if (request.Headers.ContainsKey("echo-body"))
+                {
+                    responseBody = string.Join(',', request.Headers["echo-body"]);
+                }
             }
             else
             {
                 response.StatusCode = QuasiHttpCodec.StatusCodeServerError;
+                responseBody = transferError.Message;
             }
-            if (transferError != null || fileName.Length > 20)
+            if (responseBody != null)
             {
-                var responseBytes = MiscUtils.StringToBytes(transferError?.Message ?? "done");
+                var responseBytes = MiscUtils.StringToBytes(responseBody);
                 response.Body = new MemoryStream(responseBytes);
-                response.ContentLength = RandGen.NextDouble() < 0.5 ? -1 :
-                    responseBytes.Length;
+                response.ContentLength = responseBytes.Length;
+                if (!FileSender.TurnOffComplexFeatures &&
+                    RandGen.NextDouble() < 0.5)
+                {
+                    response.ContentLength = -1;
+                }
             }
             return response;
         }

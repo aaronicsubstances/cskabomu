@@ -11,8 +11,9 @@ using System.Threading.Tasks;
 namespace Kabomu.ProtocolImpl
 {
     /// <summary>
-    /// Contains constants and helper functions involved in implementing quasi
-    /// web protocol.
+    /// The standard encoder and decoder of quasi http request and response
+    /// headers in the Kabomu library. Also contains constants
+    /// involved in implementing the quasi web protocol.
     /// </summary>
     public static class QuasiHttpCodec
     {
@@ -179,6 +180,13 @@ namespace Kabomu.ProtocolImpl
         /// </summary>
         public const string ProtocolVersion01 = "01";
 
+        /// <summary>
+        /// Serializes quasi http request headers.
+        /// </summary>
+        /// <param name="reqHeaders">source of quasi http request headers</param>
+        /// <param name="maxHeadersSize">limit on size of serialized result.
+        /// Can be null or zero for a default value to be used.</param>
+        /// <returns>serialized representation of quasi http request headeres</returns>
         public static byte[] EncodeRequestHeaders(
             IQuasiHttpRequest reqHeaders,
             int? maxHeadersSize = null)
@@ -194,6 +202,13 @@ namespace Kabomu.ProtocolImpl
                 reqHeaders.Headers, maxHeadersSize ?? 0);
         }
 
+        /// <summary>
+        /// Serializes quasi http response headers.
+        /// </summary>
+        /// <param name="resHeaders">source of quasi http response headers</param>
+        /// <param name="maxHeadersSize">limit on size of serialized result.
+        /// Can be null or zero for a default value to be used.</param>
+        /// <returns>serialized representation of quasi http response headeres</returns>
         public static byte[] EncodeResponseHeaders(
             IQuasiHttpResponse resHeaders,
             int? maxHeadersSize = null)
@@ -278,11 +293,39 @@ namespace Kabomu.ProtocolImpl
             return MiscUtils.StringToBytes(serialized);
         }
 
-        public static void DecodeRequestHeaders(List<byte[]> encodedCsv,
+        /// <summary>
+        /// Deserializes a quasi http request header seection from
+        /// a list of byte chunks.
+        /// </summary>
+        /// <param name="byteChunks">list of byte chunks to deserialize</param>
+        /// <param name="request">object whose header-related properties will be
+        /// set with decoded quasi http request headers</param>
+        /// <exception cref="QuasiHttpException">if byte chunks argument contains
+        /// invalid quasi http request headers</exception>
+        public static void DecodeRequestHeaders(List<byte[]> byteChunks,
             IQuasiHttpRequest request)
         {
-            var csv = CsvUtils.Deserialize(MiscUtils.BytesToString(
-                MiscUtils.ConcatBuffers(encodedCsv)));
+            if (byteChunks == null)
+            {
+                throw new ArgumentNullException(nameof(byteChunks));
+            }
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            IList<IList<string>> csv;
+            try
+            {
+                csv = CsvUtils.Deserialize(MiscUtils.BytesToString(
+                    MiscUtils.ConcatBuffers(byteChunks)));
+            }
+            catch (Exception e)
+            {
+                throw new QuasiHttpException(
+                    "invalid encoded quasi http request headers",
+                    QuasiHttpException.ReasonCodeProtocolViolation,
+                    e);
+            }
             if (csv.Count < 2)
             {
                 throw new QuasiHttpException(
@@ -315,11 +358,39 @@ namespace Kabomu.ProtocolImpl
             request.Headers = DecodeRemainingHeaders(csv);
         }
 
-        public static void DecodeResponseHeaders(List<byte[]> encodedCsv,
+        /// <summary>
+        /// Deserializes a quasi http response header seection from
+        /// a list of byte chunks.
+        /// </summary>
+        /// <param name="byteChunks">list of byte chunks to deserialize</param>
+        /// <param name="response">object whose header-related properties will be
+        /// set with decoded quasi http response headers</param>
+        /// <exception cref="QuasiHttpException">if byte chunks argument contains
+        /// invalid quasi http response headers</exception>
+        public static void DecodeResponseHeaders(List<byte[]> byteChunks,
             IQuasiHttpResponse response)
         {
-            var csv = CsvUtils.Deserialize(MiscUtils.BytesToString(
-                MiscUtils.ConcatBuffers(encodedCsv)));
+            if (byteChunks == null)
+            {
+                throw new ArgumentNullException(nameof(byteChunks));
+            }
+            if (response == null)
+            {
+                throw new ArgumentNullException(nameof(response));
+            }
+            IList<IList<string>> csv;
+            try
+            {
+                csv = CsvUtils.Deserialize(MiscUtils.BytesToString(
+                    MiscUtils.ConcatBuffers(byteChunks)));
+            }
+            catch (Exception e)
+            {
+                throw new QuasiHttpException(
+                    "invalid encoded quasi http response headers",
+                    QuasiHttpException.ReasonCodeProtocolViolation,
+                    e);
+            }
             if (csv.Count < 2)
             {
                 throw new QuasiHttpException(
@@ -387,7 +458,24 @@ namespace Kabomu.ProtocolImpl
             return headers;
         }
 
-        public static async Task ReadEncodedHeaders(Stream source,
+        /// <summary>
+        /// Reads as many 512-byte chunks as needed to detect
+        /// the portion of a source stream representing a quasi
+        /// http request or response header section.
+        /// </summary>
+        /// <param name="inputStream">source stream</param>
+        /// <param name="encodedHeadersReceiver">list which
+        /// will receive all the byte chunks to be read.</param>
+        /// <param name="maxHeadersSize">limit on total
+        /// size of byte chunks to be read. Can be zero in order
+        /// for a default value to be used.</param>
+        /// <param name="cancellationToken">
+        /// The optional token to monitor for cancellation requests.</param>
+        /// <returns>a task representing the asynchronous operation</returns>
+        /// <exception cref="QuasiHttpException">Limit on
+        /// total size of byte chunks has been reached and still
+        /// end of header section has not been determined</exception>
+        public static async Task ReadEncodedHeaders(Stream inputStream,
             List<byte[]> encodedHeadersReceiver, int maxHeadersSize,
             CancellationToken cancellationToken = default)
         {
@@ -408,7 +496,7 @@ namespace Kabomu.ProtocolImpl
                         QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
                 }
                 var chunk = new byte[HeaderChunkSize];
-                await MiscUtils.ReadBytesFully(source, chunk,
+                await MiscUtils.ReadBytesFully(inputStream, chunk,
                     0, chunk.Length, cancellationToken);
                 encodedHeadersReceiver.Add(chunk);
                 byte newline = (byte)'\n';

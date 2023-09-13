@@ -99,27 +99,28 @@ namespace Kabomu
                 throw new MissingDependencyException("client transport");
             }
 
-            var connection = await transport.AllocateConnection(
+            var connectionAllocationResponse = await transport.AllocateConnection(
                 remoteEndpoint, sendOptions);
+            var connection = connectionAllocationResponse?.Connection;
             if (connection == null)
             {
                 throw new QuasiHttpException("no connection");
             }
-
-            if (request == null)
-            {
-                request = await requestFunc.Invoke(connection.Environment);
-                if (request == null)
-                {
-                    throw new QuasiHttpException("no request");
-                }
-            }
-
             try
             {
-                var response = await ProcessSend(request, transport,
-                    connection);
-                return response;
+                var responseTask = ProcessSend(request, requestFunc,
+                    transport, connection, connectionAllocationResponse);
+                if (connection.TimeoutTask != null)
+                {
+                    var timeoutTask = ProtocolUtilsInternal.WrapTimeoutTask(
+                        connection.TimeoutTask, "send timeout");
+                    return await ProtocolUtilsInternal.CompleteWorkTask(
+                        responseTask, timeoutTask);
+                }
+                else
+                {
+                    return await responseTask;
+                }
             }
             catch (Exception e)
             {
@@ -138,9 +139,27 @@ namespace Kabomu
 
         internal static async Task<IQuasiHttpResponse> ProcessSend(
             IQuasiHttpRequest request,
+            Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpClientTransport transport,
-            IQuasiHttpConnection connection)
+            IQuasiHttpConnection connection,
+            IConnectionAllocationResponse connectionAllocationResponse)
         {
+            var ongoingConnectionTask = connectionAllocationResponse.ConnectTask;
+            if (ongoingConnectionTask != null)
+            {
+                // wait for connection to be completely established.
+                await ongoingConnectionTask;
+            }
+
+            if (request == null)
+            {
+                request = await requestFunc.Invoke(connection.Environment);
+                if (request == null)
+                {
+                    throw new QuasiHttpException("no request");
+                }
+            }
+
             // send entire request first before
             // receiving of response.
             if (ProtocolUtilsInternal.GetEnvVarAsBoolean(request.Environment,
@@ -162,14 +181,9 @@ namespace Kabomu
                 throw new QuasiHttpException("no response");
             }
 
-            Func<Task> releaseFunc = () =>
-            {
-                return transport.ReleaseConnection(connection, false);
-            };
             var response = new DefaultQuasiHttpResponse
             {
-                Body = encodedResponseBody,
-                Disposer = releaseFunc
+                Body = encodedResponseBody
             };
             QuasiHttpCodec.DecodeResponseHeaders(encodedResponseHeaders, response);
             var responseStreamingEnabled =
@@ -178,6 +192,13 @@ namespace Kabomu
                     connection.Environment,
                     connection.ProcessingOptions,
                     connection.CancellationToken);
+            if (responseStreamingEnabled)
+            {
+                response.Disposer = () =>
+                {
+                    return transport.ReleaseConnection(connection, false);
+                };
+            }
             await Abort(transport, connection, false, responseStreamingEnabled);
             return response;
         }

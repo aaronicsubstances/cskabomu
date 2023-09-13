@@ -12,10 +12,12 @@ namespace Kabomu.ProtocolImpl
     /// <summary>
     /// The standard decoder of quasi http bodies of unknown (ie negative)
     /// content lengths in the Kabomu library.
+    /// </summary>
+    /// <remarks>
     /// Receives a source stream and assumes it consists of
     /// an unknown number of one or more body chunks, in which the last chunk has
     /// zero data length and all the previous ones have non-empty data.
-    /// </summary>
+    /// </remarks>
     public class BodyChunkDecodingStream : ReadableStreamBase
     {
         private readonly Stream _backingStream;

@@ -1,6 +1,5 @@
 ﻿using Kabomu.Abstractions;
 using Kabomu.Exceptions;
-using Kabomu.ProtocolImpl;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -12,8 +11,8 @@ using System.Threading.Tasks;
 namespace Kabomu
 {
     /// <summary>
-    /// Provides helper functions for common operations performed by
-    /// during custom chunk protocol processing.
+    /// Provides helper constants functions for common operations performed by
+    /// the Kabomu library that may also be neeeded by library clients
     /// </summary>
     public static class MiscUtils
     {
@@ -28,13 +27,15 @@ namespace Kabomu
         public static readonly int DefaultDataBufferLimit = 134_217_728;
 
         /// <summary>
-        /// Reads in data in order to completely fill in a buffer.
+        /// Reads in data asynchronously in order to completely fill in a buffer.
         /// </summary>
         /// <param name="inputStream">source of bytes to read</param>
         /// <param name="data">destination buffer</param>
         /// <param name="offset">start position in buffer to fill from</param>
         /// <param name="length">number of bytes to read. Failure to obtain this number of bytes will
         /// result in an error.</param>
+        /// <param name="cancellationToken">
+        /// The optional token to monitor for cancellation requests.</param>
         /// <returns>A task that represents the asynchronous read operation.</returns>
         /// <exception cref="KabomuIOException">Not enough bytes were found in
         /// <paramref name="inputStream"/> argument to supply requested number of bytes.</exception>
@@ -72,7 +73,7 @@ namespace Kabomu
         }
 
         /// <summary>
-        /// Reads in data in order to completely fill in a buffer.
+        /// Reads in data synchronously in order to completely fill in a buffer.
         /// </summary>
         /// <param name="inputStream">source of bytes to read</param>
         /// <param name="data">destination buffer</param>
@@ -82,7 +83,7 @@ namespace Kabomu
         /// <returns>A task that represents the asynchronous read operation.</returns>
         /// <exception cref="KabomuIOException">Not enough bytes were found in
         /// <paramref name="inputStream"/> argument to supply requested number of bytes.</exception>
-        public static void ReadBytesFullySync(Stream inputStream,
+        internal static void ReadBytesFullySync(Stream inputStream,
             byte[] data, int offset, int length)
         {
             // allow zero-byte reads to proceed to touch the
@@ -114,29 +115,28 @@ namespace Kabomu
         }
 
         /// <summary>
-        /// Reads in all of a reader's data into an in-memory buffer.
+        /// Reads in all of an input stream's remaining data into an in-memory buffer.
         /// </summary>
-        /// <remarks>
-        /// One can specify a maximum size beyond which an error will be
-        /// thrown if there is more data after that limit.
-        /// </remarks>
-        /// <param name="reader">The source of data to read</param>
-        /// <param name="cancellationToken"></param>
+        /// <param name="inputStream">The source of data to read</param>
+        /// <param name="cancellationToken">
+        /// The optional token to monitor for cancellation requests.</param>
         /// <returns>A task whose result is a buffer which has all of the remaining data in the reader.</returns>
-        public static async Task<byte[]> ReadAllBytes(Stream reader,
+        public static async Task<byte[]> ReadAllBytes(Stream inputStream,
             CancellationToken cancellationToken = default)
         {
             var byteStream = new MemoryStream();
-            await CopyBytesToStream(reader, byteStream,
+            await CopyBytesToStream(inputStream, byteStream,
                 cancellationToken);
             return byteStream.ToArray();
         }
 
         /// <summary>
-        /// Copies bytes from an input stream to an output stream.
+        /// Copies all remaining bytes from an input stream to an output stream.
         /// </summary>
         /// <param name="inputStream">source of data being transferred</param>
         /// <param name="outputStream">destination of data being transferred</param>
+        /// <param name="cancellationToken">
+        /// The optional token to monitor for cancellation requests.</param>
         public static async Task CopyBytesToStream(
             Stream inputStream, Stream outputStream,
             CancellationToken cancellationToken = default)
@@ -145,15 +145,27 @@ namespace Kabomu
         }
 
         /// <summary>
-        /// Copies all remaining contents of an input stream into
-        /// an byte sink function.
+        /// Copies all remaining bytes from an input stream into
+        /// a destination represented by a byte chunk consuming function.
         /// </summary>
         /// <param name="inputStream">source of data to copy</param>
-        /// <param name="sink">byte sink function</param>
+        /// <param name="sink">destination of data being transferred</param>
+        /// <param name="readBufferSize">size of read bufer to use.
+        /// Can be zero for a default value to be used.</param>
+        /// <param name="cancellationToken">
+        /// The optional token to monitor for cancellation requests.</param>
         public static async Task CopyBytesToSink(Stream inputStream,
             Func<byte[], int, int, Task> sink, int readBufferSize = default,
             CancellationToken cancellationToken = default)
         {
+            if (inputStream == null)
+            {
+                throw new ArgumentNullException(nameof(inputStream));
+            }
+            if (sink == null)
+            {
+                throw new ArgumentNullException(nameof(sink));
+            }
             if (readBufferSize <= 0)
             {
                 readBufferSize = DefaultReadBufferSize;
@@ -172,7 +184,7 @@ namespace Kabomu
                 }
                 if (bytesRead > 0)
                 {
-                    await sink( readBuffer, 0, bytesRead);
+                    await sink(readBuffer, 0, bytesRead);
                 }
                 else
                 {
@@ -181,10 +193,32 @@ namespace Kabomu
             }
         }
 
+        /// <summary>
+        /// Copies all remaining bytes from an input stream into
+        /// an output stream, and checks that if the total number of
+        /// bytes being copied exceeds a certain limit.
+        /// </summary>
+        /// <param name="src">The source of data to read</param>
+        /// <param name="dest">destination of data being transferred</param>
+        /// <param name="bufferingLimit">The limit on the number of bytes to copy.
+        /// Can be zero for a default value determined by
+        /// <see cref="DefaultDataBufferLimit"/> to be used.</param>
+        /// <param name="cancellationToken">
+        /// The optional token to monitor for cancellation requests.</param>
+        /// <returns>true if copying succeeded within specified limit; false
+        /// if reading exceeded specified limit</returns>
         public static async Task<bool> CopyBytesUpToGivenLimit(
             Stream src, Stream dest,
             int bufferingLimit, CancellationToken cancellationToken)
         {
+            if (src == null)
+            {
+                throw new ArgumentNullException(nameof(src));
+            }
+            if (dest == null)
+            {
+                throw new ArgumentNullException(nameof(dest));
+            }
             if (bufferingLimit <= 0)
             {
                 bufferingLimit = DefaultDataBufferLimit;
@@ -217,7 +251,8 @@ namespace Kabomu
                     {
                         return false;
                     }
-                    dest.Write(readBuffer, 0, bytesRead);
+                    await dest.WriteAsync(readBuffer, 0, bytesRead,
+                        cancellationToken);
                     totalBytesRead += bytesRead;
                 }
                 else
@@ -257,19 +292,61 @@ namespace Kabomu
             return int.Parse(input);
         }
 
+        /// <summary>
+         /// Determines whether a given byte buffer slice is valid.
+         /// A byte buffer slice is valid if and only if its
+         /// backing byte array is not null and the values of
+         /// its offset and (offset + length - 1) are valid
+         /// indices in the backing byte array.
+         /// </summary>
+         /// <param name="data">backing byte array of slice. Invalid if null.</param>
+         /// <param name="offset">offset of range in byte array. Invalid if negative.</param>
+         /// <param name="length">length of range in byte array. Invalid if negative.</param>
+         /// <returns>true if and only if byte buffer slice is valid.</returns>
+        public static bool IsValidByteBufferSlice(byte[] data, int offset, int length)
+        {
+            if (data == null)
+            {
+                return false;
+            }
+            if (offset < 0)
+            {
+                return false;
+            }
+            if (length < 0)
+            {
+                return false;
+            }
+            if (offset + length > data.Length)
+            {
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Converts a string to bytes in UTF-8 encoding.
+        /// </summary>
+        /// <param name="s">the string to convert</param>
+        /// <returns>byte array representing UTF-8 encoding of string</returns>
+        public static byte[] StringToBytes(string s)
+        {
+            return Encoding.UTF8.GetBytes(s);
+        }
+
+        /// <summary>
+        /// Creates a string from its UTF-8 encoding in a byte array.
+        /// </summary>
+        /// <param name="data">byte array of UTF-8 encoded data</param>
+        /// <returns>string equivalent of byte buffer</returns>
         public static string BytesToString(byte[] data)
         {
-            return BytesToString(data, 0, data.Length);
+            return Encoding.UTF8.GetString(data);
         }
 
         internal static string BytesToString(byte[] data, int offset, int length)
         {
             return Encoding.UTF8.GetString(data, offset, length);
-        }
-
-        public static byte[] StringToBytes(string s)
-        {
-            return Encoding.UTF8.GetBytes(s);
         }
 
         internal static int GetByteCount(string v)
@@ -424,54 +501,37 @@ namespace Kabomu
             return fallback1 ?? defaultValue;
         }
 
-        public async static Task<T> CompleteMainTask<T>(
-            Task<T> mainTask, params Task[] cancellationTasks)
+        /// <summary>
+        /// Creates an object representing both a pending timeout and the
+        /// function to cancel the timeout.
+        /// </summary>
+        /// <remarks>
+        /// Note that if the timeout occurs, the pending task to be returned will
+        /// complete normally with a result of true. If the timeout is cancelled,
+        /// the task will still complete but with false result.
+        /// </remarks>
+        /// <param name="timeoutMillis">timeout value in milliseconds. must
+        /// be positive for non-null object to be returned.</param>
+        /// <returns>object that can be used to wait for pending timeout
+        /// or cancel the pending timeout.</returns>
+        public static ICancellableTimeoutTask CreateCancellableTimeoutTask(
+            int timeoutMillis)
         {
-            if (mainTask == null)
+            if (timeoutMillis <= 0)
             {
-                throw new ArgumentNullException(nameof(mainTask));
+                return null;
             }
-
-            await EliminateCancellationTasks(mainTask, cancellationTasks);
-            return await mainTask;
-        }
-
-        public async static Task CompleteMainTask(
-            Task mainTask, params Task[] cancellationTasks)
-        {
-            if (mainTask == null)
-            {
-                throw new ArgumentNullException(nameof(mainTask));
-            }
-
-            await EliminateCancellationTasks(mainTask, cancellationTasks);
-            await mainTask;
-        }
-
-        private async static Task EliminateCancellationTasks(
-            Task mainTask, Task[] cancellationTasks)
-        {
-            // ignore null tasks and successful results from
-            // cancellation tasks.
-            var tasks = new List<Task>();
-            foreach (var t in cancellationTasks)
-            {
-                if (t != null)
+            var timeoutId = new CancellationTokenSource();
+            var timeoutTask = Task.Delay(timeoutMillis, timeoutId.Token)
+                .ContinueWith(t =>
                 {
-                    tasks.Add(t);
-                }
-            }
-            tasks.Add(mainTask);
-            while (tasks.Count > 1)
+                    return !t.IsCanceled;
+                });
+            return new DefaultCancellableTimeoutTaskInternal
             {
-                var firstTask = await Task.WhenAny(tasks);
-                if (firstTask == mainTask)
-                {
-                    break;
-                }
-                await firstTask; // let any exceptions bubble up.
-                tasks.Remove(firstTask);
-            }
+                Task = timeoutTask,
+                CancellationTokenSource = timeoutId
+            };
         }
 
         /// <summary>
@@ -513,6 +573,16 @@ namespace Kabomu
                     callback(tcs.Task);
             }, TaskScheduler.Default);
             return tcs.Task;
+        }
+    }
+
+    internal class DefaultCancellableTimeoutTaskInternal : ICancellableTimeoutTask
+    {
+        public Task<bool> Task { get; set; }
+        public CancellationTokenSource CancellationTokenSource { get; set; }
+        public void Cancel()
+        {
+            CancellationTokenSource?.Cancel();
         }
     }
 }

@@ -10,7 +10,7 @@ namespace Kabomu.Examples.Shared
 {
     public class UnixDomainSocketClientTransport : IQuasiHttpClientTransport
     {
-        public async Task<IQuasiHttpConnection> AllocateConnection(
+        public Task<IConnectionAllocationResponse> AllocateConnection(
             object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions)
         {
             var path = (string)remoteEndpoint;
@@ -19,22 +19,15 @@ namespace Kabomu.Examples.Shared
             path = Path.Combine(Path.GetTempPath(), path);
             var connection = new SocketConnection(socket, true,
                 sendOptions, DefaultSendOptions);
-            var mainTask = socket.ConnectAsync(new UnixDomainSocketEndPoint(path));
-            try
+            var ongoingConnectionTask = socket.ConnectAsync(
+                new UnixDomainSocketEndPoint(path));
+            var connectionAllocationResponse = new DefaultConnectionAllocationResponse
             {
-                await MiscUtils.CompleteMainTask(mainTask, connection.TimeoutId?.Task);
-            }
-            catch (Exception)
-            {
-                try
-                {
-                    // don't wait.
-                    _ = connection.Release(false);
-                }
-                catch (Exception) { } //ignore
-                throw;
-            }
-            return connection;
+                Connection = connection,
+                ConnectTask = ongoingConnectionTask
+            };
+            return Task.FromResult<IConnectionAllocationResponse>(
+                connectionAllocationResponse);
         }
 
         public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }

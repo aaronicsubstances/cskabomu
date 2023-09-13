@@ -11,32 +11,24 @@ namespace Kabomu.Examples.Shared
 {
     public class LocalhostTcpClientTransport : IQuasiHttpClientTransport
     {
-        public async Task<IQuasiHttpConnection> AllocateConnection(
+        public Task<IConnectionAllocationResponse> AllocateConnection(
             object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions)
         {
-            int port = (int)remoteEndpoint;
+            var port = (int)remoteEndpoint;
             var socket = new Socket(AddressFamily.InterNetworkV6,
                 SocketType.Stream, ProtocolType.Tcp);
             socket.NoDelay = true;
             var connection = new SocketConnection(socket, true,
                 sendOptions, DefaultSendOptions);
-            var mainTask = socket.ConnectAsync(
+            var ongoingConnectionTask = socket.ConnectAsync(
                 IPAddress.Parse("::1"), port);
-            try
+            var connectionAllocationResponse = new DefaultConnectionAllocationResponse
             {
-                await MiscUtils.CompleteMainTask(mainTask, connection.TimeoutId?.Task);
-            }
-            catch (Exception)
-            {
-                try
-                {
-                    // don't wait.
-                    _ = connection.Release(false);
-                }
-                catch (Exception) { } //ignore
-                throw;
-            }
-            return connection;
+                Connection = connection,
+                ConnectTask = ongoingConnectionTask
+            };
+            return Task.FromResult<IConnectionAllocationResponse>(
+                connectionAllocationResponse);
         }
 
         public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }

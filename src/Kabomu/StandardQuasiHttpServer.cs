@@ -69,8 +69,19 @@ namespace Kabomu
 
             try
             {
-                await ProcessAccept(application, transport,
+                var acceptTask = ProcessAccept(application, transport,
                     connection);
+                if (connection.TimeoutTask != null)
+                {
+                    var timeoutTask = ProtocolUtilsInternal.WrapTimeoutTask(
+                        connection.TimeoutTask, "receive timeout");
+                    await ProtocolUtilsInternal.CompleteWorkTask(
+                        acceptTask, timeoutTask);
+                }
+                else
+                {
+                    await acceptTask;
+                }
             }
             catch (Exception e)
             {

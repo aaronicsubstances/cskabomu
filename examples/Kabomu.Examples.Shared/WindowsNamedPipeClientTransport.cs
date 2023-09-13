@@ -11,7 +11,7 @@ namespace Kabomu.Examples.Shared
 {
     public class WindowsNamedPipeClientTransport : IQuasiHttpClientTransport
     {
-        public async Task<IQuasiHttpConnection> AllocateConnection(
+        public Task<IConnectionAllocationResponse> AllocateConnection(
             object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions)
         {
             var path = (string)remoteEndpoint;
@@ -19,23 +19,14 @@ namespace Kabomu.Examples.Shared
                 PipeDirection.InOut, PipeOptions.Asynchronous);
             var connection = new DuplexStreamConnection(pipeClient, true,
                 sendOptions, DefaultSendOptions);
-
-            var mainTask = pipeClient.ConnectAsync();
-            try
+            var ongoingConnectionTask = pipeClient.ConnectAsync();
+            var connectionAllocationResponse = new DefaultConnectionAllocationResponse
             {
-                await MiscUtils.CompleteMainTask(mainTask, connection.TimeoutId?.Task);
-            }
-            catch (Exception)
-            {
-                try
-                {
-                    // don't wait.
-                    _ = connection.Release(false);
-                }
-                catch (Exception) { } //ignore
-                throw;
-            }
-            return connection;
+                Connection = connection,
+                ConnectTask = ongoingConnectionTask
+            };
+            return Task.FromResult<IConnectionAllocationResponse>(
+                connectionAllocationResponse);
         }
 
         public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }

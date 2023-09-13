@@ -5,6 +5,7 @@ using Kabomu.Examples.Shared;
 using Kabomu.ProtocolImpl;
 using NLog;
 using System;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace Tcp.FileServer

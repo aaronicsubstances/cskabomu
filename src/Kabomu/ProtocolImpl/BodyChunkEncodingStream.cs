@@ -12,13 +12,17 @@ namespace Kabomu.ProtocolImpl
     /// <summary>
     /// The standard encoder of http bodies of unknown (ie negative)
     /// content lengths in the Kabomu library.
+    /// </summary>
+    /// <remarks>
     /// Receives a source stream from which it generates
     /// an unknown number of one or more body chunks, 
     /// in which the last chunk has zero data length
     /// and all the previous ones have non-empty data.
-    /// </summary>
+    /// </remarks>
     public class BodyChunkEncodingStream : ReadableStreamBase
     {
+        private static readonly int DefaultMaxBodyChunkDataSize = 8_192;
+
         private readonly Stream _backingStream;
         private readonly byte[] _chunkData;
         private readonly byte[] _chunkPrefix;
@@ -39,8 +43,8 @@ namespace Kabomu.ProtocolImpl
                 throw new ArgumentNullException(nameof(backingStream));
             }
             _backingStream = backingStream;
-            _chunkData = new byte[8_192];
-            _chunkPrefix = new byte[100]; // more than enough to encode v1 header
+            _chunkData = new byte[DefaultMaxBodyChunkDataSize];
+            _chunkPrefix = BodyChunkEncodingWriter.AllocateBodyChunkHeaderBuffer();
         }
 
         public override int ReadByte()

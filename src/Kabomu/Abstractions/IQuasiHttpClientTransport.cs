@@ -19,9 +19,8 @@ namespace Kabomu.Abstractions
         /// allocation request</param>
         /// <param name="sendOptions">any options given to one of the Send*() methods of
         /// the <see cref="StandardQuasiHttpClient"/> class</param>
-        /// <returns>a task whose result is ready for use as a duplex
-        /// stream of data for reading and writing</returns>
-        Task<IQuasiHttpConnection> AllocateConnection(
+        /// <returns>a task whose result contains connection to remote endpoint</returns>
+        Task<IConnectionAllocationResponse> AllocateConnection(
             object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions);
 
         /// <summary>
