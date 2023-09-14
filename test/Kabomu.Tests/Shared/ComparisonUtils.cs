@@ -1,5 +1,5 @@
 ﻿using Kabomu.Abstractions;
-using Kabomu.Exceptions;
+using Kabomu.ProtocolImpl;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -157,53 +157,76 @@ namespace Kabomu.Tests.Shared
                 actual.MaxHeadersSize);
         }
 
-        public static Stream CreateRandomizedChunkStream(byte[] b)
+        public static async Task<string> ReadToString(Stream instance,
+            bool readWithOldStyle = false)
         {
-            async IAsyncEnumerable<byte[]> Generate()
-            {
-                await Task.Yield();
-                int offset = 0;
-                while (offset < b.Length)
-                {
-                    int bytesToCopy = Random.Shared.Next(b.Length - offset) + 1;
-                    var nextChunk = new byte[bytesToCopy];
-                    Array.Copy(b, offset, nextChunk, 0, bytesToCopy);
-                    yield return nextChunk;
-                    offset += bytesToCopy;
-                    await Task.Yield();
-                }
-            }
-            return new AsyncEnumerableBackedStream(Generate());
+            return MiscUtilsInternal.BytesToString(
+                await ReadToBytes(instance, readWithOldStyle));
         }
 
-        public static Stream CreateInputStreamFromSource(
-            Func<byte[], int, int, Task<int>> source)
+        public static string ReadToStringSync(Stream instance,
+            bool readOneByOne = false)
         {
-            async IAsyncEnumerable<byte[]> Generate()
+            return MiscUtilsInternal.BytesToString(
+                ReadToBytesSync(instance, readOneByOne));
+        }
+
+        public static async Task<byte[]> ReadToBytes(Stream instance,
+            bool readWithOldStyle = false)
+        {
+            var memStream = new MemoryStream();
+            if (readWithOldStyle)
             {
-                var readBuffer = new byte[8192];
-                while (true)
+                var tcs = new TaskCompletionSource();
+                var buffer = new byte[IOUtilsInternal.DefaultReadBufferSize];
+                AsyncCallback callback = null;
+                callback = ar =>
                 {
-                    int bytesRead = await source(readBuffer, 0, readBuffer.Length);
-                    if (bytesRead > readBuffer.Length)
+                    int bytesRead;
+                    try
                     {
-                        throw new ExpectationViolationException(
-                            "read beyond requested length: " +
-                            $"({bytesRead} > {readBuffer.Length})");
+                        bytesRead = instance.EndRead(ar);
                     }
-                    if (bytesRead > 0)
+                    catch (Exception e)
                     {
-                        var chunk = new byte[bytesRead];
-                        Array.Copy(readBuffer, chunk, bytesRead);
-                        yield return chunk;
+                        tcs.SetException(e);
+                        return;
                     }
-                    else
+                    if (bytesRead == 0)
                     {
-                        break;
+                        tcs.SetResult();
+                        return;
                     }
+                    memStream.Write(buffer, 0, bytesRead);
+                    instance.BeginRead(buffer, 0, buffer.Length, callback, null);
+                };
+                instance.BeginRead(buffer, 0, buffer.Length, callback, null);
+                await tcs.Task;
+            }
+            else
+            {
+                await instance.CopyToAsync(memStream);
+            }
+            return memStream.ToArray();
+        }
+
+        public static byte[] ReadToBytesSync(Stream instance,
+            bool readOneByOne = false)
+        {
+            var memStream = new MemoryStream();
+            if (readOneByOne)
+            {
+                int byteRead;
+                while ((byteRead = instance.ReadByte()) != -1)
+                {
+                    memStream.WriteByte((byte)byteRead);
                 }
             }
-            return new AsyncEnumerableBackedStream(Generate());
+            else
+            {
+                instance.CopyTo(memStream);
+            }
+            return memStream.ToArray();
         }
     }
 }

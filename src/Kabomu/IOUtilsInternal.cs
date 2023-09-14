@@ -17,7 +17,7 @@ namespace Kabomu
         /// <summary>
         /// The default read buffer size. Equal to 8,192 bytes.
         /// </summary>
-        private static readonly int DefaultReadBufferSize = 8_192;
+        public static readonly int DefaultReadBufferSize = 8_192;
 
         /// <summary>
         /// The limit of data buffering when reading byte streams into memory. Equal to 128 MB.

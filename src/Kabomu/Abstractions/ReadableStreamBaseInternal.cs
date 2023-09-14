@@ -77,7 +77,18 @@ namespace Kabomu.Abstractions
 
         public override int EndRead(IAsyncResult asyncResult)
         {
-            return ((Task<int>)asyncResult).Result;
+            try
+            {
+                return ((Task<int>)asyncResult).Result;
+            }
+            catch (AggregateException e)
+            {
+                if (e.InnerExceptions.Count == 1)
+                {
+                    throw e.InnerException;
+                }
+                throw;
+            }
         }
     }
 }

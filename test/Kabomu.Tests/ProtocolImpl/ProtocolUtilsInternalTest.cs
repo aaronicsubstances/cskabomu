@@ -751,36 +751,42 @@ namespace Kabomu.Tests.ProtocolImpl
         {
             var testData = new List<object[]>();
 
-            var srcData = "".PadRight(510) +
-                "\n\n";
+            var srcData = "".PadRight(509) +
+                "\n\r\n";
             int maxHeadersSize = 0;
             var expected = srcData;
             testData.Add(new object[] { srcData, maxHeadersSize, expected });
 
-            srcData = "".PadRight(511) +
-                "\n\n" + "".PadRight(511);
+            srcData = "".PadRight(510) +
+                "\r\n\r\n" + "".PadRight(510);
             maxHeadersSize = 1_024;
             expected = srcData;
             testData.Add(new object[] { srcData, maxHeadersSize, expected });
 
-            srcData = "".PadRight(510) +
-                "\n\n\n";
-            expected = "".PadRight(510) + "\n\n";
+            srcData = "".PadRight(511) +
+                "\r\n\r\n" + "".PadRight(509);
+            maxHeadersSize = 1_024;
+            expected = srcData;
+            testData.Add(new object[] { srcData, maxHeadersSize, expected });
+
+            srcData = "".PadRight(509) +
+                "\n\r\r\r";
+            expected = "".PadRight(509) + "\n\r\r";
             maxHeadersSize = 513;
             testData.Add(new object[] { srcData, maxHeadersSize, expected });
 
-            srcData = "".PadRight(511) +
+            srcData = "".PadRight(510) +
                 "".PadRight(1000, '\n');
             maxHeadersSize = 2_000;
-            expected = "".PadRight(511) + "".PadRight(513, '\n');
+            expected = "".PadRight(510) + "".PadRight(514, '\n');
             testData.Add(new object[] { srcData, maxHeadersSize, expected });
 
             srcData = "";
             expected = "";
-            for (int i = 0; i < 512; i++)
+            for (int i = 0; i < 256; i++)
             {
-                srcData += "\r\n";
-                expected += "\r\n";
+                srcData += "12\r\n";
+                expected += "12\r\n";
             }
             srcData += "\n" + "".PadRight(1_000);
             maxHeadersSize = 3_000;

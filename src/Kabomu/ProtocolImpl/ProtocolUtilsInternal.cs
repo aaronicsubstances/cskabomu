@@ -17,7 +17,7 @@ namespace Kabomu.ProtocolImpl
         /// as a result, is make the dead code serve as reference for
         /// porting in stages of HTTP/1.0 only, before HTTP/1.1.
         /// </summary>
-        public static readonly bool SupportHttp10Only = false;
+        //public static readonly bool SupportHttp10Only = false;
 
         public static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment,
             string key)
@@ -108,18 +108,18 @@ namespace Kabomu.ProtocolImpl
             {
                 return null;
             }
-            if (SupportHttp10Only)
-            {
-                if (!isResponse && contentLength < 0)
-                {
-                    return null;
-                }
-            }
-            else
+            if (true) // !SupportHttp10Only
             {
                 if (contentLength < 0)
                 {
                     return new BodyChunkEncodingStreamInternal(body);
+                }
+            }
+            else
+            {
+                if (!isResponse && contentLength < 0)
+                {
+                    return null;
                 }
             }
             // don't enforce positive content lengths when writing out
@@ -133,7 +133,6 @@ namespace Kabomu.ProtocolImpl
         /// </summary>
         /// <param name="contentLength"></param>
         /// <param name="body"></param>
-        /// <returns></returns>
         public static Stream DecodeRequestBodyFromTransport(
             long contentLength, Stream body)
         {
@@ -141,7 +140,7 @@ namespace Kabomu.ProtocolImpl
             {
                 return null;
             }
-            if (SupportHttp10Only)
+            if (false) // SupportHttp10Only
             {
                 if (contentLength < 0)
                 {
@@ -152,7 +151,7 @@ namespace Kabomu.ProtocolImpl
             {
                 throw new QuasiHttpException("no request body");
             }
-            if (!SupportHttp10Only)
+            if (true) // !SupportHttp10Only
             {
                 if (contentLength < 0)
                 {
@@ -162,79 +161,83 @@ namespace Kabomu.ProtocolImpl
             return new ContentLengthEnforcingStreamInternal(body, contentLength);
         }
 
-        public static async Task<bool> DecodeResponseBodyFromTransport(
-            IQuasiHttpResponse response,
+        public static (Stream, bool, bool) DecodeResponseBodyFromTransport(
+            long contentLength, Stream body,
             IDictionary<string, object> environment,
-            IQuasiHttpProcessingOptions processingOptions,
-            CancellationToken cancellationToken)
+            bool? responseBufferingEnabled)
         {
-            if (response.ContentLength == 0)
+            if (contentLength == 0)
             {
-                response.Body = null;
-                return false;
+                return (null, false, false);
             }
-            var responseStreamingEnabled = processingOptions?.ResponseBufferingEnabled == false;
+            var responseStreamingEnabled = responseBufferingEnabled == false;
             if (GetEnvVarAsBoolean(
                 environment, QuasiHttpUtils.EnvKeySkipResBodyDecoding) == true)
             {
-                return responseStreamingEnabled;
+                return (body, responseStreamingEnabled, false);
             }
-            if (response.Body == null)
+            if (body == null)
             {
                 throw new QuasiHttpException("no response body");
             }
-            if (!SupportHttp10Only)
+            if (true) // !SupportHttp10Only
             {
-                if (response.ContentLength < 0)
+                if (contentLength < 0)
                 {
-                    response.Body = new BodyChunkDecodingStreamInternal(response.Body);
+                    body = new BodyChunkDecodingStreamInternal(body);
                 }
             }
             if (responseStreamingEnabled)
             {
-                if (response.ContentLength > 0)
+                if (contentLength > 0)
                 {
-                    response.Body = new ContentLengthEnforcingStreamInternal(response.Body,
-                        response.ContentLength);
+                    body = new ContentLengthEnforcingStreamInternal(body,
+                        contentLength);
                 }
-                return true;
+                return (body, true, false);
             }
-            int bufferingLimit = processingOptions?.ResponseBodyBufferingSizeLimit ?? 0;
-            if (bufferingLimit <= 0)
+            return (body, false, true);
+        }
+
+        public static async Task<Stream> BufferResponseBody(
+            long contentLength, Stream body, 
+            int? bufferingSizeLimit,
+            CancellationToken cancellationToken)
+        {
+            if (bufferingSizeLimit == null || bufferingSizeLimit.Value <= 0)
             {
-                bufferingLimit = IOUtilsInternal.DefaultDataBufferLimit;
+                bufferingSizeLimit = IOUtilsInternal.DefaultDataBufferLimit;
             }
-            if (response.ContentLength < 0)
+            if (contentLength < 0)
             {
                 var buffered = new MemoryStream();
-                bool success = await IOUtilsInternal.CopyBytesUpToGivenLimit(response.Body,
-                    buffered, bufferingLimit, cancellationToken);
+                bool success = await IOUtilsInternal.CopyBytesUpToGivenLimit(body,
+                    buffered, bufferingSizeLimit.Value, cancellationToken);
                 if (!success)
                 {
                     throw new QuasiHttpException(
                         "response body of indeterminate length exceeds buffering limit of " +
-                        $"{bufferingLimit} bytes",
+                        $"{bufferingSizeLimit} bytes",
                         QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
                 }
-                response.Body = buffered;
                 buffered.Position = 0; // reset for reading.
+                return buffered;
             }
             else
             {
-                if (response.ContentLength > bufferingLimit)
+                if (contentLength > bufferingSizeLimit.Value)
                 {
                     throw new QuasiHttpException(
                         "response body length exceeds buffering limit " +
-                        $"({response.ContentLength} > {bufferingLimit})",
+                        $"({contentLength} > {bufferingSizeLimit})",
                         QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
                 }
-                var buffer = new byte[(int)response.ContentLength];
-                await IOUtilsInternal.ReadBytesFully(response.Body,
+                var buffer = new byte[(int)contentLength];
+                await IOUtilsInternal.ReadBytesFully(body,
                     buffer, 0, buffer.Length,
                     cancellationToken);
-                response.Body = new MemoryStream(buffer);
+                return new MemoryStream(buffer);
             }
-            return false;
         }
 
         public static async Task<(Stream, byte[])> ReadEntityFromTransport(
@@ -288,6 +291,7 @@ namespace Kabomu.ProtocolImpl
             }
             int totalBytesRead = 0;
             bool previousChunkEndsWithLf = false;
+            bool previousChunkEndsWith2Lfs = false;
             while (true)
             {
                 totalBytesRead += QuasiHttpCodec.HeaderChunkSize;
@@ -302,19 +306,31 @@ namespace Kabomu.ProtocolImpl
                 await IOUtilsInternal.ReadBytesFully(inputStream, chunk,
                     0, chunk.Length, cancellationToken);
                 encodedHeadersReceiver.Add(chunk);
-                byte newline = (byte)'\n';
-                if (previousChunkEndsWithLf && chunk[0] == newline)
+                byte carriageReturn = (byte)'\r', newline = (byte)'\n';
+                if (previousChunkEndsWith2Lfs &&
+                    (chunk[0] == carriageReturn || chunk[0] == newline))
                 {
                     // done.
                     break;
                 }
-                for (int i = 1; i < chunk.Length; i++)
+                if (previousChunkEndsWithLf &&
+                    (chunk[0] == carriageReturn || chunk[0] == newline) &&
+                    (chunk[1] == carriageReturn || chunk[1] == newline))
                 {
-                    if (chunk[i] != newline)
+                    // done.
+                    break;
+                }
+                for (int i = 2; i < chunk.Length; i++)
+                {
+                    if (chunk[i] != carriageReturn && chunk[i] != newline)
                     {
                         continue;
                     }
-                    if (chunk[i - 1] == newline)
+                    if (chunk[i - 1] != carriageReturn && chunk[i - 1] != newline)
+                    {
+                        continue;
+                    }
+                    if (chunk[i - 2] == carriageReturn || chunk[i - 2] == newline)
                     {
                         // done.
                         // don't just break, as this will only quit
@@ -322,7 +338,10 @@ namespace Kabomu.ProtocolImpl
                         return;
                     }
                 }
-                previousChunkEndsWithLf = chunk[^1] == newline;
+                previousChunkEndsWithLf = chunk[^1] == carriageReturn ||
+                    chunk[^1] == newline;
+                previousChunkEndsWith2Lfs = previousChunkEndsWithLf &&
+                    (chunk[^2] == carriageReturn || chunk[^2] == newline);
             }
         }
     }

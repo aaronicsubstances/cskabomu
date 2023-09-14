@@ -31,6 +31,23 @@ namespace Kabomu.Tests.ProtocolImpl
         [Fact]
         public void TestEncodeRequestHeaders2()
         {
+            var resHeaders = new DefaultQuasiHttpRequest
+            {
+                HttpMethod = "POST",
+                HttpVersion = "".PadRight(496, '1')
+            };
+            int? maxHeadersSize = null;
+            var expected = "01\n" +
+                "POST,\"\"," + "".PadRight(496, '1') + ",0\n" +
+                "\n\n";
+            var actual = MiscUtilsInternal.BytesToString(QuasiHttpCodec.EncodeRequestHeaders(resHeaders,
+                maxHeadersSize));
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void TestEncodeRequestHeaders3()
+        {
             IQuasiHttpRequest reqHeaders = new DefaultQuasiHttpRequest
             {
                 HttpMethod = "GET",
@@ -62,7 +79,7 @@ namespace Kabomu.Tests.ProtocolImpl
         }
 
         [Fact]
-        public void TestEncodeRequestHeaders3()
+        public void TestEncodeRequestHeaders4()
         {
             IQuasiHttpRequest reqHeaders = new DefaultQuasiHttpRequest
             {
@@ -143,6 +160,22 @@ namespace Kabomu.Tests.ProtocolImpl
         {
             var resHeaders = new DefaultQuasiHttpResponse
             {
+                HttpVersion = "".PadRight(500, '1')
+            };
+            int? maxHeadersSize = null;
+            var expected = "01\n" +
+                "0,\"\"," + "".PadRight(500, '1') + ",0\n" +
+                "".PadRight(513, '\n');
+            var actual = MiscUtilsInternal.BytesToString(QuasiHttpCodec.EncodeResponseHeaders(resHeaders,
+                maxHeadersSize));
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void TestEncodeResponseHeaders3()
+        {
+            var resHeaders = new DefaultQuasiHttpResponse
+            {
                 StatusCode = 202,
                 HttpStatusMessage = "done",
                 HttpVersion = "HTTP/1.1" + "".PadRight(423, '2'),
@@ -170,7 +203,7 @@ namespace Kabomu.Tests.ProtocolImpl
         }
 
         [Fact]
-        public void TestEncodeResponseHeaders3()
+        public void TestEncodeResponseHeaders4()
         {
             var resHeaders = new DefaultQuasiHttpResponse
             {

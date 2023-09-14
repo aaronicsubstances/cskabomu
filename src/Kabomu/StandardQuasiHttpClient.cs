@@ -183,12 +183,20 @@ namespace Kabomu
             };
             QuasiHttpCodec.DecodeResponseHeaders(encodedResponseHeaders, 0,
                 encodedResponseHeaders.Length, response);
-            var responseStreamingEnabled =
-                await ProtocolUtilsInternal.DecodeResponseBodyFromTransport(
-                    response,
+            bool responseStreamingEnabled, applyResponseBuffering;
+            (response.Body, responseStreamingEnabled, applyResponseBuffering) =
+                ProtocolUtilsInternal.DecodeResponseBodyFromTransport(
+                    response.ContentLength,
+                    encodedResponseBody,
                     connection.Environment,
-                    connection.ProcessingOptions,
+                    connection.ProcessingOptions?.ResponseBufferingEnabled);
+            if (applyResponseBuffering)
+            {
+                response.Body = await ProtocolUtilsInternal.BufferResponseBody(
+                    response.ContentLength, response.Body,
+                    connection.ProcessingOptions?.ResponseBodyBufferingSizeLimit,
                     connection.CancellationToken);
+            }
             if (responseStreamingEnabled)
             {
                 response.Disposer = () =>

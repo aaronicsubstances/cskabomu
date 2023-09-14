@@ -20,12 +20,12 @@ namespace Kabomu.ProtocolImpl
         /// This field gives a number of which all header sizes are
         /// an integral multiple of.
         /// </summary>
-        public const int HeaderChunkSize = 512;
+        internal const int HeaderChunkSize = 512;
 
         /// <summary>
         /// First version of quasi web protocol.
         /// </summary>
-        public const string ProtocolVersion01 = "01";
+        internal const string ProtocolVersion01 = "01";
 
         /// <summary>
         /// Serializes quasi http request headers.
