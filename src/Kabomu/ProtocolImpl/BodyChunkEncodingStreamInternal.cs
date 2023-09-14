@@ -19,7 +19,7 @@ namespace Kabomu.ProtocolImpl
     /// in which the last chunk has zero data length
     /// and all the previous ones have non-empty data.
     /// </remarks>
-    public class BodyChunkEncodingStream : ReadableStreamBase
+    internal class BodyChunkEncodingStreamInternal : ReadableStreamBaseInternal
     {
         private static readonly int DefaultMaxBodyChunkDataSize = 8_192;
 
@@ -36,7 +36,7 @@ namespace Kabomu.ProtocolImpl
         /// </summary>
         /// <param name="backingStream">the source stream</param>
         /// <exception cref="ArgumentNullException">The <paramref name="backingStream"/> argument is null.</exception>
-        public BodyChunkEncodingStream(Stream backingStream)
+        public BodyChunkEncodingStreamInternal(Stream backingStream)
         {
             if (backingStream == null)
             {

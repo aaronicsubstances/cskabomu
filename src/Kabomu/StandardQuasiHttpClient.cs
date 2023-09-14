@@ -163,7 +163,7 @@ namespace Kabomu
             // send entire request first before
             // receiving of response.
             if (ProtocolUtilsInternal.GetEnvVarAsBoolean(request.Environment,
-                QuasiHttpCodec.EnvKeySkipSending) != true)
+                QuasiHttpUtils.EnvKeySkipSending) != true)
             {
                 var encodedRequestHeaders = QuasiHttpCodec.EncodeRequestHeaders(request,
                     connection.ProcessingOptions?.MaxHeadersSize);
@@ -173,19 +173,16 @@ namespace Kabomu
                     encodedRequestBody);
             }
 
-            var encodedResponseHeaders = new List<byte[]>();
-            var encodedResponseBody = await transport.Read(connection, true,
-                encodedResponseHeaders);
-            if (encodedResponseHeaders.Count == 0)
-            {
-                throw new QuasiHttpException("no response");
-            }
+            var (encodedResponseBody, encodedResponseHeaders) =
+                await ProtocolUtilsInternal.ReadEntityFromTransport(
+                    true, transport, connection);
 
             var response = new DefaultQuasiHttpResponse
             {
                 Body = encodedResponseBody
             };
-            QuasiHttpCodec.DecodeResponseHeaders(encodedResponseHeaders, response);
+            QuasiHttpCodec.DecodeResponseHeaders(encodedResponseHeaders, 0,
+                encodedResponseHeaders.Length, response);
             var responseStreamingEnabled =
                 await ProtocolUtilsInternal.DecodeResponseBodyFromTransport(
                     response,

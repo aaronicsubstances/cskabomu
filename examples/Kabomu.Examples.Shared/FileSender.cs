@@ -1,5 +1,4 @@
 ﻿using Kabomu.Abstractions;
-using Kabomu.ProtocolImpl;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -104,20 +103,48 @@ namespace Kabomu.Examples.Shared
                         _ => Task.FromResult<IQuasiHttpRequest>(request),
                         sendOptions);
                 }
-                if (echoBodyOn)
+                if (res.StatusCode == QuasiHttpUtils.StatusCodeOk)
                 {
-                    var actualResBody = MiscUtils.BytesToString(
-                        await MiscUtils.ReadAllBytes(res.Body));
-                    if (actualResBody != f.FullName)
+                    if (echoBodyOn)
                     {
-                        throw new Exception("expected echo body to be " +
-                            $"{f.FullName} but got {actualResBody}");
+                        var memStream = new MemoryStream();
+                        await res.Body.CopyToAsync(memStream);
+                        var actualResBody = Encoding.UTF8.GetString(
+                            memStream.ToArray());
+                        if (actualResBody != f.FullName)
+                        {
+                            throw new Exception("expected echo body to be " +
+                                $"{f.FullName} but got {actualResBody}");
+                        }
                     }
+                    LOG.Info("File {0} sent successfully", f.FullName);
+                }
+                else
+                {
+                    string responseMsg = "";
+                    if (res.Body != null)
+                    {
+                        try
+                        {
+                            var responseMsgBytes = new MemoryStream();
+                            await res.Body.CopyToAsync(responseMsgBytes);
+                            responseMsg = Encoding.UTF8.GetString(
+                                responseMsgBytes.ToArray());
+                        }
+                        catch (Exception)
+                        {
+                            // ignore.
+                        }
+                    }
+                    throw new Exception(string.Format(
+                        "status code indicates error: {0}\n{1}",
+                        res.StatusCode, responseMsg));
                 }
             }
-            catch (Exception)
+            catch (Exception e)
             {
-                LOG.Info("File {0} sent with error", f.FullName);
+                LOG.Info("File {0} sent with error: {1}", f.FullName,
+                    e.Message);
                 throw;
             }
             finally
@@ -127,30 +154,6 @@ namespace Kabomu.Examples.Shared
                 {
                     await res.DisposeAsync();
                 }
-            }
-
-            if (res.StatusCode == QuasiHttpCodec.StatusCodeOk)
-            {
-                LOG.Info("File {0} sent successfully", f.FullName);
-            }
-            else
-            {
-                string responseMsg = "";
-                if (res.Body != null)
-                {
-                    try
-                    {
-                        var responseMsgBytes = await MiscUtils.ReadAllBytes(res.Body);
-                        responseMsg = MiscUtils.BytesToString(responseMsgBytes);
-                    }
-                    catch (Exception)
-                    {
-                        // ignore.
-                    }
-                }
-                throw new Exception(string.Format(
-                    "status code indicates error: {0}\n{1}",
-                    res.StatusCode, responseMsg));
             }
         }
     }

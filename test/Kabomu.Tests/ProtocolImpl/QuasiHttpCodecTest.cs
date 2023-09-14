@@ -4,8 +4,10 @@ using Kabomu.ProtocolImpl;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -14,33 +16,6 @@ namespace Kabomu.Tests.ProtocolImpl
     public class QuasiHttpCodecTest
     {
         [Fact]
-        public void TestClassConstants()
-        {
-            Assert.Equal("CONNECT", QuasiHttpCodec.MethodConnect);
-            Assert.Equal("DELETE", QuasiHttpCodec.MethodDelete);
-            Assert.Equal("GET", QuasiHttpCodec.MethodGet);
-            Assert.Equal("HEAD", QuasiHttpCodec.MethodHead);
-            Assert.Equal("OPTIONS", QuasiHttpCodec.MethodOptions);
-            Assert.Equal("PATCH", QuasiHttpCodec.MethodPatch);
-            Assert.Equal("POST", QuasiHttpCodec.MethodPost);
-            Assert.Equal("PUT", QuasiHttpCodec.MethodPut);
-            Assert.Equal("TRACE", QuasiHttpCodec.MethodTrace);
-
-            Assert.Equal(200, QuasiHttpCodec.StatusCodeOk);
-            Assert.Equal(500, QuasiHttpCodec.StatusCodeServerError);
-            Assert.Equal(400, QuasiHttpCodec.StatusCodeClientErrorBadRequest);
-            Assert.Equal(401, QuasiHttpCodec.StatusCodeClientErrorUnauthorized);
-            Assert.Equal(403, QuasiHttpCodec.StatusCodeClientErrorForbidden);
-            Assert.Equal(404, QuasiHttpCodec.StatusCodeClientErrorNotFound);
-            Assert.Equal(405, QuasiHttpCodec.StatusCodeClientErrorMethodNotAllowed);
-            Assert.Equal(413, QuasiHttpCodec.StatusCodeClientErrorPayloadTooLarge);
-            Assert.Equal(414, QuasiHttpCodec.StatusCodeClientErrorURITooLong);
-            Assert.Equal(415, QuasiHttpCodec.StatusCodeClientErrorUnsupportedMediaType);
-            Assert.Equal(422, QuasiHttpCodec.StatusCodeClientErrorUnprocessableEntity);
-            Assert.Equal(429, QuasiHttpCodec.StatusCodeClientErrorTooManyRequests);
-        }
-
-        [Fact]
         public void TestEncodeRequestHeaders1()
         {
             IQuasiHttpRequest reqHeaders = new DefaultQuasiHttpRequest();
@@ -48,7 +23,7 @@ namespace Kabomu.Tests.ProtocolImpl
             var expected = "01\n" +
                 "\"\",\"\",\"\",0\n" +
                 "".PadRight(498, '\n');
-            var actual = MiscUtils.BytesToString(QuasiHttpCodec.EncodeRequestHeaders(reqHeaders,
+            var actual = MiscUtilsInternal.BytesToString(QuasiHttpCodec.EncodeRequestHeaders(reqHeaders,
                 maxHeadersSize));
             Assert.Equal(expected, actual);
         }
@@ -81,7 +56,7 @@ namespace Kabomu.Tests.ProtocolImpl
                 "hh,\"x,y\",71,uio\n" +
                 "year,1999,1956,2030\n" +
                 "".PadRight(422, '\n');
-            var actual = MiscUtils.BytesToString(QuasiHttpCodec.EncodeRequestHeaders(reqHeaders,
+            var actual = MiscUtilsInternal.BytesToString(QuasiHttpCodec.EncodeRequestHeaders(reqHeaders,
                 maxHeadersSize));
             Assert.Equal(expected, actual);
         }
@@ -111,7 +86,7 @@ namespace Kabomu.Tests.ProtocolImpl
                 "\"\",\"x,y\",56,uio\n" +
                 "year,1999,1956,2030\n" +
                 "".PadRight(512, '\n');
-            var actual = MiscUtils.BytesToString(QuasiHttpCodec.EncodeRequestHeaders(reqHeaders,
+            var actual = MiscUtilsInternal.BytesToString(QuasiHttpCodec.EncodeRequestHeaders(reqHeaders,
                 maxHeadersSize));
             Assert.Equal(expected, actual);
         }
@@ -158,7 +133,7 @@ namespace Kabomu.Tests.ProtocolImpl
             var expected = "01\n" +
                 "0,\"\",\"\",0\n" +
                 "".PadRight(499, '\n');
-            var actual = MiscUtils.BytesToString(QuasiHttpCodec.EncodeResponseHeaders(resHeaders,
+            var actual = MiscUtilsInternal.BytesToString(QuasiHttpCodec.EncodeResponseHeaders(resHeaders,
                 maxHeadersSize));
             Assert.Equal(expected, actual);
         }
@@ -189,7 +164,7 @@ namespace Kabomu.Tests.ProtocolImpl
                 "\"\",\"x,y\",56,uio\n" +
                 "year,1999,1956,2030\n" +
                 "".PadRight(10, '\n');
-            var actual = MiscUtils.BytesToString(QuasiHttpCodec.EncodeResponseHeaders(resHeaders,
+            var actual = MiscUtilsInternal.BytesToString(QuasiHttpCodec.EncodeResponseHeaders(resHeaders,
                 maxHeadersSize));
             Assert.Equal(expected, actual);
         }
@@ -214,7 +189,7 @@ namespace Kabomu.Tests.ProtocolImpl
                 "369,\"\",\"\",8\n" +
                 "really long,\"\"," + "\"i\"\"" + "".PadRight(475, ':') + "\"\n" +
                 "".PadRight(513, '\n');
-            var actual = MiscUtils.BytesToString(QuasiHttpCodec.EncodeResponseHeaders(resHeaders,
+            var actual = MiscUtilsInternal.BytesToString(QuasiHttpCodec.EncodeResponseHeaders(resHeaders,
                 maxHeadersSize));
             Assert.Equal(expected, actual);
         }
@@ -258,6 +233,26 @@ namespace Kabomu.Tests.ProtocolImpl
         {
             var expected = new DefaultQuasiHttpRequest
             {
+                HttpMethod = "",
+                Target = "",
+                HttpVersion = "",
+                ContentLength = 0,
+                Headers = new Dictionary<string, IList<string>>()
+            };
+            var byteChunk = MiscUtilsInternal.StringToBytes("01\n" +
+                "\"\",\"\",\"\",0\n" +
+                "".PadRight(498, '\n'));
+            var actual = new DefaultQuasiHttpRequest();
+            QuasiHttpCodec.DecodeRequestHeaders(byteChunk, 0, byteChunk.Length,
+                actual);
+            await ComparisonUtils.CompareRequests(expected, actual, null);
+        }
+
+        [Fact]
+        public async Task TestDecodeRequestHeaders2()
+        {
+            var expected = new DefaultQuasiHttpRequest
+            {
                 HttpMethod = "GET",
                 Target = "/bread",
                 HttpVersion = "HTTP/1.1",
@@ -272,23 +267,68 @@ namespace Kabomu.Tests.ProtocolImpl
                 }
             };
             var byteChunks = new List<byte[]>();
-            byteChunks.Add(MiscUtils.StringToBytes("01\n"));
-            byteChunks.Add(MiscUtils.StringToBytes("GET,/bread,HTTP/1.1,1817\n"));
-            byteChunks.Add(MiscUtils.StringToBytes("90,56,\"\"\n"));
-            byteChunks.Add(MiscUtils.StringToBytes("\"\",skip\n"));
-            byteChunks.Add(MiscUtils.StringToBytes("9,56,uio\n"));
-            byteChunks.Add(MiscUtils.StringToBytes("9\n"));
-            byteChunks.Add(MiscUtils.StringToBytes("hh,\"x,y\",71\n"));
-            byteChunks.Add(MiscUtils.StringToBytes("year,1999,1956,2030\n"));
-            byteChunks.Add(MiscUtils.StringToBytes("hh,uio"));
+            byteChunks.Add(new byte[90]);
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("01\n"));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("GET,/bread,HTTP/1.1,1817\n"));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("90,56,\"\"\n"));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("\"\",skip\n"));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("9,56,uio\n"));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("9\n"));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("hh,\"x,y\",71\n"));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("year,1999,1956,2030\n"));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("hh,uio"));
+            byteChunks.Add(new byte[100]);
             var actual = new DefaultQuasiHttpRequest();
-            QuasiHttpCodec.DecodeRequestHeaders(byteChunks,
-                actual);
+            var combined = MiscUtilsInternal.ConcatBuffers(byteChunks);
+            QuasiHttpCodec.DecodeRequestHeaders(combined, 90,
+                combined.Length - 190, actual);
             await ComparisonUtils.CompareRequests(expected, actual, null);
+        }
+
+        [Theory]
+        [InlineData("", "invalid quasi http request headers")]
+        [InlineData("\n\n", "invalid quasi http request headers")]
+        [InlineData("x\nGET,/d,1.1,9",
+            "invalid quasi http request headers")]
+        [InlineData("01", "invalid quasi http request headers")]
+        [InlineData("01\",m\"p]", "invalid quasi http request headers")]
+        [InlineData("01\n2", "invalid quasi http request line")]
+        [InlineData("01\nGET,/,1.1,x0",
+            "invalid quasi http request content length")]
+        public void TestDecodeRequestHeadersForErrors(string data,
+            string errorMsg)
+        {
+            var request = new DefaultQuasiHttpRequest();
+            var byteChunk = MiscUtilsInternal.StringToBytes(data);
+            var actualEx = Assert.Throws<QuasiHttpException>(() =>
+            {
+                QuasiHttpCodec.DecodeRequestHeaders(byteChunk, 0,
+                    byteChunk.Length, request);
+            });
+            Assert.Equal(errorMsg, actualEx.Message);
         }
 
         [Fact]
         public async Task TestDecodeResponseHeaders1()
+        {
+            var expected = new DefaultQuasiHttpResponse
+            {
+                StatusCode = 0,
+                HttpStatusMessage = "",
+                HttpVersion = "",
+                ContentLength = 0,
+                Headers = new Dictionary<string, IList<string>>()
+            };
+            var byteChunk = MiscUtilsInternal.StringToBytes("01\n" +
+                "0,\"\",\"\",0\n");
+            var actual = new DefaultQuasiHttpResponse();
+            QuasiHttpCodec.DecodeResponseHeaders(byteChunk, 0,
+                byteChunk.Length, actual);
+            await ComparisonUtils.CompareResponses(expected, actual, null);
+        }
+
+        [Fact]
+        public async Task TestDecodeResponseHeaders2()
         {
             var expected = new DefaultQuasiHttpResponse
             {
@@ -302,16 +342,46 @@ namespace Kabomu.Tests.ProtocolImpl
                 }
             };
             var byteChunks = new List<byte[]>();
-            byteChunks.Add(MiscUtils.StringToBytes("01\n"));
-            byteChunks.Add(MiscUtils.StringToBytes("369,\"\",\"\",8\n"));
-            byteChunks.Add(MiscUtils.StringToBytes("really long,\"\",\"i\"\""));
-            byteChunks.Add(MiscUtils.StringToBytes("".PadRight(475, ':')));
-            byteChunks.Add(MiscUtils.StringToBytes("\"\n"));
-            byteChunks.Add(MiscUtils.StringToBytes("".PadRight(513, '\n')));
+            byteChunks.Add(new byte[20]);
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("01\n"));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("369,\"\",\"\",8\n"));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("really long,\"\",\"i\"\""));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("".PadRight(475, ':')));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("\"\n"));
+            byteChunks.Add(MiscUtilsInternal.StringToBytes("".PadRight(513, '\n')));
+            byteChunks.Add(new byte[10]);
             var actual = new DefaultQuasiHttpResponse();
-            QuasiHttpCodec.DecodeResponseHeaders(byteChunks,
-                actual);
+            var combined = MiscUtilsInternal.ConcatBuffers(byteChunks);
+            QuasiHttpCodec.DecodeResponseHeaders(combined, 20,
+                combined.Length - 30, actual);
             await ComparisonUtils.CompareResponses(expected, actual, null);
+        }
+
+        [Theory]
+        [InlineData("", "invalid quasi http response headers")]
+        [InlineData("\n\n", "invalid quasi http response headers")]
+        [InlineData("x\n200,/d,1.1,9",
+            "invalid quasi http response headers")]
+        [InlineData("01", "invalid quasi http response headers")]
+        [InlineData("01\",n\"m",
+            "invalid quasi http response headers")]
+        [InlineData("01\n2", "invalid quasi http status line")]
+        [InlineData("01\n,ok,1.1,0",
+            "invalid quasi http response status code")]
+        [InlineData("01\n98,ok,1.1,x0",
+            "invalid quasi http response content length")]
+        public void TestDecodeResponseHeadersForErrors(string data,
+            string errorMsg)
+        {
+            var response = new DefaultQuasiHttpResponse();
+            var byteChunk = MiscUtilsInternal.StringToBytes(data);
+            var actualEx = Assert.Throws<QuasiHttpException>(() =>
+            {
+                QuasiHttpCodec.DecodeResponseHeaders(
+                    byteChunk, 0, byteChunk.Length,
+                    response);
+            });
+            Assert.Equal(errorMsg, actualEx.Message);
         }
     }
 }

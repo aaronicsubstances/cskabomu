@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Xunit;
@@ -726,6 +727,137 @@ namespace Kabomu.Tests.ProtocolImpl
             await Assert.ThrowsAsync<ArgumentNullException>(() =>
                 ProtocolUtilsInternal.CompleteWorkTask(
                     workTask, timeoutTask, cancellationTask));
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestReadEncodedHeadersData))]
+        public async Task TestReadEncodedHeaders(string srcData,
+            int maxHeadersSize, string expectedErrorSubstring)
+        {
+            var inputStream = new MemoryStream(
+                MiscUtilsInternal.StringToBytes(srcData));
+            inputStream.Position = 0; // reset for reading
+            var encodedHeadersReceiver = new List<byte[]>();
+            CancellationToken cancellationToken = default;
+            await ProtocolUtilsInternal.ReadEncodedHeaders(inputStream,
+                encodedHeadersReceiver, maxHeadersSize,
+                cancellationToken);
+            var actual = MiscUtilsInternal.BytesToString(
+                MiscUtilsInternal.ConcatBuffers(encodedHeadersReceiver));
+            Assert.Equal(expectedErrorSubstring, actual);
+        }
+
+        public static List<object[]> CreateTestReadEncodedHeadersData()
+        {
+            var testData = new List<object[]>();
+
+            var srcData = "".PadRight(510) +
+                "\n\n";
+            int maxHeadersSize = 0;
+            var expected = srcData;
+            testData.Add(new object[] { srcData, maxHeadersSize, expected });
+
+            srcData = "".PadRight(511) +
+                "\n\n" + "".PadRight(511);
+            maxHeadersSize = 1_024;
+            expected = srcData;
+            testData.Add(new object[] { srcData, maxHeadersSize, expected });
+
+            srcData = "".PadRight(510) +
+                "\n\n\n";
+            expected = "".PadRight(510) + "\n\n";
+            maxHeadersSize = 513;
+            testData.Add(new object[] { srcData, maxHeadersSize, expected });
+
+            srcData = "".PadRight(511) +
+                "".PadRight(1000, '\n');
+            maxHeadersSize = 2_000;
+            expected = "".PadRight(511) + "".PadRight(513, '\n');
+            testData.Add(new object[] { srcData, maxHeadersSize, expected });
+
+            srcData = "";
+            expected = "";
+            for (int i = 0; i < 512; i++)
+            {
+                srcData += "\r\n";
+                expected += "\r\n";
+            }
+            srcData += "\n" + "".PadRight(1_000);
+            maxHeadersSize = 3_000;
+            expected += "\n" + "".PadRight(511);
+            testData.Add(new object[] { srcData, maxHeadersSize, expected });
+
+            return testData;
+        }
+
+        [Fact]
+        public async Task TestReadEncodedHeadersForCancellation()
+        {
+            var srcData = "".PadRight(510) + "\n\n";
+            var inputStream = new MemoryStream(
+                MiscUtilsInternal.StringToBytes(srcData));
+            inputStream.Position = 0; // reset for reading
+            var encodedHeadersReceiver = new List<byte[]>();
+            var cts = new CancellationTokenSource();
+            cts.Cancel();
+            var actualEx = await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+            {
+                await ProtocolUtilsInternal.ReadEncodedHeaders(inputStream,
+                    encodedHeadersReceiver, 0,
+                    cts.Token);
+            });
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestReadEncodedHeadersForErrorsData))]
+        public async Task TestReadEncodedHeadersForErrors(string srcData,
+            int maxHeadersSize, string expectedErrorSubstring)
+        {
+            var inputStream = new MemoryStream(
+                MiscUtilsInternal.StringToBytes(srcData));
+            inputStream.Position = 0; // reset for reading
+            var encodedHeadersReceiver = new List<byte[]>();
+            CancellationToken cancellationToken = default;
+            var actualEx = await Assert.ThrowsAnyAsync<Exception>(async () =>
+            {
+                await ProtocolUtilsInternal.ReadEncodedHeaders(inputStream,
+                    encodedHeadersReceiver, maxHeadersSize,
+                    cancellationToken);
+            });
+            Assert.Contains(expectedErrorSubstring, actualEx.Message);
+        }
+
+        public static List<object[]> CreateTestReadEncodedHeadersForErrorsData()
+        {
+            var testData = new List<object[]>();
+
+            var srcData = "".PadRight(510) +
+                "\r\n\n";
+            int maxHeadersSize = 512;
+            var expectedErrMsgSubstr = "read exceed max size";
+            testData.Add(new object[] { srcData, maxHeadersSize,
+                expectedErrMsgSubstr });
+
+            srcData = "".PadRight(1511);
+            maxHeadersSize = 0;
+            expectedErrMsgSubstr = "end of read";
+            testData.Add(new object[] { srcData, maxHeadersSize,
+                expectedErrMsgSubstr });
+
+            srcData = "";
+            maxHeadersSize = 0;
+            expectedErrMsgSubstr = "end of read";
+            testData.Add(new object[] { srcData, maxHeadersSize,
+                expectedErrMsgSubstr });
+
+            srcData = "".PadRight(510) +
+                "\n\r\n";
+            maxHeadersSize = 513;
+            expectedErrMsgSubstr = "read exceed max size";
+            testData.Add(new object[] { srcData, maxHeadersSize,
+                expectedErrMsgSubstr });
+
+            return testData;
         }
     }
 }

@@ -1,12 +1,11 @@
-﻿using Kabomu.Abstractions;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu.ProtocolImpl
+namespace Kabomu.Abstractions
 {
     /// <summary>
     /// Provides default implementation of <see cref="IQuasiHttpRequest"/>

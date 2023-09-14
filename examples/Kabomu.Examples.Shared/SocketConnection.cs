@@ -4,7 +4,6 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using Kabomu.Abstractions;
-using Kabomu.ProtocolImpl;
 using System.IO;
 using System.Threading;
 using NLog;
@@ -22,7 +21,6 @@ namespace Kabomu.Examples.Shared
             new DefaultQuasiHttpProcessingOptions();
 
         private readonly Socket _socket;
-        private readonly Stream _inputStream;
         private readonly ICancellableTimeoutTask _timeoutId;
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly string _owner; // for debugging
@@ -35,10 +33,9 @@ namespace Kabomu.Examples.Shared
             Log.Debug("creating connection for {0}", _owner);
 
             _socket = socket ?? throw new ArgumentNullException(nameof(socket));
-            _inputStream = new SocketBackedStream(socket);
-            ProcessingOptions = MiscUtils.MergeProcessingOptions(processingOptions,
+            ProcessingOptions = QuasiHttpUtils.MergeProcessingOptions(processingOptions,
                 fallbackProcessingOptions) ?? DefaultProcessingOptions;
-            _timeoutId = MiscUtils.CreateCancellableTimeoutTask(
+            _timeoutId = QuasiHttpUtils.CreateCancellableTimeoutTask(
                 ProcessingOptions.TimeoutMillis);
             _cancellationTokenSource = new CancellationTokenSource();
         }
@@ -48,19 +45,6 @@ namespace Kabomu.Examples.Shared
         public CancellationToken CancellationToken =>
             _cancellationTokenSource.Token;
         public IDictionary<string, object> Environment { get; set; }
-
-        private async Task WriteSocketBytes(byte[] data, int offset, int length)
-        {
-            int totalBytesSent = 0;
-            while (totalBytesSent < length)
-            {
-                int bytesSent = await _socket.SendAsync(
-                    new ReadOnlyMemory<byte>(data,
-                        offset + totalBytesSent,
-                        length - totalBytesSent), SocketFlags.None);
-                totalBytesSent += bytesSent;
-            }
-        }
 
         public Task Release(bool responseStreamingEnabled)
         {
@@ -85,24 +69,25 @@ namespace Kabomu.Examples.Shared
             Stream body)
         {
             Log.Debug($"writing {GetUsageTag(isResponse)} for {_owner}...");
-            await WriteSocketBytes(encodedHeaders, 0, encodedHeaders.Length);
+            // since NetworkStream demands that socket is connected before
+            // creating instances of it, create on the fly.
+            var stream = new NetworkStream(_socket);
+            await stream.WriteAsync(encodedHeaders);
             if (body != null)
             {
-                await MiscUtils.CopyBytesToSink(body, WriteSocketBytes, -1,
-                    CancellationToken);
+                await body.CopyToAsync(stream, CancellationToken);
             }
             Log.Debug($"done writing {GetUsageTag(isResponse)} for {_owner}.");
         }
 
-        public async Task<Stream> Read(bool isResponse,
+        public Task<Stream> Read(bool isResponse,
             List<byte[]> encodedHeadersReceiver)
         {
-            Log.Debug($"reading {GetUsageTag(isResponse)} for {_owner}...");
-            await QuasiHttpCodec.ReadEncodedHeaders(_inputStream,
-                encodedHeadersReceiver, ProcessingOptions.MaxHeadersSize,
-                CancellationToken);
-            Log.Debug($"done reading {GetUsageTag(isResponse)} for {_owner}.");
-            return _inputStream;
+            Log.Debug($"read {GetUsageTag(isResponse)} called for {_owner}...");
+            // since NetworkStream demands that socket is connected before
+            // creating instances of it, create on the fly.
+            Stream stream = new NetworkStream(_socket);
+            return Task.FromResult(stream);
         }
     }
 }

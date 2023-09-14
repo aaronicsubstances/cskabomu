@@ -12,7 +12,7 @@ namespace Kabomu.ProtocolImpl
     /// <summary>
     /// Wraps another stream to ensure a given amount of bytes are read.
     /// </summary>
-    public class ContentLengthEnforcingStream : ReadableStreamBase
+    internal class ContentLengthEnforcingStreamInternal : ReadableStreamBaseInternal
     {
         private readonly Stream _backingStream;
         private readonly long _contentLength;
@@ -25,7 +25,7 @@ namespace Kabomu.ProtocolImpl
         /// <param name="contentLength">the expected number of bytes to guarantee or assert.</param>
         /// <exception cref="ArgumentNullException">The <paramref name="backingStream"/> argument is null.</exception>
         /// <exception cref="ArgumentException">The <paramref name="contentLength"/> argument is negative</exception>
-        public ContentLengthEnforcingStream(Stream backingStream, long contentLength)
+        public ContentLengthEnforcingStreamInternal(Stream backingStream, long contentLength)
         {
             if (backingStream == null)
             {

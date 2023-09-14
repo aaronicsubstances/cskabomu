@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace Kabomu
 {
-    public class AsyncEnumerableBackedStream : ReadableStreamBase
+    internal class AsyncEnumerableBackedStream : ReadableStreamBaseInternal
     {
         private byte[] _outstandingChunk;
         private int _usedOffset;

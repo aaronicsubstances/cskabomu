@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 namespace Kabomu.ProtocolImpl
 {
     /// <summary>
-    /// Counterpart to <see cref="BodyChunkEncodingStream"/> that can
-    /// encode quasi http body chunks in accordance with the quasi web protocol
-    /// defined in the Kabomu library, on the fly to any destination
+    /// The standard encoder of quasi http body chunks on the fly
+    /// in accordance with the quasi web protocol
+    /// defined in the Kabomu library, to any destination
     /// represented by a function which consumes byte chunks.
     /// </summary>
     public class BodyChunkEncodingWriter
@@ -31,7 +31,7 @@ namespace Kabomu.ProtocolImpl
 
         static BodyChunkEncodingWriter()
         {
-            V1HeaderPrefix = MiscUtils.StringToBytes(
+            V1HeaderPrefix = MiscUtilsInternal.StringToBytes(
                 QuasiHttpCodec.ProtocolVersion01 + ",");
         }
 
@@ -131,7 +131,7 @@ namespace Kabomu.ProtocolImpl
             {
                 throw new ArgumentNullException(nameof(sink));
             }
-            if (!MiscUtils.IsValidByteBufferSlice(data, offset, length))
+            if (!MiscUtilsInternal.IsValidByteBufferSlice(data, offset, length))
             {
                 throw new ArgumentException("invalid byte buffer slice");
             }

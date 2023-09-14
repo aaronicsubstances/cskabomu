@@ -79,7 +79,9 @@ namespace Kabomu.Tests.Shared
                 return;
             }
             Assert.NotNull(actual);
-            var actualBodyBytes = (await MiscUtils.ReadAllBytes(actual)).ToArray();
+            var memStream = new MemoryStream();
+            await actual.CopyToAsync(memStream);
+            var actualBodyBytes = memStream.ToArray();
             Assert.Equal(expectedBodyBytes, actualBodyBytes);
         }
 

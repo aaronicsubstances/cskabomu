@@ -103,19 +103,16 @@ namespace Kabomu
             IQuasiHttpServerTransport transport,
             IQuasiHttpConnection connection)
         {
-            var encodedRequestHeaders = new List<byte[]>();
-            var encodedRequestBody = await transport.Read(connection, false,
-                encodedRequestHeaders);
-            if (encodedRequestHeaders.Count == 0)
-            {
-                throw new QuasiHttpException("no request");
-            }
+            var (encodedRequestBody, encodedRequestHeaders) =
+                await ProtocolUtilsInternal.ReadEntityFromTransport(
+                    false, transport, connection);
 
             var request = new DefaultQuasiHttpRequest
             {
                 Environment = connection.Environment
             };
-            QuasiHttpCodec.DecodeRequestHeaders(encodedRequestHeaders, request);
+            QuasiHttpCodec.DecodeRequestHeaders(encodedRequestHeaders, 0,
+                encodedRequestHeaders.Length, request);
             request.Body = ProtocolUtilsInternal.DecodeRequestBodyFromTransport(
                 request.ContentLength, encodedRequestBody);
 
@@ -128,7 +125,7 @@ namespace Kabomu
             try
             {
                 if (ProtocolUtilsInternal.GetEnvVarAsBoolean(response.Environment,
-                    QuasiHttpCodec.EnvKeySkipSending) != true)
+                    QuasiHttpUtils.EnvKeySkipSending) != true)
                 {
                     var encodedResponseHeaders = QuasiHttpCodec.EncodeResponseHeaders(response,
                         connection.ProcessingOptions?.MaxHeadersSize);

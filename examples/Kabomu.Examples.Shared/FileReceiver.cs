@@ -1,5 +1,4 @@
 ﻿using Kabomu.Abstractions;
-using Kabomu.ProtocolImpl;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -39,7 +38,7 @@ namespace Kabomu.Examples.Shared
                 string p = Path.Combine(directory.Name, fileName);
                 using (var fileStream = new FileStream(p, FileMode.Create))
                 {
-                    await MiscUtils.CopyBytesToStream(request.Body, fileStream);
+                    await request.Body.CopyToAsync(fileStream);
                 }
             }
             catch (Exception e)
@@ -54,7 +53,7 @@ namespace Kabomu.Examples.Shared
             string responseBody = null;
             if (transferError == null)
             {
-                response.StatusCode = QuasiHttpCodec.StatusCodeOk;
+                response.StatusCode = QuasiHttpUtils.StatusCodeOk;
                 if (request.Headers.ContainsKey("echo-body"))
                 {
                     responseBody = string.Join(',', request.Headers["echo-body"]);
@@ -62,12 +61,12 @@ namespace Kabomu.Examples.Shared
             }
             else
             {
-                response.StatusCode = QuasiHttpCodec.StatusCodeServerError;
+                response.StatusCode = QuasiHttpUtils.StatusCodeServerError;
                 responseBody = transferError.Message;
             }
             if (responseBody != null)
             {
-                var responseBytes = MiscUtils.StringToBytes(responseBody);
+                var responseBytes = Encoding.UTF8.GetBytes(responseBody);
                 response.Body = new MemoryStream(responseBytes);
                 response.ContentLength = responseBytes.Length;
                 if (!FileSender.TurnOffComplexFeatures &&

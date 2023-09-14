@@ -15,7 +15,7 @@ namespace Kabomu.Abstractions
     /// Optionally one can also override <see cref="Stream.ReadByte"/> for
     /// efficiency gains when reading from an internal buffer.
     /// </remarks>
-    public abstract class ReadableStreamBase : Stream
+    internal abstract class ReadableStreamBaseInternal : Stream
     {
         public override bool CanRead => true;
 
@@ -60,7 +60,7 @@ namespace Kabomu.Abstractions
         public override async Task CopyToAsync(Stream destination, int bufferSize,
             CancellationToken cancellationToken)
         {
-            await MiscUtils.CopyBytesToSink(this,
+            await IOUtilsInternal.CopyBytesToSink(this,
                 (data, offset, length) =>
                     destination.WriteAsync(data, offset, length, cancellationToken),
                 bufferSize,

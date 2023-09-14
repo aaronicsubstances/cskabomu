@@ -18,7 +18,7 @@ namespace Kabomu.ProtocolImpl
     /// an unknown number of one or more body chunks, in which the last chunk has
     /// zero data length and all the previous ones have non-empty data.
     /// </remarks>
-    public class BodyChunkDecodingStream : ReadableStreamBase
+    internal class BodyChunkDecodingStreamInternal : ReadableStreamBaseInternal
     {
         private readonly Stream _backingStream;
         private readonly byte[] _decodingBuffer;
@@ -30,7 +30,7 @@ namespace Kabomu.ProtocolImpl
         /// </summary>
         /// <param name="backingStream">the source stream</param>
         /// <exception cref="ArgumentNullException">The <paramref name="backingStream"/> argument is null.</exception>
-        public BodyChunkDecodingStream(Stream backingStream)
+        public BodyChunkDecodingStreamInternal(Stream backingStream)
         {
             if (backingStream == null)
             {
@@ -137,7 +137,7 @@ namespace Kabomu.ProtocolImpl
         {
             try
             {
-                MiscUtils.ReadBytesFullySync(_backingStream,
+                IOUtilsInternal.ReadBytesFullySync(_backingStream,
                     _decodingBuffer, 0, _decodingBuffer.Length);
             }
             catch (Exception e)
@@ -154,7 +154,7 @@ namespace Kabomu.ProtocolImpl
         {
             try
             {
-                await MiscUtils.ReadBytesFully(_backingStream,
+                await IOUtilsInternal.ReadBytesFully(_backingStream,
                     _decodingBuffer, 0, _decodingBuffer.Length,
                     cancellationToken);
             }
@@ -169,39 +169,23 @@ namespace Kabomu.ProtocolImpl
 
         private int DecodeSubsequentChunkV1Header()
         {
-            var csv = CsvUtils.Deserialize(MiscUtils.BytesToString(
+            var csv = CsvUtils.Deserialize(MiscUtilsInternal.BytesToString(
                 _decodingBuffer));
-            if (csv.Count == 0)
+            if (csv.Count == 0 || csv[0].Count < 2 ||
+                csv[0][0] != QuasiHttpCodec.ProtocolVersion01)
             {
                 throw new KabomuIOException("invalid quasi http body chunk header");
             }
-            var specialHeader = csv[0];
-            if (specialHeader.Count < 2)
-            {
-                throw new KabomuIOException("invalid quasi http body chunk header");
-            }
-            // validate version column as valid positive integer.
-            int v;
-            try
-            {
-                v = MiscUtils.ParseInt32(specialHeader[0]);
-            }
-            catch (FormatException)
-            {
-                throw new KabomuIOException("invalid quasi http body chunk version: " + specialHeader[0]);
-            }
-            if (v <= 0)
-            {
-                throw new KabomuIOException("invalid quasi http body chunk version: " + v);
-            }
+            var lengthOfDataStr = csv[0][1];
             int lengthOfData;
             try
             {
-                lengthOfData = MiscUtils.ParseInt32(specialHeader[1]);
+                lengthOfData = MiscUtilsInternal.ParseInt32(lengthOfDataStr);
             }
             catch (FormatException)
             {
-                throw new KabomuIOException("invalid quasi http body chunk length: " + specialHeader[1]);
+                throw new KabomuIOException("invalid quasi http body chunk length: " +
+                    lengthOfDataStr);
             }
             if (lengthOfData < 0)
             {

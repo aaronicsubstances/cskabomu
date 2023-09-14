@@ -1,5 +1,4 @@
 ﻿using Kabomu.Abstractions;
-using Kabomu.ProtocolImpl;
 using NLog;
 using System;
 using System.Collections.Generic;
@@ -34,9 +33,9 @@ namespace Kabomu.Examples.Shared
             Log.Debug("creating connection for {0}", _owner);
 
             _stream = stream ?? throw new ArgumentNullException(nameof(stream));
-            ProcessingOptions = MiscUtils.MergeProcessingOptions(processingOptions,
+            ProcessingOptions = QuasiHttpUtils.MergeProcessingOptions(processingOptions,
                 fallbackProcessingOptions) ?? DefaultProcessingOptions;
-            _timeoutId = MiscUtils.CreateCancellableTimeoutTask(
+            _timeoutId = QuasiHttpUtils.CreateCancellableTimeoutTask(
                 ProcessingOptions.TimeoutMillis);
             _cancellationTokenSource = new CancellationTokenSource();
         }
@@ -72,21 +71,16 @@ namespace Kabomu.Examples.Shared
             await _stream.WriteAsync(encodedHeaders, 0, encodedHeaders.Length);
             if (body != null)
             {
-                await MiscUtils.CopyBytesToStream(body, _stream,
-                    CancellationToken);
+                await body.CopyToAsync(_stream, CancellationToken);
             }
             Log.Debug($"done writing {GetUsageTag(isResponse)} for {_owner}.");
         }
 
-        public async Task<Stream> Read(bool isResponse,
+        public Task<Stream> Read(bool isResponse,
             List<byte[]> encodedHeadersReceiver)
         {
-            Log.Debug($"reading {GetUsageTag(isResponse)} for {_owner}...");
-            await QuasiHttpCodec.ReadEncodedHeaders(_stream,
-                encodedHeadersReceiver, ProcessingOptions.MaxHeadersSize,
-                CancellationToken);
-            Log.Debug($"done reading {GetUsageTag(isResponse)} for {_owner}.");
-            return _stream;
+            Log.Debug($"read {GetUsageTag(isResponse)} called for {_owner}...");
+            return Task.FromResult(_stream);
         }
     }
 }
