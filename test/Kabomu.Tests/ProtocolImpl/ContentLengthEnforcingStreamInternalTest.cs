@@ -63,7 +63,7 @@ namespace Kabomu.Tests.ProtocolImpl
             // assert
             Assert.Equal(expected, actual);
 
-            // 3. arrange again with slow sync
+            // 4. arrange again with slow sync
             stream = new RandomizedReadInputStream(
                 MiscUtilsInternal.StringToBytes(srcData));
             instance = new ContentLengthEnforcingStreamInternal(stream,

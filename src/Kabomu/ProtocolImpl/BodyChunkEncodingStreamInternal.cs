@@ -44,7 +44,7 @@ namespace Kabomu.ProtocolImpl
             }
             _backingStream = backingStream;
             _chunkData = new byte[DefaultMaxBodyChunkDataSize];
-            _chunkPrefix = BodyChunkEncodingWriter.AllocateBodyChunkHeaderBuffer();
+            _chunkPrefix = BodyChunkEncodingWriter.AllocateBodyChunkV1HeaderBuffer();
         }
 
         public override int ReadByte()
@@ -80,10 +80,11 @@ namespace Kabomu.ProtocolImpl
                 }
                 FillFromSource();
             }
-            return FillFromOutstanding(buffer);
+            return FillFromOutstanding(buffer, offset, count);
         }
 
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer,
+        public override async Task<int> ReadAsync(
+            byte[] data, int offset, int length,
             CancellationToken cancellationToken = default)
         {
             if (_endOfReadSeen)
@@ -100,7 +101,7 @@ namespace Kabomu.ProtocolImpl
                 }
                 await FillFromSourceAsync(cancellationToken);
             }
-            return FillFromOutstanding(buffer);
+            return FillFromOutstanding(data, offset, length);
         }
 
         private void FillFromSource()
@@ -120,20 +121,19 @@ namespace Kabomu.ProtocolImpl
             _usedOffset = 0;
         }
 
-        private int FillFromOutstanding(Memory<byte> buffer)
+        private int FillFromOutstanding(byte[] data, int offset, int length)
         {
-            var nextChunkLength = Math.Min(buffer.Length,
+            var nextChunkLength = Math.Min(length,
                 _usedChunkPrefixLength + _usedChunkDataLength - _usedOffset);
-            var span = buffer.Span;
             for (int i = 0; i < nextChunkLength; i++)
             {
                 if (_usedOffset < _usedChunkPrefixLength)
                 {
-                    span[i] = _chunkPrefix[_usedOffset];
+                    data[offset + i] = _chunkPrefix[_usedOffset];
                 }
                 else
                 {
-                    span[i] = _chunkData[_usedOffset - _usedChunkPrefixLength];
+                    data[offset + i] = _chunkData[_usedOffset - _usedChunkPrefixLength];
                 }
                 _usedOffset++;
             }

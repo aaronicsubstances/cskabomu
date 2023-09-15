@@ -23,8 +23,11 @@ namespace Kabomu.ProtocolImpl
 
         /// <summary>
         /// The maximum allowable body chunk data length.
+        /// NB: was reduced from 2 to 1 billion to make it
+        /// easier to test for more than 2 iterations of
+        /// loop in <see cref="EncodeBodyChunkV1"/> method.
         /// </summary>
-        private const int MaxBodyChunkLength = 2_000_000_000;
+        private const int MaxBodyChunkLength = 1_000_000_000;
 
         private static readonly byte[] V1HeaderPrefix;
         private readonly byte[] _encodingBuffer;
@@ -40,10 +43,10 @@ namespace Kabomu.ProtocolImpl
         /// </summary>
         public BodyChunkEncodingWriter()
         {
-            _encodingBuffer = AllocateBodyChunkHeaderBuffer();
+            _encodingBuffer = AllocateBodyChunkV1HeaderBuffer();
         }
 
-        internal static byte[] AllocateBodyChunkHeaderBuffer()
+        internal static byte[] AllocateBodyChunkV1HeaderBuffer()
         {
             return new byte[V1HeaderPrefix.Length +
                 LengthOfEncodedBodyChunkLength];
@@ -105,7 +108,7 @@ namespace Kabomu.ProtocolImpl
             {
                 throw new ArgumentNullException(nameof(sink));
             }
-            return WriteData(data, 0, data.Length, sink);
+            return EncodeBodyChunkV1(data, 0, data.Length, sink);
         }
 
         /// <summary>
@@ -135,6 +138,18 @@ namespace Kabomu.ProtocolImpl
             {
                 throw new ArgumentException("invalid byte buffer slice");
             }
+            await EncodeBodyChunkV1(data, offset, length, sink);
+        }
+
+        /// <summary>
+        /// This separation is meant to enable testing huge lengths
+        /// without actually allocating byte arrays.
+        /// In other words validation of byte buffer slice is skipped.
+        /// </summary>
+        internal async Task EncodeBodyChunkV1(
+            byte[] data, int offset, int length,
+            Func<byte[], int, int, Task> sink)
+        {
             int endOffset = offset + length;
             while (offset < endOffset)
             {

@@ -730,6 +730,154 @@ namespace Kabomu.Tests.ProtocolImpl
         }
 
         [Theory]
+        [MemberData(nameof(CreateTestBufferResponseBodyData))]
+        public async Task TestBufferResponseBody(long contentLength,
+            Stream body, int? bufferingSizeLimit, byte[] expected)
+        {
+            var actual = await ProtocolUtilsInternal.BufferResponseBody(
+                contentLength, body, bufferingSizeLimit,
+                CancellationToken.None);
+            var memoryStream = new MemoryStream();
+            await actual.CopyToAsync(memoryStream);
+            Assert.Equal(expected, memoryStream.ToArray());
+        }
+
+        public static List<object[]> CreateTestBufferResponseBodyData()
+        {
+            var testData = new List<object[]>();
+
+            long contentLength = -1;
+            Stream body = new MemoryStream();
+            int? bufferingSizeLimit = 1;
+            var expected = new byte[0];
+            testData.Add(new object[] { contentLength, body,
+                bufferingSizeLimit, expected });
+
+            contentLength = 0;
+            body = new MemoryStream();
+            bufferingSizeLimit = 1;
+            expected = new byte[0];
+            testData.Add(new object[] { contentLength, body,
+                bufferingSizeLimit, expected });
+
+            contentLength = 6;
+            body = new MemoryStream(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                10 });
+            expected = new byte[] { 1, 2, 3, 4, 5, 6 };
+            bufferingSizeLimit = 100;
+            testData.Add(new object[] { contentLength, body,
+                bufferingSizeLimit, expected });
+
+            contentLength = 10;
+            expected = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                10 };
+            body = new RandomizedReadInputStream(expected);
+            bufferingSizeLimit = 10;
+            testData.Add(new object[] { contentLength, body,
+                bufferingSizeLimit, expected });
+
+            contentLength = -1;
+            expected = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                10 };
+            body = new MemoryStream(expected);
+            bufferingSizeLimit = 10;
+            testData.Add(new object[] { contentLength, body,
+                bufferingSizeLimit, expected });
+
+            contentLength = -1;
+            expected = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                10 };
+            body = new RandomizedReadInputStream(expected);
+            bufferingSizeLimit = 0;
+            testData.Add(new object[] { contentLength, body,
+                bufferingSizeLimit, expected });
+
+            contentLength = -1;
+            expected = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                10 };
+            body = new RandomizedReadInputStream(expected);
+            bufferingSizeLimit = null;
+            testData.Add(new object[] { contentLength, body,
+                bufferingSizeLimit, expected });
+
+            return testData;
+        }
+
+        [Fact]
+        public async Task TestBufferResponseBodyForCancellation1()
+        {
+            long contentLength = 11;
+            Stream body = new MemoryStream(new byte[11]);
+            int? bufferingSizeLimit = 0;
+            var cts = new CancellationTokenSource();
+            cts.Cancel();
+            var actualEx = await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+            {
+                await ProtocolUtilsInternal.BufferResponseBody(
+                    contentLength, body, bufferingSizeLimit,
+                    cts.Token);
+            });
+        }
+
+        [Fact]
+        public async Task TestBufferResponseBodyForCancellation2()
+        {
+            long contentLength = -1;
+            Stream body = new MemoryStream(new byte[11]);
+            int? bufferingSizeLimit = 0;
+            var cts = new CancellationTokenSource();
+            cts.Cancel();
+            var actualEx = await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+            {
+                await ProtocolUtilsInternal.BufferResponseBody(
+                    contentLength, body, bufferingSizeLimit,
+                    cts.Token);
+            });
+        }
+
+        [Fact]
+        public async Task TestBufferResponseBodyForErrors1()
+        {
+            long contentLength = 12;
+            Stream body = new MemoryStream(new byte[11]);
+            int? bufferingSizeLimit = 0;
+            var actualEx = await Assert.ThrowsAsync<KabomuIOException>(async () =>
+            {
+                await ProtocolUtilsInternal.BufferResponseBody(
+                    contentLength, body, bufferingSizeLimit,
+                    CancellationToken.None);
+            });
+        }
+
+        [Fact]
+        public async Task TestBufferResponseBodyForErrors2()
+        {
+            long contentLength = 12;
+            Stream body = new MemoryStream(new byte[12]);
+            int? bufferingSizeLimit = 10;
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpException>(async () =>
+            {
+                await ProtocolUtilsInternal.BufferResponseBody(
+                    contentLength, body, bufferingSizeLimit,
+                    CancellationToken.None);
+            });
+        }
+
+        [Fact]
+        public async Task TestBufferResponseBodyForErrors3()
+        {
+            long contentLength = -1;
+            Stream body = new MemoryStream(new byte[11]);
+            int? bufferingSizeLimit = 10;
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpException>(async () =>
+            {
+                await ProtocolUtilsInternal.BufferResponseBody(
+                    contentLength, body, bufferingSizeLimit,
+                    CancellationToken.None);
+            });
+        }
+
+        [Theory]
         [MemberData(nameof(CreateTestReadEncodedHeadersData))]
         public async Task TestReadEncodedHeaders(string srcData,
             int maxHeadersSize, string expectedErrorSubstring)
