@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,11 +34,15 @@ namespace Kabomu.ProtocolImpl
         /// <param name="reqHeaders">source of quasi http request headers</param>
         /// <param name="maxHeadersSize">limit on size of serialized result.
         /// Can be null or zero for a default value to be used.</param>
-        /// <returns>serialized representation of quasi http request headeres</returns>
+        /// <returns>serialized representation of quasi http request headers</returns>
         public static byte[] EncodeRequestHeaders(
             IQuasiHttpRequest reqHeaders,
             int? maxHeadersSize = null)
         {
+            if (reqHeaders == null)
+            {
+                throw new ArgumentNullException(nameof(reqHeaders));
+            }
             var uniqueRow = new List<string>
             {
                 reqHeaders.HttpMethod ?? "",
@@ -55,11 +60,15 @@ namespace Kabomu.ProtocolImpl
         /// <param name="resHeaders">source of quasi http response headers</param>
         /// <param name="maxHeadersSize">limit on size of serialized result.
         /// Can be null or zero for a default value to be used.</param>
-        /// <returns>serialized representation of quasi http response headeres</returns>
+        /// <returns>serialized representation of quasi http response headers</returns>
         public static byte[] EncodeResponseHeaders(
             IQuasiHttpResponse resHeaders,
             int? maxHeadersSize = null)
         {
+            if (resHeaders == null)
+            {
+                throw new ArgumentNullException(nameof(resHeaders));
+            }
             var uniqueRow = new List<string>
             {
                 resHeaders.StatusCode.ToString(),

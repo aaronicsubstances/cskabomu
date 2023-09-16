@@ -75,13 +75,9 @@ namespace Kabomu
                 {
                     var timeoutTask = ProtocolUtilsInternal.WrapTimeoutTask(
                         connection.TimeoutTask, "receive timeout");
-                    await ProtocolUtilsInternal.CompleteWorkTask(
-                        acceptTask, timeoutTask);
+                    await Task.WhenAny(acceptTask, timeoutTask);
                 }
-                else
-                {
-                    await acceptTask;
-                }
+                await acceptTask;
             }
             catch (Exception e)
             {

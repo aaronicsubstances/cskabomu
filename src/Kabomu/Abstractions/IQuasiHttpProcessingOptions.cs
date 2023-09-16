@@ -29,7 +29,8 @@ namespace Kabomu.Abstractions
         /// receipt of responses.
         /// </summary>
         /// <remarks>
-        /// Note that zero and negative values will be interpreted as unspecified, and in the absence of any overriding options
+        /// Note that zero and negative values will be interpreted as unspecified,
+        /// and in the absence of any overriding options
         /// a client-specific default value will be used.
         /// </remarks>
         int MaxHeadersSize { get; set; }
@@ -43,7 +44,8 @@ namespace Kabomu.Abstractions
         /// by generating equivalent responses with buffered bodies.
         /// <para></para>
         /// Else a value of null means it is unspecified whether response buffering is enabled or not,
-        /// and so default action will have to be decided by quasi http transports.
+        /// and in the absence of any overriding options
+        /// a client-specific default value will be used.
         /// </summary>
         bool? ResponseBufferingEnabled { get; set; }
 
@@ -53,7 +55,8 @@ namespace Kabomu.Abstractions
         /// </summary>
         /// <remarks>
         /// Note that zero and negative values will be interpreted as unspecified,
-        /// and so default action will have to be decided by quasi http transports
+        /// and in the absence of any overriding options
+        /// a client-specific default value will be used.
         /// </remarks>
         int ResponseBodyBufferingSizeLimit { get; set; }
     }

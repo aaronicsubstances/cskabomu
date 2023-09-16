@@ -25,7 +25,6 @@ namespace Kabomu.Examples.Shared
         public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request)
         {
             var fileName = Path.GetFileName(request.Headers["f"][0]);
-            LOG.Debug("Starting receipt of file {0} from {1}...", fileName, remoteEndpoint);
 
             Exception transferError = null;
             try
@@ -38,6 +37,7 @@ namespace Kabomu.Examples.Shared
                 string p = Path.Combine(directory.Name, fileName);
                 using (var fileStream = new FileStream(p, FileMode.Create))
                 {
+                    LOG.Debug("Starting receipt of file {0} from {1}...", fileName, remoteEndpoint);
                     await request.Body.CopyToAsync(fileStream);
                 }
             }
@@ -46,13 +46,11 @@ namespace Kabomu.Examples.Shared
                 transferError = e;
             }
 
-            LOG.Info(transferError, "File {0} received {1}", fileName,
-                transferError == null ? "successfully" : "with error");
-
             var response = new DefaultQuasiHttpResponse();
             string responseBody = null;
             if (transferError == null)
             {
+                LOG.Info("File {0} received successfully", fileName);
                 response.StatusCode = QuasiHttpUtils.StatusCodeOk;
                 if (request.Headers.ContainsKey("echo-body"))
                 {
@@ -61,6 +59,8 @@ namespace Kabomu.Examples.Shared
             }
             else
             {
+                LOG.Error(transferError, "File {0} received with error",
+                    fileName);
                 response.StatusCode = QuasiHttpUtils.StatusCodeServerError;
                 responseBody = transferError.Message;
             }

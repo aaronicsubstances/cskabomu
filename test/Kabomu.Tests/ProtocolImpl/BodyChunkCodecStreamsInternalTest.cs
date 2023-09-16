@@ -74,5 +74,23 @@ namespace Kabomu.Tests.ProtocolImpl
             // assert
             Assert.Equal(expected, actual);
         }
+
+        [Theory]
+        [InlineData("", "01,0000000000")]
+        [InlineData("abc", "01,0000000003abc01,0000000000")]
+        public void TestEncodingWithSlowSync(string srcData, string expected)
+        {
+            // arrange
+            Stream instance = new MemoryStream(
+                MiscUtilsInternal.StringToBytes(srcData));
+            instance = new BodyChunkEncodingStreamInternal(instance);
+
+            // act
+            var actual = ComparisonUtils.ReadToStringSync(instance,
+                true);
+
+            // assert
+            Assert.Equal(expected, actual);
+        }
     }
 }

@@ -44,7 +44,7 @@ namespace Kabomu.Examples.Shared
             {
                 LOG.Debug("Transferring {0}", f.Name);
                 await TransferFile(instance, serverEndpoint, f);
-                LOG.Info("Successfully transferred {0}", f.Name);
+                LOG.Debug("Successfully transferred {0}", f.Name);
                 bytesTransferred += f.Length;
                 count++;
             }
@@ -143,7 +143,7 @@ namespace Kabomu.Examples.Shared
             }
             catch (Exception e)
             {
-                LOG.Info("File {0} sent with error: {1}", f.FullName,
+                LOG.Warn("File {0} sent with error: {1}", f.FullName,
                     e.Message);
                 throw;
             }
