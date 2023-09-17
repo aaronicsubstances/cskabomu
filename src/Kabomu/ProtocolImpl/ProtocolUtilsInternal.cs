@@ -60,6 +60,13 @@ namespace Kabomu.ProtocolImpl
             }
             if (true) // !SupportHttp10Only
             {
+                if (body == null)
+                {
+                    var errMsg = isResponse ?
+                        "no response body" :
+                        "no request body";
+                    throw new QuasiHttpException(errMsg);
+                }
                 if (contentLength < 0)
                 {
                     return new BodyChunkEncodingStreamInternal(body);
