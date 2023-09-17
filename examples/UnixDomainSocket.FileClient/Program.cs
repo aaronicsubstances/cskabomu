@@ -18,7 +18,8 @@ namespace UnixDomainSocket.FileClient
         public class Options
         {
             [Option('s', "server-path", Required = false,
-                HelpText = "Server Path. Defaults to 380d562f-554d-4b19-88ff-d92356a62b5f.sock")]
+                HelpText = "Server Path. Defaults to 380d562f-554d-4b19-88ff-d92356a62b5f.sock " +
+                    "in the current user's temp directory")]
             public string ServerPath { get; set; }
 
             [Option('d', "upload-dir", Required = false,
@@ -31,7 +32,9 @@ namespace UnixDomainSocket.FileClient
             Parser.Default.ParseArguments<Options>(args)
                    .WithParsed<Options>(o =>
                    {
-                       RunMain(o.ServerPath ?? "380d562f-554d-4b19-88ff-d92356a62b5f.sock",
+                       RunMain(
+                           o.ServerPath ?? Path.Combine(Path.GetTempPath(),
+                                "380d562f-554d-4b19-88ff-d92356a62b5f.sock"),
                            o.UploadDirPath ?? ".").Wait();
                    });
         }
@@ -52,7 +55,7 @@ namespace UnixDomainSocket.FileClient
 
             try
             {
-                LOG.Info("Created UnixDomainSocket.FileClient to {0}", serverPath);
+                LOG.Info("Connecting UnixDomainSocket.FileClient to {0}", serverPath);
 
                 await FileSender.StartTransferringFiles(instance, serverPath, uploadDirPath);
             }

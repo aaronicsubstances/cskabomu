@@ -16,7 +16,6 @@ namespace Kabomu.Examples.Shared
 
         public UnixDomainSocketServerTransport(string path)
         {
-            path = Path.Combine(Path.GetTempPath(), path);
             File.Delete(path); // recommended way of avoiding error
             // System.Net.Sockets.SocketException(10048): Only one usage of each socket 
             // address(protocol / network address / port) is normally permitted.

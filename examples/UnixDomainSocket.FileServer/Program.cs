@@ -5,6 +5,7 @@ using Kabomu.Examples.Shared;
 using Kabomu.ProtocolImpl;
 using NLog;
 using System;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace UnixDomainSocket.FileServer
@@ -16,7 +17,8 @@ namespace UnixDomainSocket.FileServer
         public class Options
         {
             [Option('p', "path", Required = false,
-                HelpText = "Server Path. Defaults to 380d562f-554d-4b19-88ff-d92356a62b5f.sock")]
+                HelpText = "Server Path. Defaults to 380d562f-554d-4b19-88ff-d92356a62b5f.sock " +
+                    "in the current user's temp directory")]
             public string Path { get; set; }
 
             [Option('d', "upload-dir", Required = false,
@@ -29,7 +31,10 @@ namespace UnixDomainSocket.FileServer
             Parser.Default.ParseArguments<Options>(args)
                    .WithParsed<Options>(o =>
                    {
-                       RunMain(o.Path ?? "380d562f-554d-4b19-88ff-d92356a62b5f.sock", o.UploadDirPath ?? ".").Wait();
+                       RunMain(
+                           o.Path ?? Path.Combine(Path.GetTempPath(),
+                                "380d562f-554d-4b19-88ff-d92356a62b5f.sock"),
+                           o.UploadDirPath ?? ".").Wait();
                    });
         }
 

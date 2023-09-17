@@ -52,7 +52,7 @@ namespace WindowsNamedPipe.FileClient
 
             try
             {
-                LOG.Info("Created WindowsNamedPipe.FileClient to {0}", serverPath);
+                LOG.Info("Connecting WindowsNamedPipe.FileClient to {0}", serverPath);
 
                 await FileSender.StartTransferringFiles(instance, serverPath, uploadDirPath);
             }

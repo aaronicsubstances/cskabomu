@@ -16,7 +16,6 @@ namespace Kabomu.Examples.Shared
             var path = (string)remoteEndpoint;
             var socket = new Socket(AddressFamily.Unix,
                 SocketType.Stream, ProtocolType.Unspecified);
-            path = Path.Combine(Path.GetTempPath(), path);
             var connection = new SocketConnection(socket, true,
                 sendOptions, DefaultSendOptions);
             var ongoingConnectionTask = socket.ConnectAsync(
