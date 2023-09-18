@@ -247,8 +247,6 @@ namespace Kabomu.ProtocolImpl
                 maxHeadersSize = QuasiHttpUtils.DefaultMaxHeadersSize;
             }
             int totalBytesRead = 0;
-            bool previousChunkEndsWithLf = false;
-            bool previousChunkEndsWith2Lfs = false;
             while (true)
             {
                 totalBytesRead += QuasiHttpCodec.HeaderChunkSize;
@@ -264,19 +262,6 @@ namespace Kabomu.ProtocolImpl
                     0, chunk.Length, cancellationToken);
                 encodedHeadersReceiver.Add(chunk);
                 byte carriageReturn = (byte)'\r', newline = (byte)'\n';
-                if (previousChunkEndsWith2Lfs &&
-                    (chunk[0] == carriageReturn || chunk[0] == newline))
-                {
-                    // done.
-                    break;
-                }
-                if (previousChunkEndsWithLf &&
-                    (chunk[0] == carriageReturn || chunk[0] == newline) &&
-                    (chunk[1] == carriageReturn || chunk[1] == newline))
-                {
-                    // done.
-                    break;
-                }
                 for (int i = 2; i < chunk.Length; i++)
                 {
                     if (chunk[i] != carriageReturn && chunk[i] != newline)
@@ -295,10 +280,6 @@ namespace Kabomu.ProtocolImpl
                         return;
                     }
                 }
-                previousChunkEndsWithLf = chunk[^1] == carriageReturn ||
-                    chunk[^1] == newline;
-                previousChunkEndsWith2Lfs = previousChunkEndsWithLf &&
-                    (chunk[^2] == carriageReturn || chunk[^2] == newline);
             }
         }
     }

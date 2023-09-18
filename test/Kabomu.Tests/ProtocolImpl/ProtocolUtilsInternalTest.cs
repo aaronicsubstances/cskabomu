@@ -738,7 +738,7 @@ namespace Kabomu.Tests.ProtocolImpl
             testData.Add(new object[] { srcData, maxHeadersSize, expected });
 
             srcData = "".PadRight(510) +
-                "\r\n\r\n" + "".PadRight(510);
+                "\r\n\r\n\n" + "".PadRight(509);
             maxHeadersSize = 1_024;
             expected = srcData;
             testData.Add(new object[] { srcData, maxHeadersSize, expected });
@@ -768,9 +768,9 @@ namespace Kabomu.Tests.ProtocolImpl
                 srcData += "12\r\n";
                 expected += "12\r\n";
             }
-            srcData += "\n" + "".PadRight(1_000);
+            srcData += "".PadRight(100) + "\n\n\r" + "".PadRight(1000);
             maxHeadersSize = 3_000;
-            expected += "\n" + "".PadRight(511);
+            expected += "".PadRight(100) + "\n\n\r" + "".PadRight(409);
             testData.Add(new object[] { srcData, maxHeadersSize, expected });
 
             return testData;
