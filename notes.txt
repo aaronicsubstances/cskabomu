@@ -23,6 +23,9 @@ porting stages
 2. Add response buffering. At this stage there is no custom stream implementation needed.
 3. Add custom stream for enforcing content length, and use it first on response body with known content lengths.
 4. Add request body now that content lengths can be enforced.
-5. Now upgrade to HTTP/1.1 by throwing in custom streams for encoding and decoding quasi http body chunks.
-6. Add timeout
-7. Add send2 usage. 
+5. Add custom stream for encoding only
+6. Add decoding of quasi http body chunks.
+
+Can add the following later or in parallel:
+1. Add timeout
+2. Add send2 usage. 
