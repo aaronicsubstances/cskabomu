@@ -44,6 +44,8 @@ namespace Kabomu.Examples.Shared
             {
                 while (true)
                 {
+                    // Have to create a new instance each time to avoid
+                    // System.InvalidOperationException: Already in a connected state.
                     var pipeServer = new NamedPipeServerStream(_path, PipeDirection.InOut,
                         NamedPipeServerStream.MaxAllowedServerInstances,
                         PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
