@@ -1,4 +1,5 @@
-﻿using Kabomu.ProtocolImpl;
+﻿using Kabomu.Exceptions;
+using Kabomu.ProtocolImpl;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -76,21 +77,111 @@ namespace Kabomu.Tests.ProtocolImpl
         }
 
         [Theory]
-        [InlineData("", "01,0000000000")]
-        [InlineData("abc", "01,0000000003abc01,0000000000")]
-        public void TestEncodingWithSlowSync(string srcData, string expected)
+        [MemberData(nameof(CreateTestDecodingForErrorsData))]
+        public async void TestDecodingForErrors(string srcData, string expected)
         {
             // arrange
             Stream instance = new MemoryStream(
                 MiscUtilsInternal.StringToBytes(srcData));
-            instance = new BodyChunkEncodingStreamInternal(instance);
+            instance = new BodyChunkDecodingStreamInternal(instance);
 
             // act
-            var actual = ComparisonUtils.ReadToStringSync(instance,
-                true);
+            var actualEx = await Assert.ThrowsAsync<KabomuIOException>(async () =>
+            {
+                await ComparisonUtils.ReadToString(instance);
+            });
 
             // assert
-            Assert.Equal(expected, actual);
+            Assert.Contains(expected, actualEx.Message);
+
+            // 2. arrange again with old style async
+            instance = new MemoryStream(
+                MiscUtilsInternal.StringToBytes(srcData));
+            instance = new BodyChunkDecodingStreamInternal(instance);
+
+            // act
+            actualEx = await Assert.ThrowsAsync<KabomuIOException>(async () =>
+            {
+                await ComparisonUtils.ReadToString(instance, true);
+            });
+
+            // assert
+            Assert.Contains(expected, actualEx.Message);
+
+            // 3. arrange again with sync
+            instance = new MemoryStream(
+                MiscUtilsInternal.StringToBytes(srcData));
+            instance = new BodyChunkDecodingStreamInternal(instance);
+
+            // act
+            actualEx = Assert.Throws<KabomuIOException>(() =>
+            {
+                ComparisonUtils.ReadToStringSync(instance);
+            });
+
+            // assert
+            Assert.Contains(expected, actualEx.Message);
+
+            // 4. arrange again with slow sync
+            instance = new MemoryStream(
+                MiscUtilsInternal.StringToBytes(srcData));
+            instance = new BodyChunkDecodingStreamInternal(instance);
+
+            // act
+            actualEx = Assert.Throws<KabomuIOException>(() =>
+            {
+                ComparisonUtils.ReadToStringSync(instance, true);
+            });
+
+            // assert
+            Assert.Contains(expected, actualEx.Message);
+        }
+
+        public static List<object[]> CreateTestDecodingForErrorsData()
+        {
+            return new List<object[]>
+            {
+                new object[]
+                {
+                    "",
+                    "unexpected end of read"
+                },
+                new object[]
+                {
+                    "01",
+                    "unexpected end of read"
+                },
+                new object[]
+                {
+                    "01,0000000001qabc,",
+                    "unexpected end of read"
+                },
+                new object[]
+                {
+                    "01,0000000012qabc,",
+                    "unexpected end of read"
+                },
+                new object[]
+                {
+                    "01234567890123456",
+                    "invalid quasi http body chunk header"
+                },
+                new object[]
+                {
+                    "01,0000000001h00,234567890123456",
+                    "invalid quasi http body chunk header"
+                },
+                new object[]
+                {
+                    "01,0000000tea",
+                    "length: 0000000tea"
+                },
+                new object[]
+                {
+                    "01,-000000001",
+                    "length: -1"
+                }
+            };
         }
     }
 }

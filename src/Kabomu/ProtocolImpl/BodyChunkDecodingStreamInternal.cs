@@ -135,35 +135,17 @@ namespace Kabomu.ProtocolImpl
 
         private int FillDecodingBuffer()
         {
-            try
-            {
-                IOUtilsInternal.ReadBytesFullySync(_backingStream,
-                    _decodingBuffer, 0, _decodingBuffer.Length);
-            }
-            catch (Exception e)
-            {
-                throw new KabomuIOException(
-                    "Failed to read a quasi http body chunk header",
-                    e);
-            }
+            IOUtilsInternal.ReadBytesFullySync(_backingStream,
+                _decodingBuffer, 0, _decodingBuffer.Length);
             return DecodeSubsequentChunkV1Header();
         }
 
         private async Task<int> FillDecodingBufferAsync(
             CancellationToken cancellationToken)
         {
-            try
-            {
-                await IOUtilsInternal.ReadBytesFully(_backingStream,
-                    _decodingBuffer, 0, _decodingBuffer.Length,
-                    cancellationToken);
-            }
-            catch (Exception e)
-            {
-                throw new KabomuIOException(
-                    "Failed to read a quasi http body chunk header",
-                    e);
-            }
+            await IOUtilsInternal.ReadBytesFully(_backingStream,
+                _decodingBuffer, 0, _decodingBuffer.Length,
+                cancellationToken);
             return DecodeSubsequentChunkV1Header();
         }
 
