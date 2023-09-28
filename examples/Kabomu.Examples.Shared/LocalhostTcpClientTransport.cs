@@ -39,19 +39,14 @@ namespace Kabomu.Examples.Shared
             return ((SocketConnection)connection).Release(responseStreamingEnabled);
         }
 
-        public Task Write(IQuasiHttpConnection connection, bool isResponse,
-            byte[] encodedHeaders, Stream body)
+        public Stream GetReadableStream(IQuasiHttpConnection connection)
         {
-            return ((SocketConnection)connection).Write(isResponse,
-                encodedHeaders, body);
+            return ((SocketConnection)connection).Stream;
         }
 
-        public Task<Stream> Read(
-            IQuasiHttpConnection connection,
-            bool isResponse, List<byte[]> encodedHeadersReceiver)
+        public Stream GetWritableStream(IQuasiHttpConnection connection)
         {
-            return ((SocketConnection)connection).Read(
-                isResponse, encodedHeadersReceiver);
+            return ((SocketConnection)connection).Stream;
         }
     }
 }

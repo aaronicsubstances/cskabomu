@@ -1,5 +1,4 @@
-﻿using Kabomu.Exceptions;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,63 +15,6 @@ namespace Kabomu.ProtocolImpl
     public class BodyChunkEncodingWriter
     {
         /// <summary>
-        /// The number of ASCII bytes which indicate the length of
-        /// data in a body chunk.
-        /// </summary>
-        internal const int LengthOfEncodedBodyChunkLength = 10;
-
-        /// <summary>
-        /// The maximum allowable body chunk data length.
-        /// NB: was reduced from 2 to 1 billion to make it
-        /// easier to test for more than 2 iterations of
-        /// loop in <see cref="EncodeBodyChunkV1"/> method.
-        /// </summary>
-        private const int MaxBodyChunkLength = 1_000_000_000;
-
-        private static readonly byte[] V1HeaderPrefix;
-        private readonly byte[] _encodingBuffer;
-
-        static BodyChunkEncodingWriter()
-        {
-            V1HeaderPrefix = MiscUtilsInternal.StringToBytes(
-                QuasiHttpCodec.ProtocolVersion01 + ",");
-        }
-
-        /// <summary>
-        /// Creates a new instance.
-        /// </summary>
-        public BodyChunkEncodingWriter()
-        {
-            _encodingBuffer = AllocateBodyChunkV1HeaderBuffer();
-        }
-
-        internal static byte[] AllocateBodyChunkV1HeaderBuffer()
-        {
-            return new byte[V1HeaderPrefix.Length +
-                LengthOfEncodedBodyChunkLength];
-        }
-
-        internal static int EncodeBodyChunkV1Header(int length,
-            byte[] sink, int offset = 0)
-        {
-            if (length < 0)
-            {
-                throw new ExpectationViolationException(
-                    $"length argument is negative: {length}");
-            }
-            Array.Copy(V1HeaderPrefix, 0, sink, offset, V1HeaderPrefix.Length);
-            int absStartOffset = V1HeaderPrefix.Length;
-            int absEndOffset = V1HeaderPrefix.Length + LengthOfEncodedBodyChunkLength - 1;
-            for (int i = absEndOffset; i >= absStartOffset; i--)
-            {
-                var digitAsAscii = 48 + (length % 10); // 48 is ascii for 0
-                sink[offset + i] = (byte)digitAsAscii;
-                length /= 10;
-            }
-            return V1HeaderPrefix.Length + LengthOfEncodedBodyChunkLength;
-        }
-
-        /// <summary>
         /// Writes out quasi body chunk that represents the end
         /// of a quasi body stream.
         /// </summary>
@@ -85,8 +27,9 @@ namespace Kabomu.ProtocolImpl
             {
                 throw new ArgumentNullException(nameof(sink));
             }
-            EncodeBodyChunkV1Header(0, _encodingBuffer);
-            await sink(_encodingBuffer, 0, _encodingBuffer.Length);
+            var encodingBuffer = TlvUtils.EncodeTagLengthOnly(
+                QuasiHttpCodec.TagForBody, 0);
+            await sink(encodingBuffer, 0, encodingBuffer.Length);
         }
 
         /// <summary>
@@ -154,9 +97,10 @@ namespace Kabomu.ProtocolImpl
             while (offset < endOffset)
             {
                 int nextChunkLength = Math.Min(endOffset - offset,
-                    MaxBodyChunkLength);
-                EncodeBodyChunkV1Header(nextChunkLength, _encodingBuffer);
-                await sink(_encodingBuffer, 0, _encodingBuffer.Length);
+                    TlvUtils.MaxAllowableTagValueLength);
+                var encodingBuffer = TlvUtils.EncodeTagLengthOnly(
+                    QuasiHttpCodec.TagForBody, nextChunkLength);
+                await sink(encodingBuffer, 0, encodingBuffer.Length);
                 await sink(data, offset, nextChunkLength);
                 offset += nextChunkLength;
             }

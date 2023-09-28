@@ -114,55 +114,6 @@ namespace Kabomu
 
         /// <summary>
         /// Copies all remaining bytes from an input stream into
-        /// a destination represented by a byte chunk consuming function.
-        /// </summary>
-        /// <param name="inputStream">source of data to copy</param>
-        /// <param name="sink">destination of data being transferred</param>
-        /// <param name="readBufferSize">size of read bufer to use.
-        /// Can be zero for a default value to be used.</param>
-        /// <param name="cancellationToken">
-        /// The optional token to monitor for cancellation requests.</param>
-        public static async Task CopyBytesToSink(Stream inputStream,
-            Func<byte[], int, int, Task> sink, int readBufferSize = default,
-            CancellationToken cancellationToken = default)
-        {
-            if (inputStream == null)
-            {
-                throw new ArgumentNullException(nameof(inputStream));
-            }
-            if (sink == null)
-            {
-                throw new ArgumentNullException(nameof(sink));
-            }
-            if (readBufferSize <= 0)
-            {
-                readBufferSize = DefaultReadBufferSize;
-            }
-            byte[] readBuffer = new byte[readBufferSize];
-
-            while (true)
-            {
-                int bytesRead = await inputStream.ReadAsync(readBuffer,
-                    cancellationToken);
-                if (bytesRead > readBuffer.Length)
-                {
-                    throw new ExpectationViolationException(
-                        "read beyond requested length: " +
-                        $"({bytesRead} > {readBuffer.Length})");
-                }
-                if (bytesRead > 0)
-                {
-                    await sink(readBuffer, 0, bytesRead);
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Copies all remaining bytes from an input stream into
         /// an output stream, and checks that if the total number of
         /// bytes being copied exceeds a certain limit.
         /// </summary>

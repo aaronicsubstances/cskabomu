@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,16 +16,9 @@ namespace Kabomu.ProtocolImpl
     /// </summary>
     public static class QuasiHttpCodec
     {
-        /// <summary>
-        /// This field gives a number of which all header sizes are
-        /// an integral multiple of.
-        /// </summary>
-        internal const int HeaderChunkSize = 512;
+        internal static readonly byte TagForHeaders = (byte)'H';
 
-        /// <summary>
-        /// First version of quasi web protocol.
-        /// </summary>
-        internal const string ProtocolVersion01 = "01";
+        internal static readonly byte TagForBody = (byte)'B';
 
         /// <summary>
         /// Serializes quasi http request headers.
@@ -88,10 +80,6 @@ namespace Kabomu.ProtocolImpl
                 maxHeadersSize = QuasiHttpUtils.DefaultMaxHeadersSize;
             }
             var csv = new List<IList<string>>();
-            csv.Add(new List<string>
-            {
-                ProtocolVersion01
-            });
             csv.Add(uniqueRow);
             if (headers != null)
             {
@@ -110,37 +98,18 @@ namespace Kabomu.ProtocolImpl
                 }
             }
 
-            // ensure there are no new lines in csv items
-            if (csv.Any(row => row.Any(item => item.Contains('\n') ||
-                item.Contains('\r'))))
-            {
-                throw new QuasiHttpException("quasi http headers cannot " +
-                    "contain newlines",
-                    QuasiHttpException.ReasonCodeProtocolViolation);
-            }
-
-            // add at least two line feeds to ensure byte count
-            // is multiple of header chunk size.
-            var serialized = CsvUtils.Serialize(csv);
-            var effectiveByteCount = MiscUtilsInternal.GetByteCount(serialized);
-            var lfCount = (int)Math.Ceiling(effectiveByteCount /
-                (double)HeaderChunkSize) * HeaderChunkSize -
-                effectiveByteCount;
-            if (lfCount < 2)
-            {
-                lfCount += HeaderChunkSize;
-            }
-            serialized += "".PadRight(lfCount, '\n');
-            effectiveByteCount += lfCount;
+            var serialized = MiscUtilsInternal.StringToBytes(
+                CsvUtils.Serialize(csv));
 
             // finally check that byte count of csv doesn't exceed limit.
-            if (effectiveByteCount > maxHeadersSize)
+            if (serialized.Length > maxHeadersSize)
             {
                 throw new QuasiHttpException("quasi http headers exceed " +
-                    $"max size ({effectiveByteCount} > {maxHeadersSize})",
+                    $"max size ({serialized.Length} > {maxHeadersSize})",
                     QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
             }
-            return MiscUtilsInternal.StringToBytes(serialized);
+
+            return serialized;
         }
 
         /// <summary>
@@ -164,7 +133,7 @@ namespace Kabomu.ProtocolImpl
             }
             IList<IList<string>> csv = StartDecodeReqOrRes(
                 data, offset, length, false);
-            var specialHeader = csv[1];
+            var specialHeader = csv[0];
             if (specialHeader.Count < 4)
             {
                 throw new QuasiHttpException(
@@ -210,7 +179,7 @@ namespace Kabomu.ProtocolImpl
             }
             IList<IList<string>> csv = StartDecodeReqOrRes(
                 data, offset, length, true);
-            var specialHeader = csv[1];
+            var specialHeader = csv[0];
             if (specialHeader.Count < 4)
             {
                 throw new QuasiHttpException(
@@ -269,8 +238,7 @@ namespace Kabomu.ProtocolImpl
                     QuasiHttpException.ReasonCodeProtocolViolation,
                     e);
             }
-            if (csv.Count < 2 || csv[0].Count == 0 ||
-                csv[0][0] != ProtocolVersion01)
+            if (csv.Count == 0)
             {
                 throw new QuasiHttpException(
                     $"invalid quasi http {tag} headers",
@@ -283,7 +251,7 @@ namespace Kabomu.ProtocolImpl
             IList<IList<string>> csv)
         {
             var headers = new Dictionary<string, IList<string>>();
-            for (int i = 2; i < csv.Count; i++)
+            for (int i = 1; i < csv.Count; i++)
             {
                 var headerRow = csv[i];
                 if (headerRow.Count < 2)

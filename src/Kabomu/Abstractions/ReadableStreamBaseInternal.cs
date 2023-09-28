@@ -57,16 +57,6 @@ namespace Kabomu.Abstractions
             throw new NotSupportedException();
         }
 
-        public override async Task CopyToAsync(Stream destination, int bufferSize,
-            CancellationToken cancellationToken)
-        {
-            await IOUtilsInternal.CopyBytesToSink(this,
-                (data, offset, length) =>
-                    destination.WriteAsync(data, offset, length, cancellationToken),
-                bufferSize,
-                cancellationToken);
-        }
-
         public override IAsyncResult BeginRead(
             byte[] buffer, int offset, int count,
             AsyncCallback callback, object state)

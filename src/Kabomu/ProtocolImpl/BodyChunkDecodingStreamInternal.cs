@@ -21,7 +21,6 @@ namespace Kabomu.ProtocolImpl
     internal class BodyChunkDecodingStreamInternal : ReadableStreamBaseInternal
     {
         private readonly Stream _backingStream;
-        private readonly byte[] _decodingBuffer;
         private int _chunkDataLenRem;
         private bool _lastChunkSeen;
 
@@ -37,12 +36,6 @@ namespace Kabomu.ProtocolImpl
                 throw new ArgumentNullException(nameof(backingStream));
             }
             _backingStream = backingStream;
-            var minimumBodyChunkV1HeaderLength =
-                // account for length of version 1 and separating comma.
-                BodyChunkEncodingWriter.LengthOfEncodedBodyChunkLength +
-                QuasiHttpCodec.ProtocolVersion01.Length +
-                1;
-            _decodingBuffer = new byte[minimumBodyChunkV1HeaderLength];
         }
 
         public override int ReadByte()
@@ -135,46 +128,15 @@ namespace Kabomu.ProtocolImpl
 
         private int FillDecodingBuffer()
         {
-            IOUtilsInternal.ReadBytesFullySync(_backingStream,
-                _decodingBuffer, 0, _decodingBuffer.Length);
-            return DecodeSubsequentChunkV1Header();
+            return TlvUtils.ReadTagAndLengthOnlySync(_backingStream,
+                QuasiHttpCodec.TagForBody);
         }
 
         private async Task<int> FillDecodingBufferAsync(
             CancellationToken cancellationToken)
         {
-            await IOUtilsInternal.ReadBytesFully(_backingStream,
-                _decodingBuffer, 0, _decodingBuffer.Length,
-                cancellationToken);
-            return DecodeSubsequentChunkV1Header();
-        }
-
-        private int DecodeSubsequentChunkV1Header()
-        {
-            var csv = CsvUtils.Deserialize(MiscUtilsInternal.BytesToString(
-                _decodingBuffer));
-            if (csv.Count == 0 || csv[0].Count < 2 ||
-                csv[0][0] != QuasiHttpCodec.ProtocolVersion01)
-            {
-                throw new KabomuIOException("invalid quasi http body chunk header");
-            }
-            var lengthOfDataStr = csv[0][1];
-            int lengthOfData;
-            try
-            {
-                lengthOfData = MiscUtilsInternal.ParseInt32(lengthOfDataStr);
-            }
-            catch (FormatException)
-            {
-                throw new KabomuIOException("invalid quasi http body chunk length: " +
-                    lengthOfDataStr);
-            }
-            if (lengthOfData < 0)
-            {
-                throw new KabomuIOException("invalid quasi http body chunk length: " +
-                    $"{lengthOfData}");
-            }
-            return lengthOfData;
+            return await TlvUtils.ReadTagAndLengthOnly(_backingStream,
+                QuasiHttpCodec.TagForBody, cancellationToken);
         }
     }
 }

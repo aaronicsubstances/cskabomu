@@ -25,8 +25,7 @@ namespace Kabomu.ProtocolImpl
 
         private readonly Stream _backingStream;
         private readonly byte[] _chunkData;
-        private readonly byte[] _chunkPrefix;
-        private int _usedChunkPrefixLength;
+        private byte[] _chunkPrefix;
         private int _usedChunkDataLength;
         private int _usedOffset;
         private bool _endOfReadSeen;
@@ -44,7 +43,6 @@ namespace Kabomu.ProtocolImpl
             }
             _backingStream = backingStream;
             _chunkData = new byte[DefaultMaxBodyChunkDataSize];
-            _chunkPrefix = BodyChunkEncodingWriter.AllocateBodyChunkV1HeaderBuffer();
         }
 
         public override int ReadByte()
@@ -53,9 +51,10 @@ namespace Kabomu.ProtocolImpl
             {
                 return -1;
             }
-            if (_usedOffset >= _usedChunkPrefixLength + _usedChunkDataLength)
+            if (_chunkPrefix == null || 
+                _usedOffset >= _chunkPrefix.Length + _usedChunkDataLength)
             {
-                if (_usedChunkPrefixLength > 0 && _usedChunkDataLength == 0)
+                if (_chunkPrefix != null && _usedChunkDataLength == 0)
                 {
                     _endOfReadSeen = true;
                     return -1;
@@ -71,9 +70,10 @@ namespace Kabomu.ProtocolImpl
             {
                 return 0;
             }
-            if (_usedOffset >= _usedChunkPrefixLength + _usedChunkDataLength)
+            if (_chunkPrefix == null ||
+                _usedOffset >= _chunkPrefix.Length + _usedChunkDataLength)
             {
-                if (_usedChunkPrefixLength > 0 && _usedChunkDataLength == 0)
+                if (_chunkPrefix != null && _usedChunkDataLength == 0)
                 {
                     _endOfReadSeen = true;
                     return 0;
@@ -92,9 +92,10 @@ namespace Kabomu.ProtocolImpl
                 return 0;
             }
             cancellationToken.ThrowIfCancellationRequested();
-            if (_usedOffset >= _usedChunkPrefixLength + _usedChunkDataLength)
+            if (_chunkPrefix == null ||
+                _usedOffset >= _chunkPrefix.Length + _usedChunkDataLength)
             {
-                if (_usedChunkPrefixLength > 0 && _usedChunkDataLength == 0)
+                if (_chunkPrefix != null && _usedChunkDataLength == 0)
                 {
                     _endOfReadSeen = true;
                     return 0;
@@ -107,8 +108,8 @@ namespace Kabomu.ProtocolImpl
         private void FillFromSource()
         {
             _usedChunkDataLength = _backingStream.Read(_chunkData);
-            _usedChunkPrefixLength = BodyChunkEncodingWriter.EncodeBodyChunkV1Header(
-                _usedChunkDataLength, _chunkPrefix);
+            _chunkPrefix = TlvUtils.EncodeTagLengthOnly(QuasiHttpCodec.TagForBody,
+                _usedChunkDataLength);
             _usedOffset = 0;
         }
 
@@ -116,24 +117,24 @@ namespace Kabomu.ProtocolImpl
         {
             _usedChunkDataLength = await _backingStream.ReadAsync(_chunkData,
                 cancellationToken);
-            _usedChunkPrefixLength = BodyChunkEncodingWriter.EncodeBodyChunkV1Header(
-                _usedChunkDataLength, _chunkPrefix);
+            _chunkPrefix = TlvUtils.EncodeTagLengthOnly(QuasiHttpCodec.TagForBody,
+                _usedChunkDataLength);
             _usedOffset = 0;
         }
 
         private int FillFromOutstanding(byte[] data, int offset, int length)
         {
             var nextChunkLength = Math.Min(length,
-                _usedChunkPrefixLength + _usedChunkDataLength - _usedOffset);
+                _chunkPrefix.Length + _usedChunkDataLength - _usedOffset);
             for (int i = 0; i < nextChunkLength; i++)
             {
-                if (_usedOffset < _usedChunkPrefixLength)
+                if (_usedOffset < _chunkPrefix.Length)
                 {
                     data[offset + i] = _chunkPrefix[_usedOffset];
                 }
                 else
                 {
-                    data[offset + i] = _chunkData[_usedOffset - _usedChunkPrefixLength];
+                    data[offset + i] = _chunkData[_usedOffset - _chunkPrefix.Length];
                 }
                 _usedOffset++;
             }
@@ -143,13 +144,13 @@ namespace Kabomu.ProtocolImpl
         private int SupplyByteFromOutstanding()
         {
             int nextByte;
-            if (_usedOffset < _usedChunkPrefixLength)
+            if (_usedOffset < _chunkPrefix.Length)
             {
                 nextByte = _chunkPrefix[_usedOffset];
             }
             else
             {
-                nextByte = _chunkData[_usedOffset - _usedChunkPrefixLength];
+                nextByte = _chunkData[_usedOffset - _chunkPrefix.Length];
             }
             _usedOffset++;
             return nextByte;

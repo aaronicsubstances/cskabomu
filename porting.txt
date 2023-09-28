@@ -1,0 +1,18 @@
+requirements
+------------
+- support creation of custom stream wrappers, where backing stream is either a generator of byte chunks or a byte source which can supply bytes on demand not exceeding a given number.
+- may need to impose requirement on quasi transport implementations to wrap streams returned from Read() method in a push back custom stream wrapper. In that case the number of custom stream wrappers to create increases from 3 to 4.
+
+
+porting stages
+---------------
+1. HTTP/1.0: no request body, and response body uses no content length, but just reads until end of stream, with no response buffering, no timeout, no send2 usage. Note that this stage doesn't touch streams at all.
+2. Add response buffering. At this stage there is no custom stream implementation needed.
+3. Add custom stream for enforcing content length, and use it first on response body with known content lengths.
+4. Add request body now that content lengths can be enforced.
+5. Add custom stream for encoding only
+6. Add decoding of quasi http body chunks.
+
+Can add the following later or in parallel:
+1. Add timeout
+2. Add send2 usage.

@@ -12,13 +12,6 @@ namespace Kabomu.ProtocolImpl
 {
     internal static class ProtocolUtilsInternal
     {
-        /// <summary>
-        /// The purpose of this flag and the dead code that is present
-        /// as a result, is make the dead code serve as reference for
-        /// porting in stages of HTTP/1.0 only, before HTTP/1.1.
-        /// </summary>
-        //public static readonly bool SupportHttp10Only = false;
-
         public static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment,
             string key)
         {
@@ -51,113 +44,154 @@ namespace Kabomu.ProtocolImpl
             }
         }
 
-        public static Stream EncodeBodyToTransport(bool isResponse,
-            long contentLength, Stream body)
+        public static async Task WriteEntityToTransport(bool isResponse,
+            object entity, Stream writableStream,
+            IQuasiHttpConnection connection)
         {
-            if (contentLength == 0)
+            if (writableStream == null)
             {
-                return null;
+                throw new MissingDependencyException(
+                    "no writable stream found for transport");
             }
-            if (true) // !SupportHttp10Only
+            long contentLength;
+            Stream body;
+            byte[] encodedHeaders;
+            if (isResponse)
             {
-                if (body == null)
-                {
-                    var errMsg = isResponse ?
-                        "no response body" :
-                        "no request body";
-                    throw new QuasiHttpException(errMsg);
-                }
-                if (contentLength < 0)
-                {
-                    return new BodyChunkEncodingStreamInternal(body);
-                }
+                var response = (IQuasiHttpResponse)entity;
+                contentLength = response.ContentLength;
+                body = response.Body;
+                encodedHeaders = QuasiHttpCodec.EncodeResponseHeaders(response,
+                    connection.ProcessingOptions?.MaxHeadersSize);
             }
             else
             {
-                if (!isResponse && contentLength < 0)
-                {
-                    return null;
-                }
+                var request = (IQuasiHttpRequest)entity;
+                contentLength = request.ContentLength;
+                body = request.Body;
+                encodedHeaders = QuasiHttpCodec.EncodeRequestHeaders(request,
+                    connection.ProcessingOptions?.MaxHeadersSize);
+            }
+            await TlvUtils.WriteTlv(writableStream,
+                QuasiHttpCodec.TagForHeaders, encodedHeaders,
+                connection.CancellationToken);
+            if (contentLength == 0)
+            {
+                return;
+            }
+            if (body == null)
+            {
+                var errMsg = isResponse ? "no response body" :
+                    "no request body";
+                throw new QuasiHttpException(errMsg);
+            }
+            if (contentLength < 0)
+            {
+                body = new BodyChunkEncodingStreamInternal(body);
             }
             // don't enforce positive content lengths when writing out
             // quasi http bodies
-            return body;
+            await body.CopyToAsync(writableStream, connection.CancellationToken);
+        }
+
+        public static async Task<object> ReadEntityFromTransport(
+            bool isResponse, Stream readableStream,
+            IQuasiHttpConnection connection)
+        {
+            if (readableStream == null)
+            {
+                throw new MissingDependencyException(
+                    "no readable stream found for transport");
+            }
+            var encodedHeaders = await ReadEncodedHeaders(
+                readableStream,
+                connection.ProcessingOptions?.MaxHeadersSize ?? 0,
+                connection.CancellationToken);
+
+            if (isResponse)
+            {
+                var response = new DefaultQuasiHttpResponse();
+                QuasiHttpCodec.DecodeResponseHeaders(encodedHeaders, 0,
+                    encodedHeaders.Length, response);
+                if (response.ContentLength != 0)
+                {
+                    if (response.ContentLength > 0)
+                    {
+                        response.Body = new ContentLengthEnforcingStreamInternal(
+                            readableStream, response.ContentLength);
+                    }
+                    else
+                    {
+                        response.Body = new BodyChunkDecodingStreamInternal(
+                            readableStream);
+                    }
+                }
+                return response;
+            }
+            else
+            {
+                var request = new DefaultQuasiHttpRequest
+                {
+                    Environment = connection.Environment
+                };
+                QuasiHttpCodec.DecodeRequestHeaders(encodedHeaders, 0,
+                    encodedHeaders.Length, request);
+                if (request.ContentLength != 0)
+                {
+                    if (request.ContentLength > 0)
+                    {
+                        request.Body = new ContentLengthEnforcingStreamInternal(
+                            readableStream, request.ContentLength);
+                    }
+                    else
+                    {
+                        request.Body = new BodyChunkDecodingStreamInternal(
+                            readableStream);
+                    }
+                }
+                return request;
+            }
         }
 
         /// <summary>
-        /// Determines what the effective body is that
-        /// corresponds to a given content length.
+        /// Reads the portion of a source stream representing a quasi
+        /// http request or response header section.
         /// </summary>
-        /// <param name="contentLength"></param>
-        /// <param name="body"></param>
-        public static Stream DecodeRequestBodyFromTransport(
-            long contentLength, Stream body)
+        /// <param name="inputStream">source stream</param>
+        /// <param name="maxHeadersSize">limit on total
+        /// size of byte chunks to be read. Can be zero in order
+        /// for a default value to be used.</param>
+        /// <param name="cancellationToken">
+        /// The optional token to monitor for cancellation requests.</param>
+        /// <returns>a task whose result will be the enocode headers</returns>
+        /// <exception cref="QuasiHttpException">Limit on
+        /// total size of byte chunks has been reached and still
+        /// end of header section has not been determined</exception>
+        public static async Task<byte[]> ReadEncodedHeaders(Stream inputStream,
+            int maxHeadersSize = 0,
+            CancellationToken cancellationToken = default)
         {
-            if (contentLength == 0)
+            if (maxHeadersSize <= 0)
             {
-                return null;
+                maxHeadersSize = QuasiHttpUtils.DefaultMaxHeadersSize;
             }
-            if (false) // SupportHttp10Only
+            var headersSize = await TlvUtils.ReadTagAndLengthOnly(
+                inputStream, QuasiHttpCodec.TagForHeaders, cancellationToken);
+            if (headersSize > maxHeadersSize)
             {
-                if (contentLength < 0)
-                {
-                    return null;
-                }
+                throw new QuasiHttpException("quasi http headers exceed " +
+                    $"max size ({headersSize} > {maxHeadersSize})",
+                    QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
             }
-            if (body == null)
-            {
-                throw new QuasiHttpException("no request body");
-            }
-            if (true) // !SupportHttp10Only
-            {
-                if (contentLength < 0)
-                {
-                    return new BodyChunkDecodingStreamInternal(body);
-                }
-            }
-            return new ContentLengthEnforcingStreamInternal(body, contentLength);
-        }
-
-        public static (Stream, bool, bool) DecodeResponseBodyFromTransport(
-            long contentLength, Stream body,
-            IDictionary<string, object> environment,
-            bool? responseBufferingEnabled)
-        {
-            if (contentLength == 0)
-            {
-                return (null, false, false);
-            }
-            var responseStreamingEnabled = responseBufferingEnabled == false;
-            if (GetEnvVarAsBoolean(
-                environment, QuasiHttpUtils.EnvKeySkipResBodyDecoding) == true)
-            {
-                return (body, responseStreamingEnabled, false);
-            }
-            if (body == null)
-            {
-                throw new QuasiHttpException("no response body");
-            }
-            if (true) // !SupportHttp10Only
-            {
-                if (contentLength < 0)
-                {
-                    body = new BodyChunkDecodingStreamInternal(body);
-                }
-            }
-            if (responseStreamingEnabled)
-            {
-                if (contentLength > 0)
-                {
-                    body = new ContentLengthEnforcingStreamInternal(body,
-                        contentLength);
-                }
-                return (body, true, false);
-            }
-            return (body, false, true);
+            var encodedHeaders = new byte[maxHeadersSize];
+            await IOUtilsInternal.ReadBytesFully(inputStream,
+                encodedHeaders, 0, encodedHeaders.Length,
+                cancellationToken);
+            return encodedHeaders;
         }
 
         public static async Task<Stream> BufferResponseBody(
-            long contentLength, Stream body, 
+            long contentLength, Stream body,
             int? bufferingSizeLimit,
             CancellationToken cancellationToken)
         {
@@ -194,92 +228,6 @@ namespace Kabomu.ProtocolImpl
                     buffer, 0, buffer.Length,
                     cancellationToken);
                 return new MemoryStream(buffer);
-            }
-        }
-
-        public static async Task<(Stream, byte[])> ReadEntityFromTransport(
-            bool isResponse, IQuasiHttpTransport transport, IQuasiHttpConnection connection)
-        {
-            var encodedHeadersReceiver = new List<byte[]>();
-            var body = await transport.Read(connection, isResponse,
-                encodedHeadersReceiver);
-            // either body should be non-null or some byte chunks should be
-            // present in receiver list.
-            if (encodedHeadersReceiver.Count == 0)
-            {
-                if (body == null)
-                {
-                    var errMsg = isResponse ? "no response" : "no request";
-                    throw new QuasiHttpException(errMsg);
-                }
-                await ReadEncodedHeaders(body,
-                    encodedHeadersReceiver,
-                    connection.ProcessingOptions?.MaxHeadersSize ?? 0,
-                    connection.CancellationToken);
-            }
-            var encodedHeaders = MiscUtilsInternal.ConcatBuffers(encodedHeadersReceiver);
-            return (body, encodedHeaders);
-        }
-
-        /// <summary>
-        /// Reads as many 512-byte chunks as needed to detect
-        /// the portion of a source stream representing a quasi
-        /// http request or response header section.
-        /// </summary>
-        /// <param name="inputStream">source stream</param>
-        /// <param name="encodedHeadersReceiver">list which
-        /// will receive all the byte chunks to be read.</param>
-        /// <param name="maxHeadersSize">limit on total
-        /// size of byte chunks to be read. Can be zero in order
-        /// for a default value to be used.</param>
-        /// <param name="cancellationToken">
-        /// The optional token to monitor for cancellation requests.</param>
-        /// <returns>a task representing the asynchronous operation</returns>
-        /// <exception cref="QuasiHttpException">Limit on
-        /// total size of byte chunks has been reached and still
-        /// end of header section has not been determined</exception>
-        public static async Task ReadEncodedHeaders(Stream inputStream,
-            List<byte[]> encodedHeadersReceiver, int maxHeadersSize = 0,
-            CancellationToken cancellationToken = default)
-        {
-            if (maxHeadersSize <= 0)
-            {
-                maxHeadersSize = QuasiHttpUtils.DefaultMaxHeadersSize;
-            }
-            int totalBytesRead = 0;
-            while (true)
-            {
-                totalBytesRead += QuasiHttpCodec.HeaderChunkSize;
-                if (totalBytesRead > maxHeadersSize)
-                {
-                    throw new QuasiHttpException(
-                        "size of quasi http headers to read exceed " +
-                        $"max size ({totalBytesRead} > {maxHeadersSize})",
-                        QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
-                }
-                var chunk = new byte[QuasiHttpCodec.HeaderChunkSize];
-                await IOUtilsInternal.ReadBytesFully(inputStream, chunk,
-                    0, chunk.Length, cancellationToken);
-                encodedHeadersReceiver.Add(chunk);
-                byte carriageReturn = (byte)'\r', newline = (byte)'\n';
-                for (int i = 2; i < chunk.Length; i++)
-                {
-                    if (chunk[i] != carriageReturn && chunk[i] != newline)
-                    {
-                        continue;
-                    }
-                    if (chunk[i - 1] != carriageReturn && chunk[i - 1] != newline)
-                    {
-                        continue;
-                    }
-                    if (chunk[i - 2] == carriageReturn || chunk[i - 2] == newline)
-                    {
-                        // done.
-                        // don't just break, as this will only quit
-                        // the for loop and leave us in while loop.
-                        return;
-                    }
-                }
             }
         }
     }

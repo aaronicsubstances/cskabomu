@@ -60,34 +60,14 @@ namespace Kabomu.Examples.Shared
             return Task.CompletedTask;
         }
 
-        private static string GetUsageTag(bool isResponse)
+        public Stream Stream
         {
-            return isResponse ? "response" : "request";
-        }
-
-        public async Task Write(bool isResponse, byte[] encodedHeaders,
-            Stream body)
-        {
-            Log.Debug($"writing {GetUsageTag(isResponse)} for {_owner}...");
-            // since NetworkStream demands that socket is connected before
-            // creating instances of it, create on the fly.
-            var stream = new NetworkStream(_socket);
-            await stream.WriteAsync(encodedHeaders);
-            if (body != null)
+            get
             {
-                await body.CopyToAsync(stream, CancellationToken);
+                // since NetworkStream demands that socket is connected before
+                // creating instances of it, create on the fly.
+                return new NetworkStream(_socket);
             }
-            Log.Debug($"done writing {GetUsageTag(isResponse)} for {_owner}.");
-        }
-
-        public Task<Stream> Read(bool isResponse,
-            List<byte[]> encodedHeadersReceiver)
-        {
-            Log.Debug($"read {GetUsageTag(isResponse)} called for {_owner}...");
-            // since NetworkStream demands that socket is connected before
-            // creating instances of it, create on the fly.
-            Stream stream = new NetworkStream(_socket);
-            return Task.FromResult(stream);
         }
     }
 }

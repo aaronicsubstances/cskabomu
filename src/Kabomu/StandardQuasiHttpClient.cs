@@ -158,47 +158,49 @@ namespace Kabomu
 
             // send entire request first before
             // receiving of response.
-            if (ProtocolUtilsInternal.GetEnvVarAsBoolean(request.Environment,
-                QuasiHttpUtils.EnvKeySkipSending) != true)
+            var altTransport = transport as IQuasiHttpAltTransport;
+            var requestSerializer = altTransport?.RequestSerializer;
+            if (requestSerializer != null)
             {
-                var encodedRequestHeaders = QuasiHttpCodec.EncodeRequestHeaders(request,
-                    connection.ProcessingOptions?.MaxHeadersSize);
-                var encodedRequestBody = ProtocolUtilsInternal.EncodeBodyToTransport(false,
-                    request.ContentLength, request.Body);
-                await transport.Write(connection, false, encodedRequestHeaders,
-                    encodedRequestBody);
+                await requestSerializer(connection, request);
+            }
+            else
+            {
+                await ProtocolUtilsInternal.WriteEntityToTransport(
+                    false, request, transport.GetWritableStream(connection),
+                    connection);
             }
 
-            var (encodedResponseBody, encodedResponseHeaders) =
-                await ProtocolUtilsInternal.ReadEntityFromTransport(
-                    true, transport, connection);
-
-            var response = new DefaultQuasiHttpResponse
+            IQuasiHttpResponse response;
+            var responseDeserializer = altTransport?.ResponseDeserializer;
+            var responseStreamingEnabled = false;
+            if (responseDeserializer != null)
             {
-                Body = encodedResponseBody
-            };
-            QuasiHttpCodec.DecodeResponseHeaders(encodedResponseHeaders, 0,
-                encodedResponseHeaders.Length, response);
-            bool responseStreamingEnabled, applyResponseBuffering;
-            (response.Body, responseStreamingEnabled, applyResponseBuffering) =
-                ProtocolUtilsInternal.DecodeResponseBodyFromTransport(
-                    response.ContentLength,
-                    encodedResponseBody,
-                    connection.Environment,
-                    connection.ProcessingOptions?.ResponseBufferingEnabled);
-            if (applyResponseBuffering)
-            {
-                response.Body = await ProtocolUtilsInternal.BufferResponseBody(
-                    response.ContentLength, response.Body,
-                    connection.ProcessingOptions?.ResponseBodyBufferingSizeLimit,
-                    connection.CancellationToken);
+                // let response deserializer take control of response buffering.
+                response = await responseDeserializer(connection);
             }
-            if (responseStreamingEnabled)
+            else
             {
-                response.Disposer = () =>
+                response = (IQuasiHttpResponse)await ProtocolUtilsInternal.ReadEntityFromTransport(
+                    true, transport.GetReadableStream(connection), connection);
+                var applyResponseBuffering = connection.ProcessingOptions?.ResponseBufferingEnabled != false;
+                if (applyResponseBuffering)
                 {
-                    return transport.ReleaseConnection(connection, false);
-                };
+                    responseStreamingEnabled = false;
+                    response.Body = await ProtocolUtilsInternal.BufferResponseBody(
+                        response.ContentLength,
+                        response.Body,
+                        connection.ProcessingOptions?.ResponseBodyBufferingSizeLimit,
+                        connection.CancellationToken);
+                    response.Disposer = () =>
+                    {
+                        return transport.ReleaseConnection(connection, false);
+                    };
+                }
+                else
+                {
+                    responseStreamingEnabled = response.Body != null;
+                }
             }
             await Abort(transport, connection, false, responseStreamingEnabled);
             return response;

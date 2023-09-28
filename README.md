@@ -22,12 +22,13 @@ Kabomu seeks to demonstrate the following:
 
 1. IPC mechanisms demonstated: localhost TCP, unix domain sockets and windows named pipes (interfaces are provided to make it easy to employ any other IPC).
 
-3. Quasi web protocol: based on HTTP/1.1, but with the following twists:
-   1. headers (request line and status line included) are encoded as CSV.
+3. Quasi web protocol: based on HTTP/1.1 semantically, but with the following implementation differences:
+   1. headers (request line and status line included) are encoded with TLV and CSV.
    2. headers are always converted to bytes with UTF8 charset.
+   3. bodies with unknown lengths are encoded in TLV chunks.
 
 3. Quasi web request processing strategies: one of the following
-   1. Ignore http request methods and response status messages, and also ignore request path parameters and query strings. Instead use entire request target/path as a key into a
+   1. Ignore http request methods  (like what SOAP Web Services did via HTTP in always using POST), and also ignore request path parameters and query strings. Instead use entire request target/path as a key into a
    dictionary whose values are procedures which take a request and produce a response.
    2. use an existing web server gateway interface (e.g. Python WSGI, C#.NET OWIN, Java Servlet, Ruby Rack, NodeJS Connect) and hook it to an IPC mechanism. Existing web frameworks can then be used as usual.
 
