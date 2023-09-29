@@ -99,14 +99,14 @@ namespace Kabomu
             IQuasiHttpServerTransport transport,
             IQuasiHttpConnection connection)
         {
-            IQuasiHttpRequest request;
+            IQuasiHttpRequest request = null;
             var altTransport = transport as IQuasiHttpAltTransport;
             var requestDeserializer = altTransport?.RequestDeserializer;
             if (requestDeserializer != null)
             {
                 request = await requestDeserializer(connection);
             }
-            else
+            if (request == null)
             {
                 request = (IQuasiHttpRequest)await ProtocolUtilsInternal.ReadEntityFromTransport(
                     false, transport.GetReadableStream(connection), connection);
@@ -120,12 +120,13 @@ namespace Kabomu
 
             try
             {
+                var responseSerialized = false;
                 var responseSerializer = altTransport?.ResponseSerializer;
                 if (responseSerializer != null)
                 {
-                    await responseSerializer(connection, response);
+                    responseSerialized = await responseSerializer(connection, response);
                 }
-                else
+                if (!responseSerialized)
                 {
                     await ProtocolUtilsInternal.WriteEntityToTransport(
                         true, response, transport.GetWritableStream(connection),

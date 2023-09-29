@@ -48,7 +48,7 @@ namespace Kabomu.ProtocolImpl
 
             if (_chunkDataLenRem == 0)
             {
-                _chunkDataLenRem = FillDecodingBuffer();
+                _chunkDataLenRem = FetchNextTagAndLengthSync();
                 if (_chunkDataLenRem == 0)
                 {
                     _lastChunkSeen = true;
@@ -75,7 +75,7 @@ namespace Kabomu.ProtocolImpl
 
             if (_chunkDataLenRem == 0)
             {
-                _chunkDataLenRem = FillDecodingBuffer();
+                _chunkDataLenRem = FetchNextTagAndLengthSync();
                 if (_chunkDataLenRem == 0)
                 {
                     _lastChunkSeen = true;
@@ -106,7 +106,7 @@ namespace Kabomu.ProtocolImpl
 
             if (_chunkDataLenRem == 0)
             {
-                _chunkDataLenRem = await FillDecodingBufferAsync(cancellationToken);
+                _chunkDataLenRem = await FetchNextTagAndLength(cancellationToken);
                 if (_chunkDataLenRem == 0)
                 {
                     _lastChunkSeen = true;
@@ -126,17 +126,20 @@ namespace Kabomu.ProtocolImpl
             return bytesToRead;
         }
 
-        private int FillDecodingBuffer()
+        private int FetchNextTagAndLengthSync()
         {
-            return TlvUtils.ReadTagAndLengthOnlySync(_backingStream,
+            TlvUtils.ReadExpectedTagOnlySync(_backingStream,
                 QuasiHttpCodec.TagForBody);
+            return TlvUtils.ReadLengthOnlySync(_backingStream);
         }
 
-        private async Task<int> FillDecodingBufferAsync(
+        private async Task<int> FetchNextTagAndLength(
             CancellationToken cancellationToken)
         {
-            return await TlvUtils.ReadTagAndLengthOnly(_backingStream,
+            await TlvUtils.ReadExpectedTagOnly(_backingStream,
                 QuasiHttpCodec.TagForBody, cancellationToken);
+            return await TlvUtils.ReadLengthOnly(_backingStream,
+                cancellationToken);
         }
     }
 }

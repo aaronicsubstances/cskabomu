@@ -160,18 +160,19 @@ namespace Kabomu
             // receiving of response.
             var altTransport = transport as IQuasiHttpAltTransport;
             var requestSerializer = altTransport?.RequestSerializer;
+            bool requestSerialized = false;
             if (requestSerializer != null)
             {
-                await requestSerializer(connection, request);
+                requestSerialized = await requestSerializer(connection, request);
             }
-            else
+            if (!requestSerialized)
             {
                 await ProtocolUtilsInternal.WriteEntityToTransport(
                     false, request, transport.GetWritableStream(connection),
                     connection);
             }
 
-            IQuasiHttpResponse response;
+            IQuasiHttpResponse response = null;
             var responseDeserializer = altTransport?.ResponseDeserializer;
             var responseStreamingEnabled = false;
             if (responseDeserializer != null)
@@ -179,7 +180,7 @@ namespace Kabomu
                 // let response deserializer take control of response buffering.
                 response = await responseDeserializer(connection);
             }
-            else
+            if (response == null)
             {
                 response = (IQuasiHttpResponse)await ProtocolUtilsInternal.ReadEntityFromTransport(
                     true, transport.GetReadableStream(connection), connection);
@@ -188,10 +189,8 @@ namespace Kabomu
                 {
                     responseStreamingEnabled = false;
                     response.Body = await ProtocolUtilsInternal.BufferResponseBody(
-                        response.ContentLength,
                         response.Body,
-                        connection.ProcessingOptions?.ResponseBodyBufferingSizeLimit,
-                        connection.CancellationToken);
+                        connection);
                     response.Disposer = () =>
                     {
                         return transport.ReleaseConnection(connection, false);

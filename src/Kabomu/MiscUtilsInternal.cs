@@ -163,5 +163,27 @@ namespace Kabomu
             }, TaskScheduler.Default);
             return tcs.Task;
         }
+
+        public static IAsyncResult AsApm(this Task task,
+            AsyncCallback callback, object state)
+        {
+            if (task == null)
+                throw new ArgumentNullException("task");
+
+            var tcs = new TaskCompletionSource(state);
+            task.ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    tcs.TrySetException(t.Exception.InnerExceptions);
+                else if (t.IsCanceled)
+                    tcs.TrySetCanceled();
+                else
+                    tcs.TrySetResult();
+
+                if (callback != null)
+                    callback(tcs.Task);
+            }, TaskScheduler.Default);
+            return tcs.Task;
+        }
     }
 }

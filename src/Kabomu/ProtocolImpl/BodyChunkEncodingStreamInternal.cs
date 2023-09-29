@@ -14,21 +14,14 @@ namespace Kabomu.ProtocolImpl
     /// content lengths in the Kabomu library.
     /// </summary>
     /// <remarks>
-    /// Receives a source stream from which it generates
-    /// an unknown number of one or more body chunks, 
-    /// in which the last chunk has zero data length
-    /// and all the previous ones have non-empty data.
+    /// Receives a dest stream into which it generates
+    /// an unknown number of one or more body chunks.
+    /// Then when the <see cref="WriteTerminatingChunk"/> is called,
+    /// a zero length chunk is written out and flushed.
     /// </remarks>
-    internal class BodyChunkEncodingStreamInternal : ReadableStreamBaseInternal
+    internal class BodyChunkEncodingStreamInternal : WritableStreamBaseInternal
     {
-        private static readonly int DefaultMaxBodyChunkDataSize = 8_192;
-
         private readonly Stream _backingStream;
-        private readonly byte[] _chunkData;
-        private byte[] _chunkPrefix;
-        private int _usedChunkDataLength;
-        private int _usedOffset;
-        private bool _endOfReadSeen;
 
         /// <summary>
         /// Creates new instance.
@@ -42,118 +35,66 @@ namespace Kabomu.ProtocolImpl
                 throw new ArgumentNullException(nameof(backingStream));
             }
             _backingStream = backingStream;
-            _chunkData = new byte[DefaultMaxBodyChunkDataSize];
         }
 
-        public override int ReadByte()
+        public override void Flush()
         {
-            if (_endOfReadSeen)
-            {
-                return -1;
-            }
-            if (_chunkPrefix == null || 
-                _usedOffset >= _chunkPrefix.Length + _usedChunkDataLength)
-            {
-                if (_chunkPrefix != null && _usedChunkDataLength == 0)
-                {
-                    _endOfReadSeen = true;
-                    return -1;
-                }
-                FillFromSource();
-            }
-            return SupplyByteFromOutstanding();
+            _backingStream.Flush();
         }
 
-        public override int Read(byte[] buffer, int offset, int count)
+        public override async Task FlushAsync(CancellationToken cancellationToken)
         {
-            if (_endOfReadSeen)
-            {
-                return 0;
-            }
-            if (_chunkPrefix == null ||
-                _usedOffset >= _chunkPrefix.Length + _usedChunkDataLength)
-            {
-                if (_chunkPrefix != null && _usedChunkDataLength == 0)
-                {
-                    _endOfReadSeen = true;
-                    return 0;
-                }
-                FillFromSource();
-            }
-            return FillFromOutstanding(buffer, offset, count);
+            await _backingStream.FlushAsync(cancellationToken);
         }
 
-        public override async Task<int> ReadAsync(
-            byte[] data, int offset, int length,
-            CancellationToken cancellationToken = default)
+        public override void WriteByte(byte value)
         {
-            if (_endOfReadSeen)
-            {
-                return 0;
-            }
-            cancellationToken.ThrowIfCancellationRequested();
-            if (_chunkPrefix == null ||
-                _usedOffset >= _chunkPrefix.Length + _usedChunkDataLength)
-            {
-                if (_chunkPrefix != null && _usedChunkDataLength == 0)
-                {
-                    _endOfReadSeen = true;
-                    return 0;
-                }
-                await FillFromSourceAsync(cancellationToken);
-            }
-            return FillFromOutstanding(data, offset, length);
+            byte[] chunkPrefix = TlvUtils.EncodeTagAndLengthOnly(
+                QuasiHttpCodec.TagForBody, 1);
+            _backingStream.Write(chunkPrefix);
+            _backingStream.WriteByte(value);
         }
 
-        private void FillFromSource()
+        public override void Write(byte[] buffer, int offset, int count)
         {
-            _usedChunkDataLength = _backingStream.Read(_chunkData);
-            _chunkPrefix = TlvUtils.EncodeTagLengthOnly(QuasiHttpCodec.TagForBody,
-                _usedChunkDataLength);
-            _usedOffset = 0;
+            if (count == 0)
+            {
+                return;
+            }
+            byte[] chunkPrefix = TlvUtils.EncodeTagAndLengthOnly(
+                QuasiHttpCodec.TagForBody, count);
+            _backingStream.Write(chunkPrefix);
+            _backingStream.Write(buffer, offset, count);
         }
 
-        private async Task FillFromSourceAsync(CancellationToken cancellationToken)
+        public override async Task WriteAsync(byte[] buffer, int offset, int count,
+            CancellationToken cancellationToken)
         {
-            _usedChunkDataLength = await _backingStream.ReadAsync(_chunkData,
+            if (count == 0)
+            {
+                return;
+            }
+            byte[] chunkPrefix = TlvUtils.EncodeTagAndLengthOnly(
+                QuasiHttpCodec.TagForBody, count);
+            await _backingStream.WriteAsync(chunkPrefix, cancellationToken);
+            await _backingStream.WriteAsync(buffer, offset, count,
                 cancellationToken);
-            _chunkPrefix = TlvUtils.EncodeTagLengthOnly(QuasiHttpCodec.TagForBody,
-                _usedChunkDataLength);
-            _usedOffset = 0;
         }
 
-        private int FillFromOutstanding(byte[] data, int offset, int length)
+        public async Task WriteTerminatingChunk(CancellationToken cancellationToken = default)
         {
-            var nextChunkLength = Math.Min(length,
-                _chunkPrefix.Length + _usedChunkDataLength - _usedOffset);
-            for (int i = 0; i < nextChunkLength; i++)
-            {
-                if (_usedOffset < _chunkPrefix.Length)
-                {
-                    data[offset + i] = _chunkPrefix[_usedOffset];
-                }
-                else
-                {
-                    data[offset + i] = _chunkData[_usedOffset - _chunkPrefix.Length];
-                }
-                _usedOffset++;
-            }
-            return nextChunkLength;
+            byte[] lastChunk = TlvUtils.EncodeTagAndLengthOnly(
+                QuasiHttpCodec.TagForBody, 0);
+            await _backingStream.WriteAsync(lastChunk, cancellationToken);
+            await _backingStream.FlushAsync(cancellationToken);
         }
 
-        private int SupplyByteFromOutstanding()
+        public void WriteTerminatingChunkSync()
         {
-            int nextByte;
-            if (_usedOffset < _chunkPrefix.Length)
-            {
-                nextByte = _chunkPrefix[_usedOffset];
-            }
-            else
-            {
-                nextByte = _chunkData[_usedOffset - _chunkPrefix.Length];
-            }
-            _usedOffset++;
-            return nextByte;
+            byte[] lastChunk = TlvUtils.EncodeTagAndLengthOnly(
+                QuasiHttpCodec.TagForBody, 0);
+            _backingStream.Write(lastChunk);
+            _backingStream.Flush();
         }
     }
 }

@@ -114,8 +114,8 @@ namespace Kabomu
 
         /// <summary>
         /// Copies all remaining bytes from an input stream into
-        /// an output stream, and checks that if the total number of
-        /// bytes being copied exceeds a certain limit.
+        /// an output stream, and stops reading if the total number of
+        /// bytes being copied reaches a certain limit.
         /// </summary>
         /// <param name="src">The source of data to read</param>
         /// <param name="dest">destination of data being transferred</param>
@@ -124,9 +124,7 @@ namespace Kabomu
         /// <see cref="DefaultDataBufferLimit"/> to be used.</param>
         /// <param name="cancellationToken">
         /// The optional token to monitor for cancellation requests.</param>
-        /// <returns>true if copying succeeded within specified limit; false
-        /// if reading exceeded specified limit</returns>
-        public static async Task<bool> CopyBytesUpToGivenLimit(
+        public static async Task CopyBytesUpToGivenLimit(
             Stream src, Stream dest,
             int bufferingLimit, CancellationToken cancellationToken)
         {
@@ -148,14 +146,6 @@ namespace Kabomu
             while (true)
             {
                 int bytesToRead = Math.Min(readBuffer.Length, bufferingLimit - totalBytesRead);
-                // force a read of 1 byte if there are no more bytes to read into memory stream buffer
-                // but still remember that no bytes was expected.
-                var expectedEndOfRead = false;
-                if (bytesToRead <= 0)
-                {
-                    bytesToRead = 1;
-                    expectedEndOfRead = true;
-                }
                 int bytesRead = await src.ReadAsync(readBuffer, 0, bytesToRead,
                     cancellationToken);
                 if (bytesRead > bytesToRead)
@@ -166,10 +156,6 @@ namespace Kabomu
                 }
                 if (bytesRead > 0)
                 {
-                    if (expectedEndOfRead)
-                    {
-                        return false;
-                    }
                     await dest.WriteAsync(readBuffer, 0, bytesRead,
                         cancellationToken);
                     totalBytesRead += bytesRead;
@@ -179,7 +165,6 @@ namespace Kabomu
                     break;
                 }
             }
-            return true;
         }
     }
 }

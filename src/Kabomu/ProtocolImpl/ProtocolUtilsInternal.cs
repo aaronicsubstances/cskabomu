@@ -53,45 +53,36 @@ namespace Kabomu.ProtocolImpl
                 throw new MissingDependencyException(
                     "no writable stream found for transport");
             }
-            long contentLength;
             Stream body;
-            byte[] encodedHeaders;
             if (isResponse)
             {
                 var response = (IQuasiHttpResponse)entity;
-                contentLength = response.ContentLength;
+                var statusLine = new object[] {
+                    response.StatusCode, response.HttpStatusMessage, response.HttpVersion };
+                await QuasiHttpCodec.WriteQuasiHttpHeaders(writableStream,
+                    statusLine, response.Headers,
+                    connection.ProcessingOptions?.MaxHeadersSize ?? 0,
+                    connection.CancellationToken);
                 body = response.Body;
-                encodedHeaders = QuasiHttpCodec.EncodeResponseHeaders(response,
-                    connection.ProcessingOptions?.MaxHeadersSize);
             }
             else
             {
                 var request = (IQuasiHttpRequest)entity;
-                contentLength = request.ContentLength;
+                var requestLine = new object[] {
+                    request.HttpMethod, request.Target, request.HttpVersion };
+                await QuasiHttpCodec.WriteQuasiHttpHeaders(writableStream,
+                    requestLine, request.Headers,
+                    connection.ProcessingOptions?.MaxHeadersSize ?? 0,
+                    connection.CancellationToken);
                 body = request.Body;
-                encodedHeaders = QuasiHttpCodec.EncodeRequestHeaders(request,
-                    connection.ProcessingOptions?.MaxHeadersSize);
             }
-            await TlvUtils.WriteTlv(writableStream,
-                QuasiHttpCodec.TagForHeaders, encodedHeaders,
-                connection.CancellationToken);
-            if (contentLength == 0)
+            var bodyWriter = new BodyChunkEncodingStreamInternal(
+                writableStream);
+            if (body != null)
             {
-                return;
+                await body.CopyToAsync(bodyWriter, connection.CancellationToken);
             }
-            if (body == null)
-            {
-                var errMsg = isResponse ? "no response body" :
-                    "no request body";
-                throw new QuasiHttpException(errMsg);
-            }
-            if (contentLength < 0)
-            {
-                body = new BodyChunkEncodingStreamInternal(body);
-            }
-            // don't enforce positive content lengths when writing out
-            // quasi http bodies
-            await body.CopyToAsync(writableStream, connection.CancellationToken);
+            await bodyWriter.WriteTerminatingChunk(connection.CancellationToken);
         }
 
         public static async Task<object> ReadEntityFromTransport(
@@ -103,29 +94,25 @@ namespace Kabomu.ProtocolImpl
                 throw new MissingDependencyException(
                     "no readable stream found for transport");
             }
-            var encodedHeaders = await ReadEncodedHeaders(
+            var reqOrStatusLineReceiver = new List<object>();
+            var headersReceiver = new Dictionary<string, IList<string>>();
+            await QuasiHttpCodec.ReadQuasiHttpHeaders(
                 readableStream,
+                isResponse,
+                reqOrStatusLineReceiver,
+                headersReceiver,
                 connection.ProcessingOptions?.MaxHeadersSize ?? 0,
                 connection.CancellationToken);
 
             if (isResponse)
             {
                 var response = new DefaultQuasiHttpResponse();
-                QuasiHttpCodec.DecodeResponseHeaders(encodedHeaders, 0,
-                    encodedHeaders.Length, response);
-                if (response.ContentLength != 0)
-                {
-                    if (response.ContentLength > 0)
-                    {
-                        response.Body = new ContentLengthEnforcingStreamInternal(
-                            readableStream, response.ContentLength);
-                    }
-                    else
-                    {
-                        response.Body = new BodyChunkDecodingStreamInternal(
-                            readableStream);
-                    }
-                }
+                response.StatusCode = (int)reqOrStatusLineReceiver[0];
+                response.HttpStatusMessage = (string)reqOrStatusLineReceiver[1];
+                response.HttpVersion = (string)reqOrStatusLineReceiver[2];
+                response.Headers = headersReceiver;
+                response.Body = new BodyChunkDecodingStreamInternal(
+                    readableStream);
                 return response;
             }
             else
@@ -134,101 +121,36 @@ namespace Kabomu.ProtocolImpl
                 {
                     Environment = connection.Environment
                 };
-                QuasiHttpCodec.DecodeRequestHeaders(encodedHeaders, 0,
-                    encodedHeaders.Length, request);
-                if (request.ContentLength != 0)
-                {
-                    if (request.ContentLength > 0)
-                    {
-                        request.Body = new ContentLengthEnforcingStreamInternal(
-                            readableStream, request.ContentLength);
-                    }
-                    else
-                    {
-                        request.Body = new BodyChunkDecodingStreamInternal(
-                            readableStream);
-                    }
-                }
+                request.HttpMethod = (string)reqOrStatusLineReceiver[0];
+                request.Target = (string)reqOrStatusLineReceiver[1];
+                request.HttpVersion = (string)reqOrStatusLineReceiver[2];
+                request.Headers = headersReceiver;
+                request.Body = new BodyChunkDecodingStreamInternal(
+                    readableStream);
                 return request;
             }
         }
 
-        /// <summary>
-        /// Reads the portion of a source stream representing a quasi
-        /// http request or response header section.
-        /// </summary>
-        /// <param name="inputStream">source stream</param>
-        /// <param name="maxHeadersSize">limit on total
-        /// size of byte chunks to be read. Can be zero in order
-        /// for a default value to be used.</param>
-        /// <param name="cancellationToken">
-        /// The optional token to monitor for cancellation requests.</param>
-        /// <returns>a task whose result will be the enocode headers</returns>
-        /// <exception cref="QuasiHttpException">Limit on
-        /// total size of byte chunks has been reached and still
-        /// end of header section has not been determined</exception>
-        public static async Task<byte[]> ReadEncodedHeaders(Stream inputStream,
-            int maxHeadersSize = 0,
-            CancellationToken cancellationToken = default)
-        {
-            if (maxHeadersSize <= 0)
-            {
-                maxHeadersSize = QuasiHttpUtils.DefaultMaxHeadersSize;
-            }
-            var headersSize = await TlvUtils.ReadTagAndLengthOnly(
-                inputStream, QuasiHttpCodec.TagForHeaders, cancellationToken);
-            if (headersSize > maxHeadersSize)
-            {
-                throw new QuasiHttpException("quasi http headers exceed " +
-                    $"max size ({headersSize} > {maxHeadersSize})",
-                    QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
-            }
-            var encodedHeaders = new byte[maxHeadersSize];
-            await IOUtilsInternal.ReadBytesFully(inputStream,
-                encodedHeaders, 0, encodedHeaders.Length,
-                cancellationToken);
-            return encodedHeaders;
-        }
-
         public static async Task<Stream> BufferResponseBody(
-            long contentLength, Stream body,
-            int? bufferingSizeLimit,
-            CancellationToken cancellationToken)
+            Stream body, IQuasiHttpConnection connection)
         {
-            if (bufferingSizeLimit == null || bufferingSizeLimit.Value <= 0)
+            int bufferingSizeLimit = connection.ProcessingOptions?.ResponseBodyBufferingSizeLimit ?? 0;
+            if (bufferingSizeLimit <= 0)
             {
                 bufferingSizeLimit = IOUtilsInternal.DefaultDataBufferLimit;
             }
-            if (contentLength < 0)
+            var buffered = new MemoryStream();
+            await IOUtilsInternal.CopyBytesUpToGivenLimit(body,
+                buffered, bufferingSizeLimit + 1, connection.CancellationToken);
+            if (buffered.Length > bufferingSizeLimit)
             {
-                var buffered = new MemoryStream();
-                bool success = await IOUtilsInternal.CopyBytesUpToGivenLimit(body,
-                    buffered, bufferingSizeLimit.Value, cancellationToken);
-                if (!success)
-                {
-                    throw new QuasiHttpException(
-                        "response body of indeterminate length exceeds buffering limit of " +
-                        $"{bufferingSizeLimit} bytes",
-                        QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
-                }
-                buffered.Position = 0; // reset for reading.
-                return buffered;
+                throw new QuasiHttpException(
+                    "response body of indeterminate length exceeds buffering limit of " +
+                    $"{bufferingSizeLimit} bytes",
+                    QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
             }
-            else
-            {
-                if (contentLength > bufferingSizeLimit.Value)
-                {
-                    throw new QuasiHttpException(
-                        "response body length exceeds buffering limit " +
-                        $"({contentLength} > {bufferingSizeLimit})",
-                        QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
-                }
-                var buffer = new byte[(int)contentLength];
-                await IOUtilsInternal.ReadBytesFully(body,
-                    buffer, 0, buffer.Length,
-                    cancellationToken);
-                return new MemoryStream(buffer);
-            }
+            buffered.Position = 0; // reset for reading.
+            return buffered;
         }
     }
 }
