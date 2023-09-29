@@ -72,11 +72,6 @@ namespace Kabomu.Examples.Shared
             // add body.
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
-            request.ContentLength = f.Length;
-            if (!SupportHttp10Only && RandGen.NextDouble() < 0.5)
-            {
-                request.ContentLength = -1;
-            }
             request.Body = fileStream;
 
             // determine options

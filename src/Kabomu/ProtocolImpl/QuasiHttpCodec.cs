@@ -15,11 +15,9 @@ namespace Kabomu.ProtocolImpl
     /// </summary>
     public static class QuasiHttpCodec
     {
-        public static readonly int TagForHeaders = new byte[] {
-            (byte)'q', (byte)'h', (byte)'0', (byte)'1' };
+        public static readonly int TagForHeaders = 0x71683031;
 
-        public static readonly int TagForBody = new byte[] {
-            (byte)'q', (byte)'b', (byte)'0', (byte)'1' };
+        public static readonly int TagForBody = 0x71623031;
 
         /// <summary>
         /// Serializes quasi http request or response headers.
@@ -28,12 +26,15 @@ namespace Kabomu.ProtocolImpl
         /// <param name="remainingHeaders">headers after request or status line</param>
         /// <returns>serialized representation of quasi http request headers</returns>
         public static byte[] EncodeQuasiHttpHeaders(
-            IList<object> reqOrStatusLine,
+            IList<string> reqOrStatusLine,
             IDictionary<string, IList<string>> remainingHeaders)
         {
             var csv = new List<IList<string>>();
-            var specialHeader = reqOrStatusLine.Select(
-                x => x != null ? x.ToString() : "").ToList();
+            var specialHeader = new List<string>();
+            foreach (var v in reqOrStatusLine)
+            {
+                specialHeader.Add(v ?? "");
+            }
             csv.Add(specialHeader);
             if (remainingHeaders != null)
             {
@@ -65,17 +66,13 @@ namespace Kabomu.ProtocolImpl
         /// <param name="offset">starting position in buffer to start
         /// deserializing from</param>
         /// <param name="length">number of bytes to deserialize</param>
-        /// <param name="parseAsResponse">true to parse as a quasi http
-        /// response header section; false to parse as request headers instead.</param>
-        /// <param name="reqOrStatusLineReceiver">will be appended with fields of
-        /// request line or response line</param>
         /// <param name="headersReceiver">will be extended with remaining headers found
         /// after the request or response line</param>
+        /// <returns>request or response line, ie first row before headers</returns>
         /// <exception cref="QuasiHttpException">if byte slice argument contains
         /// invalid quasi http request or response headers</exception>
-        public static void DecodeQuasiHttpHeaders(
-            byte[] data, int offset, int length, bool parseAsResponse,
-            IList<object> reqOrStatusLineReceiver,
+        public static IList<string> DecodeQuasiHttpHeaders(
+            byte[] data, int offset, int length,
             IDictionary<string, IList<string>> headersReceiver)
         {
             if (data == null)
@@ -86,7 +83,6 @@ namespace Kabomu.ProtocolImpl
             {
                 throw new ArgumentException("invalid byte buffer slice");
             }
-            string tag = parseAsResponse ? "response" : "request";
             IList<IList<string>> csv;
             try
             {
@@ -96,44 +92,17 @@ namespace Kabomu.ProtocolImpl
             catch (Exception e)
             {
                 throw new QuasiHttpException(
-                    $"invalid quasi http {tag} headers",
+                    $"invalid quasi http headers",
                     QuasiHttpException.ReasonCodeProtocolViolation,
                     e);
             }
             if (csv.Count == 0)
             {
                 throw new QuasiHttpException(
-                    $"invalid quasi http {tag} headers",
+                    $"invalid quasi http headers",
                     QuasiHttpException.ReasonCodeProtocolViolation);
             }
             var specialHeader = csv[0];
-            if (specialHeader.Count < 3)
-            {
-                throw new QuasiHttpException(
-                    $"invalid quasi http {tag} line",
-                    QuasiHttpException.ReasonCodeProtocolViolation);
-            }
-
-            if (parseAsResponse)
-            {
-                reqOrStatusLineReceiver.Add(specialHeader[0]);
-            }
-            else
-            {
-                try
-                {
-                    reqOrStatusLineReceiver.Add(MiscUtilsInternal.ParseInt32(specialHeader[0]));
-                }
-                catch (Exception e)
-                {
-                    throw new QuasiHttpException(
-                        "invalid quasi http response status code",
-                        QuasiHttpException.ReasonCodeProtocolViolation,
-                        e);
-                }
-            }
-            reqOrStatusLineReceiver.Add(specialHeader[1]);
-            reqOrStatusLineReceiver.Add(specialHeader[2]);
 
             // merge headers with the same name in different rows.
             for (int i = 1; i < csv.Count; i++)
@@ -154,6 +123,8 @@ namespace Kabomu.ProtocolImpl
                     headerValues.Add(headerValue);
                 }
             }
+
+            return specialHeader;
         }
 
         /// <summary>
@@ -172,7 +143,7 @@ namespace Kabomu.ProtocolImpl
         /// <exception cref="QuasiHttpException">if serialized is too large</exception>
         public static async Task WriteQuasiHttpHeaders(
             Stream dest,
-            IList<object> reqOrStatusLine,
+            IList<string> reqOrStatusLine,
             IDictionary<string, IList<string>> remainingHeaders,
             int maxHeadersSize = 0,
             CancellationToken cancellationToken = default)
@@ -197,10 +168,8 @@ namespace Kabomu.ProtocolImpl
                 cancellationToken);
         }
 
-        public static async Task ReadQuasiHttpHeaders(
+        public static async Task<IList<string>> ReadQuasiHttpHeaders(
             Stream src,
-            bool parseAsResponse,
-            IList<object> reqOrStatusLineReceiver,
             IDictionary<string, IList<string>> headersReceiver,
             int maxHeadersSize = 0,
             CancellationToken cancellationToken = default)
@@ -219,12 +188,12 @@ namespace Kabomu.ProtocolImpl
                     $"max size ({headersSize} > {maxHeadersSize})",
                     QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
             }
-            var encodedHeaders = new byte[maxHeadersSize];
+            var encodedHeaders = new byte[headersSize];
             await IOUtilsInternal.ReadBytesFully(src,
                 encodedHeaders, 0, encodedHeaders.Length,
                 cancellationToken);
-            DecodeQuasiHttpHeaders(encodedHeaders, 0, encodedHeaders.Length,
-                parseAsResponse, reqOrStatusLineReceiver, headersReceiver);
+            return DecodeQuasiHttpHeaders(encodedHeaders, 0, encodedHeaders.Length,
+                headersReceiver);
         }
     }
 }

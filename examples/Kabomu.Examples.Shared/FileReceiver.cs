@@ -12,7 +12,6 @@ namespace Kabomu.Examples.Shared
     public class FileReceiver
     {
         private static readonly Logger LOG = LogManager.GetCurrentClassLogger();
-        private static readonly Random RandGen = new Random();
         private readonly object remoteEndpoint;
         private readonly string downloadDirPath;
 
@@ -68,12 +67,6 @@ namespace Kabomu.Examples.Shared
             {
                 var responseBytes = Encoding.UTF8.GetBytes(responseBody);
                 response.Body = new MemoryStream(responseBytes);
-                response.ContentLength = responseBytes.Length;
-                if (!FileSender.TurnOffComplexFeatures &&
-                    RandGen.NextDouble() < 0.5)
-                {
-                    response.ContentLength = -1;
-                }
             }
             return response;
         }

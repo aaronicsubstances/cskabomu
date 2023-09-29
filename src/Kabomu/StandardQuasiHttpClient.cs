@@ -189,17 +189,19 @@ namespace Kabomu
                 {
                     responseStreamingEnabled = false;
                     response.Body = await ProtocolUtilsInternal.BufferResponseBody(
-                        response.Body,
-                        connection);
-                    response.Disposer = () =>
-                    {
-                        return transport.ReleaseConnection(connection, false);
-                    };
+                        response.Body, connection);
                 }
                 else
                 {
                     responseStreamingEnabled = response.Body != null;
                 }
+            }
+            if (responseStreamingEnabled)
+            {
+                response.Disposer = () =>
+                {
+                    return transport.ReleaseConnection(connection, false);
+                };
             }
             await Abort(transport, connection, false, responseStreamingEnabled);
             return response;

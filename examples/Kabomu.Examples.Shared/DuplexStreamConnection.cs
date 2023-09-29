@@ -20,7 +20,6 @@ namespace Kabomu.Examples.Shared
         private static readonly IQuasiHttpProcessingOptions DefaultProcessingOptions =
             new DefaultQuasiHttpProcessingOptions();
 
-        private readonly Stream _stream;
         private readonly ICancellableTimeoutTask _timeoutId;
         private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly string _owner; // for debugging
@@ -57,7 +56,7 @@ namespace Kabomu.Examples.Shared
                 return;
             }
             _cancellationTokenSource.Cancel();
-            await _stream.DisposeAsync();
+            await Stream.DisposeAsync();
         }
     }
 }

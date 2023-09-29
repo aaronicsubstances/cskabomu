@@ -57,31 +57,40 @@ namespace Kabomu.ProtocolImpl
             if (isResponse)
             {
                 var response = (IQuasiHttpResponse)entity;
-                var statusLine = new object[] {
-                    response.StatusCode, response.HttpStatusMessage, response.HttpVersion };
+                body = response.Body;
+                var statusLine = new string[] {
+                    response.StatusCode.ToString(),
+                    response.HttpStatusMessage,
+                    response.HttpVersion,
+                    body != null ? "-1": "0"
+                };
                 await QuasiHttpCodec.WriteQuasiHttpHeaders(writableStream,
                     statusLine, response.Headers,
                     connection.ProcessingOptions?.MaxHeadersSize ?? 0,
                     connection.CancellationToken);
-                body = response.Body;
             }
             else
             {
                 var request = (IQuasiHttpRequest)entity;
-                var requestLine = new object[] {
-                    request.HttpMethod, request.Target, request.HttpVersion };
+                body = request.Body;
+                var requestLine = new string[] {
+                    request.HttpMethod,
+                    request.Target,
+                    request.HttpVersion,
+                    body != null ? "-1": "0"
+                };
                 await QuasiHttpCodec.WriteQuasiHttpHeaders(writableStream,
                     requestLine, request.Headers,
                     connection.ProcessingOptions?.MaxHeadersSize ?? 0,
                     connection.CancellationToken);
-                body = request.Body;
+            }
+            if (body == null)
+            {
+                return;
             }
             var bodyWriter = new BodyChunkEncodingStreamInternal(
                 writableStream);
-            if (body != null)
-            {
-                await body.CopyToAsync(bodyWriter, connection.CancellationToken);
-            }
+            await body.CopyToAsync(bodyWriter, connection.CancellationToken);
             await bodyWriter.WriteTerminatingChunk(connection.CancellationToken);
         }
 
@@ -94,25 +103,43 @@ namespace Kabomu.ProtocolImpl
                 throw new MissingDependencyException(
                     "no readable stream found for transport");
             }
-            var reqOrStatusLineReceiver = new List<object>();
             var headersReceiver = new Dictionary<string, IList<string>>();
-            await QuasiHttpCodec.ReadQuasiHttpHeaders(
+            var reqOrStatusLineReceiver = await QuasiHttpCodec.ReadQuasiHttpHeaders(
                 readableStream,
-                isResponse,
-                reqOrStatusLineReceiver,
                 headersReceiver,
                 connection.ProcessingOptions?.MaxHeadersSize ?? 0,
                 connection.CancellationToken);
 
+            if (reqOrStatusLineReceiver.Count < 4)
+            {
+                throw new QuasiHttpException(
+                    $"invalid quasi http {(isResponse ? "status" : "request")} line",
+                    QuasiHttpException.ReasonCodeProtocolViolation);
+            }
+            Stream body = null;
+            if (reqOrStatusLineReceiver[3] == "-1")
+            {
+                body = new BodyChunkDecodingStreamInternal(readableStream);
+            }
             if (isResponse)
             {
                 var response = new DefaultQuasiHttpResponse();
-                response.StatusCode = (int)reqOrStatusLineReceiver[0];
-                response.HttpStatusMessage = (string)reqOrStatusLineReceiver[1];
-                response.HttpVersion = (string)reqOrStatusLineReceiver[2];
+                try
+                {
+                    response.StatusCode = MiscUtilsInternal.ParseInt32(
+                        reqOrStatusLineReceiver[0]);
+                }
+                catch (Exception e)
+                {
+                    throw new QuasiHttpException(
+                        "invalid quasi http response status code",
+                        QuasiHttpException.ReasonCodeProtocolViolation,
+                        e);
+                }
+                response.HttpStatusMessage = reqOrStatusLineReceiver[1];
+                response.HttpVersion = reqOrStatusLineReceiver[2];
                 response.Headers = headersReceiver;
-                response.Body = new BodyChunkDecodingStreamInternal(
-                    readableStream);
+                response.Body = body;
                 return response;
             }
             else
@@ -121,12 +148,11 @@ namespace Kabomu.ProtocolImpl
                 {
                     Environment = connection.Environment
                 };
-                request.HttpMethod = (string)reqOrStatusLineReceiver[0];
-                request.Target = (string)reqOrStatusLineReceiver[1];
-                request.HttpVersion = (string)reqOrStatusLineReceiver[2];
+                request.HttpMethod = reqOrStatusLineReceiver[0];
+                request.Target = reqOrStatusLineReceiver[1];
+                request.HttpVersion = reqOrStatusLineReceiver[2];
                 request.Headers = headersReceiver;
-                request.Body = new BodyChunkDecodingStreamInternal(
-                    readableStream);
+                request.Body = body;
                 return request;
             }
         }
@@ -134,6 +160,10 @@ namespace Kabomu.ProtocolImpl
         public static async Task<Stream> BufferResponseBody(
             Stream body, IQuasiHttpConnection connection)
         {
+            if (body == null)
+            {
+                return null;
+            }
             int bufferingSizeLimit = connection.ProcessingOptions?.ResponseBodyBufferingSizeLimit ?? 0;
             if (bufferingSizeLimit <= 0)
             {
@@ -145,7 +175,7 @@ namespace Kabomu.ProtocolImpl
             if (buffered.Length > bufferingSizeLimit)
             {
                 throw new QuasiHttpException(
-                    "response body of indeterminate length exceeds buffering limit of " +
+                    "response body exceeds buffering limit of " +
                     $"{bufferingSizeLimit} bytes",
                     QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
             }

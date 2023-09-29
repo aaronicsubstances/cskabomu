@@ -23,8 +23,8 @@ namespace Kabomu.ProtocolImpl
                     length);
             }
             var tagAndLen = new byte[8];
-            MiscUtilsInternal.SerializeInt32BE(tag, tagAndLen, 0, 4);
-            MiscUtilsInternal.SerializeInt32BE(length, tagAndLen, 4, 4);
+            MiscUtilsInternal.SerializeInt32BE(tag, tagAndLen, 0);
+            MiscUtilsInternal.SerializeInt32BE(length, tagAndLen, 4);
             return tagAndLen;
         }
 
@@ -36,7 +36,7 @@ namespace Kabomu.ProtocolImpl
                 encodedTag, 0, encodedTag.Length,
                 cancellationToken);
             int tag = MiscUtilsInternal.DeserializeInt32BE(
-                encodedTag, 0, encodedTag.Length);
+                encodedTag, 0);
             if (tag <= 0)
             {
                 throw new KabomuIOException("invalid tag: " +
@@ -51,7 +51,7 @@ namespace Kabomu.ProtocolImpl
             IOUtilsInternal.ReadBytesFullySync(inputStream,
                 encodedTag, 0, encodedTag.Length);
             int tag = MiscUtilsInternal.DeserializeInt32BE(
-                encodedTag, 0, encodedTag.Length);
+                encodedTag, 0);
             if (tag <= 0)
             {
                 throw new KabomuIOException("invalid tag: " +
@@ -91,7 +91,7 @@ namespace Kabomu.ProtocolImpl
                 encodedLen, 0, encodedLen.Length,
                 cancellationToken);
             int decodedLength = MiscUtilsInternal.DeserializeInt32BE(
-                encodedLen, 0, encodedLen.Length);
+                encodedLen, 0);
             if (decodedLength < 0)
             {
                 throw new KabomuIOException("invalid tag value length: " +
@@ -106,7 +106,7 @@ namespace Kabomu.ProtocolImpl
             IOUtilsInternal.ReadBytesFullySync(inputStream,
                 encodedLen, 0, encodedLen.Length);
             int decodedLength = MiscUtilsInternal.DeserializeInt32BE(
-                encodedLen, 0, encodedLen.Length);
+                encodedLen, 0);
             if (decodedLength < 0)
             {
                 throw new KabomuIOException("invalid tag value length: " +
@@ -115,7 +115,7 @@ namespace Kabomu.ProtocolImpl
             return decodedLength;
         }
 
-        public static async Task ReadAwayUntilTag(Stream inputStream,
+        /*public static async Task ReadAwayUntilTag(Stream inputStream,
             int stoppageTag,
             CancellationToken cancellationToken = default)
         {
@@ -160,7 +160,7 @@ namespace Kabomu.ProtocolImpl
                     break;
                 }
             }
-        }
+        }*/
 
         public static Stream GetCurrentValueAsStream(Stream 
             inputStream, int length)
