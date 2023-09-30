@@ -10,31 +10,33 @@ using System.Threading.Tasks;
 namespace Kabomu.ProtocolImpl
 {
     /// <summary>
-    /// The standard encoder of http bodies of unknown (ie negative)
+    /// The standard encoder of http bodies of unknown
     /// content lengths in the Kabomu library.
     /// </summary>
     /// <remarks>
     /// Receives a dest stream into which it generates
-    /// an unknown number of one or more body chunks.
-    /// Then when the <see cref="WriteTerminatingChunk"/> is called,
-    /// a zero length chunk is written out and flushed.
+    /// an unknown number of body chunks.
     /// </remarks>
     internal class BodyChunkEncodingStreamInternal : WritableStreamBaseInternal
     {
         private readonly Stream _backingStream;
+        private readonly int _tagToUse;
 
         /// <summary>
         /// Creates new instance.
         /// </summary>
         /// <param name="backingStream">the source stream</param>
+        /// <param name="tagToUse"></param>
         /// <exception cref="ArgumentNullException">The <paramref name="backingStream"/> argument is null.</exception>
-        public BodyChunkEncodingStreamInternal(Stream backingStream)
+        public BodyChunkEncodingStreamInternal(Stream backingStream,
+            int tagToUse)
         {
             if (backingStream == null)
             {
                 throw new ArgumentNullException(nameof(backingStream));
             }
             _backingStream = backingStream;
+            _tagToUse = tagToUse;
         }
 
         public override void Flush()
@@ -50,7 +52,7 @@ namespace Kabomu.ProtocolImpl
         public override void WriteByte(byte value)
         {
             byte[] chunkPrefix = TlvUtils.EncodeTagAndLengthOnly(
-                QuasiHttpCodec.TagForBody, 1);
+                _tagToUse, 1);
             _backingStream.Write(chunkPrefix);
             _backingStream.WriteByte(value);
         }
@@ -59,10 +61,11 @@ namespace Kabomu.ProtocolImpl
         {
             if (count == 0)
             {
+                _backingStream.Write(buffer, offset, count);
                 return;
             }
             byte[] chunkPrefix = TlvUtils.EncodeTagAndLengthOnly(
-                QuasiHttpCodec.TagForBody, count);
+                _tagToUse, count);
             _backingStream.Write(chunkPrefix);
             _backingStream.Write(buffer, offset, count);
         }
@@ -72,29 +75,15 @@ namespace Kabomu.ProtocolImpl
         {
             if (count == 0)
             {
+                await _backingStream.WriteAsync(buffer, offset, count,
+                    cancellationToken);
                 return;
             }
             byte[] chunkPrefix = TlvUtils.EncodeTagAndLengthOnly(
-                QuasiHttpCodec.TagForBody, count);
+                _tagToUse, count);
             await _backingStream.WriteAsync(chunkPrefix, cancellationToken);
             await _backingStream.WriteAsync(buffer, offset, count,
                 cancellationToken);
-        }
-
-        public async Task WriteTerminatingChunk(CancellationToken cancellationToken = default)
-        {
-            byte[] lastChunk = TlvUtils.EncodeTagAndLengthOnly(
-                QuasiHttpCodec.TagForBody, 0);
-            await _backingStream.WriteAsync(lastChunk, cancellationToken);
-            await _backingStream.FlushAsync(cancellationToken);
-        }
-
-        public void WriteTerminatingChunkSync()
-        {
-            byte[] lastChunk = TlvUtils.EncodeTagAndLengthOnly(
-                QuasiHttpCodec.TagForBody, 0);
-            _backingStream.Write(lastChunk);
-            _backingStream.Flush();
         }
     }
 }

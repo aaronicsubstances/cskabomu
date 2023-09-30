@@ -82,7 +82,7 @@ namespace Kabomu.Examples.Shared
 
         public Task ReleaseConnection(IQuasiHttpConnection connection)
         {
-            return ((SocketConnection)connection).Release(false);
+            return ((SocketConnection)connection).Release(null);
         }
 
         public Stream GetReadableStream(IQuasiHttpConnection connection)

@@ -115,62 +115,44 @@ namespace Kabomu.ProtocolImpl
             return decodedLength;
         }
 
-        /*public static async Task ReadAwayUntilTag(Stream inputStream,
-            int stoppageTag,
-            CancellationToken cancellationToken = default)
-        {
-            while (true)
-            {
-                var tag = await ReadTagOnly(
-                    inputStream, cancellationToken);
-                if (tag != stoppageTag)
-                {
-                    int lengthToSkip = await ReadLengthOnly(
-                        inputStream, cancellationToken);
-                    if (lengthToSkip > 0)
-                    {
-                        await GetCurrentValueAsStream(inputStream,
-                            lengthToSkip).CopyToAsync(Stream.Null, cancellationToken);
-                    }
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-
-        public static void ReadAwayUntilTagSync(Stream inputStream,
-            int stoppageTag)
-        {
-            while (true)
-            {
-                var tag = ReadTagOnlySync(inputStream);
-                if (tag != stoppageTag)
-                {
-                    int lengthToSkip = ReadLengthOnlySync(inputStream);
-                    if (lengthToSkip > 0)
-                    {
-                        GetCurrentValueAsStream(inputStream,
-                            lengthToSkip).CopyTo(Stream.Null);
-                    }
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }*/
-
-        public static Stream GetCurrentValueAsStream(Stream 
-            inputStream, int length)
+        public static Stream CreateLengthEnforcingStream(Stream stream,
+            long length)
         {
             if (length != 0)
             {
-                return new ContentLengthEnforcingStreamInternal(inputStream,
-                    length);
+                return new LengthEnforcingStreamInternal(stream, length);
             }
-            return Stream.Null;
+            else
+            {
+                return Stream.Null;
+            }
+        }
+
+        public static Stream CreateMaxLengthEnforcingStream(Stream stream,
+            int maxLength = 0)
+        {
+            return new MaxLengthEnforcingStreamInternal(stream, maxLength);
+        }
+
+        public static Stream CreateTlvReadableStream(Stream stream,
+            int expectedTag)
+        {
+            return new BodyChunkDecodingStreamInternal(stream, expectedTag);
+        }
+
+        public static Stream CreateTlvWritableStream(Stream stream,
+            int tagToUse)
+        {
+            return new BodyChunkEncodingStreamInternal(stream, tagToUse);
+        }
+
+        public static async Task WriteEndOfTlvStream(Stream stream,
+            int tagToUse,
+            CancellationToken cancellationToken = default)
+        {
+            await stream.WriteAsync(
+                EncodeTagAndLengthOnly(tagToUse, 0),
+                cancellationToken);
         }
     }
 }

@@ -120,7 +120,7 @@ namespace Kabomu
             }
             catch (Exception e)
             {
-                await Abort(transport, connection, true);
+                await Abort(transport, connection, true, null);
                 if (e is QuasiHttpException)
                 {
                     throw;
@@ -174,56 +174,43 @@ namespace Kabomu
 
             IQuasiHttpResponse response = null;
             var responseDeserializer = altTransport?.ResponseDeserializer;
-            var responseStreamingEnabled = false;
             if (responseDeserializer != null)
             {
-                // let response deserializer take control of response buffering.
                 response = await responseDeserializer(connection);
             }
             if (response == null)
             {
                 response = (IQuasiHttpResponse)await ProtocolUtilsInternal.ReadEntityFromTransport(
                     true, transport.GetReadableStream(connection), connection);
-                var applyResponseBuffering = connection.ProcessingOptions?.ResponseBufferingEnabled != false;
-                if (applyResponseBuffering)
+                if (response.Body != null)
                 {
-                    responseStreamingEnabled = false;
-                    response.Body = await ProtocolUtilsInternal.BufferResponseBody(
-                        response.Body, connection);
-                }
-                else
-                {
-                    responseStreamingEnabled = response.Body != null;
+                    response.Disposer = () =>
+                    {
+                        return transport.ReleaseConnection(connection, null);
+                    };
                 }
             }
-            if (responseStreamingEnabled)
-            {
-                response.Disposer = () =>
-                {
-                    return transport.ReleaseConnection(connection, false);
-                };
-            }
-            await Abort(transport, connection, false, responseStreamingEnabled);
+            await Abort(transport, connection, false, response);
             return response;
         }
 
         internal async static Task Abort(IQuasiHttpClientTransport transport,
             IQuasiHttpConnection connection,
-            bool errorOccured, bool responseStreamingEnabled = false)
+            bool errorOccured, IQuasiHttpResponse response)
         {
             if (errorOccured)
             {
                 try
                 {
                     // don't wait.
-                    _ = transport.ReleaseConnection(connection, false);
+                    _ = transport.ReleaseConnection(connection, null);
                 }
                 catch (Exception) { } // ignore
             }
             else
             {
                 await transport.ReleaseConnection(connection,
-                    responseStreamingEnabled);
+                    response);
             }
         }
     }

@@ -1,5 +1,4 @@
 ﻿using Kabomu.Abstractions;
-using NLog;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -16,21 +15,16 @@ namespace Kabomu.Examples.Shared
     /// </summary>
     public class DuplexStreamConnection : IQuasiHttpConnection
     {
-        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
         private static readonly IQuasiHttpProcessingOptions DefaultProcessingOptions =
             new DefaultQuasiHttpProcessingOptions();
 
         private readonly ICancellableTimeoutTask _timeoutId;
         private readonly CancellationTokenSource _cancellationTokenSource;
-        private readonly string _owner; // for debugging
 
         public DuplexStreamConnection(Stream stream, bool isClient,
             IQuasiHttpProcessingOptions processingOptions,
             IQuasiHttpProcessingOptions fallbackProcessingOptions = null)
         {
-            _owner = isClient ? "client" : "server";
-            Log.Debug("creating connection for {0}", _owner);
-
             Stream = stream ?? throw new ArgumentNullException(nameof(stream));
             ProcessingOptions = QuasiHttpUtils.MergeProcessingOptions(processingOptions,
                 fallbackProcessingOptions) ?? DefaultProcessingOptions;
@@ -46,12 +40,10 @@ namespace Kabomu.Examples.Shared
         public IDictionary<string, object> Environment { get; set; }
         public Stream Stream { get; }
 
-        public async Task Release(bool responseStreamingEnabled)
+        public async Task Release(IQuasiHttpResponse response)
         {
-            var usageTag = responseStreamingEnabled ? "partially" : "fully";
-            Log.Debug($"releasing {usageTag} for {_owner}...");
             _timeoutId?.Cancel();
-            if (responseStreamingEnabled)
+            if (response?.Body != null)
             {
                 return;
             }

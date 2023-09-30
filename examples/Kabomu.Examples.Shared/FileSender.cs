@@ -76,11 +76,11 @@ namespace Kabomu.Examples.Shared
 
             // determine options
             IQuasiHttpProcessingOptions sendOptions = null;
-            if (TurnOffComplexFeatures || RandGen.NextDouble() < 0.5)
+            if (RandGen.NextDouble() < 0.5)
             {
                 sendOptions = new DefaultQuasiHttpProcessingOptions
                 {
-                    ResponseBufferingEnabled = false
+                    MaxResponseBodySize = -1,
                 };
             }
 

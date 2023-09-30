@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Kabomu.ProtocolImpl
 {
     /// <summary>
-    /// The standard decoder of quasi http bodies of unknown (ie negative)
+    /// The standard decoder of quasi http bodies of unknown
     /// content lengths in the Kabomu library.
     /// </summary>
     /// <remarks>
@@ -21,6 +21,7 @@ namespace Kabomu.ProtocolImpl
     internal class BodyChunkDecodingStreamInternal : ReadableStreamBaseInternal
     {
         private readonly Stream _backingStream;
+        private readonly int _expectedTag;
         private int _chunkDataLenRem;
         private bool _lastChunkSeen;
 
@@ -28,14 +29,17 @@ namespace Kabomu.ProtocolImpl
         /// Creates new instance.
         /// </summary>
         /// <param name="backingStream">the source stream</param>
+        /// <param name="expectedTag"></param>
         /// <exception cref="ArgumentNullException">The <paramref name="backingStream"/> argument is null.</exception>
-        public BodyChunkDecodingStreamInternal(Stream backingStream)
+        public BodyChunkDecodingStreamInternal(Stream backingStream,
+            int expectedTag)
         {
             if (backingStream == null)
             {
                 throw new ArgumentNullException(nameof(backingStream));
             }
             _backingStream = backingStream;
+            _expectedTag = expectedTag;
         }
 
         public override int ReadByte()
@@ -128,8 +132,7 @@ namespace Kabomu.ProtocolImpl
 
         private int FetchNextTagAndLengthSync()
         {
-            TlvUtils.ReadExpectedTagOnlySync(_backingStream,
-                QuasiHttpCodec.TagForBody);
+            TlvUtils.ReadExpectedTagOnlySync(_backingStream, _expectedTag);
             return TlvUtils.ReadLengthOnlySync(_backingStream);
         }
 
@@ -137,7 +140,7 @@ namespace Kabomu.ProtocolImpl
             CancellationToken cancellationToken)
         {
             await TlvUtils.ReadExpectedTagOnly(_backingStream,
-                QuasiHttpCodec.TagForBody, cancellationToken);
+                _expectedTag, cancellationToken);
             return await TlvUtils.ReadLengthOnly(_backingStream,
                 cancellationToken);
         }

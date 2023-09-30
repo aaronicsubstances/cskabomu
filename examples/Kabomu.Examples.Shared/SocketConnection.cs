@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Kabomu.Abstractions;
 using System.IO;
 using System.Threading;
-using NLog;
 
 namespace Kabomu.Examples.Shared
 {
@@ -16,22 +15,17 @@ namespace Kabomu.Examples.Shared
     /// </summary>
     public class SocketConnection : IQuasiHttpConnection
     {
-        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
         private static readonly IQuasiHttpProcessingOptions DefaultProcessingOptions =
             new DefaultQuasiHttpProcessingOptions();
 
         private readonly Socket _socket;
         private readonly ICancellableTimeoutTask _timeoutId;
         private readonly CancellationTokenSource _cancellationTokenSource;
-        private readonly string _owner; // for debugging
 
         public SocketConnection(Socket socket, bool isClient,
             IQuasiHttpProcessingOptions processingOptions,
             IQuasiHttpProcessingOptions fallbackProcessingOptions = null)
         {
-            _owner = isClient ? "client" : "server";
-            Log.Debug("creating connection for {0}", _owner);
-
             _socket = socket ?? throw new ArgumentNullException(nameof(socket));
             ProcessingOptions = QuasiHttpUtils.MergeProcessingOptions(processingOptions,
                 fallbackProcessingOptions) ?? DefaultProcessingOptions;
@@ -46,12 +40,10 @@ namespace Kabomu.Examples.Shared
             _cancellationTokenSource.Token;
         public IDictionary<string, object> Environment { get; set; }
 
-        public Task Release(bool responseStreamingEnabled)
+        public Task Release(IQuasiHttpResponse response)
         {
-            var usageTag = responseStreamingEnabled ? "partially" : "fully";
-            Log.Debug($"releasing {usageTag} for {_owner}...");
             _timeoutId?.Cancel();
-            if (responseStreamingEnabled)
+            if (response?.Body != null)
             {
                 return Task.CompletedTask;
             }

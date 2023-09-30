@@ -88,10 +88,11 @@ namespace Kabomu.ProtocolImpl
             {
                 return;
             }
-            var bodyWriter = new BodyChunkEncodingStreamInternal(
-                writableStream);
+            var bodyWriter = TlvUtils.CreateTlvWritableStream(
+                writableStream, QuasiHttpCodec.TagForBody);
             await body.CopyToAsync(bodyWriter, connection.CancellationToken);
-            await bodyWriter.WriteTerminatingChunk(connection.CancellationToken);
+            await TlvUtils.WriteEndOfTlvStream(writableStream,
+                QuasiHttpCodec.TagForBody, connection.CancellationToken);
         }
 
         public static async Task<object> ReadEntityFromTransport(
@@ -119,7 +120,8 @@ namespace Kabomu.ProtocolImpl
             Stream body = null;
             if (reqOrStatusLineReceiver[3] == "-1")
             {
-                body = new BodyChunkDecodingStreamInternal(readableStream);
+                body = TlvUtils.CreateTlvReadableStream(readableStream,
+                    QuasiHttpCodec.TagForBody);
             }
             if (isResponse)
             {
@@ -139,6 +141,16 @@ namespace Kabomu.ProtocolImpl
                 response.HttpStatusMessage = reqOrStatusLineReceiver[1];
                 response.HttpVersion = reqOrStatusLineReceiver[2];
                 response.Headers = headersReceiver;
+                if (body != null)
+                {
+                    var bodySizeLimit = connection.ProcessingOptions?.
+                        MaxResponseBodySize ?? 0;
+                    if (bodySizeLimit >= 0)
+                    {
+                        body = TlvUtils.CreateMaxLengthEnforcingStream(body,
+                            bodySizeLimit);
+                    }
+                }
                 response.Body = body;
                 return response;
             }
@@ -155,32 +167,6 @@ namespace Kabomu.ProtocolImpl
                 request.Body = body;
                 return request;
             }
-        }
-
-        public static async Task<Stream> BufferResponseBody(
-            Stream body, IQuasiHttpConnection connection)
-        {
-            if (body == null)
-            {
-                return null;
-            }
-            int bufferingSizeLimit = connection.ProcessingOptions?.ResponseBodyBufferingSizeLimit ?? 0;
-            if (bufferingSizeLimit <= 0)
-            {
-                bufferingSizeLimit = IOUtilsInternal.DefaultDataBufferLimit;
-            }
-            var buffered = new MemoryStream();
-            await IOUtilsInternal.CopyBytesUpToGivenLimit(body,
-                buffered, bufferingSizeLimit + 1, connection.CancellationToken);
-            if (buffered.Length > bufferingSizeLimit)
-            {
-                throw new QuasiHttpException(
-                    "response body exceeds buffering limit of " +
-                    $"{bufferingSizeLimit} bytes",
-                    QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
-            }
-            buffered.Position = 0; // reset for reading.
-            return buffered;
         }
     }
 }

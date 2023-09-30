@@ -174,22 +174,16 @@ namespace Kabomu
                     preferred?.ExtraConnectivityParams,
                     fallback?.ExtraConnectivityParams);
 
-            mergedOptions.ResponseBufferingEnabled =
-                DetermineEffectiveBooleanOption(
-                    preferred?.ResponseBufferingEnabled,
-                    fallback?.ResponseBufferingEnabled,
-                    true);
-
             mergedOptions.MaxHeadersSize =
                 DetermineEffectivePositiveIntegerOption(
                     preferred?.MaxHeadersSize,
                     fallback?.MaxHeadersSize,
                     0);
 
-            mergedOptions.ResponseBodyBufferingSizeLimit =
-                DetermineEffectivePositiveIntegerOption(
-                    preferred?.ResponseBodyBufferingSizeLimit,
-                    fallback?.ResponseBodyBufferingSizeLimit,
+            mergedOptions.MaxResponseBodySize =
+                DetermineEffectiveNonZeroIntegerOption(
+                    preferred?.MaxResponseBodySize,
+                    fallback?.MaxResponseBodySize,
                     0);
             return mergedOptions;
         }

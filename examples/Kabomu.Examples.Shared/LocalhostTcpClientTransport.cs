@@ -34,9 +34,9 @@ namespace Kabomu.Examples.Shared
         public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }
 
         public Task ReleaseConnection(IQuasiHttpConnection connection,
-            bool responseStreamingEnabled)
+            IQuasiHttpResponse response)
         {
-            return ((SocketConnection)connection).Release(responseStreamingEnabled);
+            return ((SocketConnection)connection).Release(response);
         }
 
         public Stream GetReadableStream(IQuasiHttpConnection connection)

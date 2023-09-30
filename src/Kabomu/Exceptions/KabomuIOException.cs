@@ -30,25 +30,10 @@ namespace Kabomu.Exceptions
         }
 
         /// <summary>
-        /// Creates error indicating that a number of bytes
-        /// indicated by quasi http content length could not be fully
-        /// read from a reader or source of bytes.
-        /// </summary>
-        /// <param name="contentLength">content length to include in error message</param>
-        /// <param name="remainingBytesToRead">remaining bytes to read which led to error</param>
-        public static KabomuIOException CreateContentLengthNotSatisfiedError(long contentLength,
-            long remainingBytesToRead)
-        {
-            return new KabomuIOException($"insufficient bytes available to satisfy " +
-                $"content length of {contentLength} bytes (could not read remaining " +
-                $"{remainingBytesToRead} bytes before end of read)");
-        }
-
-        /// <summary>
         /// Creates error indicating that reading from a stream has
         /// unexpectedly ended.
         /// </summary>
-        public static KabomuIOException CreateEndOfReadError()
+        internal static KabomuIOException CreateEndOfReadError()
         {
             return new KabomuIOException("unexpected end of read");
         }

@@ -12,7 +12,7 @@ namespace Kabomu.ProtocolImpl
     /// <summary>
     /// Wraps another stream to ensure a given amount of bytes are read.
     /// </summary>
-    internal class ContentLengthEnforcingStreamInternal : ReadableStreamBaseInternal
+    internal class LengthEnforcingStreamInternal : ReadableStreamBaseInternal
     {
         private readonly Stream _backingStream;
         private readonly long _contentLength;
@@ -22,23 +22,23 @@ namespace Kabomu.ProtocolImpl
         /// Creates a new instance.
         /// </summary>
         /// <param name="backingStream">the source stream</param>
-        /// <param name="contentLength">the expected number of bytes to guarantee or assert.</param>
+        /// <param name="length">the expected number of bytes to guarantee or assert.</param>
         /// <exception cref="ArgumentNullException">The <paramref name="backingStream"/> argument is null.</exception>
-        /// <exception cref="ArgumentException">The <paramref name="contentLength"/> argument is negative</exception>
-        public ContentLengthEnforcingStreamInternal(Stream backingStream, long contentLength)
+        /// <exception cref="ArgumentException">The <paramref name="length"/> argument is negative</exception>
+        public LengthEnforcingStreamInternal(Stream backingStream, long length)
         {
             if (backingStream == null)
             {
                 throw new ArgumentNullException(nameof(backingStream));
             }
-            if (contentLength < 0)
+            if (length <= 0)
             {
                 throw new ArgumentException(
-                    $"content length cannot be negative: {contentLength}");
+                    $"length must be positive: {length}");
             }
             _backingStream = backingStream;
-            _contentLength = contentLength;
-            _bytesLeftToRead = contentLength;
+            _contentLength = length;
+            _bytesLeftToRead = length;
         }
 
         public override int ReadByte()
@@ -103,8 +103,9 @@ namespace Kabomu.ProtocolImpl
             bool endOfRead = bytesToRead > 0 && bytesJustRead == 0;
             if (endOfRead && _bytesLeftToRead > 0)
             {
-                throw KabomuIOException.CreateContentLengthNotSatisfiedError(
-                    _contentLength, _bytesLeftToRead);
+                throw new KabomuIOException($"insufficient bytes available to satisfy " +
+                    $"length of {_contentLength} bytes (could not read remaining " +
+                    $"{_bytesLeftToRead} bytes before end of read)");
             }
         }
     }

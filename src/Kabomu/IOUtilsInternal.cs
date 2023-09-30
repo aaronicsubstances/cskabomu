@@ -20,11 +20,6 @@ namespace Kabomu
         public static readonly int DefaultReadBufferSize = 8_192;
 
         /// <summary>
-        /// The limit of data buffering when reading byte streams into memory. Equal to 128 MB.
-        /// </summary>
-        public static readonly int DefaultDataBufferLimit = 134_217_728;
-
-        /// <summary>
         /// Reads in data asynchronously in order to completely fill in a buffer.
         /// </summary>
         /// <param name="inputStream">source of bytes to read</param>
@@ -104,61 +99,6 @@ namespace Kabomu
                     }
                     offset += bytesRead;
                     length -= bytesRead;
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Copies all remaining bytes from an input stream into
-        /// an output stream, and stops reading if the total number of
-        /// bytes being copied reaches a certain limit.
-        /// </summary>
-        /// <param name="src">The source of data to read</param>
-        /// <param name="dest">destination of data being transferred</param>
-        /// <param name="bufferingLimit">The limit on the number of bytes to copy.
-        /// Can be zero for a default value determined by
-        /// <see cref="DefaultDataBufferLimit"/> to be used.</param>
-        /// <param name="cancellationToken">
-        /// The optional token to monitor for cancellation requests.</param>
-        public static async Task CopyBytesUpToGivenLimit(
-            Stream src, Stream dest,
-            int bufferingLimit, CancellationToken cancellationToken)
-        {
-            if (src == null)
-            {
-                throw new ArgumentNullException(nameof(src));
-            }
-            if (dest == null)
-            {
-                throw new ArgumentNullException(nameof(dest));
-            }
-            if (bufferingLimit <= 0)
-            {
-                bufferingLimit = DefaultDataBufferLimit;
-            }
-            var readBuffer = new byte[DefaultReadBufferSize];
-            int totalBytesRead = 0;
-
-            while (true)
-            {
-                int bytesToRead = Math.Min(readBuffer.Length, bufferingLimit - totalBytesRead);
-                int bytesRead = await src.ReadAsync(readBuffer, 0, bytesToRead,
-                    cancellationToken);
-                if (bytesRead > bytesToRead)
-                {
-                    throw new ExpectationViolationException(
-                        "read beyond requested length: " +
-                        $"({bytesRead} > {bytesToRead})");
-                }
-                if (bytesRead > 0)
-                {
-                    await dest.WriteAsync(readBuffer, 0, bytesRead,
-                        cancellationToken);
-                    totalBytesRead += bytesRead;
                 }
                 else
                 {
