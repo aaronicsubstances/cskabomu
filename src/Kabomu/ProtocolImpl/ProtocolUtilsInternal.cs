@@ -88,7 +88,7 @@ namespace Kabomu.ProtocolImpl
             {
                 return;
             }
-            var bodyWriter = TlvUtils.CreateTlvWritableStream(
+            var bodyWriter = TlvUtils.CreateTlvEncodingWritableStream(
                 writableStream, QuasiHttpCodec.TagForBody);
             await body.CopyToAsync(bodyWriter, connection.CancellationToken);
             await TlvUtils.WriteEndOfTlvStream(writableStream,
@@ -105,22 +105,22 @@ namespace Kabomu.ProtocolImpl
                     "no readable stream found for transport");
             }
             var headersReceiver = new Dictionary<string, IList<string>>();
-            var reqOrStatusLineReceiver = await QuasiHttpCodec.ReadQuasiHttpHeaders(
+            var reqOrStatusLine = await QuasiHttpCodec.ReadQuasiHttpHeaders(
                 readableStream,
                 headersReceiver,
                 connection.ProcessingOptions?.MaxHeadersSize ?? 0,
                 connection.CancellationToken);
 
-            if (reqOrStatusLineReceiver.Count < 4)
+            if (reqOrStatusLine.Count < 4)
             {
                 throw new QuasiHttpException(
                     $"invalid quasi http {(isResponse ? "status" : "request")} line",
                     QuasiHttpException.ReasonCodeProtocolViolation);
             }
             Stream body = null;
-            if (reqOrStatusLineReceiver[3] == "-1")
+            if (reqOrStatusLine[3] == "-1")
             {
-                body = TlvUtils.CreateTlvReadableStream(readableStream,
+                body = TlvUtils.CreateTlvDecodingReadableStream(readableStream,
                     QuasiHttpCodec.TagForBody);
             }
             if (isResponse)
@@ -129,7 +129,7 @@ namespace Kabomu.ProtocolImpl
                 try
                 {
                     response.StatusCode = MiscUtilsInternal.ParseInt32(
-                        reqOrStatusLineReceiver[0]);
+                        reqOrStatusLine[0]);
                 }
                 catch (Exception e)
                 {
@@ -138,8 +138,8 @@ namespace Kabomu.ProtocolImpl
                         QuasiHttpException.ReasonCodeProtocolViolation,
                         e);
                 }
-                response.HttpStatusMessage = reqOrStatusLineReceiver[1];
-                response.HttpVersion = reqOrStatusLineReceiver[2];
+                response.HttpStatusMessage = reqOrStatusLine[1];
+                response.HttpVersion = reqOrStatusLine[2];
                 response.Headers = headersReceiver;
                 if (body != null)
                 {
@@ -160,9 +160,9 @@ namespace Kabomu.ProtocolImpl
                 {
                     Environment = connection.Environment
                 };
-                request.HttpMethod = reqOrStatusLineReceiver[0];
-                request.Target = reqOrStatusLineReceiver[1];
-                request.HttpVersion = reqOrStatusLineReceiver[2];
+                request.HttpMethod = reqOrStatusLine[0];
+                request.Target = reqOrStatusLine[1];
+                request.HttpVersion = reqOrStatusLine[2];
                 request.Headers = headersReceiver;
                 request.Body = body;
                 return request;

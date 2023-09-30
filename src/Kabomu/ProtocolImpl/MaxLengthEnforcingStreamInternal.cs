@@ -7,14 +7,25 @@ using System.Threading;
 
 namespace Kabomu.ProtocolImpl
 {
+    /// <summary>
+    /// Wraps another readable stream to ensure a given amount of bytes
+    /// are not exceeded by reads.
+    /// </summary>
     internal class MaxLengthEnforcingStreamInternal : ReadableStreamBaseInternal
     {
-        private static readonly int DefaultMaxContentLength = 134_217_728;
+        private static readonly int DefaultMaxLength = 134_217_728;
 
         private readonly Stream _backingStream;
         private readonly int _maxLength;
         private int _bytesLeftToRead;
 
+        /// <summary>
+        /// Creates a new instance.
+        /// </summary>
+        /// <param name="backingStream"> the source stream</param>
+        /// <param name="maxLength">the maximum number of bytes to read</param>
+        /// <exception cref="ArgumentNullException">The <paramref name="backingStream"/> argument is null.</exception>
+        /// <exception cref="ArgumentException">The <paramref name="contentLength"/> argument is negative</exception>
         public MaxLengthEnforcingStreamInternal(Stream backingStream,
             int maxLength = 0)
         {
@@ -24,14 +35,13 @@ namespace Kabomu.ProtocolImpl
             }
             if (maxLength == 0)
             {
-                maxLength = DefaultMaxContentLength;
+                maxLength = DefaultMaxLength;
             }
-            if (maxLength <= 0)
+            else if (maxLength <= 0)
             {
                 throw new ArgumentException(
-                    $"max length must be positive: {maxLength}");
+                    $"max length cannot be negative: {maxLength}");
             }
-            _backingStream = backingStream;
             _backingStream = backingStream;
             _maxLength = maxLength;
             _bytesLeftToRead = maxLength + 1; // check for excess read.

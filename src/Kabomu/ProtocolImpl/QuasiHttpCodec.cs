@@ -24,7 +24,7 @@ namespace Kabomu.ProtocolImpl
         /// </summary>
         /// <param name="reqOrStatusLine">request or response status line</param>
         /// <param name="remainingHeaders">headers after request or status line</param>
-        /// <returns>serialized representation of quasi http request headers</returns>
+        /// <returns>serialized representation of quasi http headers</returns>
         public static byte[] EncodeQuasiHttpHeaders(
             IList<string> reqOrStatusLine,
             IDictionary<string, IList<string>> remainingHeaders)
