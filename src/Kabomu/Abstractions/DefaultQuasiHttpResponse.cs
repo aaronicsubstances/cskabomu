@@ -30,6 +30,7 @@ namespace Kabomu.Abstractions
         public IDictionary<string, IList<string>> Headers { get; set; }
         public string HttpStatusMessage { get; set; }
         public string HttpVersion { get; set; }
+        public long ContentLength { get; set; }
         public Stream Body { get; set; }
         public IDictionary<string, object> Environment { get; set; }
         public Func<Task> Disposer { get; set; }

@@ -54,45 +54,63 @@ namespace Kabomu.ProtocolImpl
                     "no writable stream found for transport");
             }
             Stream body;
+            long contentLength;
+            IList<string> reqOrStatusLine;
+            IDictionary<string, IList<string>> headers;
             if (isResponse)
             {
                 var response = (IQuasiHttpResponse)entity;
+                headers = response.Headers;
                 body = response.Body;
-                var statusLine = new string[] {
+                contentLength = response.ContentLength;
+                reqOrStatusLine = new string[] {
                     response.StatusCode.ToString(),
                     response.HttpStatusMessage,
                     response.HttpVersion,
-                    body != null ? "-1": "0"
+                    null
                 };
-                await QuasiHttpCodec.WriteQuasiHttpHeaders(writableStream,
-                    statusLine, response.Headers,
-                    connection.ProcessingOptions?.MaxHeadersSize ?? 0,
-                    connection.CancellationToken);
             }
             else
             {
                 var request = (IQuasiHttpRequest)entity;
+                headers = request.Headers;
                 body = request.Body;
-                var requestLine = new string[] {
+                contentLength = request.ContentLength;
+                reqOrStatusLine = new string[] {
                     request.HttpMethod,
                     request.Target,
                     request.HttpVersion,
-                    body != null ? "-1": "0"
+                    null
                 };
-                await QuasiHttpCodec.WriteQuasiHttpHeaders(writableStream,
-                    requestLine, request.Headers,
-                    connection.ProcessingOptions?.MaxHeadersSize ?? 0,
-                    connection.CancellationToken);
             }
+            if (contentLength == 0)
+            {
+                contentLength = body != null ? -1 : 0;
+            }
+            reqOrStatusLine[3] = contentLength.ToString();
+            await QuasiHttpCodec.WriteQuasiHttpHeaders(writableStream,
+                reqOrStatusLine, headers,
+                connection.ProcessingOptions?.MaxHeadersSize ?? 0,
+                connection.CancellationToken);
             if (body == null)
             {
                 return;
             }
-            var bodyWriter = TlvUtils.CreateTlvEncodingWritableStream(
-                writableStream, QuasiHttpCodec.TagForBody);
-            await body.CopyToAsync(bodyWriter, connection.CancellationToken);
-            await TlvUtils.WriteEndOfTlvStream(writableStream,
-                QuasiHttpCodec.TagForBody, connection.CancellationToken);
+            if (contentLength < 0)
+            {
+                var bodyWriter = TlvUtils.CreateTlvEncodingWritableStream(
+                    writableStream, QuasiHttpCodec.TagForBody);
+                await body.CopyToAsync(bodyWriter, connection.CancellationToken);
+                await TlvUtils.WriteEndOfTlvStream(writableStream,
+                    QuasiHttpCodec.TagForBody, connection.CancellationToken);
+            }
+            else
+            {
+                // don't enforce positive content lengths when writing out
+                // quasi http bodies
+                await body.CopyToAsync(writableStream,
+                    connection.CancellationToken);
+            }
         }
 
         public static async Task<object> ReadEntityFromTransport(
@@ -117,11 +135,32 @@ namespace Kabomu.ProtocolImpl
                     $"invalid quasi http {(isResponse ? "status" : "request")} line",
                     QuasiHttpException.ReasonCodeProtocolViolation);
             }
-            Stream body = null;
-            if (reqOrStatusLine[3] == "-1")
+            long contentLength;
+            try
             {
-                body = TlvUtils.CreateTlvDecodingReadableStream(readableStream,
-                    QuasiHttpCodec.TagForBody);
+                contentLength = MiscUtilsInternal.ParseInt48(
+                    reqOrStatusLine[3]);
+            }
+            catch (Exception e)
+            {
+                throw new QuasiHttpException(
+                    $"invalid quasi http {(isResponse ? "response" : "request")} content length",
+                    QuasiHttpException.ReasonCodeProtocolViolation,
+                    e);
+            }
+            Stream body = null;
+            if (contentLength != 0)
+            {
+                if (contentLength > 0)
+                {
+                    body = TlvUtils.CreateContentLengthEnforcingStream(
+                        readableStream, contentLength);
+                }
+                else
+                {
+                    body = TlvUtils.CreateTlvDecodingReadableStream(readableStream,
+                        QuasiHttpCodec.TagForBody);
+                }
             }
             if (isResponse)
             {

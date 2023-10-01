@@ -24,7 +24,7 @@ Kabomu seeks to demonstrate the following:
 
 3. Quasi web protocol: based on HTTP/1.1 semantically, but with the following implementation differences:
    1. headers (request line and status line included) are encoded with CSV, UTF8 and TLV.
-   3. bodies are always treated as having unknown lengths, and are encoded with TLV.
+   3. bodies are encoded with TLV.
 
 3. Quasi web request processing strategies: one of the following
    1. Ignore http request methods  (like what SOAP Web Services did via HTTP in always using POST), and also ignore request path parameters and query strings. Instead use entire request target/path as a key into a

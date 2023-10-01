@@ -15,19 +15,11 @@ namespace Kabomu.Examples.Shared
 
         /// <summary>
         /// The purpose of this flag and the dead code that is present
-        /// as a result, is make the dead code serve as reference for
-        /// porting in stages of HTTP/1.0 only, before HTTP/1.1.
-        /// </summary>
-        internal static readonly bool SupportHttp10Only = false;
-
-        /// <summary>
-        /// The purpose of this flag and the dead code that is present
         /// as a result, is to make the dead code serve as reference for
         /// porting in stages of postponing "complex" features such as
         /// <list type="bullet">
         /// <item>always set response content length to
         ///   positive values if a body is present.</item>
-        ///   <item>enable response buffering</item>
         ///   <item>use Send2() instead of Send() method</item>
         /// </list>
         /// </summary>
@@ -72,6 +64,10 @@ namespace Kabomu.Examples.Shared
             // add body.
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
+            if (TurnOffComplexFeatures || RandGen.NextDouble() < 0.5)
+            {
+                request.ContentLength = f.Length;
+            }
             request.Body = fileStream;
 
             // determine options

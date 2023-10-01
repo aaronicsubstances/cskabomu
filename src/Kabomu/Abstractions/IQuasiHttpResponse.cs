@@ -41,6 +41,13 @@ namespace Kabomu.Abstractions
         string HttpVersion { get; set; }
 
         /// <summary>
+        /// Gets or sets the number of bytes that the instance will supply,
+        /// or -1 (actually any negative value) to indicate an unknown number of
+        /// bytes.
+        /// </summary>
+        long ContentLength { get; set; }
+
+        /// <summary>
         /// Gets or sets the response body.
         /// </summary>
         Stream Body { get; set; }
