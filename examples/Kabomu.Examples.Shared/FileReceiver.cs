@@ -24,7 +24,9 @@ namespace Kabomu.Examples.Shared
 
         public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request)
         {
-            var fileName = Path.GetFileName(request.Headers["f"][0]);
+            var fileName = request.Headers["f"][0];
+            fileName = Encoding.UTF8.GetString(Convert.FromBase64String(fileName));
+            fileName = Path.GetFileName(fileName);
 
             Exception transferError = null;
             try

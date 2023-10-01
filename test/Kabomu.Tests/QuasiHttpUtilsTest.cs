@@ -59,8 +59,7 @@ namespace Kabomu.Tests
                     { "scheme", "tht" }
                 },
                 MaxHeadersSize = 10,
-                ResponseBufferingEnabled = false,
-                ResponseBodyBufferingSizeLimit = -1,
+                MaxResponseBodySize = -1,
                 TimeoutMillis = 0
             };
             var fallback = new DefaultQuasiHttpProcessingOptions
@@ -71,8 +70,7 @@ namespace Kabomu.Tests
                     { "two", 2 }
                 },
                 MaxHeadersSize = 30,
-                ResponseBufferingEnabled = true,
-                ResponseBodyBufferingSizeLimit = 40,
+                MaxResponseBodySize = 40,
                 TimeoutMillis = -1
             };
             var actual = QuasiHttpUtils.MergeProcessingOptions(
@@ -85,8 +83,7 @@ namespace Kabomu.Tests
                     { "two", 2 }
                 },
                 MaxHeadersSize = 10,
-                ResponseBufferingEnabled = false,
-                ResponseBodyBufferingSizeLimit = 40,
+                MaxResponseBodySize = -1,
                 TimeoutMillis = -1
             };
             ComparisonUtils.CompareProcessingOptions(expected, actual);

@@ -23,7 +23,7 @@ Kabomu seeks to demonstrate the following:
 1. IPC mechanisms demonstated: localhost TCP, unix domain sockets and windows named pipes (interfaces are provided to make it easy to employ any other IPC).
 
 3. Quasi web protocol: based on HTTP/1.1 semantically, but with the following implementation differences:
-   1. headers (request line and status line included) are encoded with CSV, UTF8 and TLV.
+   1. headers (request line and status line included) are encoded with CSV, ASCII, Base64 and TLV.
    3. bodies are encoded with TLV.
 
 3. Quasi web request processing strategies: one of the following

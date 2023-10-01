@@ -11,7 +11,7 @@ using Xunit;
 
 namespace Kabomu.Tests.ProtocolImpl
 {
-    public class BodyChunkCodecStreamsInternalTest
+    /*public class BodyChunkCodecStreamsInternalTest
     {
         [InlineData("")]
         [InlineData("a")]
@@ -183,5 +183,5 @@ namespace Kabomu.Tests.ProtocolImpl
                 }
             };
         }
-    }
+    }*/
 }

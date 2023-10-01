@@ -53,12 +53,16 @@ namespace Kabomu.Examples.Shared
             {
                 Headers = new Dictionary<string, IList<string>>()
             };
-            request.Headers.Add("f", new List<string> { f.Name });
+            request.Headers.Add("f", new List<string>
+            {
+                Convert.ToBase64String(Encoding.UTF8.GetBytes(f.Name))
+            });
             var echoBodyOn = RandGen.NextDouble() < 0.5;
             if (echoBodyOn)
             {
                 request.Headers.Add("echo-body",
-                    new List<string> { f.FullName });
+                    new List<string> { Convert.ToBase64String(
+                        Encoding.UTF8.GetBytes(f.FullName)) });
             }
 
             // add body.
@@ -102,6 +106,8 @@ namespace Kabomu.Examples.Shared
                         await res.Body.CopyToAsync(memStream);
                         var actualResBody = Encoding.UTF8.GetString(
                             memStream.ToArray());
+                        actualResBody = Encoding.UTF8.GetString(
+                            Convert.FromBase64String(actualResBody));
                         if (actualResBody != f.FullName)
                         {
                             throw new Exception("expected echo body to be " +

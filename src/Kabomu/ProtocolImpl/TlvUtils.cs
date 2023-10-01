@@ -11,6 +11,10 @@ namespace Kabomu.ProtocolImpl
 {
     public static class TlvUtils
     {
+        public static readonly int TagForQuasiHttpHeaders = 0x71683031;
+
+        public static readonly int TagForQuasiHttpBody = 0x71623031;
+
         public static byte[] EncodeTagAndLengthOnly(int tag, int length)
         {
             if (tag <= 0)

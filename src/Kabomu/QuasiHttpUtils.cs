@@ -304,6 +304,110 @@ namespace Kabomu
                 CancellationTokenSource = timeoutId
             };
         }
+
+        public static bool IsValidHttpHeaderSection(IList<IList<string>> csv)
+        {
+            if (csv == null)
+            {
+                throw new ArgumentNullException(nameof(csv));
+            }
+            if (csv.Count == 0)
+            {
+                return false;
+            }
+            var specialHeader = csv[0];
+            if (specialHeader == null || specialHeader.Count == 0)
+            {
+                return false;
+            }
+            foreach (var item in specialHeader)
+            {
+                // allow empty strings in special header.
+                if (item == null)
+                {
+                    return false;
+                }
+                if (!ContainsOnlyPrintableAsciiChars(item, false, false))
+                {
+                    return false;
+                }
+            }
+            for (int i = 1; i < csv.Count; i++)
+            {
+                var row = csv[i];
+                if (row == null || row.Count < 2)
+                {
+                    return false;
+                }
+                var headerName = row[0];
+                if (string.IsNullOrEmpty(headerName))
+                {
+                    return false;
+                }
+                if (!ContainsOnlyPrintableAsciiChars(headerName,
+                    true, false))
+                {
+                    return false;
+                }
+                for (int j = 1; j < row.Count; j++)
+                {
+                    var headerValue = row[j];
+                    if (string.IsNullOrEmpty(headerValue))
+                    {
+                        return false;
+                    }
+                    if (!ContainsOnlyPrintableAsciiChars(headerValue,
+                        false, true))
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        internal static bool ContainsOnlyPrintableAsciiChars(string v,
+            bool safeOnly, bool allowSpace)
+        {
+            foreach (var c in v)
+            {
+                if (safeOnly)
+                {
+                    if (c >= '0' && c <= '9')
+                    {
+                        // digits
+                    }
+                    else if (c >= 'A' && c <= 'Z')
+                    {
+                        // upper case
+                    }
+                    else if (c >= 'a' && c <= 'z')
+                    {
+                        // lower case
+                    }
+                    else if (c == '-')
+                    {
+                        // hyphen
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (c < ' ' || c > 126)
+                    {
+                        return false;
+                    }
+                    if (!allowSpace && c == ' ')
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
     }
 
     internal class DefaultCancellableTimeoutTaskInternal : ICancellableTimeoutTask
