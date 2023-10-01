@@ -70,6 +70,7 @@ namespace Kabomu.Examples.Shared
             {
                 var responseBytes = Encoding.UTF8.GetBytes(responseBody);
                 response.Body = new MemoryStream(responseBytes);
+                response.ContentLength = -1;
                 if (FileSender.TurnOffComplexFeatures ||
                     RandGen.NextDouble() < 0.5)
                 {

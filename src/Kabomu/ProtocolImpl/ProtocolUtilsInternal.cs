@@ -44,13 +44,117 @@ namespace Kabomu.ProtocolImpl
             }
         }
 
+        public static void ValidateHttpHeaderSection(bool isResponse,
+            IList<IList<string>> csv)
+        {
+            if (csv.Count == 0)
+            {
+                throw new ExpectationViolationException(
+                    "expected csv to contain at least the special header");
+            }
+            var specialHeader = csv[0];
+            if (specialHeader.Count != 4)
+            {
+                throw new ExpectationViolationException(
+                    "expected special header to have 4 values " +
+                    $"instead of {specialHeader.Count}");
+            }
+            foreach (var item in specialHeader)
+            {
+                if (!ContainsOnlyPrintableAsciiChars(item, false, false))
+                {
+                    throw new QuasiHttpException(
+                        $"quasi http {(isResponse ? "status" : "request")} line " +
+                        "field contains spaces, newlines or " +
+                        "non-printable ASCII characters: " +
+                        item,
+                        QuasiHttpException.ReasonCodeProtocolViolation);
+                }
+            }
+            for (int i = 1; i < csv.Count; i++)
+            {
+                var row = csv[i];
+                if (row.Count < 2)
+                {
+                    throw new ExpectationViolationException(
+                        "expected row to have at least 2 values " +
+                        $"instead of ${row.Count}");
+                }
+                var headerName = row[0];
+                if (!ContainsOnlyPrintableAsciiChars(headerName,
+                    true, false))
+                {
+                    throw new QuasiHttpException(
+                        "quasi http header name contains characters " +
+                        "other than hyphen and English alphabets: " +
+                        headerName,
+                        QuasiHttpException.ReasonCodeProtocolViolation);
+                }
+                for (int j = 1; j < row.Count; j++)
+                {
+                    var headerValue = row[j];
+                    if (!ContainsOnlyPrintableAsciiChars(headerValue,
+                        false, true))
+                    {
+                        throw new QuasiHttpException(
+                            "quasi http header value contains newlines or " +
+                            "non-printable ASCII characters: " + headerValue,
+                            QuasiHttpException.ReasonCodeProtocolViolation);
+                    }
+                }
+            }
+        }
+
+        public static bool ContainsOnlyPrintableAsciiChars(string v,
+            bool safeOnly, bool allowSpace)
+        {
+            foreach (var c in v)
+            {
+                if (safeOnly)
+                {
+                    if (c >= '0' && c <= '9')
+                    {
+                        // digits
+                    }
+                    else if (c >= 'A' && c <= 'Z')
+                    {
+                        // upper case
+                    }
+                    else if (c >= 'a' && c <= 'z')
+                    {
+                        // lower case
+                    }
+                    else if (c == '-')
+                    {
+                        // hyphen
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (c < ' ' || c > 126)
+                    {
+                        return false;
+                    }
+                    if (!allowSpace && c == ' ')
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
         /// <summary>
         /// Serializes quasi http request or response headers.
         /// </summary>
         /// <param name="reqOrStatusLine">request or response status line</param>
         /// <param name="remainingHeaders">headers after request or status line</param>
         /// <returns>serialized representation of quasi http headers</returns>
-        public static byte[] EncodeQuasiHttpHeaders(
+        public static byte[] EncodeQuasiHttpHeaders(bool isResponse,
             IList<string> reqOrStatusLine,
             IDictionary<string, IList<string>> remainingHeaders)
         {
@@ -69,32 +173,32 @@ namespace Kabomu.ProtocolImpl
             {
                 foreach (var header in remainingHeaders)
                 {
-                    if (header.Value == null)
+                    if (string.IsNullOrEmpty(header.Key))
+                    {
+                        throw new QuasiHttpException(
+                            "quasi http header name cannot be empty",
+                            QuasiHttpException.ReasonCodeProtocolViolation);
+                    }
+                    if (header.Value == null || header.Value.Count == 0)
                     {
                         continue;
                     }
                     var headerRow = new List<string> { header.Key };
                     foreach (var v in header.Value)
                     {
-                        if (!string.IsNullOrEmpty(v))
+                        if (string.IsNullOrEmpty(v))
                         {
-                            headerRow.Add(v);
+                            throw new QuasiHttpException(
+                                "quasi http header value cannot be empty",
+                                QuasiHttpException.ReasonCodeProtocolViolation);
                         }
+                        headerRow.Add(v);
                     }
-                    if (headerRow.Count > 1)
-                    {
-                        csv.Add(headerRow);
-                    }
+                    csv.Add(headerRow);
                 }
             }
 
-            if (!QuasiHttpUtils.IsValidHttpHeaderSection(csv))
-            {
-                throw new QuasiHttpException(
-                    "quasi http headers cannot contain newlines or other " +
-                    "non-printable ASCII characters",
-                    QuasiHttpException.ReasonCodeProtocolViolation);
-            }
+            ValidateHttpHeaderSection(isResponse, csv);
 
             var serialized = MiscUtilsInternal.StringToBytes(
                 CsvUtils.Serialize(csv));
@@ -185,13 +289,15 @@ namespace Kabomu.ProtocolImpl
         /// <returns>task represent asynchronous operation</returns>
         /// <exception cref="QuasiHttpException">if serialized is too large</exception>
         public static async Task WriteQuasiHttpHeaders(
+            bool isResponse,
             Stream dest,
             IList<string> reqOrStatusLine,
             IDictionary<string, IList<string>> remainingHeaders,
             int maxHeadersSize = 0,
             CancellationToken cancellationToken = default)
         {
-            var encodedHeaders = EncodeQuasiHttpHeaders(reqOrStatusLine,
+            var encodedHeaders = EncodeQuasiHttpHeaders(isResponse,
+                reqOrStatusLine,
                 remainingHeaders);
             if (maxHeadersSize <= 0)
             {
@@ -279,33 +385,35 @@ namespace Kabomu.ProtocolImpl
                     null
                 };
             }
-            if (contentLength == 0)
-            {
-                contentLength = body != null ? -1 : 0;
-            }
+            // treat content lengths totally separate from body.
+            // This caters for the HEAD method
+            // which can be used to return a content length without a body
+            // to download.
             reqOrStatusLine[3] = contentLength.ToString();
-            await WriteQuasiHttpHeaders(writableStream,
+            await WriteQuasiHttpHeaders(isResponse, writableStream,
                 reqOrStatusLine, headers,
                 connection.ProcessingOptions?.MaxHeadersSize ?? 0,
                 connection.CancellationToken);
             if (body == null)
             {
+                // don't proceed, even if content length is not zero.
                 return;
             }
-            if (contentLength < 0)
-            {
-                var bodyWriter = TlvUtils.CreateTlvEncodingWritableStream(
-                    writableStream, TlvUtils.TagForQuasiHttpBody);
-                await body.CopyToAsync(bodyWriter, connection.CancellationToken);
-                await TlvUtils.WriteEndOfTlvStream(writableStream,
-                    TlvUtils.TagForQuasiHttpBody, connection.CancellationToken);
-            }
-            else
+            if (contentLength > 0)
             {
                 // don't enforce positive content lengths when writing out
                 // quasi http bodies
                 await body.CopyToAsync(writableStream,
                     connection.CancellationToken);
+            }
+            else
+            {
+                // proceed, even if content length is 0.
+                var bodyWriter = TlvUtils.CreateTlvEncodingWritableStream(
+                    writableStream, TlvUtils.TagForQuasiHttpBody);
+                await body.CopyToAsync(bodyWriter, connection.CancellationToken);
+                await TlvUtils.WriteEndOfTlvStream(writableStream,
+                    TlvUtils.TagForQuasiHttpBody, connection.CancellationToken);
             }
         }
 
@@ -385,6 +493,9 @@ namespace Kabomu.ProtocolImpl
                         body = TlvUtils.CreateMaxLengthEnforcingStream(body,
                             bodySizeLimit);
                     }
+                    // can't implement response buffering, because of
+                    // the HEAD method, with which a content length may
+                    // be given but without a body to download.
                 }
                 response.Body = body;
                 return response;

@@ -68,11 +68,12 @@ namespace Kabomu.Examples.Shared
             // add body.
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
+            request.Body = fileStream;
+            request.ContentLength = -1;
             if (TurnOffComplexFeatures || RandGen.NextDouble() < 0.5)
             {
                 request.ContentLength = f.Length;
             }
-            request.Body = fileStream;
 
             // determine options
             IQuasiHttpProcessingOptions sendOptions = null;
