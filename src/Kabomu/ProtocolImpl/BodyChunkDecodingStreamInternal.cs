@@ -22,6 +22,7 @@ namespace Kabomu.ProtocolImpl
     {
         private readonly Stream _backingStream;
         private readonly int _expectedTag;
+        private readonly int _tagToIgnore;
         private int _chunkDataLenRem;
         private bool _lastChunkSeen;
 
@@ -30,9 +31,10 @@ namespace Kabomu.ProtocolImpl
         /// </summary>
         /// <param name="backingStream">the source stream</param>
         /// <param name="expectedTag"></param>
+        /// <param name="tagToIgnore"></param>
         /// <exception cref="ArgumentNullException">The <paramref name="backingStream"/> argument is null.</exception>
         public BodyChunkDecodingStreamInternal(Stream backingStream,
-            int expectedTag)
+            int expectedTag, int tagToIgnore)
         {
             if (backingStream == null)
             {
@@ -40,6 +42,7 @@ namespace Kabomu.ProtocolImpl
             }
             _backingStream = backingStream;
             _expectedTag = expectedTag;
+            _tagToIgnore = tagToIgnore;
         }
 
         public override int ReadByte()
@@ -132,17 +135,61 @@ namespace Kabomu.ProtocolImpl
 
         private int FetchNextTagAndLengthSync()
         {
-            TlvUtils.ReadExpectedTagOnlySync(_backingStream, _expectedTag);
+            var tag = TlvUtils.ReadTagOnlySync(_backingStream);
+            if (tag == _tagToIgnore)
+            {
+                ReadAwayTagValueSync();
+                TlvUtils.ReadExpectedTagOnlySync(_backingStream, _expectedTag);
+            }
+            else if (tag != _expectedTag)
+            {
+                throw new KabomuIOException("unexpected tag: expected " +
+                    $"{_expectedTag} but found {tag}");
+            }
             return TlvUtils.ReadLengthOnlySync(_backingStream);
         }
 
         private async Task<int> FetchNextTagAndLength(
             CancellationToken cancellationToken)
         {
-            await TlvUtils.ReadExpectedTagOnly(_backingStream,
-                _expectedTag, cancellationToken);
+            var tag = await TlvUtils.ReadTagOnly(_backingStream,
+                cancellationToken);
+            if (tag == _tagToIgnore)
+            {
+                await ReadAwayTagValue(cancellationToken);
+                await TlvUtils.ReadExpectedTagOnly(_backingStream, _expectedTag,
+                    cancellationToken);
+            }
+            else if (tag != _expectedTag)
+            {
+                throw new KabomuIOException("unexpected tag: expected " +
+                    $"{_expectedTag} but found {tag}");
+            }
             return await TlvUtils.ReadLengthOnly(_backingStream,
                 cancellationToken);
+        }
+
+        private async Task ReadAwayTagValue(CancellationToken cancellationToken)
+        {
+            int length = await TlvUtils.ReadLengthOnly(_backingStream,
+                cancellationToken);
+            if (length > 0)
+            {
+                await TlvUtils.CreateContentLengthEnforcingStream(
+                        _backingStream, length)
+                    .CopyToAsync(Stream.Null, cancellationToken);
+            }
+        }
+
+        private void ReadAwayTagValueSync()
+        {
+            int length = TlvUtils.ReadLengthOnlySync(_backingStream);
+            if (length > 0)
+            {
+                TlvUtils.CreateContentLengthEnforcingStream(
+                        _backingStream, length)
+                    .CopyTo(Stream.Null);
+            }
         }
     }
 }

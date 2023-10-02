@@ -410,10 +410,10 @@ namespace Kabomu.ProtocolImpl
             {
                 // proceed, even if content length is 0.
                 var bodyWriter = TlvUtils.CreateTlvEncodingWritableStream(
-                    writableStream, TlvUtils.TagForQuasiHttpBody);
+                    writableStream, TlvUtils.TagForQuasiHttpBodyChunk);
                 await body.CopyToAsync(bodyWriter, connection.CancellationToken);
                 await TlvUtils.WriteEndOfTlvStream(writableStream,
-                    TlvUtils.TagForQuasiHttpBody, connection.CancellationToken);
+                    TlvUtils.TagForQuasiHttpBodyChunk, connection.CancellationToken);
             }
         }
 
@@ -463,7 +463,8 @@ namespace Kabomu.ProtocolImpl
                 else
                 {
                     body = TlvUtils.CreateTlvDecodingReadableStream(readableStream,
-                        TlvUtils.TagForQuasiHttpBody);
+                        TlvUtils.TagForQuasiHttpBodyChunk,
+                        TlvUtils.TagForQuasiHttpBodyChunkExt);
                 }
             }
             if (isResponse)

@@ -11,9 +11,11 @@ namespace Kabomu.ProtocolImpl
 {
     public static class TlvUtils
     {
-        public static readonly int TagForQuasiHttpHeaders = 0x71683031;
+        public static readonly int TagForQuasiHttpHeaders = 0x68647273;
 
-        public static readonly int TagForQuasiHttpBody = 0x71623031;
+        public static readonly int TagForQuasiHttpBodyChunk = 0x62647461;
+
+        public static readonly int TagForQuasiHttpBodyChunkExt = 0x62657874;
 
         public static byte[] EncodeTagAndLengthOnly(int tag, int length)
         {
@@ -137,9 +139,10 @@ namespace Kabomu.ProtocolImpl
         }
 
         public static Stream CreateTlvDecodingReadableStream(Stream stream,
-            int expectedTag)
+            int expectedTag, int tagToIgnore)
         {
-            return new BodyChunkDecodingStreamInternal(stream, expectedTag);
+            return new BodyChunkDecodingStreamInternal(stream, expectedTag,
+                tagToIgnore);
         }
 
         public static Stream CreateTlvEncodingWritableStream(Stream stream,
