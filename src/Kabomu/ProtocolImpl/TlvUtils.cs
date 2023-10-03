@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.Exceptions;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -99,6 +100,18 @@ namespace Kabomu.ProtocolImpl
             return tag;
         }
 
+        private static int DecodeTagObtainedFromStream(byte[] data, int offset)
+        {
+            int tag = MiscUtilsInternal.DeserializeInt32BE(
+                data, offset);
+            if (tag <= 0)
+            {
+                throw new KabomuIOException("invalid tag: " +
+                    tag);
+            }
+            return tag;
+        }
+
         /// <summary>
         /// Decodes a 4-byte buffer slice into a length.
         /// </summary>
@@ -119,6 +132,18 @@ namespace Kabomu.ProtocolImpl
             return decodedLength;
         }
 
+        private static int DecodeLengthObtainedFromStream(byte[] data, int offset)
+        {
+            int decodedLength = MiscUtilsInternal.DeserializeInt32BE(
+                data, offset);
+            if (decodedLength < 0)
+            {
+                throw new KabomuIOException("invalid tag value length: " +
+                    decodedLength);
+            }
+            return decodedLength;
+        }
+
         /// <summary>
         /// Reads a 4-byte tag.
         /// </summary>
@@ -134,7 +159,7 @@ namespace Kabomu.ProtocolImpl
             await IOUtilsInternal.ReadBytesFully(inputStream,
                 encodedTag, 0, encodedTag.Length,
                 cancellationToken);
-            return DecodeTag(encodedTag, 0);
+            return DecodeTagObtainedFromStream(encodedTag, 0);
         }
 
         /// <summary>
@@ -147,7 +172,7 @@ namespace Kabomu.ProtocolImpl
             var encodedTag = new byte[4];
             IOUtilsInternal.ReadBytesFullySync(inputStream,
                 encodedTag, 0, encodedTag.Length);
-            return DecodeTag(encodedTag, 0);
+            return DecodeTagObtainedFromStream(encodedTag, 0);
         }
 
         /// <summary>
@@ -165,7 +190,7 @@ namespace Kabomu.ProtocolImpl
             await IOUtilsInternal.ReadBytesFully(inputStream,
                 encodedLen, 0, encodedLen.Length,
                 cancellationToken);
-            return DecodeLength(encodedLen, 0);
+            return DecodeLengthObtainedFromStream(encodedLen, 0);
         }
 
         /// <summary>
@@ -178,7 +203,7 @@ namespace Kabomu.ProtocolImpl
             var encodedLen = new byte[4];
             IOUtilsInternal.ReadBytesFullySync(inputStream,
                 encodedLen, 0, encodedLen.Length);
-            return DecodeLength(encodedLen, 0);
+            return DecodeLengthObtainedFromStream(encodedLen, 0);
         }
 
         /// <summary>
