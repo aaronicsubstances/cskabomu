@@ -106,7 +106,7 @@ namespace Kabomu.ProtocolImpl
             if (_bytesLeftToRead == 0)
             {
                 throw new KabomuIOException(
-                    $"reading of stream exceeds maximum size of {_maxLength} bytes");
+                    $"stream size exceeds limit of {_maxLength} bytes");
             }
         }
     }

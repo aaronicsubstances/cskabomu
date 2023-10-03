@@ -78,7 +78,7 @@ namespace Kabomu.ProtocolImpl
                 {
                     throw new ExpectationViolationException(
                         "expected row to have at least 2 values " +
-                        $"instead of ${row.Count}");
+                        $"instead of {row.Count}");
                 }
                 var headerName = row[0];
                 if (!ContainsOnlyPrintableAsciiChars(headerName,
@@ -324,8 +324,13 @@ namespace Kabomu.ProtocolImpl
             int maxHeadersSize = 0,
             CancellationToken cancellationToken = default)
         {
-            await TlvUtils.ReadExpectedTagOnly(src, TlvUtils.TagForQuasiHttpHeaders,
-                cancellationToken);
+            int tag = await TlvUtils.ReadTagOnly(src, cancellationToken);
+            if (tag != TlvUtils.TagForQuasiHttpHeaders)
+            {
+                throw new QuasiHttpException(
+                    $"unexpected quasi http headers tag: {tag}",
+                    QuasiHttpException.ReasonCodeProtocolViolation);
+            }
             if (maxHeadersSize <= 0)
             {
                 maxHeadersSize = QuasiHttpUtils.DefaultMaxHeadersSize;

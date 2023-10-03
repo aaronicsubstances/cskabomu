@@ -139,9 +139,9 @@ namespace Kabomu.ProtocolImpl
             if (tag == _tagToIgnore)
             {
                 ReadAwayTagValueSync();
-                TlvUtils.ReadExpectedTagOnlySync(_backingStream, _expectedTag);
+                tag = TlvUtils.ReadTagOnlySync(_backingStream);
             }
-            else if (tag != _expectedTag)
+            if (tag != _expectedTag)
             {
                 throw new KabomuIOException("unexpected tag: expected " +
                     $"{_expectedTag} but found {tag}");
@@ -157,10 +157,10 @@ namespace Kabomu.ProtocolImpl
             if (tag == _tagToIgnore)
             {
                 await ReadAwayTagValue(cancellationToken);
-                await TlvUtils.ReadExpectedTagOnly(_backingStream, _expectedTag,
+                tag = await TlvUtils.ReadTagOnly(_backingStream,
                     cancellationToken);
             }
-            else if (tag != _expectedTag)
+            if (tag != _expectedTag)
             {
                 throw new KabomuIOException("unexpected tag: expected " +
                     $"{_expectedTag} but found {tag}");

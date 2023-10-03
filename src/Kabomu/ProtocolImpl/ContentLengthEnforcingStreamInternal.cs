@@ -15,7 +15,6 @@ namespace Kabomu.ProtocolImpl
     internal class ContentLengthEnforcingStreamInternal : ReadableStreamBaseInternal
     {
         private readonly Stream _backingStream;
-        private readonly long _contentLength;
         private long _bytesLeftToRead;
 
         /// <summary>
@@ -37,7 +36,6 @@ namespace Kabomu.ProtocolImpl
                     $"content length cannot be negative: {contentLength}");
             }
             _backingStream = backingStream;
-            _contentLength = contentLength;
             _bytesLeftToRead = contentLength;
         }
 
@@ -103,9 +101,7 @@ namespace Kabomu.ProtocolImpl
             bool endOfRead = bytesToRead > 0 && bytesJustRead == 0;
             if (endOfRead && _bytesLeftToRead > 0)
             {
-                throw new KabomuIOException($"insufficient bytes available to satisfy " +
-                    $"content length of {_contentLength} bytes (could not read remaining " +
-                    $"{_bytesLeftToRead} bytes before end of read)");
+                throw KabomuIOException.CreateEndOfReadError();
             }
         }
     }
