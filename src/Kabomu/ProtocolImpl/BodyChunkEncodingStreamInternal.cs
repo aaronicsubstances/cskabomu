@@ -20,7 +20,8 @@ namespace Kabomu.ProtocolImpl
     internal class BodyChunkEncodingStreamInternal : WritableStreamBaseInternal
     {
         private readonly Stream _backingStream;
-        private readonly int _tagToUse;
+        private readonly byte[] _tagToUse;
+        private static readonly byte[] EncodedZeroLength = new byte[4];
 
         /// <summary>
         /// Creates new instance.
@@ -36,7 +37,8 @@ namespace Kabomu.ProtocolImpl
                 throw new ArgumentNullException(nameof(backingStream));
             }
             _backingStream = backingStream;
-            _tagToUse = tagToUse;
+            _tagToUse = new byte[4];
+            TlvUtils.EncodeTag(tagToUse, _tagToUse, 0);
         }
 
         public override void Flush()
@@ -51,39 +53,60 @@ namespace Kabomu.ProtocolImpl
 
         public override void WriteByte(byte value)
         {
-            byte[] chunkPrefix = TlvUtils.EncodeTagAndLengthOnly(
-                _tagToUse, 1);
-            _backingStream.Write(chunkPrefix);
+            _backingStream.Write(_tagToUse);
+            _backingStream.WriteByte(0);
+            _backingStream.WriteByte(0);
+            _backingStream.WriteByte(0);
+            _backingStream.WriteByte(1);
             _backingStream.WriteByte(value);
         }
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            if (count == 0)
+            if (count < 0)
+            {
+                _backingStream.Write(_tagToUse);
+                _backingStream.Write(EncodedZeroLength);
+            }
+            else if (count == 0)
             {
                 _backingStream.Write(buffer, offset, count);
-                return;
             }
-            byte[] chunkPrefix = TlvUtils.EncodeTagAndLengthOnly(
-                _tagToUse, count);
-            _backingStream.Write(chunkPrefix);
-            _backingStream.Write(buffer, offset, count);
+            else
+            {
+                var encodedLen = new byte[4];
+                TlvUtils.EncodeLength(count, encodedLen, 0);
+                _backingStream.Write(_tagToUse);
+                _backingStream.Write(encodedLen);
+                _backingStream.Write(buffer, offset, count);
+            }
         }
 
-        public override async Task WriteAsync(byte[] buffer, int offset, int count,
+        public override async Task WriteAsync(
+            byte[] buffer, int offset, int count,
             CancellationToken cancellationToken)
         {
-            if (count == 0)
+            if (count < 0)
+            {
+                await _backingStream.WriteAsync(_tagToUse);
+                await _backingStream.WriteAsync(EncodedZeroLength);
+            }
+            else if (count == 0)
             {
                 await _backingStream.WriteAsync(buffer, offset, count,
                     cancellationToken);
-                return;
             }
-            byte[] chunkPrefix = TlvUtils.EncodeTagAndLengthOnly(
-                _tagToUse, count);
-            await _backingStream.WriteAsync(chunkPrefix, cancellationToken);
-            await _backingStream.WriteAsync(buffer, offset, count,
-                cancellationToken);
+            else
+            {
+                var encodedLen = new byte[4];
+                TlvUtils.EncodeLength(count, encodedLen, 0);
+                await _backingStream.WriteAsync(_tagToUse,
+                    cancellationToken);
+                await _backingStream.WriteAsync(encodedLen,
+                    cancellationToken);
+                await _backingStream.WriteAsync(buffer, offset, count,
+                    cancellationToken);
+            }
         }
     }
 }

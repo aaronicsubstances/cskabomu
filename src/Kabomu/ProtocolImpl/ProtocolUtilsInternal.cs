@@ -297,8 +297,7 @@ namespace Kabomu.ProtocolImpl
             CancellationToken cancellationToken = default)
         {
             var encodedHeaders = EncodeQuasiHttpHeaders(isResponse,
-                reqOrStatusLine,
-                remainingHeaders);
+                reqOrStatusLine, remainingHeaders);
             if (maxHeadersSize <= 0)
             {
                 maxHeadersSize = QuasiHttpUtils.DefaultMaxHeadersSize;
@@ -311,11 +310,11 @@ namespace Kabomu.ProtocolImpl
                     $"max size ({encodedHeaders.Length} > {maxHeadersSize})",
                     QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
             }
-            await dest.WriteAsync(TlvUtils.EncodeTagAndLengthOnly(
-                TlvUtils.TagForQuasiHttpHeaders,
-                encodedHeaders.Length), cancellationToken);
-            await dest.WriteAsync(encodedHeaders,
-                cancellationToken);
+            var tagAndLen = new byte[8];
+            TlvUtils.EncodeTag(TlvUtils.TagForQuasiHttpHeaders, tagAndLen, 0);
+            TlvUtils.EncodeLength(encodedHeaders.Length, tagAndLen, 4);
+            await dest.WriteAsync(tagAndLen, cancellationToken);
+            await dest.WriteAsync(encodedHeaders, cancellationToken);
         }
 
         public static async Task<IList<string>> ReadQuasiHttpHeaders(
@@ -324,19 +323,23 @@ namespace Kabomu.ProtocolImpl
             int maxHeadersSize = 0,
             CancellationToken cancellationToken = default)
         {
-            int tag = await TlvUtils.ReadTagOnly(src, cancellationToken);
+            var tagOrLen = new byte[4];
+            await IOUtilsInternal.ReadBytesFully(src, tagOrLen, 0,
+                tagOrLen.Length, cancellationToken);
+            int tag = TlvUtils.DecodeTag(tagOrLen, 0);
             if (tag != TlvUtils.TagForQuasiHttpHeaders)
             {
                 throw new QuasiHttpException(
                     $"unexpected quasi http headers tag: {tag}",
                     QuasiHttpException.ReasonCodeProtocolViolation);
             }
+            await IOUtilsInternal.ReadBytesFully(src, tagOrLen, 0,
+                tagOrLen.Length, cancellationToken);
+            int headersSize = TlvUtils.DecodeLength(tagOrLen, 0);
             if (maxHeadersSize <= 0)
             {
                 maxHeadersSize = QuasiHttpUtils.DefaultMaxHeadersSize;
             }
-            int headersSize = await TlvUtils.ReadLengthOnly(
-                src, cancellationToken);
             if (headersSize > maxHeadersSize)
             {
                 throw new QuasiHttpException("quasi http headers exceed " +
@@ -417,8 +420,9 @@ namespace Kabomu.ProtocolImpl
                 var bodyWriter = TlvUtils.CreateTlvEncodingWritableStream(
                     writableStream, TlvUtils.TagForQuasiHttpBodyChunk);
                 await body.CopyToAsync(bodyWriter, connection.CancellationToken);
-                await TlvUtils.WriteEndOfTlvStream(writableStream,
-                    TlvUtils.TagForQuasiHttpBodyChunk, connection.CancellationToken);
+                // write end of stream
+                await bodyWriter.WriteAsync(null, 0, -1,
+                    connection.CancellationToken);
             }
         }
 

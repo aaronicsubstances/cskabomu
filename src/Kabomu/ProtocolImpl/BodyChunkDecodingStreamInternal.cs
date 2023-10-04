@@ -135,43 +135,40 @@ namespace Kabomu.ProtocolImpl
 
         private int FetchNextTagAndLengthSync()
         {
-            var tag = TlvUtils.ReadTagOnlySync(_backingStream);
+            var tag = ReadTagOnlySync();
             if (tag == _tagToIgnore)
             {
                 ReadAwayTagValueSync();
-                tag = TlvUtils.ReadTagOnlySync(_backingStream);
+                tag = ReadTagOnlySync();
             }
             if (tag != _expectedTag)
             {
                 throw new KabomuIOException("unexpected tag: expected " +
                     $"{_expectedTag} but found {tag}");
             }
-            return TlvUtils.ReadLengthOnlySync(_backingStream);
+            return ReadLengthOnlySync();
         }
 
         private async Task<int> FetchNextTagAndLength(
             CancellationToken cancellationToken)
         {
-            var tag = await TlvUtils.ReadTagOnly(_backingStream,
-                cancellationToken);
+            var tag = await ReadTagOnly(cancellationToken);
             if (tag == _tagToIgnore)
             {
                 await ReadAwayTagValue(cancellationToken);
-                tag = await TlvUtils.ReadTagOnly(_backingStream,
-                    cancellationToken);
+                tag = await ReadTagOnly(cancellationToken);
             }
             if (tag != _expectedTag)
             {
                 throw new KabomuIOException("unexpected tag: expected " +
                     $"{_expectedTag} but found {tag}");
             }
-            return await TlvUtils.ReadLengthOnly(_backingStream,
-                cancellationToken);
+            return await ReadLengthOnly(cancellationToken);
         }
 
         private async Task ReadAwayTagValue(CancellationToken cancellationToken)
         {
-            int length = await TlvUtils.ReadLengthOnly(_backingStream,
+            int length = await ReadLengthOnly(
                 cancellationToken);
             if (length > 0)
             {
@@ -183,13 +180,73 @@ namespace Kabomu.ProtocolImpl
 
         private void ReadAwayTagValueSync()
         {
-            int length = TlvUtils.ReadLengthOnlySync(_backingStream);
+            int length = ReadLengthOnlySync();
             if (length > 0)
             {
                 TlvUtils.CreateContentLengthEnforcingStream(
                         _backingStream, length)
                     .CopyTo(Stream.Null);
             }
+        }
+
+        private async Task<int> ReadTagOnly(
+            CancellationToken cancellationToken)
+        {
+            var encodedTag = new byte[4];
+            await IOUtilsInternal.ReadBytesFully(_backingStream,
+                encodedTag, 0, encodedTag.Length,
+                cancellationToken);
+            return DecodeTagObtainedFromStream(encodedTag, 0);
+        }
+
+        private int ReadTagOnlySync()
+        {
+            var encodedTag = new byte[4];
+            IOUtilsInternal.ReadBytesFullySync(_backingStream,
+                encodedTag, 0, encodedTag.Length);
+            return DecodeTagObtainedFromStream(encodedTag, 0);
+        }
+
+        private async Task<int> ReadLengthOnly(
+            CancellationToken cancellationToken)
+        {
+            var encodedLen = new byte[4];
+            await IOUtilsInternal.ReadBytesFully(_backingStream,
+                encodedLen, 0, encodedLen.Length,
+                cancellationToken);
+            return DecodeLengthObtainedFromStream(encodedLen, 0);
+        }
+
+        private int ReadLengthOnlySync()
+        {
+            var encodedLen = new byte[4];
+            IOUtilsInternal.ReadBytesFullySync(_backingStream,
+                encodedLen, 0, encodedLen.Length);
+            return DecodeLengthObtainedFromStream(encodedLen, 0);
+        }
+
+        private static int DecodeTagObtainedFromStream(byte[] data, int offset)
+        {
+            int tag = MiscUtilsInternal.DeserializeInt32BE(
+                data, offset);
+            if (tag <= 0)
+            {
+                throw new KabomuIOException("invalid tag: " +
+                    tag);
+            }
+            return tag;
+        }
+
+        private static int DecodeLengthObtainedFromStream(byte[] data, int offset)
+        {
+            int decodedLength = MiscUtilsInternal.DeserializeInt32BE(
+                data, offset);
+            if (decodedLength < 0)
+            {
+                throw new KabomuIOException("invalid tag value length: " +
+                    decodedLength);
+            }
+            return decodedLength;
         }
     }
 }

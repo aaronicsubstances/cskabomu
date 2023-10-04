@@ -27,7 +27,9 @@ namespace Kabomu.Tests.ProtocolImpl
             {
                 0, 0, 0, 16,
                 0, 0, 0, 1,
-                45
+                45,
+                0, 0, 0, 16,
+                0, 0, 0, 0
             };
             var destStream = new MemoryStream();
             var instance = TlvUtils.CreateTlvEncodingWritableStream(
@@ -36,6 +38,8 @@ namespace Kabomu.Tests.ProtocolImpl
             // act
             await instance.WriteAsync(new byte[] { srcByte });
             await instance.WriteAsync(new byte[0]);
+            // write end of stream
+            await instance.WriteAsync(null, 0, -1);
 
             // assert
             var actual = destStream.ToArray();
@@ -50,7 +54,9 @@ namespace Kabomu.Tests.ProtocolImpl
             {
                 0x79, 0x45, 0x23, 0x16,
                 0, 0, 0, 1,
-                145
+                145,
+                0x79, 0x45, 0x23, 0x16,
+                0, 0, 0, 0
             };
             destStream = new MemoryStream();
             instance = TlvUtils.CreateTlvEncodingWritableStream(
@@ -59,6 +65,8 @@ namespace Kabomu.Tests.ProtocolImpl
             // act
             instance.Write(new byte[] { srcByte });
             instance.Write(new byte[0]);
+            // write end of stream
+            instance.Write(null, 0, -1);
 
             // assert
             actual = destStream.ToArray();

@@ -31,7 +31,8 @@ namespace Kabomu.Tests.ProtocolImpl
 
             // act
             await srcStream.CopyToAsync(encodingStream);
-            await TlvUtils.WriteEndOfTlvStream(destStream, tagToUse);
+            // write end of stream
+            await encodingStream.WriteAsync(null, 0, -1);
             destStream.Position = 0; // reset for reading.
             var decodingStream = TlvUtils.CreateTlvDecodingReadableStream(
                 destStream, tagToUse, 0);
@@ -50,7 +51,8 @@ namespace Kabomu.Tests.ProtocolImpl
 
             // act
             await srcStream.CopyToAsync(encodingStream);
-            await TlvUtils.WriteEndOfTlvStream(destStream, tagToUse);
+            // write end of stream
+            await encodingStream.WriteAsync(null, 0, -1);
             destStream.Position = 0; // reset for reading.
             decodingStream = TlvUtils.CreateTlvDecodingReadableStream(
                 destStream, tagToUse, 0);
@@ -69,7 +71,8 @@ namespace Kabomu.Tests.ProtocolImpl
 
             // act
             srcStream.CopyTo(encodingStream);
-            destStream.Write(TlvUtils.EncodeTagAndLengthOnly(tagToUse, 0));
+            // write end of stream
+            encodingStream.Write(null, 0, -1);
             destStream.Position = 0; // reset for reading.
             decodingStream = TlvUtils.CreateTlvDecodingReadableStream(
                 destStream, tagToUse, 0);
@@ -88,7 +91,8 @@ namespace Kabomu.Tests.ProtocolImpl
 
             // act
             srcStream.CopyTo(encodingStream);
-            destStream.Write(TlvUtils.EncodeTagAndLengthOnly(tagToUse, 0));
+            // write end of stream
+            encodingStream.Write(null, 0, -1);
             destStream.Position = 0; // reset for reading.
             decodingStream = TlvUtils.CreateTlvDecodingReadableStream(
                 destStream, tagToUse, 0);
