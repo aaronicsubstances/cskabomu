@@ -27,9 +27,9 @@ namespace Kabomu.Abstractions
         /// Releases resources held by a connection of a quasi http transport instance.
         /// </summary>
         /// <param name="connection">the connection to release</param>
-        /// <param name="responseStreamingEnabled">whether response body
-        /// still needs the connection to some extent</param>
+        /// <param name="response">an optional response which may still need the connection
+        /// to some extent</param>
         Task ReleaseConnection(IQuasiHttpConnection connection,
-            bool responseStreamingEnabled);
+            IQuasiHttpResponse response);
     }
 }

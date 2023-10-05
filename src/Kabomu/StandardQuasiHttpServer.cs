@@ -99,18 +99,18 @@ namespace Kabomu
             IQuasiHttpServerTransport transport,
             IQuasiHttpConnection connection)
         {
-            var (encodedRequestBody, encodedRequestHeaders) =
-                await ProtocolUtilsInternal.ReadEntityFromTransport(
-                    false, transport, connection);
-
-            var request = new DefaultQuasiHttpRequest
+            IQuasiHttpRequest request = null;
+            var altTransport = transport as IQuasiHttpAltTransport;
+            var requestDeserializer = altTransport?.RequestDeserializer;
+            if (requestDeserializer != null)
             {
-                Environment = connection.Environment
-            };
-            QuasiHttpCodec.DecodeRequestHeaders(encodedRequestHeaders, 0,
-                encodedRequestHeaders.Length, request);
-            request.Body = ProtocolUtilsInternal.DecodeRequestBodyFromTransport(
-                request.ContentLength, encodedRequestBody);
+                request = await requestDeserializer(connection);
+            }
+            if (request == null)
+            {
+                request = (IQuasiHttpRequest)await ProtocolUtilsInternal.ReadEntityFromTransport(
+                    false, transport.GetReadableStream(connection), connection);
+            }
 
             var response = await application(request);
             if (response == null)
@@ -120,15 +120,17 @@ namespace Kabomu
 
             try
             {
-                if (ProtocolUtilsInternal.GetEnvVarAsBoolean(response.Environment,
-                    QuasiHttpUtils.EnvKeySkipSending) != true)
+                var responseSerialized = false;
+                var responseSerializer = altTransport?.ResponseSerializer;
+                if (responseSerializer != null)
                 {
-                    var encodedResponseHeaders = QuasiHttpCodec.EncodeResponseHeaders(response,
-                        connection.ProcessingOptions?.MaxHeadersSize);
-                    var encodedResponseBody = ProtocolUtilsInternal.EncodeBodyToTransport(true,
-                        response.ContentLength, response.Body);
-                    await transport.Write(connection, true, encodedResponseHeaders,
-                        encodedResponseBody);
+                    responseSerialized = await responseSerializer(connection, response);
+                }
+                if (!responseSerialized)
+                {
+                    await ProtocolUtilsInternal.WriteEntityToTransport(
+                        true, response, transport.GetWritableStream(connection),
+                        connection);
                 }
             }
             finally

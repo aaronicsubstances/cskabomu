@@ -1,27 +1,31 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Threading;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Kabomu.Abstractions
 {
     /// <summary>
-    /// Convenient base class for clients to implement custom readable streams.
+    /// Convenient base class for clients to implement custom writable streams.
     /// </summary>
     /// <remarks>
     /// The only required methods to implement are
-    /// <see cref="Stream.ReadAsync(byte[], int, int, CancellationToken)"/> and
-    /// <see cref="Stream.Read(byte[], int, int)"/>.
-    /// Optionally one can also override <see cref="Stream.ReadByte"/> for
-    /// efficiency gains when reading from an internal buffer.
+    /// <see cref="Stream.WriteAsync(byte[], int, int, CancellationToken)"/>
+    /// <see cref="Stream.Write(byte[], int, int)"/>,
+    /// <see cref="Stream.FlushAsync(System.Threading.CancellationToken)"/>, and
+    /// <see cref="Stream.Flush"/>.
+    /// Optionally one can also override <see cref="Stream.WriteByte(byte)"/> for
+    /// efficiency gains.
     /// </remarks>
-    internal abstract class ReadableStreamBaseInternal : Stream
+    public abstract class WritableStreamBaseInternal : Stream
     {
-        public override bool CanRead => true;
+        public override bool CanRead => false;
 
         public override bool CanSeek => false;
 
-        public override bool CanWrite => false;
+        public override bool CanWrite => true;
 
         public override long Length => throw new NotSupportedException();
 
@@ -37,11 +41,6 @@ namespace Kabomu.Abstractions
             }
         }
 
-        public override void Flush()
-        {
-            throw new NotSupportedException();
-        }
-
         public override long Seek(long offset, SeekOrigin origin)
         {
             throw new NotImplementedException();
@@ -52,24 +51,23 @@ namespace Kabomu.Abstractions
             throw new NotSupportedException();
         }
 
-        public override void Write(byte[] buffer, int offset, int count)
+        public override int Read(byte[] buffer, int offset, int count)
         {
             throw new NotSupportedException();
         }
 
-        public override IAsyncResult BeginRead(
+        public override IAsyncResult BeginWrite(
             byte[] buffer, int offset, int count,
             AsyncCallback callback, object state)
         {
-            return ReadAsync(buffer, offset, count).AsApm(callback, state);
+            return WriteAsync(buffer, offset, count).AsApm(callback, state);
         }
 
-
-        public override int EndRead(IAsyncResult asyncResult)
+        public override void EndWrite(IAsyncResult asyncResult)
         {
             try
             {
-                return ((Task<int>)asyncResult).Result;
+                ((Task)asyncResult).Wait();
             }
             catch (AggregateException e)
             {

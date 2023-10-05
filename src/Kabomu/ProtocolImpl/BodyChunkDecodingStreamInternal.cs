@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Kabomu.ProtocolImpl
 {
     /// <summary>
-    /// The standard decoder of quasi http bodies of unknown (ie negative)
+    /// The standard decoder of quasi http bodies of unknown
     /// content lengths in the Kabomu library.
     /// </summary>
     /// <remarks>
@@ -21,7 +21,8 @@ namespace Kabomu.ProtocolImpl
     internal class BodyChunkDecodingStreamInternal : ReadableStreamBaseInternal
     {
         private readonly Stream _backingStream;
-        private readonly byte[] _decodingBuffer;
+        private readonly int _expectedTag;
+        private readonly int _tagToIgnore;
         private int _chunkDataLenRem;
         private bool _lastChunkSeen;
 
@@ -29,20 +30,19 @@ namespace Kabomu.ProtocolImpl
         /// Creates new instance.
         /// </summary>
         /// <param name="backingStream">the source stream</param>
+        /// <param name="expectedTag"></param>
+        /// <param name="tagToIgnore"></param>
         /// <exception cref="ArgumentNullException">The <paramref name="backingStream"/> argument is null.</exception>
-        public BodyChunkDecodingStreamInternal(Stream backingStream)
+        public BodyChunkDecodingStreamInternal(Stream backingStream,
+            int expectedTag, int tagToIgnore)
         {
             if (backingStream == null)
             {
                 throw new ArgumentNullException(nameof(backingStream));
             }
             _backingStream = backingStream;
-            var minimumBodyChunkV1HeaderLength =
-                // account for length of version 1 and separating comma.
-                BodyChunkEncodingWriter.LengthOfEncodedBodyChunkLength +
-                QuasiHttpCodec.ProtocolVersion01.Length +
-                1;
-            _decodingBuffer = new byte[minimumBodyChunkV1HeaderLength];
+            _expectedTag = expectedTag;
+            _tagToIgnore = tagToIgnore;
         }
 
         public override int ReadByte()
@@ -55,7 +55,7 @@ namespace Kabomu.ProtocolImpl
 
             if (_chunkDataLenRem == 0)
             {
-                _chunkDataLenRem = FillDecodingBuffer();
+                _chunkDataLenRem = FetchNextTagAndLengthSync();
                 if (_chunkDataLenRem == 0)
                 {
                     _lastChunkSeen = true;
@@ -82,7 +82,7 @@ namespace Kabomu.ProtocolImpl
 
             if (_chunkDataLenRem == 0)
             {
-                _chunkDataLenRem = FillDecodingBuffer();
+                _chunkDataLenRem = FetchNextTagAndLengthSync();
                 if (_chunkDataLenRem == 0)
                 {
                     _lastChunkSeen = true;
@@ -113,7 +113,7 @@ namespace Kabomu.ProtocolImpl
 
             if (_chunkDataLenRem == 0)
             {
-                _chunkDataLenRem = await FillDecodingBufferAsync(cancellationToken);
+                _chunkDataLenRem = await FetchNextTagAndLength(cancellationToken);
                 if (_chunkDataLenRem == 0)
                 {
                     _lastChunkSeen = true;
@@ -133,48 +133,120 @@ namespace Kabomu.ProtocolImpl
             return bytesToRead;
         }
 
-        private int FillDecodingBuffer()
+        private int FetchNextTagAndLengthSync()
         {
-            IOUtilsInternal.ReadBytesFullySync(_backingStream,
-                _decodingBuffer, 0, _decodingBuffer.Length);
-            return DecodeSubsequentChunkV1Header();
+            var tag = ReadTagOnlySync();
+            if (tag == _tagToIgnore)
+            {
+                ReadAwayTagValueSync();
+                tag = ReadTagOnlySync();
+            }
+            if (tag != _expectedTag)
+            {
+                throw new KabomuIOException("unexpected tag: expected " +
+                    $"{_expectedTag} but found {tag}");
+            }
+            return ReadLengthOnlySync();
         }
 
-        private async Task<int> FillDecodingBufferAsync(
+        private async Task<int> FetchNextTagAndLength(
             CancellationToken cancellationToken)
         {
-            await IOUtilsInternal.ReadBytesFully(_backingStream,
-                _decodingBuffer, 0, _decodingBuffer.Length,
-                cancellationToken);
-            return DecodeSubsequentChunkV1Header();
+            var tag = await ReadTagOnly(cancellationToken);
+            if (tag == _tagToIgnore)
+            {
+                await ReadAwayTagValue(cancellationToken);
+                tag = await ReadTagOnly(cancellationToken);
+            }
+            if (tag != _expectedTag)
+            {
+                throw new KabomuIOException("unexpected tag: expected " +
+                    $"{_expectedTag} but found {tag}");
+            }
+            return await ReadLengthOnly(cancellationToken);
         }
 
-        private int DecodeSubsequentChunkV1Header()
+        private async Task ReadAwayTagValue(CancellationToken cancellationToken)
         {
-            var csv = CsvUtils.Deserialize(MiscUtilsInternal.BytesToString(
-                _decodingBuffer));
-            if (csv.Count == 0 || csv[0].Count < 2 ||
-                csv[0][0] != QuasiHttpCodec.ProtocolVersion01)
+            int length = await ReadLengthOnly(
+                cancellationToken);
+            if (length > 0)
             {
-                throw new KabomuIOException("invalid quasi http body chunk header");
+                await TlvUtils.CreateContentLengthEnforcingStream(
+                        _backingStream, length)
+                    .CopyToAsync(Stream.Null, cancellationToken);
             }
-            var lengthOfDataStr = csv[0][1];
-            int lengthOfData;
-            try
+        }
+
+        private void ReadAwayTagValueSync()
+        {
+            int length = ReadLengthOnlySync();
+            if (length > 0)
             {
-                lengthOfData = MiscUtilsInternal.ParseInt32(lengthOfDataStr);
+                TlvUtils.CreateContentLengthEnforcingStream(
+                        _backingStream, length)
+                    .CopyTo(Stream.Null);
             }
-            catch (FormatException)
+        }
+
+        private async Task<int> ReadTagOnly(
+            CancellationToken cancellationToken)
+        {
+            var encodedTag = new byte[4];
+            await IOUtilsInternal.ReadBytesFully(_backingStream,
+                encodedTag, 0, encodedTag.Length,
+                cancellationToken);
+            return DecodeTagObtainedFromStream(encodedTag, 0);
+        }
+
+        private int ReadTagOnlySync()
+        {
+            var encodedTag = new byte[4];
+            IOUtilsInternal.ReadBytesFullySync(_backingStream,
+                encodedTag, 0, encodedTag.Length);
+            return DecodeTagObtainedFromStream(encodedTag, 0);
+        }
+
+        private async Task<int> ReadLengthOnly(
+            CancellationToken cancellationToken)
+        {
+            var encodedLen = new byte[4];
+            await IOUtilsInternal.ReadBytesFully(_backingStream,
+                encodedLen, 0, encodedLen.Length,
+                cancellationToken);
+            return DecodeLengthObtainedFromStream(encodedLen, 0);
+        }
+
+        private int ReadLengthOnlySync()
+        {
+            var encodedLen = new byte[4];
+            IOUtilsInternal.ReadBytesFullySync(_backingStream,
+                encodedLen, 0, encodedLen.Length);
+            return DecodeLengthObtainedFromStream(encodedLen, 0);
+        }
+
+        private static int DecodeTagObtainedFromStream(byte[] data, int offset)
+        {
+            int tag = MiscUtilsInternal.DeserializeInt32BE(
+                data, offset);
+            if (tag <= 0)
             {
-                throw new KabomuIOException("invalid quasi http body chunk length: " +
-                    lengthOfDataStr);
+                throw new KabomuIOException("invalid tag: " +
+                    tag);
             }
-            if (lengthOfData < 0)
+            return tag;
+        }
+
+        private static int DecodeLengthObtainedFromStream(byte[] data, int offset)
+        {
+            int decodedLength = MiscUtilsInternal.DeserializeInt32BE(
+                data, offset);
+            if (decodedLength < 0)
             {
-                throw new KabomuIOException("invalid quasi http body chunk length: " +
-                    $"{lengthOfData}");
+                throw new KabomuIOException("invalid tag value length: " +
+                    decodedLength);
             }
-            return lengthOfData;
+            return decodedLength;
         }
     }
 }

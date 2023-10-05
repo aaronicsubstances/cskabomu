@@ -15,19 +15,11 @@ namespace Kabomu.Examples.Shared
 
         /// <summary>
         /// The purpose of this flag and the dead code that is present
-        /// as a result, is make the dead code serve as reference for
-        /// porting in stages of HTTP/1.0 only, before HTTP/1.1.
-        /// </summary>
-        internal static readonly bool SupportHttp10Only = false;
-
-        /// <summary>
-        /// The purpose of this flag and the dead code that is present
         /// as a result, is to make the dead code serve as reference for
         /// porting in stages of postponing "complex" features such as
         /// <list type="bullet">
         /// <item>always set response content length to
         ///   positive values if a body is present.</item>
-        ///   <item>enable response buffering</item>
         ///   <item>use Send2() instead of Send() method</item>
         /// </list>
         /// </summary>
@@ -61,31 +53,35 @@ namespace Kabomu.Examples.Shared
             {
                 Headers = new Dictionary<string, IList<string>>()
             };
-            request.Headers.Add("f", new List<string> { f.Name });
+            request.Headers.Add("f", new List<string>
+            {
+                Convert.ToBase64String(Encoding.UTF8.GetBytes(f.Name))
+            });
             var echoBodyOn = RandGen.NextDouble() < 0.5;
             if (echoBodyOn)
             {
                 request.Headers.Add("echo-body",
-                    new List<string> { f.FullName });
+                    new List<string> { Convert.ToBase64String(
+                        Encoding.UTF8.GetBytes(f.FullName)) });
             }
 
             // add body.
             var fileStream = new FileStream(f.FullName, FileMode.Open, FileAccess.Read,
                 FileShare.Read);
-            request.ContentLength = f.Length;
-            if (!SupportHttp10Only && RandGen.NextDouble() < 0.5)
-            {
-                request.ContentLength = -1;
-            }
             request.Body = fileStream;
+            request.ContentLength = -1;
+            if (TurnOffComplexFeatures || RandGen.NextDouble() < 0.5)
+            {
+                request.ContentLength = f.Length;
+            }
 
             // determine options
             IQuasiHttpProcessingOptions sendOptions = null;
-            if (TurnOffComplexFeatures || RandGen.NextDouble() < 0.5)
+            if (RandGen.NextDouble() < 0.5)
             {
                 sendOptions = new DefaultQuasiHttpProcessingOptions
                 {
-                    ResponseBufferingEnabled = false
+                    MaxResponseBodySize = -1,
                 };
             }
 
@@ -111,6 +107,8 @@ namespace Kabomu.Examples.Shared
                         await res.Body.CopyToAsync(memStream);
                         var actualResBody = Encoding.UTF8.GetString(
                             memStream.ToArray());
+                        actualResBody = Encoding.UTF8.GetString(
+                            Convert.FromBase64String(actualResBody));
                         if (actualResBody != f.FullName)
                         {
                             throw new Exception("expected echo body to be " +

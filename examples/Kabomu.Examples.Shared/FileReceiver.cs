@@ -24,7 +24,9 @@ namespace Kabomu.Examples.Shared
 
         public async Task<IQuasiHttpResponse> ProcessRequest(IQuasiHttpRequest request)
         {
-            var fileName = Path.GetFileName(request.Headers["f"][0]);
+            var fileName = request.Headers["f"][0];
+            fileName = Encoding.UTF8.GetString(Convert.FromBase64String(fileName));
+            fileName = Path.GetFileName(fileName);
 
             Exception transferError = null;
             try
@@ -68,11 +70,11 @@ namespace Kabomu.Examples.Shared
             {
                 var responseBytes = Encoding.UTF8.GetBytes(responseBody);
                 response.Body = new MemoryStream(responseBytes);
-                response.ContentLength = responseBytes.Length;
-                if (!FileSender.TurnOffComplexFeatures &&
+                response.ContentLength = -1;
+                if (FileSender.TurnOffComplexFeatures ||
                     RandGen.NextDouble() < 0.5)
                 {
-                    response.ContentLength = -1;
+                    response.ContentLength = responseBytes.Length;
                 }
             }
             return response;

@@ -1,5 +1,4 @@
-﻿using Kabomu.Abstractions;
-using Kabomu.Exceptions;
+﻿using Kabomu.Exceptions;
 using Kabomu.ProtocolImpl;
 using Kabomu.Tests.Shared;
 using System;
@@ -190,658 +189,482 @@ namespace Kabomu.Tests.ProtocolImpl
         public async Task TestWrapTimeoutTask6()
         {
             var task = Task.FromException<bool>(
-                new InvalidOperationException("2gh"));
-            var actualEx = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new KabomuIOException("2gh"));
+            var actualEx = await Assert.ThrowsAsync<KabomuIOException>(() =>
             {
                 return ProtocolUtilsInternal.WrapTimeoutTask(task, "tfe");
             });
             Assert.Equal("2gh", actualEx.Message);
         }
 
-        /*[Fact]
-        public async Task TestEncodeBodyToTransport1()
+        [Theory]
+        [MemberData(nameof(CreateTestContainsOnlyPrintableAsciiCharsData))]
+        public void TestContainsOnlyPrintableAsciiChars(string v,
+            bool allowSpace, bool expected)
         {
-            var isResponse = false;
-            var contentLength = -1;
-            var stream = new MemoryStream(
-                MiscUtils.StringToBytes("data bits and bytes"));
-            var expected = "01,0000000019" +
-                "data bits and bytes" +
-                "01,0000000000";
-            var environment = new Dictionary<string, object>();
-
-            var actualStream = ProtocolUtilsInternal.EncodeBodyToTransport(
-                isResponse, contentLength, stream);
-
-            Assert.NotSame(stream, actualStream);
-            var actual = MiscUtils.BytesToString(
-                (await MiscUtils.ReadAllBytes(actualStream)).ToArray());
+            var actual = ProtocolUtilsInternal.ContainsOnlyPrintableAsciiChars(
+                v, allowSpace);
             Assert.Equal(expected, actual);
         }
 
-        [Fact]
-        public void TestEncodeBodyToTransport2()
+        public static List<object[]> CreateTestContainsOnlyPrintableAsciiCharsData()
         {
-            var contentLength = -1;
-            var stream = new MemoryStream(
-                MiscUtils.StringToBytes("data bits and bytes"));
-            var environment = new Dictionary<string, object>
+            return new List<object[]>
             {
-                {
-                    QuasiHttpCodec.EnvKeySkipRawBodyEncoding,
-                    true
-                }
+                new object[]{ "x.n", false, true },
+                new object[]{ "x\n", false, false },
+                new object[]{ "yd\u00c7ea", true, false },
+                new object[]{ "x m", true, true },
+                new object[]{ "x m", false, false },
+                new object[]{ "x-yio", true, true },
+                new object[]{ "x-yio", false, true },
+                new object[]{ "x", true, true },
+                new object[]{ "x", false, true },
+                new object[]{ @" !@#$%^&*()_+=-{}[]|\:;""'?/>.<,'",
+                    false, false },
+                new object[]{ @"!@#$%^&*()_+=-{}[]|\:;""'?/>.<,'",
+                    false, true },
+                new object[]{ @" !@#$%^&*()_+=-{}[]|\:;""'?/>.<,'",
+                    true, true },
             };
-
-            var actualStream = ProtocolUtilsInternal.EncodeBodyToTransport(
-                contentLength, stream, environment);
-
-            Assert.Same(stream, actualStream);
         }
 
-        [Fact]
-        public void TestEncodeBodyToTransport3()
+        [Theory]
+        [MemberData(nameof(CreateContainsOnlyHeaderNameCharsData))]
+        public void TestContainsOnlyHeaderNameChars(string v, bool expected)
         {
-            var contentLength = 3;
-            var stream = new MemoryStream(new byte[] { 1, 3, 2 });
-            IDictionary<string, object> environment = null;
-
-            var actualStream = ProtocolUtilsInternal.EncodeBodyToTransport(
-                contentLength, stream, environment);
-
-            Assert.Same(stream, actualStream);
+            var actual = ProtocolUtilsInternal.ContainsOnlyHeaderNameChars(v);
+            Assert.Equal(expected, actual);
         }
 
-        /// <summary>
-        /// Assert that zero content length causes body not to be processed.
-        /// </summary>
-        [Fact]
-        public void TestEncodeBodyToTransport4()
+        public static List<object[]> CreateContainsOnlyHeaderNameCharsData()
         {
-            var contentLength = 0;
-            var stream = new MemoryStream(new byte[] { 1, 3, 2 });
-            var environment = new Dictionary<string, object>
+            return new List<object[]>
             {
-                {
-                    QuasiHttpCodec.EnvKeySkipRawBodyEncoding,
-                    false
-                }
+                new object[]{ "x\n", false },
+                new object[]{ "yd\u00c7ea", false },
+                new object[]{ "x m", false },
+                new object[]{ "xmX123abcD", true },
+                new object[]{ "xm", true },
+                new object[]{ "x-yio", true },
+                new object[]{ "x:yio", false },
+                new object[]{ "123", true },
+                new object[]{ "x", true },
             };
-
-            var actualStream = ProtocolUtilsInternal.EncodeBodyToTransport(
-                contentLength, stream, environment);
-
-            Assert.Null(actualStream);
         }
 
-        /// <summary>
-        /// Assert that positive content length is not enforced
-        /// </summary>
         [Fact]
-        public void TestEncodeBodyToTransport5()
+        public void TestValidateHttpHeaderSection1()
         {
-            var contentLength = 13;
-            var stream = new MemoryStream(new byte[] { 1, 3, 2 });
-            IDictionary<string, object> environment = null;
-
-            var actualStream = ProtocolUtilsInternal.EncodeBodyToTransport(
-                contentLength, stream, environment);
-
-            Assert.Same(stream, actualStream);
+            var csv = new List<IList<string>>
+            {
+                new string[]{ "GET", "/", "HTTP/1.0", "24" }
+            };
+            ProtocolUtilsInternal.ValidateHttpHeaderSection(false,
+                csv);
         }
 
-        /// <summary>
-        /// Assert that no error occurs with null body due to zero
-        /// content length.
-        /// </summary>
         [Fact]
-        public void TestEncodeBodyToTransport6()
+        public void TestValidateHttpHeaderSection2()
         {
-            var contentLength = 0;
-            Stream stream = null;
+            var csv = new List<IList<string>>
+            {
+                new string[]{ "HTTP/1.0", "204", "No Content", "-10" },
+                new string[]{ "Content-Type", "application/json; charset=UTF8" },
+                new string[]{ "Transfer-Encoding", "chunked" },
+                new string[]{ "Date", "Tue, 15 Nov 1994 08:12:31 GMT" },
+                new string[]{ "Authorization", "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==" },
+                new string[]{ "User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:12.0) Gecko/20100101 Firefox/12.0" }
+            };
+            ProtocolUtilsInternal.ValidateHttpHeaderSection(true,
+                csv);
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestValidateHttpHeaderSectionForErrorsData))]
+        public void TestValidateHttpHeaderSectionForErrors(bool isResponse,
+            IList<IList<string>> csv,
+            string expectedErrorMessage)
+        {
+            var actualEx = Assert.Throws<QuasiHttpException>(() =>
+            {
+                ProtocolUtilsInternal.ValidateHttpHeaderSection(isResponse, csv);
+            });
+            Assert.Equal(QuasiHttpException.ReasonCodeProtocolViolation, actualEx.ReasonCode);
+            Assert.Contains(expectedErrorMessage, actualEx.Message);
+        }
+
+        public static List<object[]> CreateTestValidateHttpHeaderSectionForErrorsData()
+        {
+            var testData = new List<object[]>();
+
             bool isResponse = true;
-
-            var actualStream = ProtocolUtilsInternal.EncodeBodyToTransport(
-                contentLength, stream, environment);
-
-            Assert.Null(actualStream);
-        }
-
-        [Fact]
-        public async Task TestEncodeBodyToTransport7()
-        {
-            static async IAsyncEnumerable<byte[]> Generate()
+            var csv = new List<IList<string>>
             {
-                yield return MiscUtils.StringToBytes("data bits and bytes");
-                yield return MiscUtils.StringToBytes(",data bits and bytes");
-            }
-            var contentLength = -1;
-            var stream = new AsyncEnumerableBackedStream(Generate());
-            var expected = "01,0000000019" +
-                "data bits and bytes" +
-                "01,0000000020" +
-                ",data bits and bytes" +
-                "01,0000000000";
-            var environment = new Dictionary<string, object>();
-
-            var actualStream = ProtocolUtilsInternal.EncodeBodyToTransport(
-                contentLength, stream, environment);
-
-            Assert.NotSame(stream, actualStream);
-            var actual = MiscUtils.BytesToString(
-                (await MiscUtils.ReadAllBytes(actualStream)).ToArray());
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public async Task TestEncodeBodyToTransport8()
-        {
-            var contentLength = -1;
-            var stream = new MemoryStream();
-            var expected = "01,0000000000";
-            var environment = new Dictionary<string, object>();
-
-            var actualStream = ProtocolUtilsInternal.EncodeBodyToTransport(
-                contentLength, stream, environment);
-
-            Assert.NotSame(stream, actualStream);
-            var actual = MiscUtils.BytesToString(
-                (await MiscUtils.ReadAllBytes(actualStream)).ToArray());
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public async Task TestDecodeBodyFromTransport1()
-        {
-            // arrange
-            var expected = "ice";
-            long contentLength = 3;
-            var stream = ComparisonUtils.CreateRandomizedChunkStream(
-                MiscUtils.StringToBytes(expected));
-            var environment = new Dictionary<string, object>();
-
-            // act
-            var actualStream = ProtocolUtilsInternal.DecodeBodyFromTransport(
-                contentLength, stream, environment);
-
-            // assert
-            Assert.NotSame(stream, actualStream);
-            var actual = MiscUtils.BytesToString(
-                (await MiscUtils.ReadAllBytes(actualStream)).ToArray());
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void TestDecodeBodyFromTransport2()
-        {
-            // arrange
-            var expected = "ice";
-            long contentLength = 35;
-            var stream = new MemoryStream(MiscUtils.StringToBytes(expected));
-            var environment = new Dictionary<string, object>
-            {
-                {
-                    QuasiHttpCodec.EnvKeySkipRawBodyDecoding,
-                    true
-                }
+                new string[]{ "HTTP/1 0", "200", "OK", "-10" }
             };
+            string expectedErrorMessage = "quasi http status line field contains spaces";
+            testData.Add(new object[] { isResponse, csv, expectedErrorMessage });
 
-            // act
-            var actualStream = ProtocolUtilsInternal.DecodeBodyFromTransport(
-                contentLength, stream, environment);
-
-            // assert
-            Assert.Same(stream, actualStream);
-        }
-
-        [Fact]
-        public async Task TestDecodeBodyFromTransport3()
-        {
-            var contentLength = -1;
-            var srcData = "01,0000000019" +
-                "data bits and bytes" +
-                "01,0000000000";
-            var stream = ComparisonUtils.CreateRandomizedChunkStream(
-                MiscUtils.StringToBytes(srcData));
-            var environment = new Dictionary<string, object>();
-            var expected = "data bits and bytes";
-
-            var actualStream = ProtocolUtilsInternal.DecodeBodyFromTransport(
-                contentLength, stream, environment);
-
-            Assert.NotSame(stream, actualStream);
-            var actual = MiscUtils.BytesToString(
-                (await MiscUtils.ReadAllBytes(actualStream)).ToArray());
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void TestDecodeBodyFromTransport4()
-        {
-            var contentLength = -1;
-            var srcData = "01,0000000019" +
-                "data bits and bytes" +
-                "01,0000000000";
-            var stream = new MemoryStream(
-                MiscUtils.StringToBytes(srcData));
-            var environment = new Dictionary<string, object>
+            isResponse = false;
+            csv = new List<IList<string>>
             {
-                {
-                    QuasiHttpCodec.EnvKeySkipRawBodyDecoding,
-                    true
-                }
+                new string[]{ "HTTP/1.0", "20 4", "OK", "-10" }
             };
+            expectedErrorMessage = "quasi http request line field contains spaces";
+            testData.Add(new object[] { isResponse, csv, expectedErrorMessage });
 
-            var actualStream = ProtocolUtilsInternal.DecodeBodyFromTransport(
-                contentLength, stream, environment);
-
-            Assert.Same(stream, actualStream);
-        }
-
-        /// <summary>
-        /// Test that zero content length returns null.
-        /// </summary>
-        [Fact]
-        public void TestDecodeBodyFromTransport5()
-        {
-            var contentLength = 0;
-            var stream = new MemoryStream(
-                MiscUtils.StringToBytes("abefioo"));
-            var environment = new Dictionary<string, object>
+            isResponse = true;
+            csv = new List<IList<string>>
             {
-                {
-                    QuasiHttpCodec.EnvKeySkipRawBodyDecoding,
-                    true
-                }
+                new string[]{ "HTTP/1.0", "200", "OK", "-1 0" }
             };
+            expectedErrorMessage = "quasi http status line field contains spaces";
+            testData.Add(new object[] { isResponse, csv, expectedErrorMessage });
 
-            var actualStream = ProtocolUtilsInternal.DecodeBodyFromTransport(
-                contentLength, stream, environment);
-
-            Assert.Null(actualStream);
-        }
-
-        [Fact]
-        public async Task TestDecodeBodyFromTransport6()
-        {
-            // arrange
-            long contentLength = 4;
-            var stream = new MemoryStream(MiscUtils.StringToBytes("abefioo"));
-            var environment = new Dictionary<string, object>
+            isResponse = true;
+            csv = new List<IList<string>>
             {
-                {
-                    QuasiHttpCodec.EnvKeySkipRawBodyDecoding,
-                    false
-                }
+                new string[]{ "HTTP/1.0", "200", "OK", "0" },
+                new string[]{ "Content:Type", "application/json; charset=UTF8" },
             };
-            var expected = "abef";
+            expectedErrorMessage = "quasi http header name contains characters other than hyphen";
+            testData.Add(new object[] { isResponse, csv, expectedErrorMessage });
 
-            // act
-            var actualStream = ProtocolUtilsInternal.DecodeBodyFromTransport(
-                contentLength, stream, environment);
-
-            // assert
-            Assert.NotSame(stream, actualStream);
-            var actual = MiscUtils.BytesToString(
-                (await MiscUtils.ReadAllBytes(actualStream)).ToArray());
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public async Task TestDecodeBodyFromTransport7()
-        {
-            var contentLength = -1;
-            var srcData = "01,0000000019" +
-                "data bits and bytes" +
-                "01,0000000020" +
-                ",data bits and bytes" +
-                "01,0000000000";
-            var stream = ComparisonUtils.CreateRandomizedChunkStream(
-                MiscUtils.StringToBytes(srcData));
-            var environment = new Dictionary<string, object>();
-            var expected = "data bits and bytes,data bits and bytes";
-
-            var actualStream = ProtocolUtilsInternal.DecodeBodyFromTransport(
-                contentLength, stream, environment);
-
-            Assert.NotSame(stream, actualStream);
-            var actual = MiscUtils.BytesToString(
-                (await MiscUtils.ReadAllBytes(actualStream)).ToArray());
-            Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public async Task TestDecodeBodyFromTransportForErrors1()
-        {
-            // arrange
-            long contentLength = -1;
-            var stream = new MemoryStream(MiscUtils.StringToBytes("abefioo"));
-            Dictionary<string, object> environment = null;
-
-            // act
-            var actualStream = ProtocolUtilsInternal.DecodeBodyFromTransport(
-                contentLength, stream, environment);
-
-            // assert
-            Assert.NotSame(stream, actualStream);
-
-            // act
-            await Assert.ThrowsAsync<ChunkDecodingException>(() =>
+            isResponse = false;
+            csv = new List<IList<string>>
             {
-                return MiscUtils.ReadAllBytes(actualStream);
-            });
-        }
-
-        [Fact]
-        public async Task TestDecodeBodyFromTransportForErrors2()
-        {
-            // arrange
-            long contentLength = 20;
-            var stream = new MemoryStream(MiscUtils.StringToBytes("abe"));
-            var environment = new Dictionary<string, object>
-            {
-                {
-                    QuasiHttpCodec.EnvKeySkipRawBodyDecoding,
-                    false
-                }
+                new string[]{ "HTTP/1.0", "200", "OK", "51" },
+                new string[]{ "Content-Type", "application/json; charset=UTF8\n" },
             };
-
-            // act
-            var actualStream = ProtocolUtilsInternal.DecodeBodyFromTransport(
-                contentLength, stream, environment);
-
-            // assert
-            Assert.NotSame(stream, actualStream);
-
-            // act
-            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
-            {
-                return MiscUtils.ReadAllBytes(actualStream);
-            });
-            Assert.Contains($"length of {contentLength}", actualEx.Message);
-        }*/
-
-        [Theory]
-        [MemberData(nameof(CreateTestBufferResponseBodyData))]
-        public async Task TestBufferResponseBody(long contentLength,
-            Stream body, int? bufferingSizeLimit, byte[] expected)
-        {
-            var actual = await ProtocolUtilsInternal.BufferResponseBody(
-                contentLength, body, bufferingSizeLimit,
-                CancellationToken.None);
-            var memoryStream = new MemoryStream();
-            await actual.CopyToAsync(memoryStream);
-            Assert.Equal(expected, memoryStream.ToArray());
-        }
-
-        public static List<object[]> CreateTestBufferResponseBodyData()
-        {
-            var testData = new List<object[]>();
-
-            long contentLength = -1;
-            Stream body = new MemoryStream();
-            int? bufferingSizeLimit = 1;
-            var expected = new byte[0];
-            testData.Add(new object[] { contentLength, body,
-                bufferingSizeLimit, expected });
-
-            contentLength = 0;
-            body = new MemoryStream();
-            bufferingSizeLimit = 1;
-            expected = new byte[0];
-            testData.Add(new object[] { contentLength, body,
-                bufferingSizeLimit, expected });
-
-            contentLength = 6;
-            body = new MemoryStream(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9,
-                10 });
-            expected = new byte[] { 1, 2, 3, 4, 5, 6 };
-            bufferingSizeLimit = 100;
-            testData.Add(new object[] { contentLength, body,
-                bufferingSizeLimit, expected });
-
-            contentLength = 10;
-            expected = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9,
-                10 };
-            body = new RandomizedReadInputStream(expected);
-            bufferingSizeLimit = 10;
-            testData.Add(new object[] { contentLength, body,
-                bufferingSizeLimit, expected });
-
-            contentLength = -1;
-            expected = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9,
-                10 };
-            body = new MemoryStream(expected);
-            bufferingSizeLimit = 10;
-            testData.Add(new object[] { contentLength, body,
-                bufferingSizeLimit, expected });
-
-            contentLength = -1;
-            expected = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9,
-                10 };
-            body = new RandomizedReadInputStream(expected);
-            bufferingSizeLimit = 0;
-            testData.Add(new object[] { contentLength, body,
-                bufferingSizeLimit, expected });
-
-            contentLength = -1;
-            expected = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9,
-                10 };
-            body = new RandomizedReadInputStream(expected);
-            bufferingSizeLimit = null;
-            testData.Add(new object[] { contentLength, body,
-                bufferingSizeLimit, expected });
+            expectedErrorMessage = "quasi http header value contains newlines";
+            testData.Add(new object[] { isResponse, csv, expectedErrorMessage });
 
             return testData;
         }
 
-        [Fact]
-        public async Task TestBufferResponseBodyForCancellation1()
-        {
-            long contentLength = 11;
-            Stream body = new MemoryStream(new byte[11]);
-            int? bufferingSizeLimit = 0;
-            var cts = new CancellationTokenSource();
-            cts.Cancel();
-            var actualEx = await Assert.ThrowsAsync<TaskCanceledException>(async () =>
-            {
-                await ProtocolUtilsInternal.BufferResponseBody(
-                    contentLength, body, bufferingSizeLimit,
-                    cts.Token);
-            });
-        }
-
-        [Fact]
-        public async Task TestBufferResponseBodyForCancellation2()
-        {
-            long contentLength = -1;
-            Stream body = new MemoryStream(new byte[11]);
-            int? bufferingSizeLimit = 0;
-            var cts = new CancellationTokenSource();
-            cts.Cancel();
-            var actualEx = await Assert.ThrowsAsync<TaskCanceledException>(async () =>
-            {
-                await ProtocolUtilsInternal.BufferResponseBody(
-                    contentLength, body, bufferingSizeLimit,
-                    cts.Token);
-            });
-        }
-
-        [Fact]
-        public async Task TestBufferResponseBodyForErrors1()
-        {
-            long contentLength = 12;
-            Stream body = new MemoryStream(new byte[11]);
-            int? bufferingSizeLimit = 0;
-            var actualEx = await Assert.ThrowsAsync<KabomuIOException>(async () =>
-            {
-                await ProtocolUtilsInternal.BufferResponseBody(
-                    contentLength, body, bufferingSizeLimit,
-                    CancellationToken.None);
-            });
-        }
-
-        [Fact]
-        public async Task TestBufferResponseBodyForErrors2()
-        {
-            long contentLength = 12;
-            Stream body = new MemoryStream(new byte[12]);
-            int? bufferingSizeLimit = 10;
-            var actualEx = await Assert.ThrowsAsync<QuasiHttpException>(async () =>
-            {
-                await ProtocolUtilsInternal.BufferResponseBody(
-                    contentLength, body, bufferingSizeLimit,
-                    CancellationToken.None);
-            });
-        }
-
-        [Fact]
-        public async Task TestBufferResponseBodyForErrors3()
-        {
-            long contentLength = -1;
-            Stream body = new MemoryStream(new byte[11]);
-            int? bufferingSizeLimit = 10;
-            var actualEx = await Assert.ThrowsAsync<QuasiHttpException>(async () =>
-            {
-                await ProtocolUtilsInternal.BufferResponseBody(
-                    contentLength, body, bufferingSizeLimit,
-                    CancellationToken.None);
-            });
-        }
-
         [Theory]
-        [MemberData(nameof(CreateTestReadEncodedHeadersData))]
-        public async Task TestReadEncodedHeaders(string srcData,
-            int maxHeadersSize, string expectedErrorSubstring)
+        [MemberData(nameof(CreateTestEncodeQuasiHttpHeadersData))]
+        public void TestEncodeQuasiHttpHeaders(bool isResponse,
+            IList<string> reqOrStatusLine,
+            IDictionary<string, IList<string>> remainingHeaders,
+            string expected)
         {
-            var inputStream = new MemoryStream(
-                MiscUtilsInternal.StringToBytes(srcData));
-            inputStream.Position = 0; // reset for reading
-            var encodedHeadersReceiver = new List<byte[]>();
-            CancellationToken cancellationToken = default;
-            await ProtocolUtilsInternal.ReadEncodedHeaders(inputStream,
-                encodedHeadersReceiver, maxHeadersSize,
-                cancellationToken);
-            var actual = MiscUtilsInternal.BytesToString(
-                MiscUtilsInternal.ConcatBuffers(encodedHeadersReceiver));
-            Assert.Equal(expectedErrorSubstring, actual);
+            byte[] actual = ProtocolUtilsInternal.EncodeQuasiHttpHeaders(
+                isResponse, reqOrStatusLine, remainingHeaders);
+            Assert.Equal(Encoding.UTF8.GetBytes(expected), actual);
         }
 
-        public static List<object[]> CreateTestReadEncodedHeadersData()
+        public static List<object[]> CreateTestEncodeQuasiHttpHeadersData()
         {
             var testData = new List<object[]>();
 
-            var srcData = "".PadRight(509) +
-                "\n\r\n";
-            int maxHeadersSize = 0;
-            var expected = srcData;
-            testData.Add(new object[] { srcData, maxHeadersSize, expected });
-
-            srcData = "".PadRight(510) +
-                "\r\n\r\n\n" + "".PadRight(509);
-            maxHeadersSize = 1_024;
-            expected = srcData;
-            testData.Add(new object[] { srcData, maxHeadersSize, expected });
-
-            srcData = "".PadRight(511) +
-                "\r\n\r\n" + "".PadRight(509);
-            maxHeadersSize = 1_024;
-            expected = srcData;
-            testData.Add(new object[] { srcData, maxHeadersSize, expected });
-
-            srcData = "".PadRight(509) +
-                "\n\r\r\r";
-            expected = "".PadRight(509) + "\n\r\r";
-            maxHeadersSize = 513;
-            testData.Add(new object[] { srcData, maxHeadersSize, expected });
-
-            srcData = "".PadRight(510) +
-                "".PadRight(1000, '\n');
-            maxHeadersSize = 2_000;
-            expected = "".PadRight(510) + "".PadRight(514, '\n');
-            testData.Add(new object[] { srcData, maxHeadersSize, expected });
-
-            srcData = "";
-            expected = "";
-            for (int i = 0; i < 256; i++)
+            bool isResponse = false;
+            IList<string> reqOrStatusLine = new string[]
             {
-                srcData += "12\r\n";
-                expected += "12\r\n";
-            }
-            srcData += "".PadRight(100) + "\n\n\r" + "".PadRight(1000);
-            maxHeadersSize = 3_000;
-            expected += "".PadRight(100) + "\n\n\r" + "".PadRight(409);
-            testData.Add(new object[] { srcData, maxHeadersSize, expected });
+                "GET",
+                "/home/index?q=results",
+                "HTTP/1.1",
+                "-1"
+            };
+            var remainingHeaders = new Dictionary<string, IList<string>>
+            {
+                { "Content-Type", new string[]{ "text/plain" } }
+            };
+            string expected = "GET,/home/index?q=results,HTTP/1.1,-1\n" +
+                "Content-Type,text/plain\n";
+            testData.Add(new object[] { isResponse, reqOrStatusLine,
+                remainingHeaders, expected });
+
+            isResponse = true;
+            reqOrStatusLine = new string[]
+            {
+                "HTTP/1.1",
+                "200",
+                "OK",
+                "12"
+            };
+            remainingHeaders = new Dictionary<string, IList<string>>
+            {
+                { "Content-Type", new string[]{ "text/plain", "text/csv" } },
+                { "Accept", new string[]{ "text/html" } },
+                { "Accept-Charset", new string[]{ "utf-8" } }
+            };
+            expected = "HTTP/1.1,200,OK,12\n" +
+                "Content-Type,text/plain,text/csv\n" +
+                "Accept,text/html\n" +
+                "Accept-Charset,utf-8\n";
+            testData.Add(new object[] { isResponse, reqOrStatusLine,
+                remainingHeaders, expected });
+
+            isResponse = false;
+            reqOrStatusLine = new string[]
+            {
+                null,
+                null,
+                null,
+                "0"
+            };
+            remainingHeaders = null;
+            expected = "\"\",\"\",\"\",0\n";
+            testData.Add(new object[] { isResponse, reqOrStatusLine,
+                remainingHeaders, expected });
 
             return testData;
         }
 
-        [Fact]
-        public async Task TestReadEncodedHeadersForCancellation()
-        {
-            var srcData = "".PadRight(510) + "\n\n";
-            var inputStream = new MemoryStream(
-                MiscUtilsInternal.StringToBytes(srcData));
-            inputStream.Position = 0; // reset for reading
-            var encodedHeadersReceiver = new List<byte[]>();
-            var cts = new CancellationTokenSource();
-            cts.Cancel();
-            var actualEx = await Assert.ThrowsAsync<TaskCanceledException>(async () =>
-            {
-                await ProtocolUtilsInternal.ReadEncodedHeaders(inputStream,
-                    encodedHeadersReceiver, 0,
-                    cts.Token);
-            });
-        }
-
         [Theory]
-        [MemberData(nameof(CreateTestReadEncodedHeadersForErrorsData))]
-        public async Task TestReadEncodedHeadersForErrors(string srcData,
-            int maxHeadersSize, string expectedErrorSubstring)
+        [MemberData(nameof(CreateTestEncodeQuasiHttpHeadersForErrorsData))]
+        public void TestEncodeQuasiHttpHeadersForErrors(bool isResponse,
+            IList<string> reqOrStatusLine,
+            IDictionary<string, IList<string>> remainingHeaders,
+            string expectedErrorMessage)
         {
-            var inputStream = new MemoryStream(
-                MiscUtilsInternal.StringToBytes(srcData));
-            inputStream.Position = 0; // reset for reading
-            var encodedHeadersReceiver = new List<byte[]>();
-            CancellationToken cancellationToken = default;
-            var actualEx = await Assert.ThrowsAnyAsync<Exception>(async () =>
+            var actualEx = Assert.Throws<QuasiHttpException>(() =>
             {
-                await ProtocolUtilsInternal.ReadEncodedHeaders(inputStream,
-                    encodedHeadersReceiver, maxHeadersSize,
-                    cancellationToken);
+                ProtocolUtilsInternal.EncodeQuasiHttpHeaders(
+                    isResponse, reqOrStatusLine, remainingHeaders);
             });
-            Assert.Contains(expectedErrorSubstring, actualEx.Message);
+            Assert.Equal(QuasiHttpException.ReasonCodeProtocolViolation,
+                actualEx.ReasonCode);
+            Assert.Contains(expectedErrorMessage, actualEx.Message);
         }
 
-        public static List<object[]> CreateTestReadEncodedHeadersForErrorsData()
+        public static List<object[]> CreateTestEncodeQuasiHttpHeadersForErrorsData()
         {
             var testData = new List<object[]>();
 
-            var srcData = "".PadRight(510) +
-                "\r\n\n";
-            int maxHeadersSize = 512;
-            var expectedErrMsgSubstr = "read exceed max size";
-            testData.Add(new object[] { srcData, maxHeadersSize,
-                expectedErrMsgSubstr });
+            bool isResponse = false;
+            IList<string> reqOrStatusLine = new string[]
+            {
+                "GET",
+                "/home/index?q=results",
+                "HTTP/1.1",
+                "-1"
+            };
+            var remainingHeaders = new Dictionary<string, IList<string>>
+            {
+                { "", new string[]{ "text/plain" } }
+            };
+            string expected = "quasi http header name cannot be empty";
+            testData.Add(new object[] { isResponse, reqOrStatusLine,
+                remainingHeaders, expected });
 
-            srcData = "".PadRight(1511);
-            maxHeadersSize = 0;
-            expectedErrMsgSubstr = "end of read";
-            testData.Add(new object[] { srcData, maxHeadersSize,
-                expectedErrMsgSubstr });
+            isResponse = true;
+            reqOrStatusLine = new string[]
+            {
+                "HTTP/1.1",
+                "400",
+                "Bad Request",
+                "12"
+            };
+            remainingHeaders = new Dictionary<string, IList<string>>
+            {
+                { "Content-Type", new string[]{ "", "text/csv" } },
+            };
+            expected = "quasi http header value cannot be empty";
+            testData.Add(new object[] { isResponse, reqOrStatusLine,
+                remainingHeaders, expected });
 
-            srcData = "";
-            maxHeadersSize = 0;
-            expectedErrMsgSubstr = "end of read";
-            testData.Add(new object[] { srcData, maxHeadersSize,
-                expectedErrMsgSubstr });
+            isResponse = false;
+            reqOrStatusLine = new string[]
+            {
+                "GET or POST",
+                null,
+                null,
+                "0"
+            };
+            remainingHeaders = null;
+            expected = "quasi http request line field contains spaces";
+            testData.Add(new object[] { isResponse, reqOrStatusLine,
+                remainingHeaders, expected });
 
-            srcData = "".PadRight(510) +
-                "\n\r\n";
-            maxHeadersSize = 513;
-            expectedErrMsgSubstr = "read exceed max size";
-            testData.Add(new object[] { srcData, maxHeadersSize,
-                expectedErrMsgSubstr });
+            isResponse = false;
+            reqOrStatusLine = new string[]
+            {
+                "GET",
+                null,
+                null,
+                "0 or 1"
+            };
+            remainingHeaders = null;
+            expected = "quasi http request line field contains spaces";
+            testData.Add(new object[] { isResponse, reqOrStatusLine,
+                remainingHeaders, expected });
+
+            isResponse = true;
+            reqOrStatusLine = new string[]
+            {
+                "HTTP 1.1",
+                "200",
+                "OK",
+                "0"
+            };
+            remainingHeaders = null;
+            expected = "quasi http status line field contains spaces";
+            testData.Add(new object[] { isResponse, reqOrStatusLine,
+                remainingHeaders, expected });
+
+            return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestDecodeQuasiHttpHeadersData))]
+        public void TestDecodeQuasiHttpHeaders(bool isResponse,
+            byte[] data, int offset, int length,
+            IDictionary<string, IList<string>> expectedHeaders,
+            IList<string> expectedReqOrStatusLine)
+        {
+            var headersReceiver = new Dictionary<string, IList<string>>();
+            var actualReqOrStatusLine = ProtocolUtilsInternal.DecodeQuasiHttpHeaders(
+                isResponse, data, offset, length,
+                headersReceiver);
+            Assert.Equal(expectedReqOrStatusLine, actualReqOrStatusLine);
+            ComparisonUtils.CompareHeaders(expectedHeaders, headersReceiver);
+        }
+
+        public static List<object[]> CreateTestDecodeQuasiHttpHeadersData()
+        {
+            var testData = new List<object[]>();
+
+            bool isResponse = false;
+            byte[] data = Encoding.UTF8.GetBytes(
+                "GET,/home/index?q=results,HTTP/1.1,-1\n" +
+                "Content-Type,text/plain\n");
+            int offset = 0;
+            int length = data.Length;
+            var expectedHeaders = new Dictionary<string, IList<string>>
+            {
+                { "content-type", new string[]{ "text/plain" } }
+            };
+            var expectedReqOrStatusLine = new string[]
+            {
+                "GET",
+                "/home/index?q=results",
+                "HTTP/1.1",
+                "-1"
+            };
+            testData.Add(new object[] { isResponse, data, offset,
+                length, expectedHeaders, expectedReqOrStatusLine });
+
+            isResponse = true;
+            data = Encoding.UTF8.GetBytes("HTTP/1.1,200,OK,12\n" +
+                "Content-Type,text/plain,text/csv\n" +
+                "content-type,application/json\n" +
+                "\r\n" +
+                "ignored\n" +
+                "Accept,text/html\n" +
+                "Accept-Charset,utf-8\n\"");
+            offset = 0;
+            length = data.Length - 1;
+            expectedHeaders = new Dictionary<string, IList<string>>
+            {
+                { "content-type", new string[]{
+                    "text/plain", "text/csv", "application/json" } },
+                { "accept", new string[]{ "text/html" } },
+                { "accept-charset", new string[]{ "utf-8" } }
+            };
+            expectedReqOrStatusLine = new string[]
+            {
+                "HTTP/1.1",
+                "200",
+                "OK",
+                "12"
+            };
+            testData.Add(new object[] { isResponse, data, offset,
+                length, expectedHeaders, expectedReqOrStatusLine });
+
+            isResponse = false;
+            data = Encoding.UTF8.GetBytes("\"\",\"\",\"\",0\n");
+            offset = 0;
+            length = data.Length;
+            expectedHeaders = new Dictionary<string, IList<string>>();
+            expectedReqOrStatusLine = new string[]
+            {
+                "",
+                "",
+                "",
+                "0"
+            };
+            testData.Add(new object[] { isResponse, data, offset,
+                length, expectedHeaders, expectedReqOrStatusLine });
+
+            isResponse = true;
+            data = Encoding.UTF8.GetBytes(
+                "k\"GET,/home/index?q=results,HTTP/1.1,-1\n" +
+                "Content-Type,text/plain\nk2\"");
+            offset = 2;
+            length = data.Length - 5;
+            expectedHeaders = new Dictionary<string, IList<string>>
+            {
+                { "content-type", new string[]{ "text/plain" } }
+            };
+            expectedReqOrStatusLine = new string[]
+            {
+                "GET",
+                "/home/index?q=results",
+                "HTTP/1.1",
+                "-1"
+            };
+            testData.Add(new object[] { isResponse, data, offset,
+                length, expectedHeaders, expectedReqOrStatusLine });
+
+            return testData;
+        }
+
+        [Theory]
+        [MemberData(nameof(CreateTestDecodeQuasiHttpHeadersForErrorsData))]
+        public void TestDecodeQuasiHttpHeadersForErrors(bool isResponse,
+            byte[] data, int offset, int length,
+            string expectedErrorMessage)
+        {
+            var actualEx = Assert.Throws<QuasiHttpException>(() =>
+            {
+                ProtocolUtilsInternal.DecodeQuasiHttpHeaders(
+                    isResponse, data, offset, length,
+                    new Dictionary<string, IList<string>>());
+            });
+            Assert.Equal(QuasiHttpException.ReasonCodeProtocolViolation,
+                actualEx.ReasonCode);
+            Assert.Contains(expectedErrorMessage, actualEx.Message);
+        }
+
+        public static List<object[]> CreateTestDecodeQuasiHttpHeadersForErrorsData()
+        {
+            var testData = new List<object[]>();
+
+            bool isResponse = false;
+            byte[] data = Encoding.UTF8.GetBytes(
+                "\"k\n,lopp");
+            int offset = 0;
+            int length = data.Length;
+            var expectedErrorMessage = "invalid quasi http headers";
+            testData.Add(new object[] { isResponse, data, offset,
+                length, expectedErrorMessage });
+
+            isResponse = false;
+            data = Encoding.UTF8.GetBytes("");
+            offset = 0;
+            length = data.Length;
+            expectedErrorMessage = "invalid quasi http headers";
+            testData.Add(new object[] { isResponse, data, offset,
+                length, expectedErrorMessage });
+
+            isResponse = true;
+            data = Encoding.UTF8.GetBytes("HTTP/1.1,200");
+            offset = 0;
+            length = data.Length;
+            expectedErrorMessage = "invalid quasi http status line";
+            testData.Add(new object[] { isResponse, data, offset,
+                length, expectedErrorMessage });
+
+            isResponse = false;
+            data = Encoding.UTF8.GetBytes("GET,HTTP/1.1,");
+            offset = 0;
+            length = data.Length;
+            expectedErrorMessage = "invalid quasi http request line";
+            testData.Add(new object[] { isResponse, data, offset,
+                length, expectedErrorMessage });
 
             return testData;
         }

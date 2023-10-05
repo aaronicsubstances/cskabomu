@@ -120,7 +120,7 @@ namespace Kabomu
             }
             catch (Exception e)
             {
-                await Abort(transport, connection, true);
+                await Abort(transport, connection, true, null);
                 if (e is QuasiHttpException)
                 {
                     throw;
@@ -158,69 +158,59 @@ namespace Kabomu
 
             // send entire request first before
             // receiving of response.
-            if (ProtocolUtilsInternal.GetEnvVarAsBoolean(request.Environment,
-                QuasiHttpUtils.EnvKeySkipSending) != true)
+            var altTransport = transport as IQuasiHttpAltTransport;
+            var requestSerializer = altTransport?.RequestSerializer;
+            bool requestSerialized = false;
+            if (requestSerializer != null)
             {
-                var encodedRequestHeaders = QuasiHttpCodec.EncodeRequestHeaders(request,
-                    connection.ProcessingOptions?.MaxHeadersSize);
-                var encodedRequestBody = ProtocolUtilsInternal.EncodeBodyToTransport(false,
-                    request.ContentLength, request.Body);
-                await transport.Write(connection, false, encodedRequestHeaders,
-                    encodedRequestBody);
+                requestSerialized = await requestSerializer(connection, request);
+            }
+            if (!requestSerialized)
+            {
+                await ProtocolUtilsInternal.WriteEntityToTransport(
+                    false, request, transport.GetWritableStream(connection),
+                    connection);
             }
 
-            var (encodedResponseBody, encodedResponseHeaders) =
-                await ProtocolUtilsInternal.ReadEntityFromTransport(
-                    true, transport, connection);
-
-            var response = new DefaultQuasiHttpResponse
+            IQuasiHttpResponse response = null;
+            var responseDeserializer = altTransport?.ResponseDeserializer;
+            if (responseDeserializer != null)
             {
-                Body = encodedResponseBody
-            };
-            QuasiHttpCodec.DecodeResponseHeaders(encodedResponseHeaders, 0,
-                encodedResponseHeaders.Length, response);
-            bool responseStreamingEnabled, applyResponseBuffering;
-            (response.Body, responseStreamingEnabled, applyResponseBuffering) =
-                ProtocolUtilsInternal.DecodeResponseBodyFromTransport(
-                    response.ContentLength,
-                    encodedResponseBody,
-                    connection.Environment,
-                    connection.ProcessingOptions?.ResponseBufferingEnabled);
-            if (applyResponseBuffering)
-            {
-                response.Body = await ProtocolUtilsInternal.BufferResponseBody(
-                    response.ContentLength, response.Body,
-                    connection.ProcessingOptions?.ResponseBodyBufferingSizeLimit,
-                    connection.CancellationToken);
+                response = await responseDeserializer(connection);
             }
-            if (responseStreamingEnabled)
+            if (response == null)
             {
-                response.Disposer = () =>
+                response = (IQuasiHttpResponse)await ProtocolUtilsInternal.ReadEntityFromTransport(
+                    true, transport.GetReadableStream(connection), connection);
+                if (response.Body != null)
                 {
-                    return transport.ReleaseConnection(connection, false);
-                };
+                    response.Disposer = () =>
+                    {
+                        return transport.ReleaseConnection(connection, null);
+                    };
+                }
             }
-            await Abort(transport, connection, false, responseStreamingEnabled);
+            await Abort(transport, connection, false, response);
             return response;
         }
 
         internal async static Task Abort(IQuasiHttpClientTransport transport,
             IQuasiHttpConnection connection,
-            bool errorOccured, bool responseStreamingEnabled = false)
+            bool errorOccured, IQuasiHttpResponse response)
         {
             if (errorOccured)
             {
                 try
                 {
                     // don't wait.
-                    _ = transport.ReleaseConnection(connection, false);
+                    _ = transport.ReleaseConnection(connection, null);
                 }
                 catch (Exception) { } // ignore
             }
             else
             {
                 await transport.ReleaseConnection(connection,
-                    responseStreamingEnabled);
+                    response);
             }
         }
     }

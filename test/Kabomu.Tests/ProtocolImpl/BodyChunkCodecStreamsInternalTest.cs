@@ -1,5 +1,4 @@
-﻿using Kabomu.Exceptions;
-using Kabomu.ProtocolImpl;
+﻿using Kabomu.ProtocolImpl;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -13,175 +12,95 @@ namespace Kabomu.Tests.ProtocolImpl
 {
     public class BodyChunkCodecStreamsInternalTest
     {
-        [InlineData("")]
-        [InlineData("a")]
-        [InlineData("ab")]
-        [InlineData("abc")]
-        [InlineData("abcd")]
-        [InlineData("abcde")]
-        [InlineData("abcdefghi")]
+        [InlineData("", 1)]
+        [InlineData("a", 4)]
+        [InlineData("ab", 45)]
+        [InlineData("abc", 60)]
+        [InlineData("abcd", 120_000_000)]
+        [InlineData("abcde", 34_000_000)]
+        [InlineData("abcdefghi", 0x3245671d)]
         [Theory]
-        public async Task TestReading(string expected)
+        public async Task TestReading(string expected, int tagToUse)
         {
             // 1. arrange
-            Stream instance = new RandomizedReadInputStream(
+            Stream srcStream = new RandomizedReadInputStream(
                 MiscUtilsInternal.StringToBytes(expected));
-            instance = new BodyChunkEncodingStreamInternal(instance);
-            instance = new BodyChunkDecodingStreamInternal(instance);
+            var destStream = new MemoryStream();
+            var encodingStream = TlvUtils.CreateTlvEncodingWritableStream(
+                destStream, tagToUse);
 
             // act
-            var actual = await ComparisonUtils.ReadToString(instance,
+            await srcStream.CopyToAsync(encodingStream);
+            // write end of stream
+            await encodingStream.WriteAsync(null, 0, -1);
+            destStream.Position = 0; // reset for reading.
+            var decodingStream = TlvUtils.CreateTlvDecodingReadableStream(
+                destStream, tagToUse, 0);
+            var actual = await ComparisonUtils.ReadToString(decodingStream,
                 false);
 
             // assert
             Assert.Equal(expected, actual);
 
             // 2. arrange again with old style async
-            instance = new RandomizedReadInputStream(
+            srcStream = new RandomizedReadInputStream(
                 MiscUtilsInternal.StringToBytes(expected));
-            instance = new BodyChunkEncodingStreamInternal(instance);
-            instance = new BodyChunkDecodingStreamInternal(instance);
+            destStream = new MemoryStream();
+            encodingStream = TlvUtils.CreateTlvEncodingWritableStream(
+                destStream, tagToUse);
 
             // act
-            actual = await ComparisonUtils.ReadToString(instance,
+            await srcStream.CopyToAsync(encodingStream);
+            // write end of stream
+            await encodingStream.WriteAsync(null, 0, -1);
+            destStream.Position = 0; // reset for reading.
+            decodingStream = TlvUtils.CreateTlvDecodingReadableStream(
+                destStream, tagToUse, 0);
+            actual = await ComparisonUtils.ReadToString(decodingStream,
                 true);
 
             // assert
             Assert.Equal(expected, actual);
 
             // 3. arrange again with sync
-            instance = new RandomizedReadInputStream(
+            srcStream = new RandomizedReadInputStream(
                 MiscUtilsInternal.StringToBytes(expected));
-            instance = new BodyChunkEncodingStreamInternal(instance);
-            instance = new BodyChunkDecodingStreamInternal(instance);
+            destStream = new MemoryStream();
+            encodingStream = TlvUtils.CreateTlvEncodingWritableStream(
+                destStream, tagToUse);
 
             // act
-            actual = ComparisonUtils.ReadToStringSync(instance,
+            srcStream.CopyTo(encodingStream);
+            // write end of stream
+            encodingStream.Write(null, 0, -1);
+            destStream.Position = 0; // reset for reading.
+            decodingStream = TlvUtils.CreateTlvDecodingReadableStream(
+                destStream, tagToUse, 0);
+            actual = ComparisonUtils.ReadToStringSync(decodingStream,
                 false);
 
             // assert
             Assert.Equal(expected, actual);
 
             // 4. arrange again with slow sync
-            instance = new RandomizedReadInputStream(
+            srcStream = new RandomizedReadInputStream(
                 MiscUtilsInternal.StringToBytes(expected));
-            instance = new BodyChunkEncodingStreamInternal(instance);
-            instance = new BodyChunkDecodingStreamInternal(instance);
+            destStream = new MemoryStream();
+            encodingStream = TlvUtils.CreateTlvEncodingWritableStream(
+                destStream, tagToUse);
 
             // act
-            actual = ComparisonUtils.ReadToStringSync(instance,
+            srcStream.CopyTo(encodingStream);
+            // write end of stream
+            encodingStream.Write(null, 0, -1);
+            destStream.Position = 0; // reset for reading.
+            decodingStream = TlvUtils.CreateTlvDecodingReadableStream(
+                destStream, tagToUse, 0);
+            actual = ComparisonUtils.ReadToStringSync(decodingStream,
                 true);
 
             // assert
             Assert.Equal(expected, actual);
-        }
-
-        [Theory]
-        [MemberData(nameof(CreateTestDecodingForErrorsData))]
-        public async void TestDecodingForErrors(string srcData, string expected)
-        {
-            // arrange
-            Stream instance = new MemoryStream(
-                MiscUtilsInternal.StringToBytes(srcData));
-            instance = new BodyChunkDecodingStreamInternal(instance);
-
-            // act
-            var actualEx = await Assert.ThrowsAsync<KabomuIOException>(async () =>
-            {
-                await ComparisonUtils.ReadToString(instance);
-            });
-
-            // assert
-            Assert.Contains(expected, actualEx.Message);
-
-            // 2. arrange again with old style async
-            instance = new MemoryStream(
-                MiscUtilsInternal.StringToBytes(srcData));
-            instance = new BodyChunkDecodingStreamInternal(instance);
-
-            // act
-            actualEx = await Assert.ThrowsAsync<KabomuIOException>(async () =>
-            {
-                await ComparisonUtils.ReadToString(instance, true);
-            });
-
-            // assert
-            Assert.Contains(expected, actualEx.Message);
-
-            // 3. arrange again with sync
-            instance = new MemoryStream(
-                MiscUtilsInternal.StringToBytes(srcData));
-            instance = new BodyChunkDecodingStreamInternal(instance);
-
-            // act
-            actualEx = Assert.Throws<KabomuIOException>(() =>
-            {
-                ComparisonUtils.ReadToStringSync(instance);
-            });
-
-            // assert
-            Assert.Contains(expected, actualEx.Message);
-
-            // 4. arrange again with slow sync
-            instance = new MemoryStream(
-                MiscUtilsInternal.StringToBytes(srcData));
-            instance = new BodyChunkDecodingStreamInternal(instance);
-
-            // act
-            actualEx = Assert.Throws<KabomuIOException>(() =>
-            {
-                ComparisonUtils.ReadToStringSync(instance, true);
-            });
-
-            // assert
-            Assert.Contains(expected, actualEx.Message);
-        }
-
-        public static List<object[]> CreateTestDecodingForErrorsData()
-        {
-            return new List<object[]>
-            {
-                new object[]
-                {
-                    "",
-                    "unexpected end of read"
-                },
-                new object[]
-                {
-                    "01",
-                    "unexpected end of read"
-                },
-                new object[]
-                {
-                    "01,0000000001qabc,",
-                    "unexpected end of read"
-                },
-                new object[]
-                {
-                    "01,0000000012qabc,",
-                    "unexpected end of read"
-                },
-                new object[]
-                {
-                    "01234567890123456",
-                    "invalid quasi http body chunk header"
-                },
-                new object[]
-                {
-                    "01,0000000001h00,234567890123456",
-                    "invalid quasi http body chunk header"
-                },
-                new object[]
-                {
-                    "01,0000000tea",
-                    "length: 0000000tea"
-                },
-                new object[]
-                {
-                    "01,-000000001",
-                    "length: -1"
-                }
-            };
         }
     }
 }

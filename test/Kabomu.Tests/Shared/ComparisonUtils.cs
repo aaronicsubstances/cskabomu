@@ -1,5 +1,4 @@
 ﻿using Kabomu.Abstractions;
-using Kabomu.ProtocolImpl;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -145,10 +144,8 @@ namespace Kabomu.Tests.Shared
                 return;
             }
             Assert.NotNull(actual);
-            Assert.Equal(expected.ResponseBufferingEnabled,
-                actual.ResponseBufferingEnabled);
-            Assert.Equal(expected.ResponseBodyBufferingSizeLimit,
-                actual.ResponseBodyBufferingSizeLimit);
+            Assert.Equal(expected.MaxResponseBodySize,
+                actual.MaxResponseBodySize);
             Assert.Equal(expected.TimeoutMillis,
                 actual.TimeoutMillis);
             Assert.Equal(expected.ExtraConnectivityParams,

@@ -36,28 +36,14 @@ namespace Kabomu.Abstractions
         int MaxHeadersSize { get; set; }
 
         /// <summary>
-        /// Gets the indication of whether response buffering is enabled or not.
-        /// <para></para>
-        /// A value of false means clients are responsible for closing a response if it has a body.
-        /// <para></para>
-        /// A value of true means send request processing must ensure that responses are released before returning them to clients,
-        /// by generating equivalent responses with buffered bodies.
-        /// <para></para>
-        /// Else a value of null means it is unspecified whether response buffering is enabled or not,
-        /// and in the absence of any overriding options
-        /// a client-specific default value will be used.
-        /// </summary>
-        bool? ResponseBufferingEnabled { get; set; }
-
-        /// <summary>
-        /// Gets the value that imposes a maximum size on response bodies when they are being buffered,
-        /// i.e. in situations where response buffering is enabled.
+        /// Gets the value that imposes a maximum size on response bodies. To indicate absence
+        /// of a limit, use -1 or any negative value.
         /// </summary>
         /// <remarks>
-        /// Note that zero and negative values will be interpreted as unspecified,
+        /// Note that zero will be interpreted as unspecified,
         /// and in the absence of any overriding options
         /// a client-specific default value will be used.
         /// </remarks>
-        int ResponseBodyBufferingSizeLimit { get; set; }
+        int MaxResponseBodySize { get; set; }
     }
 }

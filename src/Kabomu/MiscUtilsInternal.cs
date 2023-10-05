@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Kabomu.Exceptions;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,6 +14,37 @@ namespace Kabomu
     /// </summary>
     internal static class MiscUtilsInternal
     {
+        public static void SerializeInt32BE(int v, byte[] dest, int offset)
+        {
+            if (!BitConverter.TryWriteBytes(
+                new ArraySegment<byte>(dest, offset, 4), v))
+            {
+                throw new ExpectationViolationException(
+                    "expected serialization of 32-bit integer to succeed");
+            }
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(dest, offset, 4);
+            }
+        }
+
+        public static int DeserializeInt32BE(byte[] src, int offset)
+        {
+            var reversed = src;
+            if (BitConverter.IsLittleEndian)
+            {
+                reversed = new byte[]
+                {
+                    src[offset + 3],
+                    src[offset + 2],
+                    src[offset + 1],
+                    src[offset]
+                };
+                offset = 0;
+            }
+            return BitConverter.ToInt32(reversed, offset);
+        }
+
         /// <summary>
         /// Parses a string as a valid 48-bit signed integer.
         /// </summary>
@@ -99,28 +131,6 @@ namespace Kabomu
             return Encoding.UTF8.GetString(data, offset, length);
         }
 
-        public static int GetByteCount(string v)
-        {
-            return Encoding.UTF8.GetByteCount(v);
-        }
-
-        public static byte[] ConcatBuffers(List<byte[]> chunks)
-        {
-            if (chunks.Count == 1)
-            {
-                return chunks[0];
-            }
-            int totalLen = chunks.Sum(c => c.Length);
-            byte[] result = new byte[totalLen];
-            int offset = 0;
-            foreach (var chunk in chunks)
-            {
-                Array.Copy(chunk, 0, result, offset, chunk.Length);
-                offset += chunk.Length;
-            }
-            return result;
-        }
-
         /// <summary>
         /// Provides equivalent functionality to Promise.all() of NodeJS
         /// </summary>
@@ -157,6 +167,28 @@ namespace Kabomu
                     tcs.TrySetCanceled();
                 else
                     tcs.TrySetResult(t.Result);
+
+                if (callback != null)
+                    callback(tcs.Task);
+            }, TaskScheduler.Default);
+            return tcs.Task;
+        }
+
+        public static IAsyncResult AsApm(this Task task,
+            AsyncCallback callback, object state)
+        {
+            if (task == null)
+                throw new ArgumentNullException("task");
+
+            var tcs = new TaskCompletionSource(state);
+            task.ContinueWith(t =>
+            {
+                if (t.IsFaulted)
+                    tcs.TrySetException(t.Exception.InnerExceptions);
+                else if (t.IsCanceled)
+                    tcs.TrySetCanceled();
+                else
+                    tcs.TrySetResult();
 
                 if (callback != null)
                     callback(tcs.Task);

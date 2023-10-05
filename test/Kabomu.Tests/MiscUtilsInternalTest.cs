@@ -1,8 +1,4 @@
-﻿using Kabomu.Abstractions;
-using Kabomu.Exceptions;
-using Kabomu.ProtocolImpl;
-using Kabomu.Tests.Shared;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -14,273 +10,75 @@ namespace Kabomu.Tests
 {
     public class MiscUtilsInternalTest
     {
-        /*[Fact]
-        public async Task TestReadBytesFully()
-        {
-            // arrange
-            var reader = ComparisonUtils.CreateRandomizedChunkStream(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
-            var readBuffer = new byte[6];
-
-            // act
-            await MiscUtils.ReadExactBytesAsync(reader, readBuffer, 0, 3);
-
-            // assert
-            ComparisonUtils.CompareData(new byte[] { 0, 1, 2 }, 0, 3,
-                readBuffer, 0, 3);
-
-            // assert that zero length reading doesn't cause problems.
-            await MiscUtils.ReadExactBytesAsync(reader, readBuffer, 3, 0);
-
-            // act again
-            await MiscUtils.ReadExactBytesAsync(reader, readBuffer, 1, 3);
-
-            // assert
-            ComparisonUtils.CompareData(new byte[] { 3, 4, 5 }, 0, 3,
-                readBuffer, 1, 3);
-
-            // act again
-            await MiscUtils.ReadExactBytesAsync(reader, readBuffer, 3, 2);
-
-            // assert
-            ComparisonUtils.CompareData(new byte[] { 6, 7 }, 0, 2,
-                readBuffer, 3, 2);
-
-            // test zero byte reads.
-            readBuffer = new byte[] { 2, 3, 5, 8 };
-            await MiscUtils.ReadExactBytesAsync(reader, readBuffer, 0, 0);
-            Assert.Equal(new byte[] { 2, 3, 5, 8 }, readBuffer);
-        }
-
-        [Fact]
-        public async Task TestReadBytesFullyForErrors()
-        {
-            // arrange
-            var reader = ComparisonUtils.CreateRandomizedChunkStream(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
-            var readBuffer = new byte[5];
-
-            // act
-            await MiscUtils.ReadExactBytesAsync(reader, readBuffer, 0, readBuffer.Length);
-
-            // assert
-            ComparisonUtils.CompareData(
-                new byte[] { 0, 1, 2, 3, 4 }, 0, readBuffer.Length,
-                readBuffer, 0, readBuffer.Length);
-
-            // act and assert unexpected end of read
-            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
-                MiscUtils.ReadExactBytesAsync(reader, readBuffer, 0, readBuffer.Length));
-            Assert.Contains("end of read", actualEx.Message);
-        }
-
         [Theory]
-        [MemberData(nameof(CreateTestReadAllBytesData))]
-        public async Task TestReadAllBytes(int bufferingLimit, byte[] expected)
+        [MemberData(nameof(CreateTestSerializeInt32BEData))]
+        public void TestSerializeInt32BE(int v, byte[] rawBytes,
+            int offset, byte[] expected)
         {
-            // arrange
-            var reader = ComparisonUtils.CreateRandomizedChunkStream(expected);
-
-            // act
-            var actual = (await MiscUtils.ReadAllBytes(reader, bufferingLimit)).ToArray();
-
-            // assert
+            byte[] actual = new byte[rawBytes.Length];
+            Array.Copy(rawBytes, actual, rawBytes.Length);
+            MiscUtilsInternal.SerializeInt32BE(v, actual, offset);
             Assert.Equal(expected, actual);
-
-            // assert that reader has been exhausted.
-            actual = (await MiscUtils.ReadAllBytes(reader)).ToArray();
-            Assert.Empty(actual);
         }
 
-        public static List<object[]> CreateTestReadAllBytesData()
-        {
-            var testData = new List<object[]>();
-
-            int bufferingLimit = 0;
-            byte[] expected = new byte[0];
-            testData.Add(new object[] { bufferingLimit, expected });
-
-            bufferingLimit = 0;
-            expected = new byte[] { 2 };
-            testData.Add(new object[] { bufferingLimit, expected });
-
-            bufferingLimit = 6;
-            expected = new byte[] { 0, 1, 2, 5, 6, 7 };
-            testData.Add(new object[] { bufferingLimit, expected });
-
-            bufferingLimit = 6;
-            expected = new byte[] { 0, 1, 4, 5, 6, 7 };
-            testData.Add(new object[] { bufferingLimit, expected });
-
-            bufferingLimit = 10;
-            expected = new byte[] { 0, 1, 2, 4, 5, 6, 7, 9 };
-            testData.Add(new object[] { bufferingLimit, expected });
-
-            bufferingLimit = -1;
-            expected = new byte[] { 3, 0, 1, 2, 4, 5, 6, 7, 9, 8, 10, 11, 12,
-                113, 114 };
-            testData.Add(new object[] { bufferingLimit, expected });
-
-            return testData;
-        }
-
-        [Theory]
-        [MemberData(nameof(CreateTestReadAllBytesForErrorsData))]
-        public async Task TestReadAllBytesForErrors(byte[] srcData, int bufferingLimit)
-        {
-            // arrange
-            var reader = ComparisonUtils.CreateRandomizedChunkStream(srcData);
-
-            // act
-            var actualEx = await Assert.ThrowsAsync<CustomIOException>(() =>
-                MiscUtils.ReadAllBytes(reader, bufferingLimit));
-
-            // assert
-            Assert.Contains($"limit of {bufferingLimit}", actualEx.Message);
-        }
-
-        public static List<object[]> CreateTestReadAllBytesForErrorsData()
-        {
-            var testData = new List<object[]>();
-
-            byte[] srcData = new byte[] { 0, 1, 2, 5, 6, 7 };
-            int bufferingLimit = 5;
-            testData.Add(new object[] { srcData, bufferingLimit });
-
-            srcData = new byte[] { 0, 1, 2, 4, 5, 6, 7, 9 };
-            bufferingLimit = 7;
-            testData.Add(new object[] { srcData, bufferingLimit });
-
-            srcData = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 9 };
-            bufferingLimit = 8;
-            testData.Add(new object[] { srcData, bufferingLimit });
-
-            return testData;
-        }
-
-        [Theory]
-        [MemberData(nameof(CreateTestCopyBytesData))]
-        public async Task TestCopyBytesToStream(string srcData)
-        {
-            // arrange
-            var expected = MiscUtils.StringToBytes(srcData);
-            var readerStream = new MemoryStream(expected);
-            var writerStream = new MemoryStream();
-
-            // act
-            await MiscUtils.CopyBytesToStream(readerStream, writerStream);
-
-            // assert
-            Assert.Equal(expected, writerStream.ToArray());
-        }
-
-        [MemberData(nameof(CreateTestCopyBytesData))]
-        [Theory]
-        public async Task TestCopyBytesToSinkWithRemainingBytes(string srcData)
-        {
-            // arrange
-            var expected = MiscUtils.StringToBytes(srcData);
-
-            // double the expectation and read half way,
-            // to test that remaining bytes are correctly copied
-            var reader = ComparisonUtils.CreateRandomizedChunkStream(
-                MiscUtils.StringToBytes(srcData + srcData));
-            var actual = new byte[expected.Length];
-            await MiscUtils.ReadExactBytesAsync(reader, actual, 0, actual.Length);
-            Assert.Equal(expected, actual);
-
-            // now continue to test copyBytes() on
-            // remaining data
-            var writerStream = new MemoryStream();
-            Func<byte[], int, int, Task> writerStreamWrapper = (data, offset, length) =>
-                writerStream.WriteAsync(data, offset, length);
-
-            // act
-            await MiscUtils.CopyBytesToSink(reader, writerStreamWrapper);
-
-            // assert
-            actual = writerStream.ToArray();
-            Assert.Equal(expected, actual);
-
-            // assert that reader has been exhausted.
-            actual = (await MiscUtils.ReadAllBytes(reader)).ToArray();
-            Assert.Empty(actual);
-        }
-
-        public static List<object[]> CreateTestCopyBytesData()
+        public static List<object[]> CreateTestSerializeInt32BEData()
         {
             return new List<object[]>
             {
-                new object[]{ "" },
-                new object[]{ "ab" },
-                new object[]{ "abc" },
-                new object[]{ "abcd" },
-                new object[]{ "abcde" },
-                new object[]{ "abcdef" }
+                new object[]{ 2001, new byte[] { 8, 2, 3, 4 }, 0, new byte[] { 0, 0, 7, 0xd1 } },
+                new object[]{ -10_999, new byte[5], 1, new byte[] { 0, 0xff, 0xff, 0xd5, 9 } },
+                new object[]{ 1_000_000, new byte[4], 0, new byte[] { 0, 0xf, 0x42, 0x40 } },
+                new object[]{ 1_000_000_000, new byte[] { 10, 20, 30, 40, 50 }, 0, new byte[] { 0x3b, 0x9a, 0xca, 0, 50 } },
+                new object[]{ -1_000_000_000, new byte[] { 10, 11, 12, 13,
+                    10, 11, 12, 13 }, 2, new byte[] { 10, 11,
+                    0xc4, 0x65, 0x36, 0, 12, 13 } }
             };
         }
 
         [Fact]
-        public async Task TestCopyBytesWithEmptyReaderAndProblematicWriter()
+        public void TestSerializeInt32BEErrors()
         {
-            var reader = new MemoryStream();
-            Func<byte[], int, int, Task> writer = (data, offset, length) =>
-                throw new Exception("broken!");
-            await MiscUtils.CopyBytesToSink(reader, writer);
+            Assert.ThrowsAny<Exception>(() =>
+                MiscUtilsInternal.SerializeInt32BE(1, new byte[2], 0));
+            Assert.ThrowsAny<Exception>(() =>
+                MiscUtilsInternal.SerializeInt32BE(2, new byte[4], 1));
+            Assert.ThrowsAny<Exception>(() =>
+                MiscUtilsInternal.SerializeInt32BE(3, new byte[20], 18));
         }
 
-        [Fact]
-        public async Task TestCopyBytesForErrors1()
+        [Theory]
+        [MemberData(nameof(CreateTestDeserializeInt32BEData))]
+        public void TestDeserializeInt32BE(byte[] rawBytes,
+            int offset, int expected)
         {
-            var reader = new MemoryStream(new byte[17]);
-            Func<byte[], int, int, Task> writer = (data, offset, length) =>
-                throw new Exception("broken!");
-
-            var actualEx = await Assert.ThrowsAsync<Exception>(() =>
-                MiscUtils.CopyBytesToSink(reader, writer));
-            Assert.Equal("broken!", actualEx.Message);
+            var actual = MiscUtilsInternal.DeserializeInt32BE(rawBytes, offset);
+            Assert.Equal(expected, actual);
         }
 
-        [Fact]
-        public async Task TestCopyBytesForErrors2()
+        public static List<object[]> CreateTestDeserializeInt32BEData()
         {
-            var firstReader = new MemoryStream(new byte[2000]);
-            Func<byte[], int, int, Task<int>> readerWrapper = async (data, offset, length) =>
+            return new List<object[]>
             {
-                var result = firstReader.Read(data, offset, length);
-                if (result > 0)
-                {
-                    return result;
-                }
-                throw new Exception("killed in action");
+                new object[]{ new byte[] { 0, 0, 7, 0xd1 }, 0, 2001 },
+                new object[]{ new byte[] { 0xff, 0xff, 0xd5, 9 }, 0, -10_999 },
+                new object[]{ new byte[] { 0, 0xf, 0x42, 0x40 }, 0, 1_000_000 },
+                new object[]{ new byte[] { 0x3b, 0x9a, 0xca, 0, 50 }, 0, 1_000_000_000 },
+                new object[]{ new byte[] { 0xc4, 0x65, 0x36, 0 }, 0, -1_000_000_000 },
+                // the next would have been 2_294_967_196 if deserializing entire 32-bits as unsigned.
+                new object[]{ new byte[] { 8, 2, 0x88, 0xca, 0x6b, 0x9c, 1 }, 2, -2_000_000_100 }
             };
-            var readerStream = ComparisonUtils.CreateInputStreamFromSource(
-                readerWrapper);
-            Func<byte[], int, int, Task> writer = (data, offset, length) =>
-                Task.CompletedTask;
-
-            var actualEx = await Assert.ThrowsAsync<Exception>(() =>
-                MiscUtils.CopyBytesToSink(readerStream, writer));
-            Assert.Equal("killed in action", actualEx.Message);
         }
 
         [Fact]
-        public async Task TestCopyBytesForErrors3()
+        public void TestDeserializeUpToInt32BigEndianForErrors()
         {
-            var firstReader = new MemoryStream(new byte[2000]);
-            Func<byte[], int, int, Task<int>> readerWrapper = async (data, offset, length) =>
-            {
-                throw new Exception("killed in action");
-            };
-            var readerStream = ComparisonUtils.CreateInputStreamFromSource(
-                readerWrapper);
-            Func<byte[], int, int, Task> writer = (data, offset, length) =>
-            {
-                throw new Exception("broken"!);
-            };
-
-            var actualEx = await Assert.ThrowsAsync<Exception>(() =>
-                MiscUtils.CopyBytesToSink(readerStream, writer));
-            Assert.Equal("killed in action", actualEx.Message);
-        }*/
+            Assert.ThrowsAny<Exception>(() =>
+                MiscUtilsInternal.DeserializeInt32BE(new byte[2], 0));
+            Assert.ThrowsAny<Exception>(() =>
+                MiscUtilsInternal.DeserializeInt32BE(new byte[4], 1));
+            Assert.ThrowsAny<Exception>(() =>
+                MiscUtilsInternal.DeserializeInt32BE(new byte[20], 17));
+        }
 
         [Theory]
         [MemberData(nameof(CreateTestParseInt48Data))]
@@ -425,35 +223,6 @@ namespace Kabomu.Tests
             expected = "oo \u00a9 bar \U0001d306 baz \u2603 qu";
             actual = MiscUtilsInternal.BytesToString(data, offset, length);
             Assert.Equal(expected, actual);
-        }
-
-        [Fact]
-        public void TestGetByteCount()
-        {
-            var actual = MiscUtilsInternal.GetByteCount("");
-            Assert.Equal(0, actual);
-
-            actual = MiscUtilsInternal.GetByteCount("abc");
-            Assert.Equal(3, actual);
-
-            actual = MiscUtilsInternal.GetByteCount("Foo \u00a9 bar \U0001d306 baz \u2603 qux");
-            Assert.Equal(27, actual);
-        }
-
-        [Fact]
-        public void TestConcatBuffers()
-        {
-            var chunks = new List<byte[]>();
-            var actual = MiscUtilsInternal.ConcatBuffers(chunks);
-            Assert.Empty(actual);
-
-            chunks.Add(new byte[] { 108 });
-            actual = MiscUtilsInternal.ConcatBuffers(chunks);
-            Assert.Equal(new byte[] { 108 }, actual);
-
-            chunks.Add(new byte[] { 4, 108, 2 });
-            actual = MiscUtilsInternal.ConcatBuffers(chunks);
-            Assert.Equal(new byte[] { 108, 4, 108, 2 }, actual);
         }
 
         [Fact]

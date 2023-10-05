@@ -12,13 +12,6 @@ namespace Kabomu.ProtocolImpl
 {
     internal static class ProtocolUtilsInternal
     {
-        /// <summary>
-        /// The purpose of this flag and the dead code that is present
-        /// as a result, is make the dead code serve as reference for
-        /// porting in stages of HTTP/1.0 only, before HTTP/1.1.
-        /// </summary>
-        //public static readonly bool SupportHttp10Only = false;
-
         public static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment,
             string key)
         {
@@ -51,235 +44,490 @@ namespace Kabomu.ProtocolImpl
             }
         }
 
-        public static Stream EncodeBodyToTransport(bool isResponse,
-            long contentLength, Stream body)
+        public static void ValidateHttpHeaderSection(bool isResponse,
+            IList<IList<string>> csv)
         {
-            if (contentLength == 0)
+            if (csv.Count == 0)
             {
-                return null;
+                throw new ExpectationViolationException(
+                    "expected csv to contain at least the special header");
             }
-            if (true) // !SupportHttp10Only
+            var specialHeader = csv[0];
+            if (specialHeader.Count != 4)
             {
-                if (body == null)
-                {
-                    var errMsg = isResponse ?
-                        "no response body" :
-                        "no request body";
-                    throw new QuasiHttpException(errMsg);
-                }
-                if (contentLength < 0)
-                {
-                    return new BodyChunkEncodingStreamInternal(body);
-                }
+                throw new ExpectationViolationException(
+                    "expected special header to have 4 values " +
+                    $"instead of {specialHeader.Count}");
             }
-            else
+            for (int i = 0; i < specialHeader.Count; i++)
             {
-                if (!isResponse && contentLength < 0)
+                var item = specialHeader[i];
+                if (!ContainsOnlyPrintableAsciiChars(item, isResponse && i == 2))
                 {
-                    return null;
+                    throw new QuasiHttpException(
+                        $"quasi http {(isResponse ? "status" : "request")} line " +
+                        "field contains spaces, newlines or " +
+                        "non-printable ASCII characters: " +
+                        item,
+                        QuasiHttpException.ReasonCodeProtocolViolation);
                 }
             }
-            // don't enforce positive content lengths when writing out
-            // quasi http bodies
-            return body;
+            for (int i = 1; i < csv.Count; i++)
+            {
+                var row = csv[i];
+                if (row.Count < 2)
+                {
+                    throw new ExpectationViolationException(
+                        "expected row to have at least 2 values " +
+                        $"instead of {row.Count}");
+                }
+                var headerName = row[0];
+                if (!ContainsOnlyHeaderNameChars(headerName))
+                {
+                    throw new QuasiHttpException(
+                        "quasi http header name contains characters " +
+                        "other than hyphen and English alphabets: " +
+                        headerName,
+                        QuasiHttpException.ReasonCodeProtocolViolation);
+                }
+                for (int j = 1; j < row.Count; j++)
+                {
+                    var headerValue = row[j];
+                    if (!ContainsOnlyPrintableAsciiChars(headerValue, true))
+                    {
+                        throw new QuasiHttpException(
+                            "quasi http header value contains newlines or " +
+                            "non-printable ASCII characters: " + headerValue,
+                            QuasiHttpException.ReasonCodeProtocolViolation);
+                    }
+                }
+            }
+        }
+
+        public static bool ContainsOnlyHeaderNameChars(string v)
+        {
+            foreach (var c in v)
+            {
+                if (c >= '0' && c <= '9')
+                {
+                    // digits
+                }
+                else if (c >= 'A' && c <= 'Z')
+                {
+                    // upper case
+                }
+                else if (c >= 'a' && c <= 'z')
+                {
+                    // lower case
+                }
+                else if (c == '-')
+                {
+                    // hyphen
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public static bool ContainsOnlyPrintableAsciiChars(string v,
+            bool allowSpace)
+        {
+            foreach (var c in v)
+            {
+                if (c < ' ' || c > 126)
+                {
+                    return false;
+                }
+                if (!allowSpace && c == ' ')
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>
-        /// Determines what the effective body is that
-        /// corresponds to a given content length.
+        /// Serializes quasi http request or response headers.
         /// </summary>
-        /// <param name="contentLength"></param>
-        /// <param name="body"></param>
-        public static Stream DecodeRequestBodyFromTransport(
-            long contentLength, Stream body)
+        /// <param name="reqOrStatusLine">request or response status line</param>
+        /// <param name="remainingHeaders">headers after request or status line</param>
+        /// <returns>serialized representation of quasi http headers</returns>
+        public static byte[] EncodeQuasiHttpHeaders(bool isResponse,
+            IList<string> reqOrStatusLine,
+            IDictionary<string, IList<string>> remainingHeaders)
         {
-            if (contentLength == 0)
+            if (reqOrStatusLine == null)
             {
-                return null;
+                throw new ArgumentNullException(nameof(reqOrStatusLine));
             }
-            if (false) // SupportHttp10Only
+            var csv = new List<IList<string>>();
+            var specialHeader = new List<string>();
+            foreach (var v in reqOrStatusLine)
             {
-                if (contentLength < 0)
+                specialHeader.Add(v ?? "");
+            }
+            csv.Add(specialHeader);
+            if (remainingHeaders != null)
+            {
+                foreach (var header in remainingHeaders)
                 {
-                    return null;
+                    if (string.IsNullOrEmpty(header.Key))
+                    {
+                        throw new QuasiHttpException(
+                            "quasi http header name cannot be empty",
+                            QuasiHttpException.ReasonCodeProtocolViolation);
+                    }
+                    if (header.Value == null || header.Value.Count == 0)
+                    {
+                        continue;
+                    }
+                    var headerRow = new List<string> { header.Key };
+                    foreach (var v in header.Value)
+                    {
+                        if (string.IsNullOrEmpty(v))
+                        {
+                            throw new QuasiHttpException(
+                                "quasi http header value cannot be empty",
+                                QuasiHttpException.ReasonCodeProtocolViolation);
+                        }
+                        headerRow.Add(v);
+                    }
+                    csv.Add(headerRow);
                 }
             }
-            if (body == null)
-            {
-                throw new QuasiHttpException("no request body");
-            }
-            if (true) // !SupportHttp10Only
-            {
-                if (contentLength < 0)
-                {
-                    return new BodyChunkDecodingStreamInternal(body);
-                }
-            }
-            return new ContentLengthEnforcingStreamInternal(body, contentLength);
-        }
 
-        public static (Stream, bool, bool) DecodeResponseBodyFromTransport(
-            long contentLength, Stream body,
-            IDictionary<string, object> environment,
-            bool? responseBufferingEnabled)
-        {
-            if (contentLength == 0)
-            {
-                return (null, false, false);
-            }
-            var responseStreamingEnabled = responseBufferingEnabled == false;
-            if (GetEnvVarAsBoolean(
-                environment, QuasiHttpUtils.EnvKeySkipResBodyDecoding) == true)
-            {
-                return (body, responseStreamingEnabled, false);
-            }
-            if (body == null)
-            {
-                throw new QuasiHttpException("no response body");
-            }
-            if (true) // !SupportHttp10Only
-            {
-                if (contentLength < 0)
-                {
-                    body = new BodyChunkDecodingStreamInternal(body);
-                }
-            }
-            if (responseStreamingEnabled)
-            {
-                if (contentLength > 0)
-                {
-                    body = new ContentLengthEnforcingStreamInternal(body,
-                        contentLength);
-                }
-                return (body, true, false);
-            }
-            return (body, false, true);
-        }
+            ValidateHttpHeaderSection(isResponse, csv);
 
-        public static async Task<Stream> BufferResponseBody(
-            long contentLength, Stream body, 
-            int? bufferingSizeLimit,
-            CancellationToken cancellationToken)
-        {
-            if (bufferingSizeLimit == null || bufferingSizeLimit.Value <= 0)
-            {
-                bufferingSizeLimit = IOUtilsInternal.DefaultDataBufferLimit;
-            }
-            if (contentLength < 0)
-            {
-                var buffered = new MemoryStream();
-                bool success = await IOUtilsInternal.CopyBytesUpToGivenLimit(body,
-                    buffered, bufferingSizeLimit.Value, cancellationToken);
-                if (!success)
-                {
-                    throw new QuasiHttpException(
-                        "response body of indeterminate length exceeds buffering limit of " +
-                        $"{bufferingSizeLimit} bytes",
-                        QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
-                }
-                buffered.Position = 0; // reset for reading.
-                return buffered;
-            }
-            else
-            {
-                if (contentLength > bufferingSizeLimit.Value)
-                {
-                    throw new QuasiHttpException(
-                        "response body length exceeds buffering limit " +
-                        $"({contentLength} > {bufferingSizeLimit})",
-                        QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
-                }
-                var buffer = new byte[(int)contentLength];
-                await IOUtilsInternal.ReadBytesFully(body,
-                    buffer, 0, buffer.Length,
-                    cancellationToken);
-                return new MemoryStream(buffer);
-            }
-        }
+            var serialized = MiscUtilsInternal.StringToBytes(
+                CsvUtils.Serialize(csv));
 
-        public static async Task<(Stream, byte[])> ReadEntityFromTransport(
-            bool isResponse, IQuasiHttpTransport transport, IQuasiHttpConnection connection)
-        {
-            var encodedHeadersReceiver = new List<byte[]>();
-            var body = await transport.Read(connection, isResponse,
-                encodedHeadersReceiver);
-            // either body should be non-null or some byte chunks should be
-            // present in receiver list.
-            if (encodedHeadersReceiver.Count == 0)
-            {
-                if (body == null)
-                {
-                    var errMsg = isResponse ? "no response" : "no request";
-                    throw new QuasiHttpException(errMsg);
-                }
-                await ReadEncodedHeaders(body,
-                    encodedHeadersReceiver,
-                    connection.ProcessingOptions?.MaxHeadersSize ?? 0,
-                    connection.CancellationToken);
-            }
-            var encodedHeaders = MiscUtilsInternal.ConcatBuffers(encodedHeadersReceiver);
-            return (body, encodedHeaders);
+            return serialized;
         }
 
         /// <summary>
-        /// Reads as many 512-byte chunks as needed to detect
-        /// the portion of a source stream representing a quasi
-        /// http request or response header section.
+        /// Deserializes a quasi http request or response header section.
         /// </summary>
-        /// <param name="inputStream">source stream</param>
-        /// <param name="encodedHeadersReceiver">list which
-        /// will receive all the byte chunks to be read.</param>
-        /// <param name="maxHeadersSize">limit on total
-        /// size of byte chunks to be read. Can be zero in order
-        /// for a default value to be used.</param>
+        /// <param name="data">source of data to deserialize</param>
+        /// <param name="offset">starting position in buffer to start
+        /// deserializing from</param>
+        /// <param name="length">number of bytes to deserialize</param>
+        /// <param name="headersReceiver">will be extended with remaining headers found
+        /// after the request or response line</param>
+        /// <returns>request or response line, ie first row before headers</returns>
+        /// <exception cref="QuasiHttpException">if byte slice argument contains
+        /// invalid quasi http request or response headers</exception>
+        public static IList<string> DecodeQuasiHttpHeaders(bool isResponse,
+            byte[] data, int offset, int length,
+            IDictionary<string, IList<string>> headersReceiver)
+        {
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+            if (!MiscUtilsInternal.IsValidByteBufferSlice(data, offset, length))
+            {
+                throw new ArgumentException("invalid byte buffer slice");
+            }
+            IList<IList<string>> csv;
+            try
+            {
+                csv = CsvUtils.Deserialize(MiscUtilsInternal.BytesToString(
+                    data, offset, length));
+            }
+            catch (Exception e)
+            {
+                throw new QuasiHttpException(
+                    $"invalid quasi http headers",
+                    QuasiHttpException.ReasonCodeProtocolViolation,
+                    e);
+            }
+            if (csv.Count == 0)
+            {
+                throw new QuasiHttpException(
+                    $"invalid quasi http headers",
+                    QuasiHttpException.ReasonCodeProtocolViolation);
+            }
+            var specialHeader = csv[0];
+            if (specialHeader.Count < 4)
+            {
+                throw new QuasiHttpException(
+                    $"invalid quasi http {(isResponse ? "status" : "request")} line",
+                    QuasiHttpException.ReasonCodeProtocolViolation);
+            }
+
+            // merge headers with the same normalized name in different rows.
+            for (int i = 1; i < csv.Count; i++)
+            {
+                var headerRow = csv[i];
+                if (headerRow.Count < 2)
+                {
+                    continue;
+                }
+                string headerName = headerRow[0].ToLowerInvariant();
+                if (!headersReceiver.ContainsKey(headerName))
+                {
+                    headersReceiver.Add(headerName, new List<string>());
+                }
+                var headerValues = headersReceiver[headerName];
+                foreach (var headerValue in headerRow.Skip(1))
+                {
+                    headerValues.Add(headerValue);
+                }
+            }
+
+            return specialHeader;
+        }
+
+        /// <summary>
+        /// Serializes quasi http request or response header section to a writable
+        /// stream.
+        /// </summary>
+        /// <param name="dest">writable stream to which serialized quasi http request or
+        /// response section will be written</param>
+        /// <param name="reqOrStatusLine">request or response status line</param>
+        /// <param name="remainingHeaders">headers after request or status line</param>
+        /// <param name="maxHeadersSize">limit on size of serialized result.
+        /// Can be zero for a default value to be used.</param>
         /// <param name="cancellationToken">
         /// The optional token to monitor for cancellation requests.</param>
-        /// <returns>a task representing the asynchronous operation</returns>
-        /// <exception cref="QuasiHttpException">Limit on
-        /// total size of byte chunks has been reached and still
-        /// end of header section has not been determined</exception>
-        public static async Task ReadEncodedHeaders(Stream inputStream,
-            List<byte[]> encodedHeadersReceiver, int maxHeadersSize = 0,
+        /// <returns>task represent asynchronous operation</returns>
+        /// <exception cref="QuasiHttpException">if serialized is too large</exception>
+        public static async Task WriteQuasiHttpHeaders(
+            bool isResponse,
+            Stream dest,
+            IList<string> reqOrStatusLine,
+            IDictionary<string, IList<string>> remainingHeaders,
+            int maxHeadersSize = 0,
             CancellationToken cancellationToken = default)
         {
+            var encodedHeaders = EncodeQuasiHttpHeaders(isResponse,
+                reqOrStatusLine, remainingHeaders);
             if (maxHeadersSize <= 0)
             {
                 maxHeadersSize = QuasiHttpUtils.DefaultMaxHeadersSize;
             }
-            int totalBytesRead = 0;
-            while (true)
+
+            // finally check that byte count of csv doesn't exceed limit.
+            if (encodedHeaders.Length > maxHeadersSize)
             {
-                totalBytesRead += QuasiHttpCodec.HeaderChunkSize;
-                if (totalBytesRead > maxHeadersSize)
+                throw new QuasiHttpException("quasi http headers exceed " +
+                    $"max size ({encodedHeaders.Length} > {maxHeadersSize})",
+                    QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
+            }
+            var tagAndLen = new byte[8];
+            TlvUtils.EncodeTag(TlvUtils.TagForQuasiHttpHeaders, tagAndLen, 0);
+            TlvUtils.EncodeLength(encodedHeaders.Length, tagAndLen, 4);
+            await dest.WriteAsync(tagAndLen, cancellationToken);
+            await dest.WriteAsync(encodedHeaders, cancellationToken);
+        }
+
+        public static async Task<IList<string>> ReadQuasiHttpHeaders(
+            bool isResponse,
+            Stream src,
+            IDictionary<string, IList<string>> headersReceiver,
+            int maxHeadersSize = 0,
+            CancellationToken cancellationToken = default)
+        {
+            var tagOrLen = new byte[4];
+            await IOUtilsInternal.ReadBytesFully(src, tagOrLen, 0,
+                tagOrLen.Length, cancellationToken);
+            int tag = TlvUtils.DecodeTag(tagOrLen, 0);
+            if (tag != TlvUtils.TagForQuasiHttpHeaders)
+            {
+                throw new QuasiHttpException(
+                    $"unexpected quasi http headers tag: {tag}",
+                    QuasiHttpException.ReasonCodeProtocolViolation);
+            }
+            await IOUtilsInternal.ReadBytesFully(src, tagOrLen, 0,
+                tagOrLen.Length, cancellationToken);
+            int headersSize = TlvUtils.DecodeLength(tagOrLen, 0);
+            if (maxHeadersSize <= 0)
+            {
+                maxHeadersSize = QuasiHttpUtils.DefaultMaxHeadersSize;
+            }
+            if (headersSize > maxHeadersSize)
+            {
+                throw new QuasiHttpException("quasi http headers exceed " +
+                    $"max size ({headersSize} > {maxHeadersSize})",
+                    QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
+            }
+            var encodedHeaders = new byte[headersSize];
+            await IOUtilsInternal.ReadBytesFully(src,
+                encodedHeaders, 0, encodedHeaders.Length,
+                cancellationToken);
+            return DecodeQuasiHttpHeaders(isResponse,
+                encodedHeaders, 0, encodedHeaders.Length,
+                headersReceiver);
+        }
+
+        public static async Task WriteEntityToTransport(bool isResponse,
+            object entity, Stream writableStream,
+            IQuasiHttpConnection connection)
+        {
+            if (writableStream == null)
+            {
+                throw new MissingDependencyException(
+                    "no writable stream found for transport");
+            }
+            Stream body;
+            long contentLength;
+            IList<string> reqOrStatusLine;
+            IDictionary<string, IList<string>> headers;
+            if (isResponse)
+            {
+                var response = (IQuasiHttpResponse)entity;
+                headers = response.Headers;
+                body = response.Body;
+                contentLength = response.ContentLength;
+                reqOrStatusLine = new string[] {
+                    response.HttpVersion,
+                    response.StatusCode.ToString(),
+                    response.HttpStatusMessage,
+                    null
+                };
+            }
+            else
+            {
+                var request = (IQuasiHttpRequest)entity;
+                headers = request.Headers;
+                body = request.Body;
+                contentLength = request.ContentLength;
+                reqOrStatusLine = new string[] {
+                    request.HttpMethod,
+                    request.Target,
+                    request.HttpVersion,
+                    null
+                };
+            }
+            // treat content lengths totally separate from body.
+            // This caters for the HEAD method
+            // which can be used to return a content length without a body
+            // to download.
+            reqOrStatusLine[3] = contentLength.ToString();
+            await WriteQuasiHttpHeaders(isResponse, writableStream,
+                reqOrStatusLine, headers,
+                connection.ProcessingOptions?.MaxHeadersSize ?? 0,
+                connection.CancellationToken);
+            if (body == null)
+            {
+                // don't proceed, even if content length is not zero.
+                return;
+            }
+            if (contentLength > 0)
+            {
+                // don't enforce positive content lengths when writing out
+                // quasi http bodies
+                await body.CopyToAsync(writableStream,
+                    connection.CancellationToken);
+            }
+            else
+            {
+                // proceed, even if content length is 0.
+                var bodyWriter = TlvUtils.CreateTlvEncodingWritableStream(
+                    writableStream, TlvUtils.TagForQuasiHttpBodyChunk);
+                await body.CopyToAsync(bodyWriter, connection.CancellationToken);
+                // write end of stream
+                await bodyWriter.WriteAsync(null, 0, -1,
+                    connection.CancellationToken);
+            }
+        }
+
+        public static async Task<object> ReadEntityFromTransport(
+            bool isResponse, Stream readableStream,
+            IQuasiHttpConnection connection)
+        {
+            if (readableStream == null)
+            {
+                throw new MissingDependencyException(
+                    "no readable stream found for transport");
+            }
+            var headersReceiver = new Dictionary<string, IList<string>>();
+            var reqOrStatusLine = await ReadQuasiHttpHeaders(
+                isResponse,
+                readableStream,
+                headersReceiver,
+                connection.ProcessingOptions?.MaxHeadersSize ?? 0,
+                connection.CancellationToken);
+
+            long contentLength;
+            try
+            {
+                contentLength = MiscUtilsInternal.ParseInt48(
+                    reqOrStatusLine[3]);
+            }
+            catch (Exception e)
+            {
+                throw new QuasiHttpException(
+                    $"invalid quasi http {(isResponse ? "response" : "request")} content length",
+                    QuasiHttpException.ReasonCodeProtocolViolation,
+                    e);
+            }
+            Stream body = null;
+            if (contentLength != 0)
+            {
+                if (contentLength > 0)
+                {
+                    body = TlvUtils.CreateContentLengthEnforcingStream(
+                        readableStream, contentLength);
+                }
+                else
+                {
+                    body = TlvUtils.CreateTlvDecodingReadableStream(readableStream,
+                        TlvUtils.TagForQuasiHttpBodyChunk,
+                        TlvUtils.TagForQuasiHttpBodyChunkExt);
+                }
+            }
+            if (isResponse)
+            {
+                var response = new DefaultQuasiHttpResponse();
+                response.HttpVersion = reqOrStatusLine[0];
+                try
+                {
+                    response.StatusCode = MiscUtilsInternal.ParseInt32(
+                        reqOrStatusLine[1]);
+                }
+                catch (Exception e)
                 {
                     throw new QuasiHttpException(
-                        "size of quasi http headers to read exceed " +
-                        $"max size ({totalBytesRead} > {maxHeadersSize})",
-                        QuasiHttpException.ReasonCodeMessageLengthLimitExceeded);
+                        "invalid quasi http response status code",
+                        QuasiHttpException.ReasonCodeProtocolViolation,
+                        e);
                 }
-                var chunk = new byte[QuasiHttpCodec.HeaderChunkSize];
-                await IOUtilsInternal.ReadBytesFully(inputStream, chunk,
-                    0, chunk.Length, cancellationToken);
-                encodedHeadersReceiver.Add(chunk);
-                byte carriageReturn = (byte)'\r', newline = (byte)'\n';
-                for (int i = 2; i < chunk.Length; i++)
+                response.HttpStatusMessage = reqOrStatusLine[2];
+                response.ContentLength = contentLength;
+                response.Headers = headersReceiver;
+                if (body != null)
                 {
-                    if (chunk[i] != carriageReturn && chunk[i] != newline)
+                    var bodySizeLimit = connection.ProcessingOptions?.
+                        MaxResponseBodySize ?? 0;
+                    if (bodySizeLimit >= 0)
                     {
-                        continue;
+                        body = TlvUtils.CreateMaxLengthEnforcingStream(body,
+                            bodySizeLimit);
                     }
-                    if (chunk[i - 1] != carriageReturn && chunk[i - 1] != newline)
-                    {
-                        continue;
-                    }
-                    if (chunk[i - 2] == carriageReturn || chunk[i - 2] == newline)
-                    {
-                        // done.
-                        // don't just break, as this will only quit
-                        // the for loop and leave us in while loop.
-                        return;
-                    }
+                    // can't implement response buffering, because of
+                    // the HEAD method, with which a content length may
+                    // be given but without a body to download.
                 }
+                response.Body = body;
+                return response;
+            }
+            else
+            {
+                var request = new DefaultQuasiHttpRequest
+                {
+                    Environment = connection.Environment
+                };
+                request.HttpMethod = reqOrStatusLine[0];
+                request.Target = reqOrStatusLine[1];
+                request.HttpVersion = reqOrStatusLine[2];
+                request.ContentLength = contentLength;
+                request.Headers = headersReceiver;
+                request.Body = body;
+                return request;
             }
         }
     }

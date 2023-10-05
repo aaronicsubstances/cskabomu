@@ -82,22 +82,17 @@ namespace Kabomu.Examples.Shared
 
         public Task ReleaseConnection(IQuasiHttpConnection connection)
         {
-            return ((SocketConnection)connection).Release(false);
+            return ((SocketConnection)connection).Release(null);
         }
 
-        public Task Write(IQuasiHttpConnection connection, bool isResponse,
-            byte[] encodedHeaders, Stream body)
+        public Stream GetReadableStream(IQuasiHttpConnection connection)
         {
-            return ((SocketConnection)connection).Write(isResponse,
-                encodedHeaders, body);
+            return ((SocketConnection)connection).Stream;
         }
 
-        public Task<Stream> Read(
-            IQuasiHttpConnection connection,
-            bool isResponse, List<byte[]> encodedHeadersReceiver)
+        public Stream GetWritableStream(IQuasiHttpConnection connection)
         {
-            return ((SocketConnection)connection).Read(
-                isResponse, encodedHeadersReceiver);
+            return ((SocketConnection)connection).Stream;
         }
     }
 }

@@ -1,47 +1,55 @@
 ﻿using Kabomu.Abstractions;
 using Kabomu.Exceptions;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace Kabomu.ProtocolImpl
 {
     /// <summary>
-    /// Wraps another stream to ensure a given amount of bytes are read.
+    /// Wraps another readable stream to ensure a given amount of bytes
+    /// are not exceeded by reads.
     /// </summary>
-    internal class ContentLengthEnforcingStreamInternal : ReadableStreamBaseInternal
+    internal class MaxLengthEnforcingStreamInternal : ReadableStreamBaseInternal
     {
+        private static readonly int DefaultMaxLength = 134_217_728;
+
         private readonly Stream _backingStream;
-        private long _bytesLeftToRead;
+        private readonly int _maxLength;
+        private int _bytesLeftToRead;
 
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        /// <param name="backingStream">the source stream</param>
-        /// <param name="contentLength">the expected number of bytes to guarantee or assert.</param>
+        /// <param name="backingStream"> the source stream</param>
+        /// <param name="maxLength">the maximum number of bytes to read</param>
         /// <exception cref="ArgumentNullException">The <paramref name="backingStream"/> argument is null.</exception>
         /// <exception cref="ArgumentException">The <paramref name="contentLength"/> argument is negative</exception>
-        public ContentLengthEnforcingStreamInternal(Stream backingStream, long contentLength)
+        public MaxLengthEnforcingStreamInternal(Stream backingStream,
+            int maxLength = 0)
         {
             if (backingStream == null)
             {
                 throw new ArgumentNullException(nameof(backingStream));
             }
-            if (contentLength < 0)
+            if (maxLength == 0)
+            {
+                maxLength = DefaultMaxLength;
+            }
+            else if (maxLength <= 0)
             {
                 throw new ArgumentException(
-                    $"content length cannot be negative: {contentLength}");
+                    $"max length cannot be negative: {maxLength}");
             }
             _backingStream = backingStream;
-            _bytesLeftToRead = contentLength;
+            _maxLength = maxLength;
+            _bytesLeftToRead = maxLength + 1; // check for excess read.
         }
 
         public override int ReadByte()
         {
-            int bytesToRead = Math.Min((int)_bytesLeftToRead, 1);
+            int bytesToRead = Math.Min(_bytesLeftToRead, 1);
 
             int byteRead = -1;
             int bytesJustRead = 0;
@@ -50,13 +58,13 @@ namespace Kabomu.ProtocolImpl
                 byteRead = _backingStream.ReadByte();
                 bytesJustRead = byteRead >= 0 ? 1 : 0;
             }
-            UpdateState(bytesToRead, bytesJustRead);
+            UpdateState(bytesJustRead);
             return byteRead;
         }
 
         public override int Read(byte[] data, int offset, int length)
         {
-            int bytesToRead = Math.Min((int)_bytesLeftToRead, length);
+            int bytesToRead = Math.Min(_bytesLeftToRead, length);
 
             // if bytes to read is zero at this stage and
             // the length requested is zero,
@@ -68,7 +76,7 @@ namespace Kabomu.ProtocolImpl
                 bytesJustRead = _backingStream.Read(
                     data, offset, bytesToRead);
             }
-            UpdateState(bytesToRead, bytesJustRead);
+            UpdateState(bytesJustRead);
             return bytesJustRead;
         }
 
@@ -76,7 +84,7 @@ namespace Kabomu.ProtocolImpl
             byte[] data, int offset, int length,
             CancellationToken cancellationToken = default)
         {
-            int bytesToRead = Math.Min((int)_bytesLeftToRead, length);
+            int bytesToRead = Math.Min(_bytesLeftToRead, length);
 
             // if bytes to read is zero at this stage and
             // the length requested is zero,
@@ -88,20 +96,17 @@ namespace Kabomu.ProtocolImpl
                 bytesJustRead = await _backingStream.ReadAsync(
                     data, offset, bytesToRead, cancellationToken);
             }
-            UpdateState(bytesToRead, bytesJustRead);
+            UpdateState(bytesJustRead);
             return bytesJustRead;
         }
 
-        private void UpdateState(int bytesToRead, int bytesJustRead)
+        private void UpdateState(int bytesJustRead)
         {
             _bytesLeftToRead -= bytesJustRead;
-
-            // if end of read is encountered, ensure that all
-            // requested bytes have been read.
-            bool endOfRead = bytesToRead > 0 && bytesJustRead == 0;
-            if (endOfRead && _bytesLeftToRead > 0)
+            if (_bytesLeftToRead == 0)
             {
-                throw KabomuIOException.CreateEndOfReadError();
+                throw new KabomuIOException(
+                    $"stream size exceeds limit of {_maxLength} bytes");
             }
         }
     }

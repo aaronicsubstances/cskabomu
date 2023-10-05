@@ -35,22 +35,6 @@ namespace Kabomu
         public static readonly string EnvKeyConnection = "kabomu.connection";
 
         /// <summary>
-        /// Environment variable for indicating that a request or response
-        /// should not be sent at all. Intended
-        /// for use in responding to fire and forget requests, as well as
-        /// cases where request or response has been sent already by other
-        /// means.
-        /// </summary>
-        public static readonly string EnvKeySkipSending = "kabomu.skip_sending";
-
-        /// <summary>
-        /// Environment variable indicating that the response body 
-        /// received from transport should be returned to client without
-        /// any decoding applied.
-        /// </summary>
-        public static readonly string EnvKeySkipResBodyDecoding = "kabomu.skip_res_body_decoding";
-
-        /// <summary>
         /// Equals HTTP method "GET".
         /// </summary>
         public static readonly string MethodGet = "GET";
@@ -190,22 +174,16 @@ namespace Kabomu
                     preferred?.ExtraConnectivityParams,
                     fallback?.ExtraConnectivityParams);
 
-            mergedOptions.ResponseBufferingEnabled =
-                DetermineEffectiveBooleanOption(
-                    preferred?.ResponseBufferingEnabled,
-                    fallback?.ResponseBufferingEnabled,
-                    true);
-
             mergedOptions.MaxHeadersSize =
                 DetermineEffectivePositiveIntegerOption(
                     preferred?.MaxHeadersSize,
                     fallback?.MaxHeadersSize,
                     0);
 
-            mergedOptions.ResponseBodyBufferingSizeLimit =
-                DetermineEffectivePositiveIntegerOption(
-                    preferred?.ResponseBodyBufferingSizeLimit,
-                    fallback?.ResponseBodyBufferingSizeLimit,
+            mergedOptions.MaxResponseBodySize =
+                DetermineEffectiveNonZeroIntegerOption(
+                    preferred?.MaxResponseBodySize,
+                    fallback?.MaxResponseBodySize,
                     0);
             return mergedOptions;
         }

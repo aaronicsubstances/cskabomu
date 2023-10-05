@@ -27,14 +27,8 @@ namespace Kabomu.Abstractions
         public int MaxHeadersSize { get; set; }
 
         /// <summary>
-        /// Gets or sets an indication of whether response buffering is enabled or not.
+        /// Gets or sets a value that imposes a maximum size on response bodies.
         /// </summary>
-        public bool? ResponseBufferingEnabled { get; set; }
-
-        /// <summary>
-        /// Gets or sets a value that imposes a maximum size on response bodies when they are being buffered,
-        /// i.e. in situations where response buffering is enabled.
-        /// </summary>
-        public int ResponseBodyBufferingSizeLimit { get; set; }
+        public int MaxResponseBodySize { get; set; }
     }
 }

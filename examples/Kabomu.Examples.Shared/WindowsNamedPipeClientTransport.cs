@@ -32,25 +32,20 @@ namespace Kabomu.Examples.Shared
         public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }
 
         public Task ReleaseConnection(IQuasiHttpConnection connection,
-            bool responseStreamingEnabled)
+            IQuasiHttpResponse response)
         {
             return ((DuplexStreamConnection)connection).Release(
-                responseStreamingEnabled);
+                response);
         }
 
-        public Task Write(IQuasiHttpConnection connection, bool isResponse,
-            byte[] encodedHeaders, Stream body)
+        public Stream GetReadableStream(IQuasiHttpConnection connection)
         {
-            return ((DuplexStreamConnection)connection).Write(isResponse,
-                encodedHeaders, body);
+            return ((DuplexStreamConnection)connection).Stream;
         }
 
-        public Task<Stream> Read(
-            IQuasiHttpConnection connection,
-            bool isResponse, List<byte[]> encodedHeadersReceiver)
+        public Stream GetWritableStream(IQuasiHttpConnection connection)
         {
-            return ((DuplexStreamConnection)connection).Read(
-                isResponse, encodedHeadersReceiver);
+            return ((DuplexStreamConnection)connection).Stream;
         }
     }
 }
