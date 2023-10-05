@@ -454,8 +454,8 @@ namespace Kabomu.Tests.ProtocolImpl
             reqOrStatusLine = new string[]
             {
                 "HTTP/1.1",
-                "200",
-                "OK",
+                "400",
+                "Bad Request",
                 "12"
             };
             remainingHeaders = new Dictionary<string, IList<string>>
@@ -476,6 +476,32 @@ namespace Kabomu.Tests.ProtocolImpl
             };
             remainingHeaders = null;
             expected = "quasi http request line field contains spaces";
+            testData.Add(new object[] { isResponse, reqOrStatusLine,
+                remainingHeaders, expected });
+
+            isResponse = false;
+            reqOrStatusLine = new string[]
+            {
+                "GET",
+                null,
+                null,
+                "0 or 1"
+            };
+            remainingHeaders = null;
+            expected = "quasi http request line field contains spaces";
+            testData.Add(new object[] { isResponse, reqOrStatusLine,
+                remainingHeaders, expected });
+
+            isResponse = true;
+            reqOrStatusLine = new string[]
+            {
+                "HTTP 1.1",
+                "200",
+                "OK",
+                "0"
+            };
+            remainingHeaders = null;
+            expected = "quasi http status line field contains spaces";
             testData.Add(new object[] { isResponse, reqOrStatusLine,
                 remainingHeaders, expected });
 

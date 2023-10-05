@@ -62,7 +62,7 @@ namespace Kabomu.ProtocolImpl
             for (int i = 0; i < specialHeader.Count; i++)
             {
                 var item = specialHeader[i];
-                if (!ContainsOnlyPrintableAsciiChars(item, i == 2))
+                if (!ContainsOnlyPrintableAsciiChars(item, isResponse && i == 2))
                 {
                     throw new QuasiHttpException(
                         $"quasi http {(isResponse ? "status" : "request")} line " +
@@ -497,6 +497,7 @@ namespace Kabomu.ProtocolImpl
                         e);
                 }
                 response.HttpStatusMessage = reqOrStatusLine[2];
+                response.ContentLength = contentLength;
                 response.Headers = headersReceiver;
                 if (body != null)
                 {
@@ -523,6 +524,7 @@ namespace Kabomu.ProtocolImpl
                 request.HttpMethod = reqOrStatusLine[0];
                 request.Target = reqOrStatusLine[1];
                 request.HttpVersion = reqOrStatusLine[2];
+                request.ContentLength = contentLength;
                 request.Headers = headersReceiver;
                 request.Body = body;
                 return request;
