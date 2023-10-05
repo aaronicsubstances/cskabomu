@@ -59,9 +59,10 @@ namespace Kabomu.ProtocolImpl
                     "expected special header to have 4 values " +
                     $"instead of {specialHeader.Count}");
             }
-            foreach (var item in specialHeader)
+            for (int i = 0; i < specialHeader.Count; i++)
             {
-                if (!ContainsOnlyPrintableAsciiChars(item, false, false))
+                var item = specialHeader[i];
+                if (!ContainsOnlyPrintableAsciiChars(item, i == 2))
                 {
                     throw new QuasiHttpException(
                         $"quasi http {(isResponse ? "status" : "request")} line " +
@@ -81,8 +82,7 @@ namespace Kabomu.ProtocolImpl
                         $"instead of {row.Count}");
                 }
                 var headerName = row[0];
-                if (!ContainsOnlyPrintableAsciiChars(headerName,
-                    true, false))
+                if (!ContainsOnlyHeaderNameChars(headerName))
                 {
                     throw new QuasiHttpException(
                         "quasi http header name contains characters " +
@@ -93,8 +93,7 @@ namespace Kabomu.ProtocolImpl
                 for (int j = 1; j < row.Count; j++)
                 {
                     var headerValue = row[j];
-                    if (!ContainsOnlyPrintableAsciiChars(headerValue,
-                        false, true))
+                    if (!ContainsOnlyPrintableAsciiChars(headerValue, true))
                     {
                         throw new QuasiHttpException(
                             "quasi http header value contains newlines or " +
@@ -105,44 +104,46 @@ namespace Kabomu.ProtocolImpl
             }
         }
 
-        public static bool ContainsOnlyPrintableAsciiChars(string v,
-            bool safeOnly, bool allowSpace)
+        public static bool ContainsOnlyHeaderNameChars(string v)
         {
             foreach (var c in v)
             {
-                if (safeOnly)
+                if (c >= '0' && c <= '9')
                 {
-                    if (c >= '0' && c <= '9')
-                    {
-                        // digits
-                    }
-                    else if (c >= 'A' && c <= 'Z')
-                    {
-                        // upper case
-                    }
-                    else if (c >= 'a' && c <= 'z')
-                    {
-                        // lower case
-                    }
-                    else if (c == '-')
-                    {
-                        // hyphen
-                    }
-                    else
-                    {
-                        return false;
-                    }
+                    // digits
+                }
+                else if (c >= 'A' && c <= 'Z')
+                {
+                    // upper case
+                }
+                else if (c >= 'a' && c <= 'z')
+                {
+                    // lower case
+                }
+                else if (c == '-')
+                {
+                    // hyphen
                 }
                 else
                 {
-                    if (c < ' ' || c > 126)
-                    {
-                        return false;
-                    }
-                    if (!allowSpace && c == ' ')
-                    {
-                        return false;
-                    }
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public static bool ContainsOnlyPrintableAsciiChars(string v,
+            bool allowSpace)
+        {
+            foreach (var c in v)
+            {
+                if (c < ' ' || c > 126)
+                {
+                    return false;
+                }
+                if (!allowSpace && c == ' ')
+                {
+                    return false;
                 }
             }
             return true;
@@ -218,7 +219,7 @@ namespace Kabomu.ProtocolImpl
         /// <returns>request or response line, ie first row before headers</returns>
         /// <exception cref="QuasiHttpException">if byte slice argument contains
         /// invalid quasi http request or response headers</exception>
-        public static IList<string> DecodeQuasiHttpHeaders(
+        public static IList<string> DecodeQuasiHttpHeaders(bool isResponse,
             byte[] data, int offset, int length,
             IDictionary<string, IList<string>> headersReceiver)
         {
@@ -250,6 +251,12 @@ namespace Kabomu.ProtocolImpl
                     QuasiHttpException.ReasonCodeProtocolViolation);
             }
             var specialHeader = csv[0];
+            if (specialHeader.Count < 4)
+            {
+                throw new QuasiHttpException(
+                    $"invalid quasi http {(isResponse ? "status" : "request")} line",
+                    QuasiHttpException.ReasonCodeProtocolViolation);
+            }
 
             // merge headers with the same normalized name in different rows.
             for (int i = 1; i < csv.Count; i++)
@@ -318,6 +325,7 @@ namespace Kabomu.ProtocolImpl
         }
 
         public static async Task<IList<string>> ReadQuasiHttpHeaders(
+            bool isResponse,
             Stream src,
             IDictionary<string, IList<string>> headersReceiver,
             int maxHeadersSize = 0,
@@ -350,7 +358,8 @@ namespace Kabomu.ProtocolImpl
             await IOUtilsInternal.ReadBytesFully(src,
                 encodedHeaders, 0, encodedHeaders.Length,
                 cancellationToken);
-            return DecodeQuasiHttpHeaders(encodedHeaders, 0, encodedHeaders.Length,
+            return DecodeQuasiHttpHeaders(isResponse,
+                encodedHeaders, 0, encodedHeaders.Length,
                 headersReceiver);
         }
 
@@ -374,9 +383,9 @@ namespace Kabomu.ProtocolImpl
                 body = response.Body;
                 contentLength = response.ContentLength;
                 reqOrStatusLine = new string[] {
+                    response.HttpVersion,
                     response.StatusCode.ToString(),
                     response.HttpStatusMessage,
-                    response.HttpVersion,
                     null
                 };
             }
@@ -437,17 +446,12 @@ namespace Kabomu.ProtocolImpl
             }
             var headersReceiver = new Dictionary<string, IList<string>>();
             var reqOrStatusLine = await ReadQuasiHttpHeaders(
+                isResponse,
                 readableStream,
                 headersReceiver,
                 connection.ProcessingOptions?.MaxHeadersSize ?? 0,
                 connection.CancellationToken);
 
-            if (reqOrStatusLine.Count < 4)
-            {
-                throw new QuasiHttpException(
-                    $"invalid quasi http {(isResponse ? "status" : "request")} line",
-                    QuasiHttpException.ReasonCodeProtocolViolation);
-            }
             long contentLength;
             try
             {
@@ -479,10 +483,11 @@ namespace Kabomu.ProtocolImpl
             if (isResponse)
             {
                 var response = new DefaultQuasiHttpResponse();
+                response.HttpVersion = reqOrStatusLine[0];
                 try
                 {
                     response.StatusCode = MiscUtilsInternal.ParseInt32(
-                        reqOrStatusLine[0]);
+                        reqOrStatusLine[1]);
                 }
                 catch (Exception e)
                 {
@@ -491,8 +496,7 @@ namespace Kabomu.ProtocolImpl
                         QuasiHttpException.ReasonCodeProtocolViolation,
                         e);
                 }
-                response.HttpStatusMessage = reqOrStatusLine[1];
-                response.HttpVersion = reqOrStatusLine[2];
+                response.HttpStatusMessage = reqOrStatusLine[2];
                 response.Headers = headersReceiver;
                 if (body != null)
                 {
