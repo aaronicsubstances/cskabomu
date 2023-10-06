@@ -1,4 +1,4 @@
-# Kabomu - C#.NET Core version
+# Kabomu - C#.NET version
 
 Kabomu is a networking library that extends the semantics of HTTP to localhost via IPC mechanisms. It enables building applications running on unix domain sockets and
 windows named pipes which can easily be upgraded to web applications.

@@ -1,4 +1,5 @@
 ﻿using Kabomu.ProtocolImpl;
+using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -233,6 +234,194 @@ namespace Kabomu.Tests.ProtocolImpl
         {
             Assert.Throws<ArgumentException>(() =>
                 TlvUtils.DecodeLength(new byte[] { 5, 1, 200, 3, 0, 3 }, 2));
+        }
+
+        /// <summary>
+        /// NB: Test method only tests with one and zero,
+        /// so as to guarantee that data will not be split,
+        /// even when test is ported to other languages.
+        /// </summary>
+        [Fact]
+        public async Task TestCreateTlvEncodingWritableStream()
+        {
+            // arrange
+            byte srcByte = 45;
+            var tagToUse = 16;
+            var expected = new byte[]
+            {
+                0, 0, 0, 16,
+                0, 0, 0, 1,
+                45,
+                0, 0, 0, 16,
+                0, 0, 0, 0
+            };
+            var destStream = new MemoryStream();
+            var instance = TlvUtils.CreateTlvEncodingWritableStream(
+                destStream, tagToUse);
+
+            // act
+            await instance.WriteAsync(new byte[] { srcByte });
+            await instance.WriteAsync(new byte[0]);
+            // write end of stream
+            await instance.WriteAsync(null, 0, -1);
+
+            // assert
+            var actual = destStream.ToArray();
+            Assert.Equal(expected, actual);
+
+            // test with sync
+
+            // arrange
+            srcByte = 145;
+            tagToUse = 0x79452316;
+            expected = new byte[]
+            {
+                0x79, 0x45, 0x23, 0x16,
+                0, 0, 0, 1,
+                145,
+                0x79, 0x45, 0x23, 0x16,
+                0, 0, 0, 0
+            };
+            destStream = new MemoryStream();
+            instance = TlvUtils.CreateTlvEncodingWritableStream(
+                destStream, tagToUse);
+
+            // act
+            instance.Write(new byte[] { srcByte });
+            instance.Write(new byte[0]);
+            // write end of stream
+            instance.Write(null, 0, -1);
+
+            // assert
+            actual = destStream.ToArray();
+            Assert.Equal(expected, actual);
+
+            // test with slow sync
+
+            // arrange
+            srcByte = 78;
+            tagToUse = 0x3cd456;
+            expected = new byte[]
+            {
+                0, 0x3c, 0xd4, 0x56,
+                0, 0, 0, 1,
+                78
+            };
+            destStream = new MemoryStream();
+            instance = TlvUtils.CreateTlvEncodingWritableStream(
+                destStream, tagToUse);
+
+            // act
+            instance.WriteByte(srcByte);
+
+            // assert
+            actual = destStream.ToArray();
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public async Task TestCreateTlvEncodingWritableStreamForCancellation()
+        {
+            // 1. arrange
+            var stream = new MemoryStream();
+            var instance = TlvUtils.CreateTlvEncodingWritableStream(stream,
+                5);
+
+            var cts = new CancellationTokenSource();
+            cts.Cancel();
+            await Assert.ThrowsAsync<TaskCanceledException>(
+                async () => await instance.WriteAsync(new byte[2], cts.Token));
+        }
+
+        [InlineData("", 1)]
+        [InlineData("a", 4)]
+        [InlineData("ab", 45)]
+        [InlineData("abc", 60)]
+        [InlineData("abcd", 120_000_000)]
+        [InlineData("abcde", 34_000_000)]
+        [InlineData("abcdefghi", 0x3245671d)]
+        [Theory]
+        public async Task TestBodyChunkCodecStreams(string expected, int tagToUse)
+        {
+            // 1. arrange
+            Stream srcStream = new RandomizedReadInputStream(
+                MiscUtilsInternal.StringToBytes(expected));
+            var destStream = new MemoryStream();
+            var encodingStream = TlvUtils.CreateTlvEncodingWritableStream(
+                destStream, tagToUse);
+
+            // act
+            await srcStream.CopyToAsync(encodingStream);
+            // write end of stream
+            await encodingStream.WriteAsync(null, 0, -1);
+            destStream.Position = 0; // reset for reading.
+            var decodingStream = TlvUtils.CreateTlvDecodingReadableStream(
+                destStream, tagToUse, 0);
+            var actual = await ComparisonUtils.ReadToString(decodingStream,
+                false);
+
+            // assert
+            Assert.Equal(expected, actual);
+
+            // 2. arrange again with old style async
+            srcStream = new RandomizedReadInputStream(
+                MiscUtilsInternal.StringToBytes(expected));
+            destStream = new MemoryStream();
+            encodingStream = TlvUtils.CreateTlvEncodingWritableStream(
+                destStream, tagToUse);
+
+            // act
+            await srcStream.CopyToAsync(encodingStream);
+            // write end of stream
+            await encodingStream.WriteAsync(null, 0, -1);
+            destStream.Position = 0; // reset for reading.
+            decodingStream = TlvUtils.CreateTlvDecodingReadableStream(
+                destStream, tagToUse, 0);
+            actual = await ComparisonUtils.ReadToString(decodingStream,
+                true);
+
+            // assert
+            Assert.Equal(expected, actual);
+
+            // 3. arrange again with sync
+            srcStream = new RandomizedReadInputStream(
+                MiscUtilsInternal.StringToBytes(expected));
+            destStream = new MemoryStream();
+            encodingStream = TlvUtils.CreateTlvEncodingWritableStream(
+                destStream, tagToUse);
+
+            // act
+            srcStream.CopyTo(encodingStream);
+            // write end of stream
+            encodingStream.Write(null, 0, -1);
+            destStream.Position = 0; // reset for reading.
+            decodingStream = TlvUtils.CreateTlvDecodingReadableStream(
+                destStream, tagToUse, 0);
+            actual = ComparisonUtils.ReadToStringSync(decodingStream,
+                false);
+
+            // assert
+            Assert.Equal(expected, actual);
+
+            // 4. arrange again with slow sync
+            srcStream = new RandomizedReadInputStream(
+                MiscUtilsInternal.StringToBytes(expected));
+            destStream = new MemoryStream();
+            encodingStream = TlvUtils.CreateTlvEncodingWritableStream(
+                destStream, tagToUse);
+
+            // act
+            srcStream.CopyTo(encodingStream);
+            // write end of stream
+            encodingStream.Write(null, 0, -1);
+            destStream.Position = 0; // reset for reading.
+            decodingStream = TlvUtils.CreateTlvDecodingReadableStream(
+                destStream, tagToUse, 0);
+            actual = ComparisonUtils.ReadToStringSync(decodingStream,
+                true);
+
+            // assert
+            Assert.Equal(expected, actual);
         }
     }
 }

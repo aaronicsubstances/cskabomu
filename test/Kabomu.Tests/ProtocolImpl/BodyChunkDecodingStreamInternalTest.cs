@@ -20,7 +20,7 @@ namespace Kabomu.Tests.ProtocolImpl
             int expectedTag, int tagToIgnore, byte[] expected)
         {
             // arrange
-            Stream instance = new MemoryStream(srcData);
+            Stream instance = new RandomizedReadInputStream(srcData);
             instance = TlvUtils.CreateTlvDecodingReadableStream(
                 instance, expectedTag, tagToIgnore);
 
@@ -31,7 +31,7 @@ namespace Kabomu.Tests.ProtocolImpl
             Assert.Equal(expected, actual);
 
             // 2. arrange again with old style async
-            instance = new MemoryStream(srcData);
+            instance = new RandomizedReadInputStream(srcData);
             instance = TlvUtils.CreateTlvDecodingReadableStream(
                 instance, expectedTag, tagToIgnore);
 
@@ -42,7 +42,7 @@ namespace Kabomu.Tests.ProtocolImpl
             Assert.Equal(expected, actual);
 
             // 3. arrange again with sync
-            instance = new MemoryStream(srcData);
+            instance = new RandomizedReadInputStream(srcData);
             instance = TlvUtils.CreateTlvDecodingReadableStream(
                 instance, expectedTag, tagToIgnore);
 
@@ -53,7 +53,7 @@ namespace Kabomu.Tests.ProtocolImpl
             Assert.Equal(expected, actual);
 
             // 4. arrange again with slow sync
-            instance = new MemoryStream(srcData);
+            instance = new RandomizedReadInputStream(srcData);
             instance = TlvUtils.CreateTlvDecodingReadableStream(
                 instance, expectedTag, tagToIgnore);
 
