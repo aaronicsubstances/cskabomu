@@ -47,7 +47,7 @@ namespace Kabomu.Tests.Shared
             Assert.Equal(expected.ContentLength, actual.ContentLength);
             CompareHeaders(expected.Headers, actual.Headers);
             //Assert.Equal(expected.Environment, actual.Environment);
-            await CompareBodies(expected.Body, actual.Body, expectedReqBodyBytes);
+            await CompareBodies(actual.Body, expectedReqBodyBytes);
         }
 
         public static async Task CompareResponses(
@@ -66,15 +66,15 @@ namespace Kabomu.Tests.Shared
             Assert.Equal(expected.ContentLength, actual.ContentLength);
             CompareHeaders(expected.Headers, actual.Headers);
             //Assert.Equal(expected.Environment, actual.Environment);
-            await CompareBodies(expected.Body, actual.Body, expectedResBodyBytes);
+            await CompareBodies(actual.Body, expectedResBodyBytes);
         }
 
-        public static async Task CompareBodies(Stream expected,
+        private static async Task CompareBodies(
             Stream actual, byte[] expectedBodyBytes)
         {
             if (expectedBodyBytes == null)
             {
-                Assert.Same(expected, actual);
+                Assert.Null(actual);
                 return;
             }
             Assert.NotNull(actual);

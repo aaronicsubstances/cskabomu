@@ -27,10 +27,6 @@ namespace Kabomu.Tests
             {
                 request.Body = new MemoryStream(expectedReqBodyBytes);
             }
-            if (expectedRequest == null)
-            {
-                expectedRequest = request;
-            }
             var dummyRes = new DefaultQuasiHttpResponse();
             var memStream = new MemoryStream();
             IQuasiHttpProcessingOptions sendOptions = new DefaultQuasiHttpProcessingOptions();
@@ -41,7 +37,7 @@ namespace Kabomu.Tests
             };
             var client = new StandardQuasiHttpClient
             {
-                Transport = new ClientTransportImpl
+                Transport = new ClientTransportImpl(false)
                 {
                     AllocateConnectionFunc = async (endPt, opts) =>
                     {
@@ -54,7 +50,7 @@ namespace Kabomu.Tests
                     },
                     ResponseDeserializer = async conn =>
                     {
-                        Assert.Equal(clientConnection, conn);
+                        Assert.Same(clientConnection, conn);
                         return dummyRes;
                     }
                 }
@@ -75,10 +71,11 @@ namespace Kabomu.Tests
             var serverConnection = new QuasiHttpConnectionImpl
             {
                 ReadableStream = new RandomizedReadInputStream(memStream),
+                Environment = new Dictionary<string, object>()
             };
             var server = new StandardQuasiHttpServer
             {
-                Transport = new ServerTransportImpl
+                Transport = new ServerTransportImpl(false)
                 {
                     ResponseSerializer = async (conn, res) =>
                     {
@@ -98,6 +95,7 @@ namespace Kabomu.Tests
             // assert
             await ComparisonUtils.CompareRequests(expectedRequest,
                 actualRequest, expectedReqBodyBytes);
+            Assert.Same(serverConnection.Environment, actualRequest.Environment);
         }
 
         public static List<object[]> CreateTestRequestSerializationData()
@@ -112,22 +110,33 @@ namespace Kabomu.Tests
                 Target = "/",
                 HttpVersion = "HTTP/1.0",
                 ContentLength = expectedReqBodyBytes.Length,
-                Headers = new Dictionary<string, IList<string>>(),
-                Body = new MemoryStream(expectedReqBodyBytes)
+                Headers = new Dictionary<string, IList<string>>
+                {
+                    { "Accept", new string[]{ "text/plain", "text/csv" } },
+                    { "Content-Type", new string[]{ "application/json,charset=UTF-8" } }
+                }
             };
-            IQuasiHttpRequest expectedRequest = null;
+            IQuasiHttpRequest expectedRequest = new DefaultQuasiHttpRequest
+            {
+                HttpMethod = "GET",
+                Target = "/",
+                HttpVersion = "HTTP/1.0",
+                ContentLength = expectedReqBodyBytes.Length,
+                Headers = new Dictionary<string, IList<string>>
+                {
+                    { "accept", new string[]{ "text/plain", "text/csv" } },
+                    { "content-type", new string[]{ "application/json,charset=UTF-8" } }
+                }
+            };
             var expectedSerializedReq = new byte[]
             {
                 0x68, 0x64, 0x72, 0x73,
-                0, 0, 0, 17,
-                (byte)'G', (byte)'E', (byte)'T', (byte)',',
-                (byte)'/', (byte)',', (byte)'H', (byte)'T',
-                (byte)'T', (byte)'P', (byte)'/', (byte)'1',
-                (byte)'.', (byte)'0', (byte)',', (byte)'6',
-                (byte)'\n',
-                (byte)'t', (byte)'a', (byte)'n', (byte)'n', (byte)'e',
-                (byte)'r'
-            };
+                0, 0, 0, 90
+            }.Concat(MiscUtilsInternal.StringToBytes("GET,/,HTTP/1.0,6\n"))
+            .Concat(MiscUtilsInternal.StringToBytes("Accept,text/plain,text/csv\n"))
+            .Concat(MiscUtilsInternal.StringToBytes("Content-Type,\"application/json,charset=UTF-8\"\n"))
+            .Concat(expectedReqBodyBytes)
+            .ToArray();
             testData.Add(new object[] { expectedReqBodyBytes,
                 request, expectedRequest, expectedSerializedReq });
 
@@ -155,8 +164,7 @@ namespace Kabomu.Tests
             expectedReqBodyBytes = new byte[] { 8, 7, 8, 9 };
             request = new DefaultQuasiHttpRequest
             {
-                ContentLength = -1,
-                Body = new MemoryStream(expectedReqBodyBytes)
+                ContentLength = -1
             };
             expectedRequest = new DefaultQuasiHttpRequest
             {
@@ -174,6 +182,158 @@ namespace Kabomu.Tests
         }
 
         [Theory]
+        [MemberData(nameof(CreateTestRequestSerializationForErrorsData))]
+        public async Task TestRequestSerializationForErrors(
+            IQuasiHttpRequest request, IQuasiHttpProcessingOptions sendOptions,
+            string expectedErrorMsg,
+            byte[] expectedSerializedReq)
+        {
+            var remoteEndpoint = new object();
+            var dummyRes = new DefaultQuasiHttpResponse();
+            var memStream = new MemoryStream();
+            var clientConnection = new QuasiHttpConnectionImpl
+            {
+                ProcessingOptions = sendOptions,
+                WritableStream = memStream,
+            };
+            var client = new StandardQuasiHttpClient
+            {
+                Transport = new ClientTransportImpl(true)
+                {
+                    AllocateConnectionFunc = async (endPt, opts) =>
+                    {
+                        Assert.Same(remoteEndpoint, endPt);
+                        Assert.Same(sendOptions, opts);
+                        return new DefaultConnectionAllocationResponse
+                        {
+                            Connection = clientConnection
+                        };
+                    },
+                    ResponseDeserializer = async conn =>
+                    {
+                        Assert.Same(clientConnection, conn);
+                        return dummyRes;
+                    }
+                }
+            };
+
+            if (expectedErrorMsg == null)
+            {
+                var actualRes = await client.Send(remoteEndpoint, request,
+                    sendOptions);
+                Assert.Same(dummyRes, actualRes);
+
+                if (expectedSerializedReq != null)
+                {
+                    Assert.Equal(expectedSerializedReq, memStream.ToArray());
+                }
+            }
+            else
+            {
+                var actualEx = await Assert.ThrowsAnyAsync<Exception>(async () =>
+                {
+                    await client.Send(remoteEndpoint, request, sendOptions);
+                });
+                Assert.Contains(expectedErrorMsg, actualEx.Message);
+            }
+        }
+
+        public static List<object[]> CreateTestRequestSerializationForErrorsData()
+        {
+            var testData = new List<object[]>();
+
+            var request = new DefaultQuasiHttpRequest
+            {
+                HttpMethod = "POST",
+                Target = "/Update",
+                ContentLength = 8
+            };
+            var sendOptions = new DefaultQuasiHttpProcessingOptions
+            {
+                MaxHeadersSize = 18
+            };
+            string expectedErrorMsg = null;
+            byte[] expectedSerializedReq = new byte[]
+            {
+                0x68, 0x64, 0x72, 0x73,
+                0, 0, 0, 18
+            }.Concat(MiscUtilsInternal.StringToBytes("POST,/Update,\"\",8\n"))
+            .ToArray();
+            testData.Add(new object[] { request, sendOptions, expectedErrorMsg,
+                expectedSerializedReq });
+
+            var requestBodyBytes = new byte[] { 4 };
+            request = new DefaultQuasiHttpRequest
+            {
+                HttpMethod = "PUT",
+                Target = "/Updates",
+                ContentLength = 0,
+                Body = new MemoryStream(requestBodyBytes)
+            };
+            sendOptions = new DefaultQuasiHttpProcessingOptions
+            {
+                MaxHeadersSize = 19
+            };
+            expectedErrorMsg = null;
+            expectedSerializedReq = new byte[]
+            {
+                0x68, 0x64, 0x72, 0x73,
+                0, 0, 0, 18
+            }.Concat(MiscUtilsInternal.StringToBytes("PUT,/Updates,\"\",0\n"))
+            .Concat(new byte[] { 0x62, 0x64, 0x74, 0x61 })
+            .Concat(new byte[] { 0, 0, 0, 1, 4 })
+            .Concat(new byte[] { 0x62, 0x64, 0x74, 0x61 })
+            .Concat(new byte[] { 0, 0, 0, 0 })
+            .ToArray();
+            testData.Add(new object[] { request, sendOptions, expectedErrorMsg,
+                expectedSerializedReq });
+
+            requestBodyBytes = new byte[] { 4, 5, 6 };
+            request = new DefaultQuasiHttpRequest
+            {
+                ContentLength = 10,
+                Body = new MemoryStream(requestBodyBytes)
+            };
+            sendOptions = null;
+            expectedErrorMsg = null;
+            expectedSerializedReq = new byte[]
+            {
+                0x68, 0x64, 0x72, 0x73,
+                0, 0, 0, 12
+            }.Concat(MiscUtilsInternal.StringToBytes("\"\",\"\",\"\",10\n"))
+            .Concat(requestBodyBytes)
+            .ToArray();
+            testData.Add(new object[] { request, sendOptions, expectedErrorMsg,
+                expectedSerializedReq });
+
+            request = new DefaultQuasiHttpRequest();
+            sendOptions = new DefaultQuasiHttpProcessingOptions
+            {
+                MaxHeadersSize = 5
+            };
+            expectedErrorMsg = "quasi http headers exceed max size";
+            expectedSerializedReq = null;
+            testData.Add(new object[] { request, sendOptions, expectedErrorMsg,
+                expectedSerializedReq });
+
+            request = new DefaultQuasiHttpRequest
+            {
+                HttpVersion = "no-spaces-allowed",
+                Headers = new Dictionary<string, IList<string>>
+                {
+                    { "empty-prohibited", new string[]{ "a: \nb" } }
+                }
+            };
+            sendOptions = null;
+            expectedErrorMsg = "quasi http header value contains newlines";
+            expectedSerializedReq = null;
+            testData.Add(new object[] { request, sendOptions, expectedErrorMsg,
+                expectedSerializedReq });
+
+            return testData;
+        }
+
+        [Theory]
         [MemberData(nameof(CreateTestResponseSerializationData))]
         public async Task TestResponseSerialization(
             byte[] expectedResBodyBytes,
@@ -185,10 +345,6 @@ namespace Kabomu.Tests
             {
                 response.Body = new MemoryStream(expectedResBodyBytes);
             }
-            if (expectedResponse == null)
-            {
-                expectedResponse = response;
-            }
             var memStream = new MemoryStream();
             var serverConnection = new QuasiHttpConnectionImpl
             {
@@ -197,7 +353,7 @@ namespace Kabomu.Tests
             var dummyReq = new DefaultQuasiHttpRequest();
             var server = new StandardQuasiHttpServer
             {
-                Transport = new ServerTransportImpl
+                Transport = new ServerTransportImpl(true)
                 {
                     RequestDeserializer = async (conn) =>
                     {
@@ -230,7 +386,7 @@ namespace Kabomu.Tests
             };
             var client = new StandardQuasiHttpClient
             {
-                Transport = new ClientTransportImpl
+                Transport = new ClientTransportImpl(true)
                 {
                     AllocateConnectionFunc = async (endPt, opts) =>
                     {
@@ -269,24 +425,30 @@ namespace Kabomu.Tests
                 StatusCode = 400,
                 HttpStatusMessage = "Bad, Request",
                 ContentLength = expectedResBodyBytes.Length,
-                Headers = new Dictionary<string, IList<string>>(),
-                Body = new MemoryStream(expectedResBodyBytes)
+                Headers = new Dictionary<string, IList<string>>
+                {
+                    { "Status", new string[]{ "seen" } }
+                }
             };
-            IQuasiHttpResponse expectedResponse = null;
+            IQuasiHttpResponse expectedResponse = new DefaultQuasiHttpResponse
+            {
+                HttpVersion = "HTTP/1.1",
+                StatusCode = 400,
+                HttpStatusMessage = "Bad, Request",
+                ContentLength = expectedResBodyBytes.Length,
+                Headers = new Dictionary<string, IList<string>>
+                {
+                    { "status", new string[]{ "seen" } }
+                }
+            };
             var expectedSerializedRes = new byte[]
             {
                 0x68, 0x64, 0x72, 0x73,
-                0, 0, 0, 30,
-                (byte)'H', (byte)'T', (byte)'T', (byte)'P',
-                (byte)'/', (byte)'1', (byte)'.', (byte)'1',
-                (byte)',', (byte)'4', (byte)'0', (byte)'0',
-                (byte)',', (byte)'"', (byte)'B', (byte)'a',
-                (byte)'d', (byte)',', (byte)' ', (byte)'R',
-                (byte)'e', (byte)'q', (byte)'u', (byte)'e',
-                (byte)'s', (byte)'t', (byte)'"', (byte)',',
-                (byte)'4', (byte)'\n',
-                (byte)'s', (byte)'e', (byte)'n', (byte)'t'
-            };
+                0, 0, 0, 42
+            }.Concat(MiscUtilsInternal.StringToBytes("HTTP/1.1,400,\"Bad, Request\",4\n"))
+            .Concat(MiscUtilsInternal.StringToBytes("Status,seen\n"))
+            .Concat(expectedResBodyBytes)
+            .ToArray();
             testData.Add(new object[] { expectedResBodyBytes,
                 response, expectedResponse, expectedSerializedRes });
 
@@ -314,8 +476,7 @@ namespace Kabomu.Tests
             expectedResBodyBytes = new byte[] { 8, 7, 8, 9, 2 };
             response = new DefaultQuasiHttpResponse
             {
-                ContentLength = -5,
-                Body = new MemoryStream(expectedResBodyBytes)
+                ContentLength = -5
             };
             expectedResponse = new DefaultQuasiHttpResponse
             {
@@ -351,7 +512,7 @@ namespace Kabomu.Tests
             };
             var client = new StandardQuasiHttpClient
             {
-                Transport = new ClientTransportImpl
+                Transport = new ClientTransportImpl(false)
                 {
                     AllocateConnectionFunc = async (endPt, opts) =>
                     {
@@ -389,7 +550,6 @@ namespace Kabomu.Tests
                 {
                     var res = await client.Send2(remoteEndpoint, async (env) =>
                     {
-                        Assert.Same(clientConnection.Environment, env);
                         return dummyReq;
                     }, sendOptions);
                     if (res.Body != null)
@@ -584,6 +744,18 @@ namespace Kabomu.Tests
 
         class ClientTransportImpl : IQuasiHttpClientTransport, IQuasiHttpAltTransport
         {
+            public ClientTransportImpl(bool initializeSerializerFunctions)
+            {
+                if (!initializeSerializerFunctions)
+                {
+                    return;
+                }
+                RequestSerializer = (_, _) => Task.FromResult(false);
+                ResponseSerializer = (_, _) => Task.FromResult(false);
+                RequestDeserializer = _ => Task.FromResult<IQuasiHttpRequest>(null);
+                ResponseDeserializer = _ => Task.FromResult<IQuasiHttpResponse>(null);
+            }
+
             public Func<IQuasiHttpConnection, IQuasiHttpRequest, Task<bool>> RequestSerializer { get; set; }
 
             public Func<IQuasiHttpConnection, IQuasiHttpResponse, Task<bool>> ResponseSerializer { get; set; }
@@ -620,6 +792,18 @@ namespace Kabomu.Tests
 
         class ServerTransportImpl : IQuasiHttpServerTransport, IQuasiHttpAltTransport
         {
+            public ServerTransportImpl(bool initializeSerializerFunctions)
+            {
+                if (!initializeSerializerFunctions)
+                {
+                    return;
+                }
+                RequestSerializer = (_, _) => Task.FromResult(false);
+                ResponseSerializer = (_, _) => Task.FromResult(false);
+                RequestDeserializer = _ => Task.FromResult<IQuasiHttpRequest>(null);
+                ResponseDeserializer = _ => Task.FromResult<IQuasiHttpResponse>(null);
+            }
+
             public Func<IQuasiHttpConnection, IQuasiHttpRequest, Task<bool>> RequestSerializer { get; set; }
 
             public Func<IQuasiHttpConnection, IQuasiHttpResponse, Task<bool>> ResponseSerializer { get; set; }
