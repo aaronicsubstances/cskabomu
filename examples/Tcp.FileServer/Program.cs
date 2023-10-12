@@ -42,7 +42,7 @@ namespace Tcp.FileServer
             };
             var transport = new LocalhostTcpServerTransport(port)
             {
-                Server = instance,
+                QuasiHttpServer = instance,
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     TimeoutMillis = 5_000

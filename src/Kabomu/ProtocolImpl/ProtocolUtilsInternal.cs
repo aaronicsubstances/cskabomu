@@ -31,17 +31,39 @@ namespace Kabomu.ProtocolImpl
         }
 
         public static async Task WrapTimeoutTask(Task<bool> timeoutTask,
-            string timeoutMsg)
+            bool forClient)
         {
-            if (timeoutTask == null)
-            {
-                return;
-            }
+            var timeoutMsg = forClient ? "send timeout" : "receive timeout";
             if (await timeoutTask)
             {
                 throw new QuasiHttpException(timeoutMsg,
                     QuasiHttpException.ReasonCodeTimeout);
             }
+        }
+
+        public static async Task<IQuasiHttpResponse> RunTimeoutScheduler(
+            CustomTimeoutScheduler timeoutScheduler, bool forClient,
+            Func<Task<IQuasiHttpResponse>> proc)
+        {
+            var timeoutMsg = forClient ? "send timeout" : "receive timeout";
+            var result = await timeoutScheduler(proc);
+            var error = result?.Error;
+            if (error != null)
+            {
+                throw error;
+            }
+            if (result?.Timeout == true)
+            {
+                throw new QuasiHttpException(timeoutMsg,
+                    QuasiHttpException.ReasonCodeTimeout);
+            }
+            var response = result?.Response;
+            if (forClient && response == null)
+            {
+                throw new QuasiHttpException(
+                    "no response from timeout scheduler");
+            }
+            return response;
         }
 
         public static void ValidateHttpHeaderSection(bool isResponse,
@@ -149,12 +171,6 @@ namespace Kabomu.ProtocolImpl
             return true;
         }
 
-        /// <summary>
-        /// Serializes quasi http request or response headers.
-        /// </summary>
-        /// <param name="reqOrStatusLine">request or response status line</param>
-        /// <param name="remainingHeaders">headers after request or status line</param>
-        /// <returns>serialized representation of quasi http headers</returns>
         public static byte[] EncodeQuasiHttpHeaders(bool isResponse,
             IList<string> reqOrStatusLine,
             IDictionary<string, IList<string>> remainingHeaders)
@@ -207,30 +223,10 @@ namespace Kabomu.ProtocolImpl
             return serialized;
         }
 
-        /// <summary>
-        /// Deserializes a quasi http request or response header section.
-        /// </summary>
-        /// <param name="data">source of data to deserialize</param>
-        /// <param name="offset">starting position in buffer to start
-        /// deserializing from</param>
-        /// <param name="length">number of bytes to deserialize</param>
-        /// <param name="headersReceiver">will be extended with remaining headers found
-        /// after the request or response line</param>
-        /// <returns>request or response line, ie first row before headers</returns>
-        /// <exception cref="QuasiHttpException">if byte slice argument contains
-        /// invalid quasi http request or response headers</exception>
         public static IList<string> DecodeQuasiHttpHeaders(bool isResponse,
             byte[] data, int offset, int length,
             IDictionary<string, IList<string>> headersReceiver)
         {
-            if (data == null)
-            {
-                throw new ArgumentNullException(nameof(data));
-            }
-            if (!MiscUtilsInternal.IsValidByteBufferSlice(data, offset, length))
-            {
-                throw new ArgumentException("invalid byte buffer slice");
-            }
             IList<IList<string>> csv;
             try
             {
@@ -281,27 +277,12 @@ namespace Kabomu.ProtocolImpl
             return specialHeader;
         }
 
-        /// <summary>
-        /// Serializes quasi http request or response header section to a writable
-        /// stream.
-        /// </summary>
-        /// <param name="dest">writable stream to which serialized quasi http request or
-        /// response section will be written</param>
-        /// <param name="reqOrStatusLine">request or response status line</param>
-        /// <param name="remainingHeaders">headers after request or status line</param>
-        /// <param name="maxHeadersSize">limit on size of serialized result.
-        /// Can be zero for a default value to be used.</param>
-        /// <param name="cancellationToken">
-        /// The optional token to monitor for cancellation requests.</param>
-        /// <returns>task represent asynchronous operation</returns>
-        /// <exception cref="QuasiHttpException">if serialized is too large</exception>
         public static async Task WriteQuasiHttpHeaders(
             bool isResponse,
             Stream dest,
             IList<string> reqOrStatusLine,
             IDictionary<string, IList<string>> remainingHeaders,
-            int maxHeadersSize = 0,
-            CancellationToken cancellationToken = default)
+            int maxHeadersSize = 0)
         {
             var encodedHeaders = EncodeQuasiHttpHeaders(isResponse,
                 reqOrStatusLine, remainingHeaders);
@@ -320,20 +301,19 @@ namespace Kabomu.ProtocolImpl
             var tagAndLen = new byte[8];
             TlvUtils.EncodeTag(TlvUtils.TagForQuasiHttpHeaders, tagAndLen, 0);
             TlvUtils.EncodeLength(encodedHeaders.Length, tagAndLen, 4);
-            await dest.WriteAsync(tagAndLen, cancellationToken);
-            await dest.WriteAsync(encodedHeaders, cancellationToken);
+            await dest.WriteAsync(tagAndLen);
+            await dest.WriteAsync(encodedHeaders);
         }
 
         public static async Task<IList<string>> ReadQuasiHttpHeaders(
             bool isResponse,
             Stream src,
             IDictionary<string, IList<string>> headersReceiver,
-            int maxHeadersSize = 0,
-            CancellationToken cancellationToken = default)
+            int maxHeadersSize = 0)
         {
             var tagOrLen = new byte[4];
             await IOUtilsInternal.ReadBytesFully(src, tagOrLen, 0,
-                tagOrLen.Length, cancellationToken);
+                tagOrLen.Length);
             int tag = TlvUtils.DecodeTag(tagOrLen, 0);
             if (tag != TlvUtils.TagForQuasiHttpHeaders)
             {
@@ -342,7 +322,7 @@ namespace Kabomu.ProtocolImpl
                     QuasiHttpException.ReasonCodeProtocolViolation);
             }
             await IOUtilsInternal.ReadBytesFully(src, tagOrLen, 0,
-                tagOrLen.Length, cancellationToken);
+                tagOrLen.Length);
             int headersSize = TlvUtils.DecodeLength(tagOrLen, 0);
             if (maxHeadersSize <= 0)
             {
@@ -356,8 +336,7 @@ namespace Kabomu.ProtocolImpl
             }
             var encodedHeaders = new byte[headersSize];
             await IOUtilsInternal.ReadBytesFully(src,
-                encodedHeaders, 0, encodedHeaders.Length,
-                cancellationToken);
+                encodedHeaders, 0, encodedHeaders.Length);
             return DecodeQuasiHttpHeaders(isResponse,
                 encodedHeaders, 0, encodedHeaders.Length,
                 headersReceiver);
@@ -386,7 +365,7 @@ namespace Kabomu.ProtocolImpl
                     response.HttpVersion,
                     response.StatusCode.ToString(),
                     response.HttpStatusMessage,
-                    null
+                    contentLength.ToString()
                 };
             }
             else
@@ -399,18 +378,16 @@ namespace Kabomu.ProtocolImpl
                     request.HttpMethod,
                     request.Target,
                     request.HttpVersion,
-                    null
+                    contentLength.ToString()
                 };
             }
             // treat content lengths totally separate from body.
             // This caters for the HEAD method
             // which can be used to return a content length without a body
             // to download.
-            reqOrStatusLine[3] = contentLength.ToString();
             await WriteQuasiHttpHeaders(isResponse, writableStream,
                 reqOrStatusLine, headers,
-                connection.ProcessingOptions?.MaxHeadersSize ?? 0,
-                connection.CancellationToken);
+                connection.ProcessingOptions?.MaxHeadersSize ?? 0);
             if (body == null)
             {
                 // don't proceed, even if content length is not zero.
@@ -420,18 +397,16 @@ namespace Kabomu.ProtocolImpl
             {
                 // don't enforce positive content lengths when writing out
                 // quasi http bodies
-                await body.CopyToAsync(writableStream,
-                    connection.CancellationToken);
+                await body.CopyToAsync(writableStream);
             }
             else
             {
                 // proceed, even if content length is 0.
                 var bodyWriter = TlvUtils.CreateTlvEncodingWritableStream(
                     writableStream, TlvUtils.TagForQuasiHttpBodyChunk);
-                await body.CopyToAsync(bodyWriter, connection.CancellationToken);
+                await body.CopyToAsync(bodyWriter);
                 // write end of stream
-                await bodyWriter.WriteAsync(null, 0, -1,
-                    connection.CancellationToken);
+                await bodyWriter.WriteAsync(null, 0, -1);
             }
         }
 
@@ -449,8 +424,7 @@ namespace Kabomu.ProtocolImpl
                 isResponse,
                 readableStream,
                 headersReceiver,
-                connection.ProcessingOptions?.MaxHeadersSize ?? 0,
-                connection.CancellationToken);
+                connection.ProcessingOptions?.MaxHeadersSize ?? 0);
 
             long contentLength;
             try

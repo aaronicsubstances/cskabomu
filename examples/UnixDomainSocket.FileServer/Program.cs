@@ -46,7 +46,7 @@ namespace UnixDomainSocket.FileServer
             };
             var transport = new UnixDomainSocketServerTransport(path)
             {
-                Server = instance,
+                QuasiHttpServer = instance,
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     TimeoutMillis = 5_000

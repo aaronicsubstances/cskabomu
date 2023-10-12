@@ -1,4 +1,5 @@
-﻿using Kabomu.Exceptions;
+﻿using Kabomu.Abstractions;
+using Kabomu.Exceptions;
 using Kabomu.ProtocolImpl;
 using Kabomu.Tests.Shared;
 using System;
@@ -140,14 +141,15 @@ namespace Kabomu.Tests.ProtocolImpl
         [Fact]
         public async Task TestWrapTimeoutTask1()
         {
-            await ProtocolUtilsInternal.WrapTimeoutTask(null, "");
+            var task = Task.FromResult(false);
+            await ProtocolUtilsInternal.WrapTimeoutTask(task, true);
         }
 
         [Fact]
         public async Task TestWrapTimeoutTask2()
         {
             var task = Task.FromResult(false);
-            await ProtocolUtilsInternal.WrapTimeoutTask(task, "");
+            await ProtocolUtilsInternal.WrapTimeoutTask(task, false);
         }
 
         [Fact]
@@ -156,9 +158,9 @@ namespace Kabomu.Tests.ProtocolImpl
             var task = Task.FromResult(true);
             var actualEx = await Assert.ThrowsAsync<QuasiHttpException>(() =>
             {
-                return ProtocolUtilsInternal.WrapTimeoutTask(task, "te");
+                return ProtocolUtilsInternal.WrapTimeoutTask(task, true);
             });
-            Assert.Equal("te", actualEx.Message);
+            Assert.Equal("send timeout", actualEx.Message);
             Assert.Equal(QuasiHttpException.ReasonCodeTimeout, actualEx.ReasonCode);
         }
 
@@ -168,9 +170,9 @@ namespace Kabomu.Tests.ProtocolImpl
             var task = Task.FromResult(true);
             var actualEx = await Assert.ThrowsAsync<QuasiHttpException>(() =>
             {
-                return ProtocolUtilsInternal.WrapTimeoutTask(task, "recv");
+                return ProtocolUtilsInternal.WrapTimeoutTask(task, false);
             });
-            Assert.Equal("recv", actualEx.Message);
+            Assert.Equal("receive timeout", actualEx.Message);
             Assert.Equal(QuasiHttpException.ReasonCodeTimeout, actualEx.ReasonCode);
         }
 
@@ -180,7 +182,7 @@ namespace Kabomu.Tests.ProtocolImpl
             var task = Task.FromException<bool>(new ArgumentException("th"));
             var actualEx = await Assert.ThrowsAsync<ArgumentException>(() =>
             {
-                return ProtocolUtilsInternal.WrapTimeoutTask(task, "te");
+                return ProtocolUtilsInternal.WrapTimeoutTask(task, true);
             });
             Assert.Equal("th", actualEx.Message);
         }
@@ -192,9 +194,144 @@ namespace Kabomu.Tests.ProtocolImpl
                 new KabomuIOException("2gh"));
             var actualEx = await Assert.ThrowsAsync<KabomuIOException>(() =>
             {
-                return ProtocolUtilsInternal.WrapTimeoutTask(task, "tfe");
+                return ProtocolUtilsInternal.WrapTimeoutTask(task, false);
             });
             Assert.Equal("2gh", actualEx.Message);
+        }
+
+        [Fact]
+        public async Task TestRunTimeoutScheduler1()
+        {
+            var expected = new DefaultQuasiHttpResponse();
+            Func<Task<IQuasiHttpResponse>> proc = () => Task.FromResult(
+                (IQuasiHttpResponse)expected);
+            CustomTimeoutScheduler instance = async f =>
+            {
+                var result = await f();
+                return new DefaultTimeoutResult
+                {
+                    Timeout = false,
+                    Response = result
+                };
+            };
+            var actual = await ProtocolUtilsInternal.RunTimeoutScheduler(
+                instance, true, proc);
+            Assert.Same(expected, actual);
+        }
+
+        [Fact]
+        public async Task TestRunTimeoutScheduler2()
+        {
+            IQuasiHttpResponse expected = null;
+            Func<Task<IQuasiHttpResponse>> proc = () => Task.FromResult(
+                expected);
+            CustomTimeoutScheduler instance = async f =>
+            {
+                var result = await f();
+                return new DefaultTimeoutResult
+                {
+                    Timeout = false,
+                    Response = result
+                };
+            };
+            var actual = await ProtocolUtilsInternal.RunTimeoutScheduler(
+                instance, false, proc);
+            Assert.Same(expected, actual);
+        }
+
+        [Fact]
+        public async Task TestRunTimeoutScheduler3()
+        {
+            Func<Task<IQuasiHttpResponse>> proc = () => Task.FromResult(
+                (IQuasiHttpResponse)null);
+            CustomTimeoutScheduler instance = async f =>
+            {
+                return null;
+            };
+            var actual = await ProtocolUtilsInternal.RunTimeoutScheduler(
+                instance, false, proc);
+            Assert.Null(actual);
+        }
+
+        [Fact]
+        public async Task TestRunTimeoutScheduler4()
+        {
+            Func<Task<IQuasiHttpResponse>> proc = () => Task.FromResult(
+                (IQuasiHttpResponse)null);
+            CustomTimeoutScheduler instance = async f =>
+            {
+                return null;
+            };
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpException>(async () =>
+            {
+                await ProtocolUtilsInternal.RunTimeoutScheduler(
+                    instance, true, proc);
+            });
+            Assert.Equal("no response from timeout scheduler", actualEx.Message);
+            Assert.Equal(QuasiHttpException.ReasonCodeGeneral, actualEx.ReasonCode);
+        }
+
+        [Fact]
+        public async Task TestRunTimeoutScheduler5()
+        {
+            Func<Task<IQuasiHttpResponse>> proc = () => Task.FromResult(
+                (IQuasiHttpResponse)null);
+            CustomTimeoutScheduler instance = async f =>
+            {
+                return new DefaultTimeoutResult
+                {
+                    Timeout = true
+                };
+            };
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpException>(async () =>
+            {
+                await ProtocolUtilsInternal.RunTimeoutScheduler(
+                    instance, true, proc);
+            });
+            Assert.Equal("send timeout", actualEx.Message);
+            Assert.Equal(QuasiHttpException.ReasonCodeTimeout, actualEx.ReasonCode);
+        }
+
+        [Fact]
+        public async Task TestRunTimeoutScheduler6()
+        {
+            Func<Task<IQuasiHttpResponse>> proc = () => Task.FromResult(
+                (IQuasiHttpResponse)null);
+            CustomTimeoutScheduler instance = async f =>
+            {
+                return new DefaultTimeoutResult
+                {
+                    Timeout = true
+                };
+            };
+            var actualEx = await Assert.ThrowsAsync<QuasiHttpException>(async () =>
+            {
+                await ProtocolUtilsInternal.RunTimeoutScheduler(
+                    instance, false, proc);
+            });
+            Assert.Equal("receive timeout", actualEx.Message);
+            Assert.Equal(QuasiHttpException.ReasonCodeTimeout, actualEx.ReasonCode);
+        }
+
+        [Fact]
+        public async Task TestRunTimeoutScheduler7()
+        {
+            Func<Task<IQuasiHttpResponse>> proc = () => Task.FromResult(
+                (IQuasiHttpResponse)null);
+            CustomTimeoutScheduler instance = async f =>
+            {
+                return new DefaultTimeoutResult
+                {
+                    Error = new ArgumentException("risk"),
+                    Timeout = true
+                };
+            };
+            var actualEx = await Assert.ThrowsAsync<ArgumentException>(async () =>
+            {
+                await ProtocolUtilsInternal.RunTimeoutScheduler(
+                    instance, false, proc);
+            });
+            Assert.Equal("risk", actualEx.Message);
         }
 
         [Theory]

@@ -305,14 +305,4 @@ namespace Kabomu
             };
         }
     }
-
-    internal class DefaultCancellableTimeoutTaskInternal : ICancellableTimeoutTask
-    {
-        public Task<bool> Task { get; set; }
-        public CancellationTokenSource CancellationTokenSource { get; set; }
-        public void Cancel()
-        {
-            CancellationTokenSource?.Cancel();
-        }
-    }
 }

@@ -22,7 +22,7 @@ namespace Kabomu.Examples.Shared
             _startCancellationHandle = new CancellationTokenSource();
         }
 
-        public StandardQuasiHttpServer Server { get; set; }
+        public StandardQuasiHttpServer QuasiHttpServer { get; set; }
         public IQuasiHttpProcessingOptions DefaultProcessingOptions { get; set; }
 
         public Task Start()
@@ -73,7 +73,7 @@ namespace Kabomu.Examples.Shared
             {
                 var connection = new DuplexStreamConnection(pipeServer, false,
                     DefaultProcessingOptions);
-                await Server.AcceptConnection(connection);
+                await QuasiHttpServer.AcceptConnection(connection);
             }
             catch (Exception ex)
             {

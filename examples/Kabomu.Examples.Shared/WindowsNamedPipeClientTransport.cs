@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipes;
-using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,7 +10,9 @@ namespace Kabomu.Examples.Shared
 {
     public class WindowsNamedPipeClientTransport : IQuasiHttpClientTransport
     {
-        public Task<IConnectionAllocationResponse> AllocateConnection(
+        public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }
+
+        public Task<IQuasiHttpConnection> AllocateConnection(
             object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions)
         {
             var path = (string)remoteEndpoint;
@@ -19,17 +20,14 @@ namespace Kabomu.Examples.Shared
                 PipeDirection.InOut, PipeOptions.Asynchronous);
             var connection = new DuplexStreamConnection(pipeClient, true,
                 sendOptions, DefaultSendOptions);
-            var ongoingConnectionTask = pipeClient.ConnectAsync();
-            var connectionAllocationResponse = new DefaultConnectionAllocationResponse
-            {
-                Connection = connection,
-                ConnectTask = ongoingConnectionTask
-            };
-            return Task.FromResult<IConnectionAllocationResponse>(
-                connectionAllocationResponse);
+            return Task.FromResult<IQuasiHttpConnection>(connection);
         }
 
-        public IQuasiHttpProcessingOptions DefaultSendOptions { get; set; }
+        public async Task EstablishConnection(IQuasiHttpConnection connection)
+        {
+            var socketConnection = (DuplexStreamConnection)connection;
+            await ((NamedPipeClientStream)socketConnection.Stream).ConnectAsync();
+        }
 
         public Task ReleaseConnection(IQuasiHttpConnection connection,
             IQuasiHttpResponse response)

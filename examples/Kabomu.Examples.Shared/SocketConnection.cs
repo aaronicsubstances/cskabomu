@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Kabomu.Abstractions;
 using System.IO;
-using System.Threading;
 
 namespace Kabomu.Examples.Shared
 {
@@ -18,26 +17,26 @@ namespace Kabomu.Examples.Shared
         private static readonly IQuasiHttpProcessingOptions DefaultProcessingOptions =
             new DefaultQuasiHttpProcessingOptions();
 
-        private readonly Socket _socket;
         private readonly ICancellableTimeoutTask _timeoutId;
-        private readonly CancellationTokenSource _cancellationTokenSource;
 
-        public SocketConnection(Socket socket, bool isClient,
+        public SocketConnection(Socket socket, object clientPortOrPath,
             IQuasiHttpProcessingOptions processingOptions,
             IQuasiHttpProcessingOptions fallbackProcessingOptions = null)
         {
-            _socket = socket ?? throw new ArgumentNullException(nameof(socket));
+            Socket = socket ?? throw new ArgumentNullException(nameof(socket));
+            ClientPortOrPath = clientPortOrPath;
             ProcessingOptions = QuasiHttpUtils.MergeProcessingOptions(processingOptions,
                 fallbackProcessingOptions) ?? DefaultProcessingOptions;
             _timeoutId = QuasiHttpUtils.CreateCancellableTimeoutTask(
                 ProcessingOptions.TimeoutMillis);
-            _cancellationTokenSource = new CancellationTokenSource();
         }
+
+        internal Socket Socket { get; }
+        internal object ClientPortOrPath { get; }
 
         public IQuasiHttpProcessingOptions ProcessingOptions { get; }
         public Task<bool> TimeoutTask => _timeoutId?.Task;
-        public CancellationToken CancellationToken =>
-            _cancellationTokenSource.Token;
+        public CustomTimeoutScheduler TimeoutScheduler => null;
         public IDictionary<string, object> Environment { get; set; }
 
         public Task Release(IQuasiHttpResponse response)
@@ -47,8 +46,7 @@ namespace Kabomu.Examples.Shared
             {
                 return Task.CompletedTask;
             }
-            _cancellationTokenSource.Cancel();
-            _socket.Dispose();
+            Socket.Dispose();
             return Task.CompletedTask;
         }
 
@@ -58,7 +56,7 @@ namespace Kabomu.Examples.Shared
             {
                 // since NetworkStream demands that socket is connected before
                 // creating instances of it, create on the fly.
-                return new NetworkStream(_socket);
+                return new NetworkStream(Socket);
             }
         }
     }

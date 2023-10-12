@@ -69,15 +69,28 @@ namespace Kabomu
 
             try
             {
-                var acceptTask = ProcessAccept(application, transport,
-                    connection);
-                if (connection.TimeoutTask != null)
+                var timeoutScheduler = connection.TimeoutScheduler;
+                if (timeoutScheduler != null)
                 {
-                    var timeoutTask = ProtocolUtilsInternal.WrapTimeoutTask(
-                        connection.TimeoutTask, "receive timeout");
-                    await Task.WhenAny(acceptTask, timeoutTask);
+                    Func<Task<IQuasiHttpResponse>> proc = () => ProcessAccept(
+                        application, transport, connection);
+                    await ProtocolUtilsInternal.RunTimeoutScheduler(
+                        timeoutScheduler, false, proc);
                 }
-                await acceptTask;
+                else
+                {
+                    var acceptTask = ProcessAccept(application, transport,
+                        connection);
+                    var timeoutTask = connection.TimeoutTask;
+                    if (timeoutTask != null)
+                    {
+                        await await Task.WhenAny(acceptTask,
+                            ProtocolUtilsInternal.WrapTimeoutTask(
+                                timeoutTask, false));
+                    }
+                    await acceptTask;
+                }
+                await Abort(transport, connection, false);
             }
             catch (Exception e)
             {
@@ -94,7 +107,7 @@ namespace Kabomu
             }
         }
 
-        internal static async Task ProcessAccept(
+        internal static async Task<IQuasiHttpResponse> ProcessAccept(
             QuasiHttpApplication application,
             IQuasiHttpServerTransport transport,
             IQuasiHttpConnection connection)
@@ -141,7 +154,7 @@ namespace Kabomu
                     await disposer();
                 }
             }
-            await Abort(transport, connection, false);
+            return null;
         }
 
         internal static async Task Abort(IQuasiHttpServerTransport transport,
@@ -152,7 +165,8 @@ namespace Kabomu
                 try
                 {
                     // don't wait.
-                    _ = transport.ReleaseConnection(connection);
+                    _ = transport.ReleaseConnection(connection)
+                        .ContinueWith(_ => { }); // swallow errors.
                 }
                 catch (Exception) { } // ignore
             }

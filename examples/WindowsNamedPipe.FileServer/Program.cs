@@ -41,7 +41,7 @@ namespace WindowsNamedPipe.FileServer
             };
             var transport = new WindowsNamedPipeServerTransport(path)
             {
-                Server = instance,
+                QuasiHttpServer = instance,
                 DefaultProcessingOptions = new DefaultQuasiHttpProcessingOptions
                 {
                     TimeoutMillis = 5_000

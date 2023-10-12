@@ -19,7 +19,6 @@ namespace Kabomu.Examples.Shared
             new DefaultQuasiHttpProcessingOptions();
 
         private readonly ICancellableTimeoutTask _timeoutId;
-        private readonly CancellationTokenSource _cancellationTokenSource;
 
         public DuplexStreamConnection(Stream stream, bool isClient,
             IQuasiHttpProcessingOptions processingOptions,
@@ -30,13 +29,11 @@ namespace Kabomu.Examples.Shared
                 fallbackProcessingOptions) ?? DefaultProcessingOptions;
             _timeoutId = QuasiHttpUtils.CreateCancellableTimeoutTask(
                 ProcessingOptions.TimeoutMillis);
-            _cancellationTokenSource = new CancellationTokenSource();
         }
 
         public IQuasiHttpProcessingOptions ProcessingOptions { get; }
         public Task<bool> TimeoutTask => _timeoutId?.Task;
-        public CancellationToken CancellationToken =>
-            _cancellationTokenSource.Token;
+        public CustomTimeoutScheduler TimeoutScheduler => null;
         public IDictionary<string, object> Environment { get; set; }
         public Stream Stream { get; }
 
@@ -47,7 +44,6 @@ namespace Kabomu.Examples.Shared
             {
                 return;
             }
-            _cancellationTokenSource.Cancel();
             await Stream.DisposeAsync();
         }
     }

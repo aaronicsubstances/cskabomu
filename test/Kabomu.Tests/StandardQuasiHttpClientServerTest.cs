@@ -1,5 +1,4 @@
 ﻿using Kabomu.Abstractions;
-using Kabomu.Exceptions;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -43,10 +42,11 @@ namespace Kabomu.Tests
                     {
                         Assert.Same(remoteEndpoint, endPt);
                         Assert.Same(sendOptions, opts);
-                        return new DefaultConnectionAllocationResponse
-                        {
-                            Connection = clientConnection
-                        };
+                        return clientConnection;
+                    },
+                    EstablishConnectionFunc = async (conn) =>
+                    {
+                        Assert.Same(clientConnection, conn);
                     },
                     ResponseDeserializer = async conn =>
                     {
@@ -204,10 +204,11 @@ namespace Kabomu.Tests
                     {
                         Assert.Same(remoteEndpoint, endPt);
                         Assert.Same(sendOptions, opts);
-                        return new DefaultConnectionAllocationResponse
-                        {
-                            Connection = clientConnection
-                        };
+                        return clientConnection;
+                    },
+                    EstablishConnectionFunc = async (conn) =>
+                    {
+                        Assert.Same(clientConnection, conn);
                     },
                     ResponseDeserializer = async conn =>
                     {
@@ -392,10 +393,11 @@ namespace Kabomu.Tests
                     {
                         Assert.Same(remoteEndpoint, endPt);
                         Assert.Same(sendOptions, opts);
-                        return new DefaultConnectionAllocationResponse
-                        {
-                            Connection = clientConnection
-                        };
+                        return clientConnection;
+                    },
+                    EstablishConnectionFunc = async (conn) =>
+                    {
+                        Assert.Same(clientConnection, conn);
                     },
                     RequestSerializer = async (conn, req) =>
                     {
@@ -518,10 +520,11 @@ namespace Kabomu.Tests
                     {
                         Assert.Same(remoteEndpoint, endPt);
                         Assert.Same(sendOptions, opts);
-                        return new DefaultConnectionAllocationResponse
-                        {
-                            Connection = clientConnection
-                        };
+                        return clientConnection;
+                    },
+                    EstablishConnectionFunc = async (conn) =>
+                    {
+                        Assert.Same(clientConnection, conn);
                     },
                     RequestSerializer = async (conn, req) =>
                     {
@@ -764,13 +767,19 @@ namespace Kabomu.Tests
 
             public Func<IQuasiHttpConnection, Task<IQuasiHttpResponse>> ResponseDeserializer { get; set; }
 
-            public Func<object, IQuasiHttpProcessingOptions, Task<IConnectionAllocationResponse>>
+            public Func<object, IQuasiHttpProcessingOptions, Task<IQuasiHttpConnection>>
                 AllocateConnectionFunc { get; set; }
+            public Func<IQuasiHttpConnection, Task> EstablishConnectionFunc { get; set; }
 
-            public async Task<IConnectionAllocationResponse> AllocateConnection(
+            public async Task<IQuasiHttpConnection> AllocateConnection(
                 object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions)
             {
                 return await AllocateConnectionFunc(remoteEndpoint, sendOptions);
+            }
+
+            public async Task EstablishConnection(IQuasiHttpConnection connection)
+            {
+                await EstablishConnectionFunc(connection);
             }
 
             public Stream GetReadableStream(IQuasiHttpConnection connection)
@@ -834,8 +843,8 @@ namespace Kabomu.Tests
             public Stream WritableStream { get; set; }
             public IQuasiHttpProcessingOptions ProcessingOptions { get; set; }
             public IDictionary<string, object> Environment { get; set; }
-            public CancellationToken CancellationToken => CancellationToken.None;
             public Task<bool> TimeoutTask => null;
+            public CustomTimeoutScheduler TimeoutScheduler => null;
         }
     }
 }

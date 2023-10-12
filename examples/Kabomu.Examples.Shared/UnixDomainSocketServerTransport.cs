@@ -23,7 +23,7 @@ namespace Kabomu.Examples.Shared
             _serverSocket.Bind(new UnixDomainSocketEndPoint(path));
         }
 
-        public StandardQuasiHttpServer Server { get; set; }
+        public StandardQuasiHttpServer QuasiHttpServer { get; set; }
 
         public IQuasiHttpProcessingOptions DefaultProcessingOptions { get; set; }
 
@@ -70,9 +70,9 @@ namespace Kabomu.Examples.Shared
         {
             try
             {
-                var connection = new SocketConnection(socket, false,
+                var connection = new SocketConnection(socket, null,
                     DefaultProcessingOptions);
-                await Server.AcceptConnection(connection);
+                await QuasiHttpServer.AcceptConnection(connection);
             }
             catch (Exception ex)
             {

@@ -33,7 +33,7 @@ namespace Kabomu.Exceptions
         /// Creates error indicating that reading from a stream has
         /// unexpectedly ended.
         /// </summary>
-        internal static KabomuIOException CreateEndOfReadError()
+        public static KabomuIOException CreateEndOfReadError()
         {
             return new KabomuIOException("unexpected end of read");
         }

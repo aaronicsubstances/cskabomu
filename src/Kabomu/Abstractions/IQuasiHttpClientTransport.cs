@@ -19,9 +19,16 @@ namespace Kabomu.Abstractions
         /// allocation request</param>
         /// <param name="sendOptions">any options given to one of the Send*() methods of
         /// the <see cref="StandardQuasiHttpClient"/> class</param>
-        /// <returns>a task whose result contains connection to remote endpoint</returns>
-        Task<IConnectionAllocationResponse> AllocateConnection(
+        /// <returns>a task whose result is a connection to remote endpoint</returns>
+        Task<IQuasiHttpConnection> AllocateConnection(
             object remoteEndpoint, IQuasiHttpProcessingOptions sendOptions);
+
+        /// <summary>
+        /// Activates or establishes a connection created with
+        /// <see cref="AllocateConnection"/>.
+        /// </summary>
+        /// <param name="connection">connection to establish before use</param>
+        Task EstablishConnection(IQuasiHttpConnection connection);
 
         /// <summary>
         /// Releases resources held by a connection of a quasi http transport instance.

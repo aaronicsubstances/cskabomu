@@ -99,24 +99,38 @@ namespace Kabomu
                 throw new MissingDependencyException("client transport");
             }
 
-            var connectionAllocationResponse = await transport.AllocateConnection(
+            var connection = await transport.AllocateConnection(
                 remoteEndpoint, sendOptions);
-            var connection = connectionAllocationResponse?.Connection;
             if (connection == null)
             {
                 throw new QuasiHttpException("no connection");
             }
             try
             {
-                var responseTask = ProcessSend(request, requestFunc,
-                    transport, connection, connectionAllocationResponse);
-                if (connection.TimeoutTask != null)
+                IQuasiHttpResponse response;
+                var timeoutScheduler = connection.TimeoutScheduler;
+                if (timeoutScheduler != null)
                 {
-                    var timeoutTask = ProtocolUtilsInternal.WrapTimeoutTask(
-                        connection.TimeoutTask, "send timeout");
-                    await await Task.WhenAny(responseTask, timeoutTask);
+                    Func<Task<IQuasiHttpResponse>> proc = () => ProcessSend(
+                        request, requestFunc, transport, connection);
+                    response = await ProtocolUtilsInternal.RunTimeoutScheduler(
+                        timeoutScheduler, true, proc);
                 }
-                return await responseTask;
+                else
+                {
+                    var responseTask = ProcessSend(request, requestFunc,
+                        transport, connection);
+                    var timeoutTask = connection.TimeoutTask;
+                    if (timeoutTask != null)
+                    {
+                        await await Task.WhenAny(responseTask,
+                            ProtocolUtilsInternal.WrapTimeoutTask(
+                                timeoutTask, true));
+                    }
+                    response = await responseTask;
+                }
+                await Abort(transport, connection, false, response);
+                return response;
             }
             catch (Exception e)
             {
@@ -137,15 +151,10 @@ namespace Kabomu
             IQuasiHttpRequest request,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpClientTransport transport,
-            IQuasiHttpConnection connection,
-            IConnectionAllocationResponse connectionAllocationResponse)
+            IQuasiHttpConnection connection)
         {
-            var ongoingConnectionTask = connectionAllocationResponse.ConnectTask;
-            if (ongoingConnectionTask != null)
-            {
-                // wait for connection to be completely established.
-                await ongoingConnectionTask;
-            }
+            // wait for connection to be completely established.
+            await transport.EstablishConnection(connection);
 
             if (request == null)
             {
@@ -190,7 +199,6 @@ namespace Kabomu
                     };
                 }
             }
-            await Abort(transport, connection, false, response);
             return response;
         }
 
@@ -203,7 +211,8 @@ namespace Kabomu
                 try
                 {
                     // don't wait.
-                    _ = transport.ReleaseConnection(connection, null);
+                    _ = transport.ReleaseConnection(connection, null)
+                        .ContinueWith(_ => { }); // swallow errors.
                 }
                 catch (Exception) { } // ignore
             }
