@@ -125,35 +125,25 @@ namespace Kabomu
                     false, transport.GetReadableStream(connection), connection);
             }
 
-            var response = await application(request);
+            await using var response = await application(request);
             if (response == null)
             {
                 throw new QuasiHttpException("no response");
             }
 
-            try
+            var responseSerialized = false;
+            var responseSerializer = altTransport?.ResponseSerializer;
+            if (responseSerializer != null)
             {
-                var responseSerialized = false;
-                var responseSerializer = altTransport?.ResponseSerializer;
-                if (responseSerializer != null)
-                {
-                    responseSerialized = await responseSerializer(connection, response);
-                }
-                if (!responseSerialized)
-                {
-                    await ProtocolUtilsInternal.WriteEntityToTransport(
-                        true, response, transport.GetWritableStream(connection),
-                        connection);
-                }
+                responseSerialized = await responseSerializer(connection, response);
             }
-            finally
+            if (!responseSerialized)
             {
-                var disposer = response.Disposer;
-                if (disposer != null)
-                {
-                    await disposer();
-                }
+                await ProtocolUtilsInternal.WriteEntityToTransport(
+                    true, response, transport.GetWritableStream(connection),
+                    connection);
             }
+
             return null;
         }
 
