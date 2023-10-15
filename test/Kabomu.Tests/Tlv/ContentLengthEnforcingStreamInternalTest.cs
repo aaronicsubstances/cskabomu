@@ -1,36 +1,36 @@
 ﻿using Kabomu.Exceptions;
-using Kabomu.ProtocolImpl;
+using Kabomu.Tlv;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Xunit;
 
-namespace Kabomu.Tests.ProtocolImpl
+namespace Kabomu.Tests.Tlv
 {
-    public class MaxLengthEnforcingStreamInternalTest
+    public class ContentLengthEnforcingStreamInternalTest
     {
-        [InlineData(0, "")]
-        [InlineData(0, "a")]
-        [InlineData(2, "a")]
-        [InlineData(2, "ab")]
-        [InlineData(3, "a")]
-        [InlineData(3, "abc")]
-        [InlineData(4, "abcd")]
-        [InlineData(5, "abcde")]
-        [InlineData(60, "abcdefghi")]
+        [InlineData(0, "", "")]
+        [InlineData(0, "a", "")]
+        [InlineData(1, "ab", "a")]
+        [InlineData(2, "ab", "ab")]
+        [InlineData(2, "abc", "ab")]
+        [InlineData(3, "abc", "abc")]
+        [InlineData(4, "abcd", "abcd")]
+        [InlineData(5, "abcde", "abcde")]
+        [InlineData(6, "abcdefghi", "abcdef")]
         [Theory]
-        public async Task TestReading(int maxLength, string expected)
+        public async Task TestReading(long contentLength, string srcData,
+            string expected)
         {
             // 1. arrange
-            var stream = new RandomizedReadInputStream(
-                MiscUtilsInternal.StringToBytes(expected));
-            var instance = TlvUtils.CreateMaxLengthEnforcingStream(stream,
-                maxLength);
+            var stream = new RandomizedReadInputStream(srcData);
+            var instance = TlvUtils.CreateContentLengthEnforcingStream(stream,
+                contentLength);
 
             // act
             var actual = await ComparisonUtils.ReadToString(instance, false);
@@ -39,10 +39,9 @@ namespace Kabomu.Tests.ProtocolImpl
             Assert.Equal(expected, actual);
 
             // 2. arrange again with old style async
-            stream = new RandomizedReadInputStream(
-                MiscUtilsInternal.StringToBytes(expected));
-            instance = TlvUtils.CreateMaxLengthEnforcingStream(stream,
-                maxLength);
+            stream = new RandomizedReadInputStream(srcData);
+            instance = TlvUtils.CreateContentLengthEnforcingStream(stream,
+                contentLength);
 
             // act
             actual = await ComparisonUtils.ReadToString(instance, true);
@@ -51,10 +50,9 @@ namespace Kabomu.Tests.ProtocolImpl
             Assert.Equal(expected, actual);
 
             // 3. arrange again with sync
-            stream = new RandomizedReadInputStream(
-                MiscUtilsInternal.StringToBytes(expected));
-            instance = TlvUtils.CreateMaxLengthEnforcingStream(stream,
-                maxLength);
+            stream = new RandomizedReadInputStream(srcData);
+            instance = TlvUtils.CreateContentLengthEnforcingStream(stream,
+                contentLength);
 
             // act
             actual = ComparisonUtils.ReadToStringSync(instance, false);
@@ -63,10 +61,9 @@ namespace Kabomu.Tests.ProtocolImpl
             Assert.Equal(expected, actual);
 
             // 4. arrange again with slow sync
-            stream = new RandomizedReadInputStream(
-                MiscUtilsInternal.StringToBytes(expected));
-            instance = TlvUtils.CreateMaxLengthEnforcingStream(stream,
-                maxLength);
+            stream = new RandomizedReadInputStream(srcData);
+            instance = TlvUtils.CreateContentLengthEnforcingStream(stream,
+                contentLength);
 
             // act
             actual = ComparisonUtils.ReadToStringSync(instance, true);
@@ -81,7 +78,7 @@ namespace Kabomu.Tests.ProtocolImpl
             // 1. arrange
             var stream = new MemoryStream(MiscUtilsInternal.StringToBytes(
                 "sizable"));
-            var instance = TlvUtils.CreateMaxLengthEnforcingStream(stream,
+            var instance = TlvUtils.CreateContentLengthEnforcingStream(stream,
                 5);
 
             var cts = new CancellationTokenSource();
@@ -90,52 +87,52 @@ namespace Kabomu.Tests.ProtocolImpl
                 async () => await instance.ReadAsync(new byte[2], cts.Token));
         }
 
-        [InlineData(1, "ab")]
-        [InlineData(2, "abc")]
-        [InlineData(3, "abcd")]
-        [InlineData(5, "abcdefxyz")]
+        [InlineData(2, "")]
+        [InlineData(4, "abc")]
+        [InlineData(5, "abcd")]
+        [InlineData(15, "abcdef")]
         [Theory]
-        public async Task TestReadingForErrors(int maxLength, string srcData)
+        public async Task TestReadingForErrors(long contentLength, string srcData)
         {
             // 1. arrange
             var stream = new MemoryStream(MiscUtilsInternal.StringToBytes(srcData));
-            var instance = TlvUtils.CreateMaxLengthEnforcingStream(stream,
-                maxLength);
+            var instance = TlvUtils.CreateContentLengthEnforcingStream(stream,
+                contentLength);
 
             // act and assert
             var actualEx = await Assert.ThrowsAsync<KabomuIOException>(
                 () => ComparisonUtils.ReadToBytes(instance, false));
-            Assert.Contains($"exceeds limit of {maxLength}", actualEx.Message);
+            Assert.Contains("end of read", actualEx.Message);
 
             // 2. arrange with old style async
             stream = new MemoryStream(MiscUtilsInternal.StringToBytes(srcData));
-            instance = TlvUtils.CreateMaxLengthEnforcingStream(stream,
-                maxLength);
+            instance = TlvUtils.CreateContentLengthEnforcingStream(stream,
+                contentLength);
 
             // act and assert
             actualEx = await Assert.ThrowsAsync<KabomuIOException>(
                 () => ComparisonUtils.ReadToBytes(instance, true));
-            Assert.Contains($"exceeds limit of {maxLength}", actualEx.Message);
+            Assert.Contains("end of read", actualEx.Message);
 
             // 3. arrange with sync
             stream = new MemoryStream(MiscUtilsInternal.StringToBytes(srcData));
-            instance = TlvUtils.CreateMaxLengthEnforcingStream(stream,
-                maxLength);
+            instance = TlvUtils.CreateContentLengthEnforcingStream(stream,
+                contentLength);
 
             // act and assert
             actualEx = Assert.Throws<KabomuIOException>(
                 () => ComparisonUtils.ReadToBytesSync(instance, false));
-            Assert.Contains($"exceeds limit of {maxLength}", actualEx.Message);
+            Assert.Contains("end of read", actualEx.Message);
 
             // 4. arrange with slow sync
             stream = new MemoryStream(MiscUtilsInternal.StringToBytes(srcData));
-            instance = TlvUtils.CreateMaxLengthEnforcingStream(stream,
-                maxLength);
+            instance = TlvUtils.CreateContentLengthEnforcingStream(stream,
+                contentLength);
 
             // act and assert
             actualEx = Assert.Throws<KabomuIOException>(
                 () => ComparisonUtils.ReadToBytesSync(instance, true));
-            Assert.Contains($"exceeds limit of {maxLength}", actualEx.Message);
+            Assert.Contains("end of read", actualEx.Message);
         }
 
         [Fact]
@@ -143,7 +140,7 @@ namespace Kabomu.Tests.ProtocolImpl
         {
             // 1. test with async.
             var stream = new MemoryStream(new byte[] { 0, 1, 2 });
-            var instance = TlvUtils.CreateMaxLengthEnforcingStream(stream, 3);
+            var instance = TlvUtils.CreateContentLengthEnforcingStream(stream, 3);
 
             var actualCount = await instance.ReadAsync(new byte[0], 0, 0);
             Assert.Equal(0, actualCount);
@@ -158,7 +155,7 @@ namespace Kabomu.Tests.ProtocolImpl
 
             // 2. test with sync.
             stream = new MemoryStream(new byte[] { 0, 1, 2 });
-            instance = TlvUtils.CreateMaxLengthEnforcingStream(stream, 3);
+            instance = TlvUtils.CreateContentLengthEnforcingStream(stream, 3);
 
             actualCount = instance.Read(new byte[0], 0, 0);
             Assert.Equal(0, actualCount);
@@ -176,9 +173,9 @@ namespace Kabomu.Tests.ProtocolImpl
         public async Task TestZeroByteRead2()
         {
             // 1. test with async.
-            var stream = new MemoryStream(new byte[] { 0, 1, 2, 3 });
+            var stream = new MemoryStream(new byte[] { 0, 1, 2, 3, 4, 5 });
             var reader = new RandomizedReadInputStream(stream);
-            var instance = TlvUtils.CreateMaxLengthEnforcingStream(reader, 10);
+            var instance = TlvUtils.CreateContentLengthEnforcingStream(reader, 4);
 
             await Assert.ThrowsAsync<NotSupportedException>(() =>
                 instance.ReadAsync(new byte[0], 0, 0));
@@ -195,9 +192,9 @@ namespace Kabomu.Tests.ProtocolImpl
             Assert.Equal(0, actualCount);
 
             // 2. test with sync.
-            stream = new MemoryStream(new byte[] { 0, 1, 2, 3 });
+            stream = new MemoryStream(new byte[] { 0, 1, 2, 3, 4, 5 });
             reader = new RandomizedReadInputStream(stream);
-            instance = TlvUtils.CreateMaxLengthEnforcingStream(reader, 10);
+            instance = TlvUtils.CreateContentLengthEnforcingStream(reader, 4);
 
             Assert.Throws<NotSupportedException>(() =>
                 instance.Read(new byte[0], 0, 0));

@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu.ProtocolImpl
+namespace Kabomu.Tlv
 {
     /// <summary>
     /// The standard decoder of quasi http bodies of unknown

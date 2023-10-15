@@ -1,6 +1,5 @@
 ﻿using Kabomu.Abstractions;
 using Kabomu.Exceptions;
-using Kabomu.ProtocolImpl;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -11,133 +10,10 @@ using System.Threading.Tasks;
 using System.Xml.Linq;
 using Xunit;
 
-namespace Kabomu.Tests.ProtocolImpl
+namespace Kabomu.Tests
 {
     public class ProtocolUtilsInternalTest
     {
-        [Theory]
-        [MemberData(nameof(CreateTestGetEnvVarAsBooleanData))]
-        public void TestGetEnvVarAsBoolean(IDictionary<string, object> environment,
-            string key, bool? expected)
-        {
-            var actual = ProtocolUtilsInternal.GetEnvVarAsBoolean(environment,
-                key);
-            Assert.Equal(expected, actual);
-        }
-
-        public static List<object[]> CreateTestGetEnvVarAsBooleanData()
-        {
-            var testData = new List<object[]>();
-
-            var environment = new Dictionary<string, object>
-            {
-                { "d", "de" },
-                { "2", false }
-            };
-            string key = "2";
-            testData.Add(new object[] { environment, key, false });
-
-            environment = null;
-            key = "k1";
-            testData.Add(new object[] { environment, key, null });
-
-            environment = new Dictionary<string, object>
-            {
-                { "d2", "TRUE" }, { "e", "ghana" }
-            };
-            key = "f";
-            testData.Add(new object[] { environment, key, null });
-
-            environment = new Dictionary<string, object>
-            {
-                { "ty2", "TRUE" }, { "c", new object() }
-            };
-            key = "ty2";
-            testData.Add(new object[] { environment, key, true });
-
-            environment = new Dictionary<string, object>
-            {
-                { "d2", true }, { "e", "ghana" }
-            };
-            key = "d2";
-            testData.Add(new object[] { environment, key, true });
-
-            environment = new Dictionary<string, object>
-            {
-                { "d", "TRue" }, { "e", "ghana" }
-            };
-            key = "d";
-            testData.Add(new object[] { environment, key, true });
-
-            environment = new Dictionary<string, object>
-            {
-                { "d", "FALSE" }, { "e", "ghana" }
-            };
-            key = "d";
-            testData.Add(new object[] { environment, key, false });
-
-            environment = new Dictionary<string, object>
-            {
-                { "d", "45" }, { "e", "ghana" }, { "ert", "False" }
-            };
-            key = "ert";
-            testData.Add(new object[] { environment, key, false });
-
-            return testData;
-        }
-
-        [Theory]
-        [MemberData(nameof(CreateTestGetEnvVarAsBooleanForErrorsData))]
-        public void TestGetEnvVarAsBooleanForErrors(IDictionary<string, object> environment,
-            string key)
-        {
-            Assert.ThrowsAny<Exception>(() =>
-                ProtocolUtilsInternal.GetEnvVarAsBoolean(environment, key));
-        }
-
-        public static List<object[]> CreateTestGetEnvVarAsBooleanForErrorsData()
-        {
-            var testData = new List<object[]>();
-
-            var environment = new Dictionary<string, object>
-            {
-                { "d", "de" },
-                { "2", false }
-            };
-            string key = "d";
-            testData.Add(new object[] { environment, key });
-
-            environment = new Dictionary<string, object>
-            {
-                { "c", "" }
-            };
-            key = "c";
-            testData.Add(new object[] { environment, key });
-
-            environment = new Dictionary<string, object>
-            {
-                { "d2", "TRUE" }, { "e", new List<string>() }
-            };
-            key = "e";
-            testData.Add(new object[] { environment, key });
-
-            environment = new Dictionary<string, object>
-            {
-                { "k1", 1 }
-            };
-            key = "k1";
-            testData.Add(new object[] { environment, key });
-
-            environment = new Dictionary<string, object>
-            {
-                { "k1", 0 }
-            };
-            key = "k1";
-            testData.Add(new object[] { environment, key });
-
-            return testData;
-        }
-
         [Fact]
         public async Task TestWrapTimeoutTask1()
         {

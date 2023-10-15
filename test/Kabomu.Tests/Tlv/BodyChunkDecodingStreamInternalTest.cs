@@ -1,5 +1,5 @@
 ﻿using Kabomu.Exceptions;
-using Kabomu.ProtocolImpl;
+using Kabomu.Tlv;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -10,7 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.ProtocolImpl
+namespace Kabomu.Tests.Tlv
 {
     public class BodyChunkDecodingStreamInternalTest
     {

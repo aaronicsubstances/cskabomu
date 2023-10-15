@@ -1,4 +1,4 @@
-﻿using Kabomu.ProtocolImpl;
+﻿using Kabomu.Tlv;
 using Kabomu.Tests.Shared;
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Kabomu.Tests.ProtocolImpl
+namespace Kabomu.Tests.Tlv
 {
     public class TlvUtilsTest
     {
@@ -53,22 +53,12 @@ namespace Kabomu.Tests.ProtocolImpl
         }
 
         [Fact]
-        public void TestEncodeTagForErrors1()
+        public void TestEncodeTagForErrors()
         {
             Assert.Throws<ArgumentException>(() =>
                 TlvUtils.EncodeTag(10, new byte[4], 1));
-        }
-
-        [Fact]
-        public void TestEncodeTagForErrors2()
-        {
             Assert.Throws<ArgumentException>(() =>
                 TlvUtils.EncodeTag(-1, new byte[5], 1));
-        }
-
-        [Fact]
-        public void TestEncodeTagForErrors3()
-        {
             Assert.Throws<ArgumentException>(() =>
                 TlvUtils.EncodeTag(0, new byte[4], 0));
         }
@@ -115,15 +105,10 @@ namespace Kabomu.Tests.ProtocolImpl
         }
 
         [Fact]
-        public void TestEncodeLengthForErrors1()
+        public void TestEncodeLengthForErrors()
         {
             Assert.Throws<ArgumentException>(() =>
                 TlvUtils.EncodeLength(10, new byte[3], 0));
-        }
-
-        [Fact]
-        public void TestEncodeLengthForErrors2()
-        {
             Assert.Throws<ArgumentException>(() =>
                 TlvUtils.EncodeLength(-1, new byte[5], 1));
         }
@@ -163,22 +148,12 @@ namespace Kabomu.Tests.ProtocolImpl
         }
 
         [Fact]
-        public void TestDecodeTagForErrors1()
-        {
-            Assert.ThrowsAny<Exception>(() =>
-                TlvUtils.DecodeTag(new byte[] { 1, 1, 1 }, 0));
-        }
-
-        [Fact]
-        public void TestDecodeTagForErrors2()
+        public void TestDecodeTagForErrors()
         {
             Assert.Throws<ArgumentException>(() =>
+                TlvUtils.DecodeTag(new byte[] { 1, 1, 1 }, 0));
+            Assert.Throws<ArgumentException>(() =>
                 TlvUtils.DecodeTag(new byte[4], 0));
-        }
-
-        [Fact]
-        public void TestDecodeTagForErrors3()
-        {
             Assert.Throws<ArgumentException>(() =>
                 TlvUtils.DecodeTag(new byte[] { 5, 1, 200, 3, 0, 3 }, 2));
         }
@@ -223,15 +198,10 @@ namespace Kabomu.Tests.ProtocolImpl
         }
 
         [Fact]
-        public void TestDecodeLengthForErrors1()
+        public void TestDecodeLengthForErrors()
         {
             Assert.ThrowsAny<Exception>(() =>
                 TlvUtils.DecodeLength(new byte[] { 1, 1, 1 }, 0));
-        }
-
-        [Fact]
-        public void TestDecodeLengthForErrors2()
-        {
             Assert.Throws<ArgumentException>(() =>
                 TlvUtils.DecodeLength(new byte[] { 5, 1, 200, 3, 0, 3 }, 2));
         }
@@ -344,8 +314,7 @@ namespace Kabomu.Tests.ProtocolImpl
         public async Task TestBodyChunkCodecStreams(string expected, int tagToUse)
         {
             // 1. arrange
-            Stream srcStream = new RandomizedReadInputStream(
-                MiscUtilsInternal.StringToBytes(expected));
+            Stream srcStream = new RandomizedReadInputStream(expected);
             var destStream = new MemoryStream();
             var encodingStream = TlvUtils.CreateTlvEncodingWritableStream(
                 destStream, tagToUse);

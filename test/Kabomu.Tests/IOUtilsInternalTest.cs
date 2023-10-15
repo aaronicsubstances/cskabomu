@@ -25,7 +25,7 @@ namespace Kabomu.Tests
             await IOUtilsInternal.ReadBytesFully(reader, readBuffer, 0, 3);
 
             // assert
-            ComparisonUtils.CompareData(new byte[] { 0, 1, 2 }, 0, 3,
+            ComparisonUtils.CompareData(new byte[] { 0, 1, 2 }, 0,
                 readBuffer, 0, 3);
 
             // assert that zero length reading doesn't cause problems.
@@ -35,14 +35,14 @@ namespace Kabomu.Tests
             await IOUtilsInternal.ReadBytesFully(reader, readBuffer, 1, 3);
 
             // assert
-            ComparisonUtils.CompareData(new byte[] { 3, 4, 5 }, 0, 3,
+            ComparisonUtils.CompareData(new byte[] { 3, 4, 5 }, 0,
                 readBuffer, 1, 3);
 
             // act again
             await IOUtilsInternal.ReadBytesFully(reader, readBuffer, 3, 2);
 
             // assert
-            ComparisonUtils.CompareData(new byte[] { 6, 7 }, 0, 2,
+            ComparisonUtils.CompareData(new byte[] { 6, 7 }, 0,
                 readBuffer, 3, 2);
 
             // test zero byte reads.
@@ -63,7 +63,7 @@ namespace Kabomu.Tests
 
             // assert
             ComparisonUtils.CompareData(
-                new byte[] { 0, 1, 2, 3, 4 }, 0, readBuffer.Length,
+                new byte[] { 0, 1, 2, 3, 4 }, 0,
                 readBuffer, 0, readBuffer.Length);
 
             // act and assert unexpected end of read
@@ -85,7 +85,7 @@ namespace Kabomu.Tests
             IOUtilsInternal.ReadBytesFullySync(reader, readBuffer, 0, 3);
 
             // assert
-            ComparisonUtils.CompareData(new byte[] { 0, 1, 2 }, 0, 3,
+            ComparisonUtils.CompareData(new byte[] { 0, 1, 2 }, 0,
                 readBuffer, 0, 3);
 
             // assert that zero length reading doesn't cause problems.
@@ -95,14 +95,14 @@ namespace Kabomu.Tests
             IOUtilsInternal.ReadBytesFullySync(reader, readBuffer, 1, 3);
 
             // assert
-            ComparisonUtils.CompareData(new byte[] { 3, 4, 5 }, 0, 3,
+            ComparisonUtils.CompareData(new byte[] { 3, 4, 5 }, 0,
                 readBuffer, 1, 3);
 
             // act again
             IOUtilsInternal.ReadBytesFullySync(reader, readBuffer, 3, 2);
 
             // assert
-            ComparisonUtils.CompareData(new byte[] { 6, 7 }, 0, 2,
+            ComparisonUtils.CompareData(new byte[] { 6, 7 }, 0,
                 readBuffer, 3, 2);
 
             // test zero byte reads.
@@ -123,7 +123,7 @@ namespace Kabomu.Tests
 
             // assert
             ComparisonUtils.CompareData(
-                new byte[] { 0, 1, 2, 3, 4 }, 0, readBuffer.Length,
+                new byte[] { 0, 1, 2, 3, 4 }, 0,
                 readBuffer, 0, readBuffer.Length);
 
             // act and assert unexpected end of read

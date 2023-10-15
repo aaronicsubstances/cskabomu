@@ -122,16 +122,14 @@ namespace Kabomu.Tests.Shared
             }
         }
 
-        public static void CompareData(byte[] expectedData, int expectedDataOffset, int expectedDataLength,
-            byte[] actualData, int actualDataOffset, int actualDataLength)
+        public static void CompareData(byte[] expectedData, int expectedDataOffset,
+            byte[] actualData, int actualDataOffset, int length)
         {
-            Assert.Equal(expectedDataLength, actualDataLength);
-            for (int i = 0; i < expectedDataLength; i++)
-            {
-                var expectedByte = expectedData[expectedDataOffset + i];
-                var actualByte = actualData[actualDataOffset + i];
-                Assert.Equal(expectedByte, actualByte);
-            }
+            byte[] temp1 = new byte[length];
+            Array.Copy(expectedData, expectedDataOffset, temp1, 0, length);
+            byte[] temp2 = new byte[length];
+            Array.Copy(actualData, actualDataOffset, temp2, 0, length);
+            Assert.Equal(temp1, temp2);
         }
 
         public static void CompareProcessingOptions(

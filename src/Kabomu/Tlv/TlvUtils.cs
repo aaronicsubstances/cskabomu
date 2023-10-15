@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace Kabomu.ProtocolImpl
+namespace Kabomu.Tlv
 {
     /// <summary>
     /// Provides functions for writing and reading of data in byte chunks
@@ -35,9 +35,13 @@ namespace Kabomu.ProtocolImpl
         /// <param name="data">destination buffer</param>
         /// <param name="offset">starting position in destination buffer</param>
         /// <exception cref="ArgumentException">The <paramref name="tag"/>
-        /// argument is not positive.</exception>
+        /// argument is not positive, or the byte bufer slice is invalid.</exception>
         public static void EncodeTag(int tag, byte[] data, int offset)
         {
+            if (!MiscUtilsInternal.IsValidByteBufferSlice(data, offset, 4))
+            {
+                throw new ArgumentException("invalid buffer slice");
+            }
             if (tag <= 0)
             {
                 throw new ArgumentException("invalid tag: " + tag);
@@ -53,9 +57,13 @@ namespace Kabomu.ProtocolImpl
         /// <param name="data">destination buffer</param>
         /// <param name="offset">starting position in destination buffer</param>
         /// <exception cref="ArgumentException">The <paramref name="length"/>
-        /// argument is negative.</exception>
+        /// argument is negative, or the byte bufer slice is invalid.</exception>
         public static void EncodeLength(int length, byte[] data, int offset)
         {
+            if (!MiscUtilsInternal.IsValidByteBufferSlice(data, offset, 4))
+            {
+                throw new ArgumentException("invalid buffer slice");
+            }
             if (length < 0)
             {
                 throw new ArgumentException("invalid tag value length: " +
@@ -71,10 +79,14 @@ namespace Kabomu.ProtocolImpl
         /// <param name="data">source buffer</param>
         /// <param name="offset">starting position in source buffer</param>
         /// <returns>decoded positive number</returns>
-        /// <exception cref="ArgumentException">The decoded tag is
-        /// not positive.</exception>
+        /// <exception cref="ArgumentException">The byte bufer slice is invalid,
+        /// or the decoded tag is not positive.</exception>
         public static int DecodeTag(byte[] data, int offset)
         {
+            if (!MiscUtilsInternal.IsValidByteBufferSlice(data, offset, 4))
+            {
+                throw new ArgumentException("invalid buffer slice");
+            }
             int tag = MiscUtilsInternal.DeserializeInt32BE(
                 data, offset);
             if (tag <= 0)
@@ -91,10 +103,14 @@ namespace Kabomu.ProtocolImpl
         /// <param name="data">source buffer</param>
         /// <param name="offset">starting position in source buffer</param>
         /// <returns>decoded length</returns>
-        /// <exception cref="ArgumentException">The decoded length is
-        /// negative.</exception>
+        /// <exception cref="ArgumentException">The byte bufer slice is invalid,
+        /// or the decoded length is negative.</exception>
         public static int DecodeLength(byte[] data, int offset)
         {
+            if (!MiscUtilsInternal.IsValidByteBufferSlice(data, offset, 4))
+            {
+                throw new ArgumentException("invalid buffer slice");
+            }
             int decodedLength = MiscUtilsInternal.DeserializeInt32BE(
                 data, offset);
             if (decodedLength < 0)

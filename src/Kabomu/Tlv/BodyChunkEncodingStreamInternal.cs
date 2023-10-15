@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu.ProtocolImpl
+namespace Kabomu.Tlv
 {
     /// <summary>
     /// The standard encoder of http bodies of unknown

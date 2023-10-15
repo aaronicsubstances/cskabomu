@@ -1,5 +1,6 @@
 ﻿using Kabomu.Abstractions;
 using Kabomu.Exceptions;
+using Kabomu.Tlv;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,28 +9,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Kabomu.ProtocolImpl
+namespace Kabomu
 {
     internal static class ProtocolUtilsInternal
     {
-        public static bool? GetEnvVarAsBoolean(IDictionary<string, object> environment,
-            string key)
-        {
-            if (environment != null && environment.ContainsKey(key))
-            {
-                var value = environment[key];
-                if (value is bool b)
-                {
-                    return b;
-                }
-                else if (value != null)
-                {
-                    return bool.Parse((string)value);
-                }
-            }
-            return null;
-        }
-
         public static async Task WrapTimeoutTask(Task<bool> timeoutTask,
             bool forClient)
         {

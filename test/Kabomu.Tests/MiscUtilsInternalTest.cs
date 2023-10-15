@@ -171,7 +171,6 @@ namespace Kabomu.Tests
                 new object[] { new byte[0], 0, 1, false },
                 new object[]{ new byte[1], 0, 1, true },
                 new object[]{ new byte[1], -1, 0, false },
-                new object[]{ new byte[1], -1, 0, false },
                 new object[]{ new byte[1], 1, 1, false },
                 new object[]{ new byte[2], 1, 1, true },
                 new object[]{ new byte[2], 0, 2, true },

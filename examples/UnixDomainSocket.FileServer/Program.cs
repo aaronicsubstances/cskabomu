@@ -2,7 +2,7 @@
 using Kabomu;
 using Kabomu.Abstractions;
 using Kabomu.Examples.Shared;
-using Kabomu.ProtocolImpl;
+using Kabomu.Tlv;
 using NLog;
 using System;
 using System.IO;

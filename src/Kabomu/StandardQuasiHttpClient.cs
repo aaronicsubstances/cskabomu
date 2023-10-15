@@ -1,6 +1,5 @@
 ﻿using Kabomu.Abstractions;
 using Kabomu.Exceptions;
-using Kabomu.ProtocolImpl;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;

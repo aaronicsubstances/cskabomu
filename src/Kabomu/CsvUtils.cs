@@ -10,7 +10,7 @@ namespace Kabomu
     /// Provides CSV parsing functions for the Kabomu library.
     /// </summary>
     /// <remarks>
-    /// The variant of CSV supported resembles that of Microsoft Exccel, in which
+    /// The variant of CSV supported resembles that of Microsoft Excel, in which
     /// <list type="bullet">
     /// <item>the character for separating columns is the comma</item>
     /// <item>the character for escaping commas and newlines is the double quote.</item>
@@ -252,7 +252,7 @@ namespace Kabomu
 
         private static Exception CreateCsvParseError(int row, int column, string errorMessage)
         {
-            throw new ArgumentException(string.Format("CSV parse error at row {0} column {1}: {2}",
+            return new ArgumentException(string.Format("CSV parse error at row {0} column {1}: {2}",
                 row + 1, column + 1, errorMessage ?? ""));
         }
 
