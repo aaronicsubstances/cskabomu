@@ -365,7 +365,7 @@ namespace Kabomu.Tests
         {
             byte[] actual = ProtocolUtilsInternal.EncodeQuasiHttpHeaders(
                 isResponse, reqOrStatusLine, remainingHeaders);
-            Assert.Equal(Encoding.UTF8.GetBytes(expected), actual);
+            Assert.Equal(expected, Encoding.UTF8.GetString(actual));
         }
 
         public static List<object[]> CreateTestEncodeQuasiHttpHeadersData()
@@ -656,9 +656,9 @@ namespace Kabomu.Tests
                 length, expectedErrorMessage });
 
             isResponse = false;
-            data = Encoding.UTF8.GetBytes("");
+            data = new byte[0];
             offset = 0;
-            length = data.Length;
+            length = 0;
             expectedErrorMessage = "invalid quasi http headers";
             testData.Add(new object[] { isResponse, data, offset,
                 length, expectedErrorMessage });

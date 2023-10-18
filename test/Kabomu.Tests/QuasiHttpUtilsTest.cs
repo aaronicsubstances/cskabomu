@@ -48,9 +48,44 @@ namespace Kabomu.Tests
             Assert.Null(actual);
         }
 
-
         [Fact]
         public void TestMergeProcessingOptions2()
+        {
+            var preferred = new DefaultQuasiHttpProcessingOptions();
+            IQuasiHttpProcessingOptions fallback = null;
+            var actual = QuasiHttpUtils.MergeProcessingOptions(
+                preferred, fallback);
+            Assert.Same(actual, preferred);
+        }
+
+        [Fact]
+        public void TestMergeProcessingOptions3()
+        {
+            IQuasiHttpProcessingOptions preferred = null;
+            var fallback = new DefaultQuasiHttpProcessingOptions();
+            var actual = QuasiHttpUtils.MergeProcessingOptions(
+                preferred, fallback);
+            Assert.Same(actual, fallback);
+        }
+
+
+        [Fact]
+        public void TestMergeProcessingOptions4()
+        {
+            var preferred = new DefaultQuasiHttpProcessingOptions();
+            var fallback = new DefaultQuasiHttpProcessingOptions();
+            var actual = QuasiHttpUtils.MergeProcessingOptions(
+                preferred, fallback);
+            var expected = new DefaultQuasiHttpProcessingOptions
+            {
+                ExtraConnectivityParams = new Dictionary<string, object>()
+            };
+            ComparisonUtils.CompareProcessingOptions(expected, actual);
+        }
+
+
+        [Fact]
+        public void TestMergeProcessingOptions5()
         {
             var preferred = new DefaultQuasiHttpProcessingOptions
             {
@@ -308,93 +343,6 @@ namespace Kabomu.Tests
                 { "a", 2 }, { "d", 3 }
             };
             testData.Add(new object[] { preferred, fallback, expected });
-
-            return testData;
-        }
-
-        [Theory]
-        [MemberData(nameof(CreateTestDetermineEffectiveBooleanOptionData))]
-        public void TestDetermineEffectiveBooleanOption(bool? preferred,
-            bool? fallback1, bool defaultValue, bool expected)
-        {
-            var actual = QuasiHttpUtils.DetermineEffectiveBooleanOption(
-                preferred, fallback1, defaultValue);
-            Assert.Equal(expected, actual);
-        }
-
-        public static List<object[]> CreateTestDetermineEffectiveBooleanOptionData()
-        {
-            var testData = new List<object[]>();
-
-            bool? preferred = true;
-            bool? fallback1 = null;
-            bool defaultValue = true;
-            bool expected = true;
-            testData.Add(new object[] { preferred, fallback1, defaultValue,
-                expected });
-
-            preferred = false;
-            fallback1 = true;
-            defaultValue = true;
-            expected = false;
-            testData.Add(new object[] { preferred, fallback1, defaultValue,
-                expected });
-
-            preferred = null;
-            fallback1 = false;
-            defaultValue = true;
-            expected = false;
-            testData.Add(new object[] { preferred, fallback1, defaultValue,
-                expected });
-
-            preferred = null;
-            fallback1 = true;
-            defaultValue = false;
-            expected = true;
-            testData.Add(new object[] { preferred, fallback1, defaultValue,
-                expected });
-
-            preferred = null;
-            fallback1 = true;
-            defaultValue = true;
-            expected = true;
-            testData.Add(new object[] { preferred, fallback1, defaultValue,
-                expected });
-
-            preferred = null;
-            fallback1 = null;
-            defaultValue = true;
-            expected = true;
-            testData.Add(new object[] { preferred, fallback1, defaultValue,
-                expected });
-
-            preferred = null;
-            fallback1 = null;
-            defaultValue = false;
-            expected = false;
-            testData.Add(new object[] { preferred, fallback1, defaultValue,
-                expected });
-
-            preferred = true;
-            fallback1 = true;
-            defaultValue = false;
-            expected = true;
-            testData.Add(new object[] { preferred, fallback1, defaultValue,
-                expected });
-
-            preferred = true;
-            fallback1 = true;
-            defaultValue = true;
-            expected = true;
-            testData.Add(new object[] { preferred, fallback1, defaultValue,
-                expected });
-
-            preferred = false;
-            fallback1 = false;
-            defaultValue = false;
-            expected = false;
-            testData.Add(new object[] { preferred, fallback1, defaultValue,
-                expected });
 
             return testData;
         }

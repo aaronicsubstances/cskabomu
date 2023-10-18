@@ -43,8 +43,12 @@ namespace Kabomu
         /// <summary>
         /// Used to process incoming connections from quasi http server transports.
         /// </summary>
-        /// <param name="connection">represents a connection and any associated information</param>
+        /// <param name="connection">represents a quasi http connection</param>
         /// <returns>a task representing asynchronous operation</returns>
+        /// <exception cref="ArgumentNullException">The <paramref name="connection"/> argument is null</exception>
+        /// <exception cref="MissingDependencyException">The <see cref="Transport"/>
+        /// property or <see cref="Application"/> property is null.</exception>
+        /// <exception cref="QuasiHttpException">An error occured with request processing</exception>
         public async Task AcceptConnection(IQuasiHttpConnection connection)
         {
             if (connection == null)
@@ -106,7 +110,7 @@ namespace Kabomu
             }
         }
 
-        internal static async Task<IQuasiHttpResponse> ProcessAccept(
+        private static async Task<IQuasiHttpResponse> ProcessAccept(
             QuasiHttpApplication application,
             IQuasiHttpServerTransport transport,
             IQuasiHttpConnection connection)
@@ -146,7 +150,7 @@ namespace Kabomu
             return null;
         }
 
-        internal static async Task Abort(IQuasiHttpServerTransport transport,
+        private static async Task Abort(IQuasiHttpServerTransport transport,
             IQuasiHttpConnection connection, bool errorOccured)
         {
             if (errorOccured)

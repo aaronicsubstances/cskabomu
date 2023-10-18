@@ -207,7 +207,7 @@ namespace Kabomu.Tests.Tlv
         }
 
         /// <summary>
-        /// NB: Test method only tests with one and zero,
+        /// NB: Test method only tests with one and zero bytes,
         /// so as to guarantee that data will not be split,
         /// even when test is ported to other languages.
         /// </summary>
@@ -221,7 +221,7 @@ namespace Kabomu.Tests.Tlv
             {
                 0, 0, 0, 16,
                 0, 0, 0, 1,
-                45,
+                srcByte,
                 0, 0, 0, 16,
                 0, 0, 0, 0
             };

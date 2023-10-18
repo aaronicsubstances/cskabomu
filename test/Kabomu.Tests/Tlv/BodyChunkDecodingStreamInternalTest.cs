@@ -188,7 +188,7 @@ namespace Kabomu.Tests.Tlv
             // act
             var actualEx = await Assert.ThrowsAsync<KabomuIOException>(async () =>
             {
-                await ComparisonUtils.ReadToString(instance);
+                await ComparisonUtils.ReadToBytes(instance);
             });
 
             // assert

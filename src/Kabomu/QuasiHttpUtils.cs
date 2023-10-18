@@ -262,16 +262,6 @@ namespace Kabomu
             return dest;
         }
 
-        internal static bool DetermineEffectiveBooleanOption(
-            bool? preferred, bool? fallback1, bool defaultValue)
-        {
-            if (preferred != null)
-            {
-                return preferred.Value;
-            }
-            return fallback1 ?? defaultValue;
-        }
-
         /// <summary>
         /// Creates an object representing both a pending timeout and the
         /// function to cancel the timeout.

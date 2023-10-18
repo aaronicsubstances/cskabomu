@@ -55,7 +55,7 @@ namespace Kabomu.Tests
         public async Task TestReadBytesFullyForErrors()
         {
             // arrange
-            var reader = new RandomizedReadInputStream(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
+            var reader = new MemoryStream(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
             var readBuffer = new byte[5];
 
             // act
@@ -115,7 +115,7 @@ namespace Kabomu.Tests
         public void TestReadBytesFullySyncForErrors()
         {
             // arrange
-            var reader = new RandomizedReadInputStream(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
+            var reader = new MemoryStream(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
             var readBuffer = new byte[5];
 
             // act

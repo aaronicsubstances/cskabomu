@@ -70,6 +70,7 @@ namespace Kabomu
         /// <exception cref="ArgumentNullException">The <paramref name="requestFunc"/> argument is null</exception>
         /// <exception cref="MissingDependencyException">The <see cref="Transport"/>
         /// property is null.</exception>
+        /// <exception cref="QuasiHttpException">An error occured with request processing</exception>
         public async Task<IQuasiHttpResponse> Send2(object remoteEndpoint,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpProcessingOptions options = null)
@@ -98,14 +99,15 @@ namespace Kabomu
                 throw new MissingDependencyException("client transport");
             }
 
-            var connection = await transport.AllocateConnection(
-                remoteEndpoint, sendOptions);
-            if (connection == null)
-            {
-                throw new QuasiHttpException("no connection");
-            }
+            IQuasiHttpConnection connection = null;
             try
             {
+                connection = await transport.AllocateConnection(
+                    remoteEndpoint, sendOptions);
+                if (connection == null)
+                {
+                    throw new QuasiHttpException("no connection");
+                }
                 IQuasiHttpResponse response;
                 var timeoutScheduler = connection.TimeoutScheduler;
                 if (timeoutScheduler != null)
@@ -133,7 +135,10 @@ namespace Kabomu
             }
             catch (Exception e)
             {
-                await Abort(transport, connection, true, null);
+                if (connection != null)
+                {
+                    await Abort(transport, connection, true, null);
+                }
                 if (e is QuasiHttpException)
                 {
                     throw;
@@ -146,7 +151,7 @@ namespace Kabomu
             }
         }
 
-        internal static async Task<IQuasiHttpResponse> ProcessSend(
+        private static async Task<IQuasiHttpResponse> ProcessSend(
             IQuasiHttpRequest request,
             Func<IDictionary<string, object>, Task<IQuasiHttpRequest>> requestFunc,
             IQuasiHttpClientTransport transport,
@@ -190,18 +195,15 @@ namespace Kabomu
             {
                 response = (IQuasiHttpResponse)await ProtocolUtilsInternal.ReadEntityFromTransport(
                     true, transport.GetReadableStream(connection), connection);
-                if (response.Body != null)
+                response.Disposer = () =>
                 {
-                    response.Disposer = () =>
-                    {
-                        return transport.ReleaseConnection(connection, null);
-                    };
-                }
+                    return transport.ReleaseConnection(connection, null);
+                };
             }
             return response;
         }
 
-        internal async static Task Abort(IQuasiHttpClientTransport transport,
+        private async static Task Abort(IQuasiHttpClientTransport transport,
             IQuasiHttpConnection connection,
             bool errorOccured, IQuasiHttpResponse response)
         {
