@@ -36,9 +36,9 @@ namespace Kabomu.Tests.Shared
             IQuasiHttpRequest expected, IQuasiHttpRequest actual,
             byte[] expectedReqBodyBytes)
         {
-            if (expected == null)
+            if (expected == null || actual == null)
             {
-                Assert.Null(actual);
+                Assert.Same(expected, actual);
                 return;
             }
             Assert.Equal(expected.HttpMethod, actual.HttpMethod);
@@ -54,9 +54,9 @@ namespace Kabomu.Tests.Shared
             IQuasiHttpResponse expected, IQuasiHttpResponse actual,
             byte[] expectedResBodyBytes)
         {
-            if (expected == null)
+            if (expected == null || actual == null)
             {
-                Assert.Null(actual);
+                Assert.Same(expected, actual);
                 return;
             }
             Assert.NotNull(actual);
@@ -87,39 +87,28 @@ namespace Kabomu.Tests.Shared
         public static void CompareHeaders(IDictionary<string, IList<string>> expected,
             IDictionary<string, IList<string>> actual)
         {
-            var expectedKeys = new List<string>();
-            if (expected != null)
+            if (expected == null || actual == null)
             {
-                foreach (var key in expected.Keys)
-                {
-                    var value = expected[key];
-                    if (value != null && value.Count > 0)
-                    {
-                        expectedKeys.Add(key);
-                    }
-                }
+                Assert.Same(expected, actual);
+                return;
             }
-            expectedKeys.Sort();
-            var actualKeys = new List<string>();
-            if (actual != null)
+            var expectedExtraction = new List<IList<string>>();
+            foreach (var entry in expected)
             {
-                foreach (var key in actual.Keys)
-                {
-                    var value = actual[key];
-                    if (value != null && value.Count > 0)
-                    {
-                        actualKeys.Add(key);
-                    }
-                }
+                var row = new List<string>();
+                row.Add(entry.Key);
+                row.AddRange(entry.Value);
+                expectedExtraction.Add(row);
             }
-            actualKeys.Sort();
-            Assert.Equal(expectedKeys, actualKeys);
-            foreach (var key in expectedKeys)
+            var actualExtraction = new List<IList<string>>();
+            foreach (var entry in actual)
             {
-                var expectedValue = expected[key];
-                var actualValue = actual[key];
-                Assert.Equal(expectedValue, actualValue);
+                var row = new List<string>();
+                row.Add(entry.Key);
+                row.AddRange(entry.Value);
+                actualExtraction.Add(row);
             }
+            Assert.Equal(expectedExtraction, actualExtraction);
         }
 
         public static void CompareData(byte[] expectedData, int expectedDataOffset,
