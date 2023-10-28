@@ -5,5 +5,5 @@
 - precursor to networked memory database like redis, to host serializable global variables (e.g. SQLite in-memory mode managed by one process, for the rest of the processes in a process group)
 - precursor to log-based message broker like kafka, to support deferred request processing (e.g. Hangfire, Resque, custom message broker based on custom SetIntervalWorker class)
 - ability to declare configuration and environment variables from multiple configuration files and sources, in order to support situation where quasi http network is in memory
-- for windows named pipes, deal with the fact that multiple servers can bind to same path, and so it is possible for a client to send data to an unintended server.
+- for windows named pipes, deal with the fact that multiple servers can bind to same path, and so it is possible for a client to send data to an unintended server (usually by using a UUID-based path).
 - for unix domain sockets, deal with issue of path having to exist as a file system entry prior to binding (usually by deleting first before recreating file and binding to it).
