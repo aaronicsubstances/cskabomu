@@ -1,3 +1,5 @@
+**NB: This project has been archived but is kept here as an example of proof of concept for Quasi HTTP. A better way to achieve Quasi HTTP is to use reverse proxies like Nginx which can listen on Unix Domain Sockets.  **
+
 # Kabomu - C#.NET version
 
 Kabomu is a networking library that extends the semantics of HTTP to localhost via IPC mechanisms. It enables building applications running on unix domain sockets and
