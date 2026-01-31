@@ -1,4 +1,4 @@
-**NB: This project has been archived but is kept here as an example of proof of concept for Quasi HTTP. A better way to achieve Quasi HTTP is to use reverse proxies like Nginx which can listen on Unix Domain Sockets.  **
+**NB: This project has been archived but is kept here as an example of proof of concept for Quasi HTTP. A better way to achieve Quasi HTTP is to use reverse proxies like Nginx which can listen on Unix Domain Sockets.**
 
 # Kabomu - C#.NET version
 
